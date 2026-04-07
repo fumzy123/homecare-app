@@ -22,8 +22,10 @@ class AuthService:
 
             user = auth_response.user
 
-            # 2. Create the organization record
+            import uuid
+            # 2. Create the organization record (we generate the UUID manually because we bypass SQLAlchemy)
             org_response = supabase.table("organizations").insert({
+                "id": str(uuid.uuid4()),
                 "name": payload.organization_name,
                 "owner_id": user.id
             }).execute()
