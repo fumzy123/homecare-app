@@ -1,6 +1,8 @@
 from fastapi import HTTPException
 from app.db.supabase import get_supabase_client
 from app.schemas.auth import RegisterOrganizationSchema, InviteUserSchema, SignInSchema
+import uuid
+
 
 class AuthService:
 
@@ -22,7 +24,6 @@ class AuthService:
 
             user = auth_response.user
 
-            import uuid
             # 2. Create the organization record (we generate the UUID manually because we bypass SQLAlchemy)
             org_response = supabase.table("organizations").insert({
                 "id": str(uuid.uuid4()),
@@ -117,10 +118,10 @@ class AuthService:
 
 
     @staticmethod
-    async def sign_out(current_user):
+    async def sign_out(token: str):
         supabase = get_supabase_client()
         try:
-            supabase.auth.sign_out()
+            supabase.auth.admin.sign_out(token)
             return {"message": "Signed out successfully"}
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
