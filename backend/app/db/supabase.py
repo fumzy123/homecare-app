@@ -12,6 +12,6 @@ def get_supabase_client() -> Client:
     if _client is None:
         _client = create_client(
             settings.supabase_url,
-            settings.supabase_key  # Service Role Key — backend only
+            settings.supabase_key  # Secret Key — backend only
         )
     return _client
