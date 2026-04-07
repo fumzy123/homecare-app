@@ -5,7 +5,7 @@ from app.schemas.auth import (
     SignInSchema,
 )
 from app.services.auth_service import AuthService
-from app.core.security import get_current_user
+from app.core.security import get_current_user, security
 
 router = APIRouter()
 
@@ -47,5 +47,5 @@ async def sign_in(payload: SignInSchema):
 # Needs token to know who is signing out
 # ─────────────────────────────────────────
 @router.post("/sign-out")
-async def sign_out(current_user=Depends(get_current_user)):
-    return await AuthService.sign_out(current_user)
+async def sign_out(token=Depends(security)):
+    return await AuthService.sign_out(token.credentials)
