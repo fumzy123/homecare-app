@@ -42,7 +42,7 @@ class AuthService:
                 "first_name": payload.first_name,
                 "last_name": payload.last_name,
                 "email": payload.email,
-                "role": "owner",
+                "role": OrgMemberRole.owner,
                 "org_id": organization["id"]
             }).execute()
 
