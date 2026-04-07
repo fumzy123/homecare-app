@@ -90,7 +90,7 @@ class AuthService:
                 "first_name": payload.first_name,
                 "last_name": payload.last_name,
                 "email": payload.email,
-                "role": payload.role,
+                "role": payload.role.value,
                 "org_id": org_id
             }).execute()
 

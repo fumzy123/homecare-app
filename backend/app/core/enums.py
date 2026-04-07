@@ -2,5 +2,5 @@ import enum
 
 class OrgMemberRole(str, enum.Enum):
     owner = "owner"
-    admin = "agency_admin"
-    worker = "home_support_worker"
+    agency_admin = "agency_admin"
+    home_support_worker = "home_support_worker"
