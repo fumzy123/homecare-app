@@ -69,7 +69,8 @@ class AuthService:
 
             org_id = admin_record.data["org_id"]
 
-            supabase.auth.admin.invite_user_by_email(
+            # 1. Create the user in Supabase Auth and send the invite email
+            invite_response = supabase.auth.admin.invite_user_by_email(
                 payload.email,
                 options={
                     "data": {
@@ -80,6 +81,18 @@ class AuthService:
                     }
                 }
             )
+
+            invited_user = invite_response.user
+
+            # 2. Create the org_members record linking this user to the organization
+            supabase.table("org_members").insert({
+                "id": invited_user.id,
+                "first_name": payload.first_name,
+                "last_name": payload.last_name,
+                "email": payload.email,
+                "role": payload.role,
+                "org_id": org_id
+            }).execute()
 
             return {"message": f"Invite sent to {payload.email} as {payload.role}"}
 
