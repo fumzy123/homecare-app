@@ -59,16 +59,10 @@ class AuthService:
         try:
             # Get the inviting admin/owner's org
             admin_record = supabase.table("org_members")\
-                .select("org_id, role")\
+                .select("org_id")\
                 .eq("id", current_user.id)\
                 .single()\
                 .execute()
-
-            role = admin_record.data["role"]
-
-            # Only owners and admins can invite
-            if role not in ["owner", "agency_admin"]:
-                raise HTTPException(status_code=403, detail="Not authorized to invite users")
 
             org_id = admin_record.data["org_id"]
 
