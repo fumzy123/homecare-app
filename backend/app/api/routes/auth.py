@@ -5,7 +5,7 @@ from app.schemas.auth import (
     SignInSchema,
 )
 from app.services.auth_service import AuthService
-from app.core.security import get_current_user, security
+from app.core.security import get_current_user, require_admin, security
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ async def register_organization(payload: RegisterOrganizationSchema):
 @router.post("/invite")
 async def invite_user(
     payload: InviteUserSchema,
-    current_user=Depends(get_current_user)
+    current_user=Depends(require_admin)
 ):
     return await AuthService.invite_user(payload, current_user)
 
