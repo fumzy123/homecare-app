@@ -1,5 +1,7 @@
 from fastapi import HTTPException
+from supabase import create_client
 from app.db.supabase import get_supabase_client
+from app.core.config import settings
 from app.schemas.auth import RegisterOrganizationSchema, InviteUserSchema, SignInSchema
 from app.core.enums import OrgMemberRole
 import uuid
@@ -89,9 +91,13 @@ class AuthService:
 
     @staticmethod
     async def sign_in(payload: SignInSchema):
-        supabase = get_supabase_client()
+        # IMPORTANT: sign_in_with_password mutates the client's internal auth state.
+        # We MUST use a disposable client here to avoid contaminating the shared
+        # Service Role singleton — otherwise all subsequent admin queries would
+        # run as this user instead of as the service role, and RLS would block them.
+        temp_client = create_client(settings.supabase_url, settings.supabase_key)
         try:
-            response = supabase.auth.sign_in_with_password({
+            response = temp_client.auth.sign_in_with_password({
                 "email": payload.email,
                 "password": payload.password
             })
