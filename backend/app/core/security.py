@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer
 from app.db.supabase import get_supabase_client
+from app.core.enums import OrgMemberRole
 
 security = HTTPBearer()
 
@@ -19,13 +20,13 @@ async def get_current_user(token=Depends(security)):
 
 async def require_admin(current_user=Depends(get_current_user)):
     role = current_user.user_metadata.get("role")
-    if role not in ["owner", "agency_admin"]:
+    if role not in [OrgMemberRole.owner, OrgMemberRole.admin]:
         raise HTTPException(status_code=403, detail="Admins only")
     return current_user
 
 
 async def require_owner(current_user=Depends(get_current_user)):
     role = current_user.user_metadata.get("role")
-    if role != "owner":
+    if role != OrgMemberRole.owner:
         raise HTTPException(status_code=403, detail="Owners only")
     return current_user

@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from app.db.supabase import get_supabase_client
 from app.schemas.auth import RegisterOrganizationSchema, InviteUserSchema, SignInSchema
+from app.core.enums import OrgMemberRole
 import uuid
 
 
@@ -18,7 +19,7 @@ class AuthService:
                 "user_metadata": {
                     "first_name": payload.first_name,
                     "last_name": payload.last_name,
-                    "role": "owner"
+                    "role": OrgMemberRole.owner
                 }
             })
 
