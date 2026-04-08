@@ -250,19 +250,46 @@ relationships: organization
 
 ---
 
-## Features Still to Build (in order)
+## MVP Scope — Home Care Agency Admin (Build This First)
 
-1. Client profiles (CRUD)
-2. Worker profiles (CRUD)
-3. Shifts / Scheduling
-4. Visits + Progress Notes
-5. Flowsheets
-6. Compliance Tracking
-7. GPS arrival/departure
-8. Voice to notes
-9. Export reports
-10. AI smart scheduling (suggest best worker for client)
-11. Google Calendar integration
+The MVP focuses entirely on the **Agency Admin web app**. Mobile app (Home Support Worker) comes after.
+
+### 1. Profile Management
+
+#### Client Profiles
+- **Create** a client profile
+- **Read** client profile data
+- **Update** client profile data
+- **Delete** a client
+
+#### Home Support Worker Profiles
+- **Create** — Admin invites a person to join the org as a Home Support Worker (via Supabase invite email)
+- **Read**
+  - Admin can view all Home Support Worker profile data
+  - Admin can view all scheduled shifts for a given worker
+- **Update** — Admin can update a worker's profile data
+- **Delete** — Admin can delete a worker's file
+
+### 2. Scheduling
+
+#### Shift Creation
+- Create a single shift (client, worker, date + time duration)
+- Create multiple shifts in one go — similar to bulk event creation in Google Calendar / Notion Calendar
+
+#### Calendar Integration
+- Shift automatically added to the assigned worker's calendar via their email address (Google Calendar)
+
+---
+
+## Full Feature Backlog (Post-MVP)
+
+1. Visits + Progress Notes
+2. Flowsheets
+3. Compliance Tracking
+4. GPS arrival/departure
+5. Voice to notes
+6. Export reports
+7. AI Smart Scheduling (suggest best worker for client based on schedule and proximity)
 
 ---
 
