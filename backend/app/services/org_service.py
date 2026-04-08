@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from gotrue.types import User as SupabaseUser
+from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.organization import Organization
 from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema

@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
-from gotrue.types import User as SupabaseUser
+from supabase_auth.types import User as SupabaseUser
 from app.models.client import Client
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
 from app.core.enums import ClientStatus

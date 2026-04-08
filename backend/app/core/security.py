@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer
-from gotrue.types import User as SupabaseUser
+from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.core.enums import OrgMemberRole
 

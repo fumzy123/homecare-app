@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from supabase import create_client
-from gotrue.types import User as SupabaseUser
+from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.core.config import settings
 from app.schemas.auth import InviteUserSchema, SignInSchema
