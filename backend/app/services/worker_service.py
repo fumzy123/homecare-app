@@ -1,19 +1,14 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
+from gotrue.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.worker_profile import WorkerProfile
 from app.schemas.worker import OrgMemberUpdateSchema, WorkerProfileCreateSchema, WorkerProfileUpdateSchema
 from app.core.enums import OrgMemberRole
+from app.services.org_service import OrgService
 
 
 class WorkerService:
-
-    @staticmethod
-    def _get_admin_org_id(current_user, db: Session) -> str:
-        admin = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-        if not admin:
-            raise HTTPException(status_code=404, detail="Admin record not found")
-        return admin.org_id
 
     @staticmethod
     def _get_active_worker(worker_id: str, org_id, db: Session) -> OrgMember:
@@ -37,9 +32,9 @@ class WorkerService:
     # 1. List all workers in the admin's org
     # ─────────────────────────────────────────
     @staticmethod
-    async def get_all_workers(current_user, db: Session):
+    async def get_all_workers(current_user: SupabaseUser, db: Session):
         try:
-            org_id = WorkerService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
 
             return (
                 db.query(OrgMember)
@@ -61,9 +56,9 @@ class WorkerService:
     # 2. Get a single worker's full profile
     # ─────────────────────────────────────────
     @staticmethod
-    async def get_worker(worker_id: str, current_user, db: Session):
+    async def get_worker(worker_id: str, current_user: SupabaseUser, db: Session):
         try:
-            org_id = WorkerService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             return WorkerService._get_active_worker(worker_id, org_id, db)
 
         except HTTPException:
@@ -77,9 +72,9 @@ class WorkerService:
     # This fills in their worker_profiles row
     # ─────────────────────────────────────────
     @staticmethod
-    async def create_worker_profile(worker_id: str, payload: WorkerProfileCreateSchema, current_user, db: Session):
+    async def create_worker_profile(worker_id: str, payload: WorkerProfileCreateSchema, current_user: SupabaseUser, db: Session):
         try:
-            org_id = WorkerService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
 
             # Verify the worker exists and belongs to this org
             worker = (
@@ -122,9 +117,9 @@ class WorkerService:
     # 4. Update worker — org_member fields
     # ─────────────────────────────────────────
     @staticmethod
-    async def update_worker(worker_id: str, payload: OrgMemberUpdateSchema, current_user, db: Session):
+    async def update_worker(worker_id: str, payload: OrgMemberUpdateSchema, current_user: SupabaseUser, db: Session):
         try:
-            org_id = WorkerService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             worker = WorkerService._get_active_worker(worker_id, org_id, db)
 
             updates = payload.model_dump(exclude_unset=True)
@@ -150,9 +145,9 @@ class WorkerService:
     # 5. Update worker profile — worker_profiles fields
     # ─────────────────────────────────────────
     @staticmethod
-    async def update_worker_profile(worker_id: str, payload: WorkerProfileUpdateSchema, current_user, db: Session):
+    async def update_worker_profile(worker_id: str, payload: WorkerProfileUpdateSchema, current_user: SupabaseUser, db: Session):
         try:
-            org_id = WorkerService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             WorkerService._get_active_worker(worker_id, org_id, db)
 
             profile = db.query(WorkerProfile).filter(WorkerProfile.org_member_id == worker_id).first()
@@ -183,10 +178,10 @@ class WorkerService:
     # Sets deleted_at on org_members row
     # ─────────────────────────────────────────
     @staticmethod
-    async def delete_worker(worker_id: str, current_user, db: Session):
+    async def delete_worker(worker_id: str, current_user: SupabaseUser, db: Session):
         from datetime import datetime, timezone
         try:
-            org_id = WorkerService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             worker = WorkerService._get_active_worker(worker_id, org_id, db)
 
             worker.deleted_at = datetime.now(timezone.utc)

@@ -1,22 +1,15 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
+from gotrue.types import User as SupabaseUser
 from app.models.client import Client
-from app.models.org_member import OrgMember
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
 from app.core.enums import ClientStatus
+from app.services.org_service import OrgService
 import uuid
 
 
 class ClientService:
-
-    @staticmethod
-    def _get_admin_org_id(current_user, db: Session) -> str:
-        """Resolve the org_id for the currently authenticated admin."""
-        admin = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-        if not admin:
-            raise HTTPException(status_code=404, detail="Admin record not found")
-        return admin.org_id
 
     @staticmethod
     def _get_active_client(client_id: str, org_id, db: Session) -> Client:
@@ -39,9 +32,9 @@ class ClientService:
     # 1. Create a client
     # ─────────────────────────────────────────
     @staticmethod
-    async def create_client(payload: ClientCreateSchema, current_user, db: Session):
+    async def create_client(payload: ClientCreateSchema, current_user: SupabaseUser, db: Session):
         try:
-            org_id = ClientService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
 
             client = Client(
                 id=uuid.uuid4(),
@@ -71,9 +64,9 @@ class ClientService:
     # Optional filter: ?status=active
     # ─────────────────────────────────────────
     @staticmethod
-    async def get_all_clients(current_user, db: Session, status: ClientStatus | None = None):
+    async def get_all_clients(current_user: SupabaseUser, db: Session, status: ClientStatus | None = None):
         try:
-            org_id = ClientService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
 
             query = (
                 db.query(Client)
@@ -96,9 +89,9 @@ class ClientService:
     # Enforces tenant isolation (same org only)
     # ─────────────────────────────────────────
     @staticmethod
-    async def get_client(client_id: str, current_user, db: Session):
+    async def get_client(client_id: str, current_user: SupabaseUser, db: Session):
         try:
-            org_id = ClientService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             return ClientService._get_active_client(client_id, org_id, db)
 
         except HTTPException:
@@ -110,9 +103,9 @@ class ClientService:
     # 4. Update a client (partial)
     # ─────────────────────────────────────────
     @staticmethod
-    async def update_client(client_id: str, payload: ClientUpdateSchema, current_user, db: Session):
+    async def update_client(client_id: str, payload: ClientUpdateSchema, current_user: SupabaseUser, db: Session):
         try:
-            org_id = ClientService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             client = ClientService._get_active_client(client_id, org_id, db)
 
             updates = payload.model_dump(exclude_unset=True)
@@ -141,9 +134,9 @@ class ClientService:
     # Sets deleted_at — record is preserved
     # ─────────────────────────────────────────
     @staticmethod
-    async def delete_client(client_id: str, current_user, db: Session):
+    async def delete_client(client_id: str, current_user: SupabaseUser, db: Session):
         try:
-            org_id = ClientService._get_admin_org_id(current_user, db)
+            org_id = OrgService.get_admin_org_id(current_user, db)
             client = ClientService._get_active_client(client_id, org_id, db)
 
             client.deleted_at = datetime.now(timezone.utc)
