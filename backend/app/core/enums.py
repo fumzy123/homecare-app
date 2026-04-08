@@ -15,3 +15,8 @@ class ServiceType(str, enum.Enum):
     companionship = "companionship"
     respite = "respite"
     nursing = "nursing"
+
+class EmploymentType(str, enum.Enum):
+    full_time = "full_time"
+    part_time = "part_time"
+    casual = "casual"
