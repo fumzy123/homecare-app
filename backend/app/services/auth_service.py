@@ -1,63 +1,15 @@
 from fastapi import HTTPException
 from supabase import create_client
+from gotrue.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.core.config import settings
-from app.schemas.auth import RegisterOrganizationSchema, InviteUserSchema, SignInSchema
-from app.core.enums import OrgMemberRole
-import uuid
+from app.schemas.auth import InviteUserSchema, SignInSchema
 
 
 class AuthService:
 
     @staticmethod
-    async def register_organization(payload: RegisterOrganizationSchema):
-        supabase = get_supabase_client()
-        try:
-            # 1. Create the owner user in Supabase Auth
-            auth_response = supabase.auth.admin.create_user({
-                "email": payload.email,
-                "password": payload.password,
-                "email_confirm": True,
-                "user_metadata": {
-                    "first_name": payload.first_name,
-                    "last_name": payload.last_name,
-                    "role": OrgMemberRole.owner
-                }
-            })
-
-            user = auth_response.user
-
-            # 2. Create the organization record (we generate the UUID manually because we bypass SQLAlchemy)
-            org_response = supabase.table("organizations").insert({
-                "id": str(uuid.uuid4()),
-                "name": payload.organization_name,
-                "owner_id": user.id
-            }).execute()
-
-            organization = org_response.data[0]
-
-            # 3. Link owner to the organization
-            supabase.table("org_members").insert({
-                "id": user.id,
-                "first_name": payload.first_name,
-                "last_name": payload.last_name,
-                "email": payload.email,
-                "role": OrgMemberRole.owner,
-                "org_id": organization["id"]
-            }).execute()
-
-            return {
-                "message": "Organization registered successfully",
-                "org_id": organization["id"],
-                "user_id": user.id
-            }
-
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-
-    @staticmethod
-    async def invite_user(payload: InviteUserSchema, current_user):
+    async def invite_user(payload: InviteUserSchema, current_user: SupabaseUser):
         supabase = get_supabase_client()
         try:
             # Get the inviting admin/owner's org
