@@ -1,8 +1,8 @@
-from fastapi import HTTPException
 from supabase import create_client
 from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.core.config import settings
+from app.core.exceptions import AppError
 from app.schemas.auth import InviteUserSchema, SignInSchema
 from app.core.enums import OrgMemberRole
 
@@ -13,7 +13,6 @@ class AuthService:
     async def invite_user(payload: InviteUserSchema, current_user: SupabaseUser):
         supabase = get_supabase_client()
         try:
-            # Get the inviting admin/owner's org
             admin_record = supabase.table("org_members")\
                 .select("org_id")\
                 .eq("id", current_user.id)\
@@ -22,7 +21,6 @@ class AuthService:
 
             org_id = admin_record.data["org_id"]
 
-            # 1. Create the user in Supabase Auth and send the invite email
             invite_response = supabase.auth.admin.invite_user_by_email(
                 payload.email,
                 options={
@@ -37,7 +35,6 @@ class AuthService:
 
             invited_user = invite_response.user
 
-            # 2. Create the org_members record linking this user to the organization
             supabase.table("org_members").insert({
                 "id": invited_user.id,
                 "first_name": payload.first_name,
@@ -47,9 +44,6 @@ class AuthService:
                 "org_id": org_id
             }).execute()
 
-            # 3. Auto-create an empty worker_profiles row for home support workers.
-            # Fields are nullable — the worker fills them in during mobile onboarding,
-            # or the admin can populate them via PATCH /api/workers/{id}/profile.
             if payload.role == OrgMemberRole.home_support_worker:
                 supabase.table("worker_profiles").insert({
                     "org_member_id": invited_user.id
@@ -57,10 +51,10 @@ class AuthService:
 
             return {"message": f"Invite sent to {payload.email} as {payload.role}"}
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
 
     @staticmethod
@@ -89,7 +83,7 @@ class AuthService:
             }
 
         except Exception:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+            raise AppError(status_code=401, code="UNAUTHORIZED", message="Invalid email or password")
 
 
     @staticmethod
@@ -99,4 +93,4 @@ class AuthService:
             supabase.auth.admin.sign_out(token)
             return {"message": "Signed out successfully"}
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

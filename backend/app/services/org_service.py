@@ -1,10 +1,10 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.organization import Organization
 from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema
 from app.core.enums import OrgMemberRole
+from app.core.exceptions import AppError
 from app.db.supabase import get_supabase_client
 import uuid
 
@@ -16,7 +16,7 @@ class OrgService:
         """Resolve the org_id for the currently authenticated user. Used by all services."""
         member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
         if not member:
-            raise HTTPException(status_code=404, detail="Member record not found")
+            raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
         return member.org_id
 
     # ─────────────────────────────────────────
@@ -67,8 +67,10 @@ class OrgService:
                 "user_id": user.id
             }
 
+        except AppError:
+            raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2. Get the current user's organization
@@ -79,13 +81,13 @@ class OrgService:
             org_id = OrgService.get_admin_org_id(current_user, db)
             org = db.query(Organization).filter(Organization.id == org_id).first()
             if not org:
-                raise HTTPException(status_code=404, detail="Organization not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
             return org
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 3. Update organization (owner only)
@@ -96,7 +98,7 @@ class OrgService:
             org_id = OrgService.get_admin_org_id(current_user, db)
             org = db.query(Organization).filter(Organization.id == org_id).first()
             if not org:
-                raise HTTPException(status_code=404, detail="Organization not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
@@ -106,11 +108,11 @@ class OrgService:
             db.refresh(org)
             return org
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 4. Deactivate organization (owner only)
@@ -122,14 +124,14 @@ class OrgService:
             org_id = OrgService.get_admin_org_id(current_user, db)
             org = db.query(Organization).filter(Organization.id == org_id).first()
             if not org:
-                raise HTTPException(status_code=404, detail="Organization not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
             org.is_active = False
             db.commit()
             return {"message": "Organization deactivated successfully"}
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

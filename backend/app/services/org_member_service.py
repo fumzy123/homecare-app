@@ -1,8 +1,8 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.core.enums import OrgMemberRole
+from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 
 
@@ -27,10 +27,10 @@ class OrgMemberService:
 
             return query.all()
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2. Get a single member
@@ -48,11 +48,11 @@ class OrgMemberService:
             ).first()
 
             if not member:
-                raise HTTPException(status_code=404, detail="Member not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
 
             return member
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
