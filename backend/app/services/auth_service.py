@@ -4,6 +4,7 @@ from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.core.config import settings
 from app.schemas.auth import InviteUserSchema, SignInSchema
+from app.core.enums import OrgMemberRole
 
 
 class AuthService:
@@ -45,6 +46,14 @@ class AuthService:
                 "role": payload.role.value,
                 "org_id": org_id
             }).execute()
+
+            # 3. Auto-create an empty worker_profiles row for home support workers.
+            # Fields are nullable — the worker fills them in during mobile onboarding,
+            # or the admin can populate them via PATCH /api/workers/{id}/profile.
+            if payload.role == OrgMemberRole.home_support_worker:
+                supabase.table("worker_profiles").insert({
+                    "org_member_id": invited_user.id
+                }).execute()
 
             return {"message": f"Invite sent to {payload.email} as {payload.role}"}
 

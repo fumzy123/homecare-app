@@ -67,9 +67,9 @@ class WorkerService:
             raise HTTPException(status_code=400, detail=str(e))
 
     # ─────────────────────────────────────────
-    # 3. Create worker profile (extended data)
-    # Worker already exists in org_members via invite
-    # This fills in their worker_profiles row
+    # 3. Create or update worker profile (upsert)
+    # Profile is auto-created empty on invite.
+    # Admin can call this to populate or overwrite it.
     # ─────────────────────────────────────────
     @staticmethod
     async def create_worker_profile(worker_id: str, payload: WorkerProfileCreateSchema, current_user: SupabaseUser, db: Session):
@@ -90,15 +90,19 @@ class WorkerService:
             if not worker:
                 raise HTTPException(status_code=404, detail="Worker not found")
 
-            # Check a profile doesn't already exist
-            existing = db.query(WorkerProfile).filter(WorkerProfile.org_member_id == worker_id).first()
-            if existing:
-                raise HTTPException(status_code=400, detail="Worker profile already exists")
+            profile = db.query(WorkerProfile).filter(WorkerProfile.org_member_id == worker_id).first()
 
-            profile = WorkerProfile(org_member_id=worker_id, **payload.model_dump())
-            db.add(profile)
+            if profile:
+                # Profile already exists (auto-created on invite) — update it
+                updates = payload.model_dump(exclude_unset=True)
+                for field, value in updates.items():
+                    setattr(profile, field, value)
+            else:
+                # No profile yet — create it
+                profile = WorkerProfile(org_member_id=worker_id, **payload.model_dump())
+                db.add(profile)
+
             db.commit()
-            db.refresh(worker)
 
             return (
                 db.query(OrgMember)
