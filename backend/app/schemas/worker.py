@@ -7,14 +7,14 @@ from app.core.enums import OrgMemberRole, EmploymentType
 
 class WorkerProfileCreateSchema(BaseModel):
     # Address
-    street: str
-    city: str
-    province: str
-    postal_code: str
+    street: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
 
     # Employment
-    employment_type: EmploymentType
-    has_vehicle: bool = False
+    employment_type: Optional[EmploymentType] = None
+    has_vehicle: Optional[bool] = None
     max_hours_per_week: Optional[int] = None
 
     # Scheduling
@@ -51,12 +51,12 @@ class OrgMemberUpdateSchema(BaseModel):
 
 class WorkerProfileResponse(BaseModel):
     org_member_id: UUID
-    street: str
-    city: str
-    province: str
-    postal_code: str
-    employment_type: EmploymentType
-    has_vehicle: bool
+    street: Optional[str]
+    city: Optional[str]
+    province: Optional[str]
+    postal_code: Optional[str]
+    employment_type: Optional[EmploymentType]
+    has_vehicle: Optional[bool]
     max_hours_per_week: Optional[int]
     availability: Optional[str]
     created_at: Optional[datetime]

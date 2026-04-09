@@ -13,14 +13,14 @@ class WorkerProfile(Base):
     org_member_id = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), primary_key=True)
 
     # Address
-    street = Column(String, nullable=False)
-    city = Column(String, nullable=False)
-    province = Column(String, nullable=False)
-    postal_code = Column(String, nullable=False)
+    street = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    province = Column(String, nullable=True)
+    postal_code = Column(String, nullable=True)
 
     # Employment
-    employment_type = Column(Enum(EmploymentType), nullable=False)
-    has_vehicle = Column(Boolean, default=False, nullable=False)
+    employment_type = Column(Enum(EmploymentType), nullable=True)
+    has_vehicle = Column(Boolean, default=False, nullable=True)
     max_hours_per_week = Column(Integer, nullable=True)
 
     # Scheduling
