@@ -1,10 +1,10 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.worker_profile import WorkerProfile
 from app.schemas.worker import OrgMemberUpdateSchema, WorkerProfileCreateSchema, WorkerProfileUpdateSchema
 from app.core.enums import OrgMemberRole
+from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 
 
@@ -25,7 +25,7 @@ class WorkerService:
             .first()
         )
         if not worker:
-            raise HTTPException(status_code=404, detail="Worker not found")
+            raise AppError(status_code=404, code="NOT_FOUND", message="Worker not found")
         return worker
 
     # ─────────────────────────────────────────
@@ -47,10 +47,10 @@ class WorkerService:
                 .all()
             )
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2. Get a single worker's full profile
@@ -61,22 +61,19 @@ class WorkerService:
             org_id = OrgService.get_admin_org_id(current_user, db)
             return WorkerService._get_active_worker(worker_id, org_id, db)
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 3. Create or update worker profile (upsert)
-    # Profile is auto-created empty on invite.
-    # Admin can call this to populate or overwrite it.
     # ─────────────────────────────────────────
     @staticmethod
     async def create_worker_profile(worker_id: str, payload: WorkerProfileCreateSchema, current_user: SupabaseUser, db: Session):
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
 
-            # Verify the worker exists and belongs to this org
             worker = (
                 db.query(OrgMember)
                 .filter(
@@ -88,17 +85,15 @@ class WorkerService:
                 .first()
             )
             if not worker:
-                raise HTTPException(status_code=404, detail="Worker not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Worker not found")
 
             profile = db.query(WorkerProfile).filter(WorkerProfile.org_member_id == worker_id).first()
 
             if profile:
-                # Profile already exists (auto-created on invite) — update it
                 updates = payload.model_dump(exclude_unset=True)
                 for field, value in updates.items():
                     setattr(profile, field, value)
             else:
-                # No profile yet — create it
                 profile = WorkerProfile(org_member_id=worker_id, **payload.model_dump())
                 db.add(profile)
 
@@ -111,11 +106,11 @@ class WorkerService:
                 .first()
             )
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 4. Update worker — org_member fields
@@ -139,11 +134,11 @@ class WorkerService:
                 .first()
             )
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 5. Update worker profile — worker_profiles fields
@@ -156,7 +151,7 @@ class WorkerService:
 
             profile = db.query(WorkerProfile).filter(WorkerProfile.org_member_id == worker_id).first()
             if not profile:
-                raise HTTPException(status_code=404, detail="Worker profile not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Worker profile not found")
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
@@ -171,15 +166,14 @@ class WorkerService:
                 .first()
             )
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 6. Soft delete a worker
-    # Sets deleted_at on org_members row
     # ─────────────────────────────────────────
     @staticmethod
     async def delete_worker(worker_id: str, current_user: SupabaseUser, db: Session):
@@ -193,8 +187,8 @@ class WorkerService:
 
             return {"message": "Worker deleted successfully"}
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

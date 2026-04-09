@@ -1,11 +1,11 @@
 from datetime import date, datetime, time, timezone
 from dateutil.rrule import rrulestr
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
+from app.core.exceptions import AppError
 from app.schemas.shift import (
     ShiftCreateSchema,
     ShiftModificationCreateSchema,
@@ -39,7 +39,7 @@ class ShiftService:
             .first()
         )
         if not shift:
-            raise HTTPException(status_code=404, detail="Shift not found")
+            raise AppError(status_code=404, code="NOT_FOUND", message="Shift not found")
         return shift
 
     @staticmethod
@@ -136,11 +136,11 @@ class ShiftService:
             db.refresh(shift)
             return shift
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
@@ -198,10 +198,10 @@ class ShiftService:
             results.sort(key=lambda o: o.start_time)
             return results
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 3. Get master shift record
@@ -211,10 +211,10 @@ class ShiftService:
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
             return ShiftService._get_active_shift(shift_id, org_id, db)
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 4. Update master shift (affects all future occurrences)
@@ -233,11 +233,11 @@ class ShiftService:
             db.refresh(shift)
             return shift
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 5. Cancel entire shift schedule (soft delete)
@@ -254,11 +254,11 @@ class ShiftService:
 
             return {"message": "Shift cancelled successfully"}
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 6. Create a modification for a specific occurrence
@@ -299,11 +299,11 @@ class ShiftService:
             db.refresh(existing)
             return existing
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 7. Update an existing modification
@@ -329,7 +329,7 @@ class ShiftService:
                 .first()
             )
             if not mod:
-                raise HTTPException(status_code=404, detail="Modification not found")
+                raise AppError(status_code=404, code="NOT_FOUND", message="Modification not found")
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
@@ -339,8 +339,8 @@ class ShiftService:
             db.refresh(mod)
             return mod
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

@@ -1,10 +1,10 @@
-from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
 from supabase_auth.types import User as SupabaseUser
 from app.models.client import Client
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
 from app.core.enums import ClientStatus
+from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 import uuid
 
@@ -25,7 +25,7 @@ class ClientService:
             .first()
         )
         if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
+            raise AppError(status_code=404, code="NOT_FOUND", message="Client not found")
         return client
 
     # ─────────────────────────────────────────
@@ -45,7 +45,6 @@ class ClientService:
             db.commit()
             db.refresh(client)
 
-            # Reload with assigned_worker relationship for response
             return (
                 db.query(Client)
                 .options(joinedload(Client.assigned_worker))
@@ -53,11 +52,11 @@ class ClientService:
                 .first()
             )
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2. List all clients in the admin's org
@@ -79,14 +78,13 @@ class ClientService:
 
             return query.all()
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 3. Get a single client
-    # Enforces tenant isolation (same org only)
     # ─────────────────────────────────────────
     @staticmethod
     async def get_client(client_id: str, current_user: SupabaseUser, db: Session):
@@ -94,10 +92,10 @@ class ClientService:
             org_id = OrgService.get_admin_org_id(current_user, db)
             return ClientService._get_active_client(client_id, org_id, db)
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 4. Update a client (partial)
@@ -115,7 +113,6 @@ class ClientService:
             db.commit()
             db.refresh(client)
 
-            # Reload with assigned_worker relationship for response
             return (
                 db.query(Client)
                 .options(joinedload(Client.assigned_worker))
@@ -123,15 +120,14 @@ class ClientService:
                 .first()
             )
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 5. Soft delete a client
-    # Sets deleted_at — record is preserved
     # ─────────────────────────────────────────
     @staticmethod
     async def delete_client(client_id: str, current_user: SupabaseUser, db: Session):
@@ -144,8 +140,8 @@ class ClientService:
 
             return {"message": "Client deleted successfully"}
 
-        except HTTPException:
+        except AppError:
             raise
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
