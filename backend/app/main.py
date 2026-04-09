@@ -1,6 +1,8 @@
 # Import FastAPI
 from fastapi import FastAPI, Depends
+from fastapi.exceptions import RequestValidationError
 from app.core.security import get_current_user
+from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
 
 
 # Crea
@@ -19,6 +21,11 @@ from app.api.api import router as api_router
 
 
 app = FastAPI()
+
+# Global exception handlers — all errors return a consistent JSON envelope
+app.add_exception_handler(AppError, app_error_handler)
+app.add_exception_handler(RequestValidationError, validation_error_handler)
+app.add_exception_handler(Exception, unhandled_error_handler)
 
 # Mount all Routers
 app.include_router(api_router)
