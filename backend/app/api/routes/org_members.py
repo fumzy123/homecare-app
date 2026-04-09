@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+from app.db.session import get_db
 from app.services.org_member_service import OrgMemberService
 from app.core.security import require_admin
 from app.core.enums import OrgMemberRole
@@ -13,9 +15,10 @@ router = APIRouter()
 @router.get("/")
 async def get_all_members(
     role: OrgMemberRole | None = Query(default=None, description="Filter by role"),
-    current_user=Depends(require_admin)
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
-    return await OrgMemberService.get_all_members(current_user, role)
+    return await OrgMemberService.get_all_members(current_user, db, role)
 
 
 # ─────────────────────────────────────────
@@ -25,6 +28,7 @@ async def get_all_members(
 @router.get("/{member_id}")
 async def get_member(
     member_id: str,
-    current_user=Depends(require_admin)
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
-    return await OrgMemberService.get_member(current_user, member_id)
+    return await OrgMemberService.get_member(current_user, member_id, db)
