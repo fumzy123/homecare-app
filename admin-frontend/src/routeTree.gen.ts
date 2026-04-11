@@ -13,10 +13,10 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
-import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
-import { Route as DashboardWorkersIndexRouteImport } from './routes/dashboard/workers/index'
-import { Route as DashboardShiftsIndexRouteImport } from './routes/dashboard/shifts/index'
-import { Route as DashboardClientsIndexRouteImport } from './routes/dashboard/clients/index'
+import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
+import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
+import { Route as ProtectedDashboardShiftsIndexRouteImport } from './routes/_protected/dashboard/shifts/index'
+import { Route as ProtectedDashboardClientsIndexRouteImport } from './routes/_protected/dashboard/clients/index'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -37,57 +37,60 @@ const ProtectedRoute = ProtectedRouteImport.update({
   id: '/_protected',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardIndexRoute = DashboardIndexRouteImport.update({
+const ProtectedDashboardIndexRoute = ProtectedDashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ProtectedRoute,
 } as any)
-const DashboardWorkersIndexRoute = DashboardWorkersIndexRouteImport.update({
-  id: '/dashboard/workers/',
-  path: '/dashboard/workers/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardShiftsIndexRoute = DashboardShiftsIndexRouteImport.update({
-  id: '/dashboard/shifts/',
-  path: '/dashboard/shifts/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardClientsIndexRoute = DashboardClientsIndexRouteImport.update({
-  id: '/dashboard/clients/',
-  path: '/dashboard/clients/',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const ProtectedDashboardWorkersIndexRoute =
+  ProtectedDashboardWorkersIndexRouteImport.update({
+    id: '/dashboard/workers/',
+    path: '/dashboard/workers/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedDashboardShiftsIndexRoute =
+  ProtectedDashboardShiftsIndexRouteImport.update({
+    id: '/dashboard/shifts/',
+    path: '/dashboard/shifts/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedDashboardClientsIndexRoute =
+  ProtectedDashboardClientsIndexRouteImport.update({
+    id: '/dashboard/clients/',
+    path: '/dashboard/clients/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof ProtectedRoute
+  '/': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/dashboard/': typeof DashboardIndexRoute
-  '/dashboard/clients/': typeof DashboardClientsIndexRoute
-  '/dashboard/shifts/': typeof DashboardShiftsIndexRoute
-  '/dashboard/workers/': typeof DashboardWorkersIndexRoute
+  '/dashboard/': typeof ProtectedDashboardIndexRoute
+  '/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
+  '/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
+  '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof ProtectedRoute
+  '/': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/dashboard': typeof DashboardIndexRoute
-  '/dashboard/clients': typeof DashboardClientsIndexRoute
-  '/dashboard/shifts': typeof DashboardShiftsIndexRoute
-  '/dashboard/workers': typeof DashboardWorkersIndexRoute
+  '/dashboard': typeof ProtectedDashboardIndexRoute
+  '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
+  '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
+  '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_protected': typeof ProtectedRoute
+  '/_protected': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
-  '/dashboard/': typeof DashboardIndexRoute
-  '/dashboard/clients/': typeof DashboardClientsIndexRoute
-  '/dashboard/shifts/': typeof DashboardShiftsIndexRoute
-  '/dashboard/workers/': typeof DashboardWorkersIndexRoute
+  '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
+  '/_protected/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
+  '/_protected/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
+  '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -116,21 +119,17 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/login'
     | '/register'
-    | '/dashboard/'
-    | '/dashboard/clients/'
-    | '/dashboard/shifts/'
-    | '/dashboard/workers/'
+    | '/_protected/dashboard/'
+    | '/_protected/dashboard/clients/'
+    | '/_protected/dashboard/shifts/'
+    | '/_protected/dashboard/workers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  ProtectedRoute: typeof ProtectedRoute
+  ProtectedRoute: typeof ProtectedRouteWithChildren
   AcceptInviteRoute: typeof AcceptInviteRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
-  DashboardIndexRoute: typeof DashboardIndexRoute
-  DashboardClientsIndexRoute: typeof DashboardClientsIndexRoute
-  DashboardShiftsIndexRoute: typeof DashboardShiftsIndexRoute
-  DashboardWorkersIndexRoute: typeof DashboardWorkersIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -163,46 +162,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard/': {
-      id: '/dashboard/'
+    '/_protected/dashboard/': {
+      id: '/_protected/dashboard/'
       path: '/dashboard'
       fullPath: '/dashboard/'
-      preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedDashboardIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
-    '/dashboard/workers/': {
-      id: '/dashboard/workers/'
+    '/_protected/dashboard/workers/': {
+      id: '/_protected/dashboard/workers/'
       path: '/dashboard/workers'
       fullPath: '/dashboard/workers/'
-      preLoaderRoute: typeof DashboardWorkersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedDashboardWorkersIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
-    '/dashboard/shifts/': {
-      id: '/dashboard/shifts/'
+    '/_protected/dashboard/shifts/': {
+      id: '/_protected/dashboard/shifts/'
       path: '/dashboard/shifts'
       fullPath: '/dashboard/shifts/'
-      preLoaderRoute: typeof DashboardShiftsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedDashboardShiftsIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
-    '/dashboard/clients/': {
-      id: '/dashboard/clients/'
+    '/_protected/dashboard/clients/': {
+      id: '/_protected/dashboard/clients/'
       path: '/dashboard/clients'
       fullPath: '/dashboard/clients/'
-      preLoaderRoute: typeof DashboardClientsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedDashboardClientsIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
   }
 }
 
+interface ProtectedRouteChildren {
+  ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
+  ProtectedDashboardClientsIndexRoute: typeof ProtectedDashboardClientsIndexRoute
+  ProtectedDashboardShiftsIndexRoute: typeof ProtectedDashboardShiftsIndexRoute
+  ProtectedDashboardWorkersIndexRoute: typeof ProtectedDashboardWorkersIndexRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
+  ProtectedDashboardClientsIndexRoute: ProtectedDashboardClientsIndexRoute,
+  ProtectedDashboardShiftsIndexRoute: ProtectedDashboardShiftsIndexRoute,
+  ProtectedDashboardWorkersIndexRoute: ProtectedDashboardWorkersIndexRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  ProtectedRoute: ProtectedRoute,
+  ProtectedRoute: ProtectedRouteWithChildren,
   AcceptInviteRoute: AcceptInviteRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
-  DashboardIndexRoute: DashboardIndexRoute,
-  DashboardClientsIndexRoute: DashboardClientsIndexRoute,
-  DashboardShiftsIndexRoute: DashboardShiftsIndexRoute,
-  DashboardWorkersIndexRoute: DashboardWorkersIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
