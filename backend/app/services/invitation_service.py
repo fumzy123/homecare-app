@@ -6,6 +6,7 @@ from app.models.invitation import Invitation
 from app.core.exceptions import AppError
 from app.schemas.invitation import CreateInvitationSchema
 from app.services.org_service import OrgService
+from app.core.config import settings
 import uuid
 
 
@@ -53,10 +54,11 @@ class InvitationService:
             supabase.auth.admin.invite_user_by_email(
                 payload.email,
                 options={
+                    "redirect_to": f"{settings.frontend_url}/accept-invite",
                     "data": {
                         "role": payload.role,
                         "org_id": str(org_id),
-                    }
+                    },
                 }
             )
 
