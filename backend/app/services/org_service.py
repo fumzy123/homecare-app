@@ -51,13 +51,6 @@ class OrgService:
             db.add(new_member)
             db.commit()
 
-            # Bake role + org_id into the owner's JWT metadata
-            # so require_admin can read it from user_metadata on every request
-            supabase.auth.admin.update_user_by_id(
-                str(current_user.id),
-                {"user_metadata": {"role": OrgMemberRole.owner, "org_id": str(org_id)}}
-            )
-
             return {
                 "message": "Organization registered successfully",
                 "org_id": str(org_id),
