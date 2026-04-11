@@ -1,5 +1,6 @@
 # Import FastAPI
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from app.core.security import get_current_user
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
@@ -21,6 +22,14 @@ from app.api.api import router as api_router
 
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Global exception handlers — all errors return a consistent JSON envelope
 app.add_exception_handler(AppError, app_error_handler)
