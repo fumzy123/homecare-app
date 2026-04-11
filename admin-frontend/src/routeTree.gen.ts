@@ -9,16 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardWorkersIndexRouteImport } from './routes/dashboard/workers/index'
 import { Route as DashboardShiftsIndexRouteImport } from './routes/dashboard/shifts/index'
 import { Route as DashboardClientsIndexRouteImport } from './routes/dashboard/clients/index'
 
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptInviteRoute = AcceptInviteRouteImport.update({
+  id: '/accept-invite',
+  path: '/accept-invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedRoute = ProtectedRouteImport.update({
@@ -48,7 +60,9 @@ const DashboardClientsIndexRoute = DashboardClientsIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/clients/': typeof DashboardClientsIndexRoute
   '/dashboard/shifts/': typeof DashboardShiftsIndexRoute
@@ -56,7 +70,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof ProtectedRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/clients': typeof DashboardClientsIndexRoute
   '/dashboard/shifts': typeof DashboardShiftsIndexRoute
@@ -65,7 +81,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_protected': typeof ProtectedRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/clients/': typeof DashboardClientsIndexRoute
   '/dashboard/shifts/': typeof DashboardShiftsIndexRoute
@@ -75,7 +93,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invite'
     | '/login'
+    | '/register'
     | '/dashboard/'
     | '/dashboard/clients/'
     | '/dashboard/shifts/'
@@ -83,7 +103,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invite'
     | '/login'
+    | '/register'
     | '/dashboard'
     | '/dashboard/clients'
     | '/dashboard/shifts'
@@ -91,7 +113,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_protected'
+    | '/accept-invite'
     | '/login'
+    | '/register'
     | '/dashboard/'
     | '/dashboard/clients/'
     | '/dashboard/shifts/'
@@ -100,7 +124,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRoute
+  AcceptInviteRoute: typeof AcceptInviteRoute
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardClientsIndexRoute: typeof DashboardClientsIndexRoute
   DashboardShiftsIndexRoute: typeof DashboardShiftsIndexRoute
@@ -109,11 +135,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invite': {
+      id: '/accept-invite'
+      path: '/accept-invite'
+      fullPath: '/accept-invite'
+      preLoaderRoute: typeof AcceptInviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected': {
@@ -156,7 +196,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRoute,
+  AcceptInviteRoute: AcceptInviteRoute,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardClientsIndexRoute: DashboardClientsIndexRoute,
   DashboardShiftsIndexRoute: DashboardShiftsIndexRoute,
