@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, OrganizationResponseSchema
 from app.services.org_service import OrgService
-from app.core.security import require_admin, require_owner
+from app.core.security import require_admin, require_owner, get_current_user
 from app.db.session import get_db
 
 router = APIRouter()
@@ -10,11 +10,16 @@ router = APIRouter()
 
 # ─────────────────────────────────────────
 # 1. Register a new organization + owner
-# Public — no auth required
+# Authenticated — frontend creates the Supabase user first,
+# then calls this endpoint with the JWT to set up the org
 # ─────────────────────────────────────────
 @router.post("/", response_model=None)
-async def register_organization(payload: RegisterOrganizationSchema):
-    return await OrgService.register_organization(payload)
+async def register_organization(
+    payload: RegisterOrganizationSchema,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return await OrgService.register_organization(payload, current_user, db)
 
 
 # ─────────────────────────────────────────

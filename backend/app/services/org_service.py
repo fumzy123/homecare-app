@@ -25,51 +25,50 @@ class OrgService:
     # Uses Supabase client — no db needed
     # ─────────────────────────────────────────
     @staticmethod
-    async def register_organization(payload: RegisterOrganizationSchema):
+    async def register_organization(payload: RegisterOrganizationSchema, current_user: SupabaseUser, db: Session):
         supabase = get_supabase_client()
+        org_id = None
         try:
-            # 1. Create the owner user in Supabase Auth
-            auth_response = supabase.auth.admin.create_user({
-                "email": payload.email,
-                "password": payload.password,
-                "email_confirm": True,
-                "user_metadata": {
-                    "first_name": payload.first_name,
-                    "last_name": payload.last_name,
-                    "role": OrgMemberRole.owner
-                }
-            })
+            # 1. Create the organization record
+            new_org = Organization(
+                id=uuid.uuid4(),
+                name=payload.organization_name,
+                owner_id=current_user.id,
+            )
+            db.add(new_org)
+            db.flush()  # get the org id without committing yet
+            org_id = new_org.id
 
-            user = auth_response.user
-
-            # 2. Create the organization record
-            org_response = supabase.table("organizations").insert({
-                "id": str(uuid.uuid4()),
-                "name": payload.organization_name,
-                "owner_id": user.id
-            }).execute()
-
-            organization = org_response.data[0]
-
-            # 3. Link the owner to the organization
-            supabase.table("org_members").insert({
-                "id": user.id,
-                "first_name": payload.first_name,
-                "last_name": payload.last_name,
-                "email": payload.email,
-                "role": OrgMemberRole.owner,
-                "org_id": organization["id"]
-            }).execute()
+            # 2. Link the owner as an org_member
+            new_member = OrgMember(
+                id=current_user.id,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                email=current_user.email,
+                role=OrgMemberRole.owner,
+                org_id=org_id,
+            )
+            db.add(new_member)
+            db.commit()
 
             return {
                 "message": "Organization registered successfully",
-                "org_id": organization["id"],
-                "user_id": user.id
+                "org_id": str(org_id),
+                "user_id": str(current_user.id),
             }
 
         except AppError:
+            db.rollback()
             raise
         except Exception as e:
+            db.rollback()
+            # Compensating transaction — delete the Supabase user if DB setup failed
+            # so we don't leave an orphaned auth user with no org
+            if org_id is None:
+                try:
+                    supabase.auth.admin.delete_user(str(current_user.id))
+                except Exception:
+                    pass
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────

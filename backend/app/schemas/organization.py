@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
 
@@ -7,8 +7,6 @@ class RegisterOrganizationSchema(BaseModel):
     organization_name: str
     first_name: str
     last_name: str
-    email: EmailStr
-    password: str
 
 
 class OrganizationUpdateSchema(BaseModel):
