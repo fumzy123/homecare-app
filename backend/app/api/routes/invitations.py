@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from app.schemas.auth import InviteUserSchema
-from app.services.auth_service import AuthService
+from app.schemas.invitation import CreateInvitationSchema
+from app.services.invitation_service import InvitationService
 from app.core.security import require_admin
 
 router = APIRouter()
@@ -11,9 +11,9 @@ router = APIRouter()
 # Uses Supabase client → no db needed
 # Only owners and admins can do this
 # ─────────────────────────────────────────
-@router.post("/invite")
-async def invite_user(
-    payload: InviteUserSchema,
+@router.post("/")
+async def create_invitation(
+    payload: CreateInvitationSchema,
     current_user=Depends(require_admin),
 ):
-    return await AuthService.invite_user(payload, current_user)
+    return await InvitationService.create_invitation(payload, current_user)

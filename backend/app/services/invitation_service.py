@@ -1,13 +1,13 @@
 from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.core.exceptions import AppError
-from app.schemas.auth import InviteUserSchema
+from app.schemas.invitation import CreateInvitationSchema
 
 
-class AuthService:
+class InvitationService:
 
     @staticmethod
-    async def invite_user(payload: InviteUserSchema, current_user: SupabaseUser):
+    async def create_invitation(payload: CreateInvitationSchema, current_user: SupabaseUser):
         supabase = get_supabase_client()
         try:
             # Resolve the admin's org_id
@@ -37,5 +37,3 @@ class AuthService:
             raise
         except Exception as e:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
-
-

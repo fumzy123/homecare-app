@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.worker_profile import WorkerProfile
-from app.schemas.auth import AcceptInviteSchema
+from app.schemas.invitation import AcceptInvitationSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
@@ -17,7 +17,7 @@ class OrgMemberService:
     # role + org_id are read from their JWT metadata.
     # ─────────────────────────────────────────
     @staticmethod
-    async def create_member(payload: AcceptInviteSchema, current_user: SupabaseUser, db: Session):
+    async def create_member(payload: AcceptInvitationSchema, current_user: SupabaseUser, db: Session):
         try:
             metadata = current_user.user_metadata or {}
             role = metadata.get("role")

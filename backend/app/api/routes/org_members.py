@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.schemas.auth import AcceptInviteSchema
+from app.schemas.invitation import AcceptInvitationSchema
 from app.services.org_member_service import OrgMemberService
 from app.core.security import require_admin, get_current_user
 from app.core.enums import OrgMemberRole
@@ -16,7 +16,7 @@ router = APIRouter()
 # ─────────────────────────────────────────
 @router.post("/")
 async def create_member(
-    payload: AcceptInviteSchema,
+    payload: AcceptInvitationSchema,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
