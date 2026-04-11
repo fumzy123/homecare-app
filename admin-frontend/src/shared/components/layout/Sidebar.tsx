@@ -1,6 +1,7 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { LayoutDashboard, Users, UserRound, CalendarDays, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/auth'
+import { authApi } from '@/features/auth/api'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,6 +12,13 @@ const navItems = [
 
 export function Sidebar() {
   const { user, clearAuth } = useAuthStore()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await authApi.signOut()
+    clearAuth()
+    navigate({ to: '/login' })
+  }
 
   return (
     <aside className="flex h-screen w-60 flex-col border-r border-gray-200 bg-white px-4 py-6">
@@ -37,7 +45,7 @@ export function Sidebar() {
       </nav>
 
       <button
-        onClick={clearAuth}
+        onClick={handleSignOut}
         className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
       >
         <LogOut size={16} />
