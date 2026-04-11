@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
-from app.schemas.auth import InviteUserSchema, SignInSchema
+from app.schemas.auth import InviteUserSchema
 from app.services.auth_service import AuthService
-from app.core.security import require_admin, security
+from app.core.security import require_admin
 
 router = APIRouter()
 
@@ -17,23 +17,3 @@ async def invite_user(
     current_user=Depends(require_admin),
 ):
     return await AuthService.invite_user(payload, current_user)
-
-
-# ─────────────────────────────────────────
-# 2. Sign In
-# Uses Supabase client → no db needed
-# No token yet so no get_current_user
-# ─────────────────────────────────────────
-@router.post("/sign-in")
-async def sign_in(payload: SignInSchema):
-    return await AuthService.sign_in(payload)
-
-
-# ─────────────────────────────────────────
-# 3. Sign Out
-# Uses Supabase client → no db needed
-# Needs token to know who is signing out
-# ─────────────────────────────────────────
-@router.post("/sign-out")
-async def sign_out(token=Depends(security)):
-    return await AuthService.sign_out(token.credentials)
