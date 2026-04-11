@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.worker_profile import WorkerProfile
+from app.models.invitation import Invitation
 from app.schemas.invitation import AcceptInvitationSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
@@ -39,6 +41,27 @@ class OrgMemberService:
                     message="This invite has already been accepted",
                 )
 
+            # Find the matching invitation and check it hasn't expired
+            invitation = db.query(Invitation).filter(
+                Invitation.email == current_user.email,
+                Invitation.org_id == org_id,
+                Invitation.accepted_at == None,  # noqa: E711
+            ).first()
+
+            if not invitation:
+                raise AppError(
+                    status_code=404,
+                    code="INVITATION_NOT_FOUND",
+                    message="No pending invitation found for this email",
+                )
+
+            if datetime.now(timezone.utc) > invitation.expires_at.replace(tzinfo=timezone.utc):
+                raise AppError(
+                    status_code=410,
+                    code="INVITATION_EXPIRED",
+                    message="This invitation has expired — ask an admin to send a new one",
+                )
+
             member = OrgMember(
                 id=current_user.id,
                 first_name=payload.first_name,
@@ -52,6 +75,9 @@ class OrgMemberService:
             # Create an empty worker profile if the role is a home support worker
             if role == OrgMemberRole.home_support_worker:
                 db.add(WorkerProfile(org_member_id=current_user.id))
+
+            # Mark invitation as accepted
+            invitation.accepted_at = datetime.now(timezone.utc)
 
             db.commit()
             db.refresh(member)
