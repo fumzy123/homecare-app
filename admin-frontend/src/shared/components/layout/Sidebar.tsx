@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { LayoutDashboard, Users, UserRound, CalendarDays, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, UserRound, CalendarDays, UsersRound, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
 
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/dashboard/workers', label: 'Workers', icon: Users },
   { to: '/dashboard/clients', label: 'Clients', icon: UserRound },
   { to: '/dashboard/shifts', label: 'Shifts', icon: CalendarDays },
+  { to: '/team', label: 'Team', icon: UsersRound },
 ]
 
 export function Sidebar() {
