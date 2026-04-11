@@ -29,8 +29,16 @@ export const authApi = {
     return data
   },
 
-  acceptInvite: async (payload: { first_name: string; last_name: string }) => {
-    const { data } = await apiClient.post('/api/org-members/', payload)
+  acceptInvite: async (payload: { first_name: string; last_name: string; password: string }) => {
+    // Step 1: set password directly with Supabase (never sent to our backend)
+    const { error } = await supabase.auth.updateUser({ password: payload.password })
+    if (error) throw new Error(error.message)
+
+    // Step 2: create OrgMember + WorkerProfile on our backend
+    const { data } = await apiClient.post('/api/org-members/', {
+      first_name: payload.first_name,
+      last_name: payload.last_name,
+    })
     return data
   },
 }

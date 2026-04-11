@@ -7,20 +7,18 @@ import { authApi } from '@/features/auth/api'
 const schema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 })
-
 
 export function AcceptInviteForm() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const form = useForm({
-    defaultValues: { first_name: '', last_name: '' },
+    defaultValues: { first_name: '', last_name: '', password: '' },
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        // JWT is already in Zustand from onAuthStateChange firing
-        // when Supabase processed the invite link
         await authApi.acceptInvite(value)
         navigate({ to: '/dashboard' })
       } catch (err: unknown) {
@@ -57,7 +55,7 @@ export function AcceptInviteForm() {
                 placeholder="Jane"
               />
               {field.state.meta.errors[0] && (
-                <p className="mt-1 text-xs text-red-500">{field.state.meta.errors[0]}</p>
+                <p className="mt-1 text-xs text-red-500">{field.state.meta.errors[0] as string}</p>
               )}
             </div>
           )}
@@ -81,12 +79,37 @@ export function AcceptInviteForm() {
                 placeholder="Doe"
               />
               {field.state.meta.errors[0] && (
-                <p className="mt-1 text-xs text-red-500">{field.state.meta.errors[0]}</p>
+                <p className="mt-1 text-xs text-red-500">{field.state.meta.errors[0] as string}</p>
               )}
             </div>
           )}
         </form.Field>
       </div>
+
+      <form.Field
+        name="password"
+        validators={{ onChange: ({ value }) => {
+          const result = schema.shape.password.safeParse(value)
+          return result.success ? undefined : result.error.issues[0].message
+        }}}
+      >
+        {(field) => (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <input
+              type="password"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+              placeholder="At least 8 characters"
+            />
+            {field.state.meta.errors[0] && (
+              <p className="mt-1 text-xs text-red-500">{field.state.meta.errors[0] as string}</p>
+            )}
+          </div>
+        )}
+      </form.Field>
 
       {serverError && (
         <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
