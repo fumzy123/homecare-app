@@ -1,12 +1,69 @@
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
+from app.models.worker_profile import WorkerProfile
+from app.schemas.auth import AcceptInviteSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 
 
 class OrgMemberService:
+
+    # ─────────────────────────────────────────
+    # 1. Create org member on invite acceptance
+    # Called by the invited user after they accept
+    # the email invite and set their password.
+    # role + org_id are read from their JWT metadata.
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def create_member(payload: AcceptInviteSchema, current_user: SupabaseUser, db: Session):
+        try:
+            metadata = current_user.user_metadata or {}
+            role = metadata.get("role")
+            org_id = metadata.get("org_id")
+
+            if not role or not org_id:
+                raise AppError(
+                    status_code=400,
+                    code="MISSING_METADATA",
+                    message="Invite metadata missing role or org_id — invalid invite token",
+                )
+
+            # Guard against duplicate acceptance
+            existing = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
+            if existing:
+                raise AppError(
+                    status_code=409,
+                    code="ALREADY_REGISTERED",
+                    message="This invite has already been accepted",
+                )
+
+            member = OrgMember(
+                id=current_user.id,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                email=current_user.email,
+                role=role,
+                org_id=org_id,
+            )
+            db.add(member)
+
+            # Create an empty worker profile if the role is a home support worker
+            if role == OrgMemberRole.home_support_worker:
+                db.add(WorkerProfile(org_member_id=current_user.id))
+
+            db.commit()
+            db.refresh(member)
+            return member
+
+        except AppError:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
 
     # ─────────────────────────────────────────
     # 1. List all members in the admin's org
