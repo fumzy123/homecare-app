@@ -6,6 +6,7 @@ from app.models.invitation import Invitation
 from app.core.exceptions import AppError
 from app.schemas.invitation import CreateInvitationSchema
 from app.services.org_service import OrgService
+from app.models.organization import Organization
 from app.core.config import settings
 import uuid
 
@@ -23,6 +24,9 @@ class InvitationService:
         supabase = get_supabase_client()
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
+
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org_name = org.name if org else ""
 
             # Guard against duplicate pending invite for the same email + org
             existing = db.query(Invitation).filter(
@@ -58,6 +62,7 @@ class InvitationService:
                     "data": {
                         "role": payload.role,
                         "org_id": str(org_id),
+                        "org_name": org_name,
                     },
                 }
             )

@@ -20,7 +20,7 @@ export function AcceptInviteForm() {
       setServerError(null)
       try {
         await authApi.acceptInvite(value)
-        navigate({ to: '/dashboard' })
+        navigate({ to: '/welcome' })
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Something went wrong'
         setServerError(message)
