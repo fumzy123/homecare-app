@@ -57,6 +57,15 @@ export interface ShiftCreatePayload {
   }
 }
 
+export interface ShiftUpdatePayload {
+  worker_id?: string
+  client_id?: string
+  start_time?: string  // ISO datetime
+  end_time?: string    // ISO datetime
+  location?: string
+  notes?: string
+}
+
 // Shape react-big-calendar expects
 export interface CalendarEvent {
   title: string
@@ -84,6 +93,10 @@ export const shiftsApi = {
 
   createShift: async (payload: ShiftCreatePayload): Promise<void> => {
     await apiClient.post('/api/shifts/', payload)
+  },
+
+  updateShift: async (shiftId: string, payload: ShiftUpdatePayload): Promise<void> => {
+    await apiClient.patch(`/api/shifts/${shiftId}`, payload)
   },
 
   cancelShift: async (shiftId: string): Promise<void> => {
