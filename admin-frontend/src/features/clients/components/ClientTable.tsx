@@ -8,6 +8,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { type Client, SERVICE_TYPE_LABELS } from '@/features/clients/api'
 import { ClientStatusBadge } from '@/features/clients/components/ClientStatusBadge'
@@ -80,6 +81,7 @@ interface ClientTableProps {
 }
 
 export function ClientTable({ clients, globalFilter }: ClientTableProps) {
+  const navigate = useNavigate()
   const [sorting, setSorting] = useState<SortingState>([])
 
   const table = useReactTable({
@@ -133,7 +135,11 @@ export function ClientTable({ clients, globalFilter }: ClientTableProps) {
             </tr>
           ) : (
             table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50">
+              <tr
+                key={row.id}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => navigate({ to: '/dashboard/clients/$clientId', params: { clientId: row.original.id } })}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-4 py-3">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

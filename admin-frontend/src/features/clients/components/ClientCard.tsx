@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { type Client, SERVICE_TYPE_LABELS } from '@/features/clients/api'
 import { ClientStatusBadge } from '@/features/clients/components/ClientStatusBadge'
 
@@ -9,7 +10,11 @@ export function ClientCard({ client }: { client: Client }) {
   const initials = getInitials(client.first_name, client.last_name)
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex flex-col gap-3">
+    <Link
+      to="/dashboard/clients/$clientId"
+      params={{ clientId: client.id }}
+      className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex flex-col gap-3 hover:shadow-md transition-shadow"
+    >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
           {initials}
@@ -53,6 +58,6 @@ export function ClientCard({ client }: { client: Client }) {
           </p>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }
