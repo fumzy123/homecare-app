@@ -28,6 +28,7 @@ class ShiftCreateSchema(BaseModel):
     client_id:  UUID
     start_time: datetime
     end_time:   datetime
+    location:   str | None = None   # defaults to client's address in the service
     notes:      str | None = None
     recurrence: RecurrenceSchema | None = None  # absent = single shift
 
@@ -47,6 +48,7 @@ class ShiftUpdateSchema(BaseModel):
     start_time:           datetime | None = None
     end_time:             datetime | None = None
     recurrence_end_date:  date | None = None
+    location:             str | None = None
     notes:                str | None = None
 
 
@@ -116,6 +118,7 @@ class ShiftOccurrenceResponse(BaseModel):
     is_recurring:      bool
     worker:            WorkerSummary
     client:            ClientSummary
+    location:          str | None
     notes:             str | None
     model_config = {"from_attributes": True}
 
@@ -131,6 +134,7 @@ class ShiftMasterResponse(BaseModel):
     recurrence_rule:     str | None
     recurrence_end_date: date | None
     status:              str
+    location:            str | None
     notes:               str | None
     created_at:          datetime
     model_config = {"from_attributes": True}

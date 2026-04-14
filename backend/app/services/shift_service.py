@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
+from app.models.client import Client
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
 from app.core.exceptions import AppError
 from app.schemas.shift import (
@@ -100,6 +101,7 @@ class ShiftService:
             is_recurring=shift.is_recurring,
             worker=shift.worker,
             client=shift.client,
+            location=shift.location,
             notes=mod.notes if mod else shift.notes,
         )
 
@@ -119,6 +121,15 @@ class ShiftService:
                 recurrence_rule = ShiftService._build_rrule_string(payload.recurrence)
                 recurrence_end_date = payload.recurrence.recurrence_end_date
 
+            if payload.location:
+                location = payload.location
+            else:
+                client = db.query(Client).filter(Client.id == payload.client_id).first()
+                if client:
+                    location = f"{client.street}, {client.city}, {client.province} {client.postal_code}"
+                else:
+                    location = None
+
             shift = Shift(
                 org_id=org_id,
                 worker_id=payload.worker_id,
@@ -129,6 +140,7 @@ class ShiftService:
                 is_recurring=is_recurring,
                 recurrence_rule=recurrence_rule,
                 recurrence_end_date=recurrence_end_date,
+                location=location,
                 notes=payload.notes,
             )
             db.add(shift)

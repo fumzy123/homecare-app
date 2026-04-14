@@ -32,6 +32,7 @@ class Shift(Base):
     # Master status — "active" or "cancelled" (cancels the entire schedule)
     status = Column(Enum(ShiftStatus), nullable=False, default=ShiftStatus.active)
 
+    location = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
 
     # Metadata
