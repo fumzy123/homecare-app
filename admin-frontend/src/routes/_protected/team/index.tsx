@@ -2,31 +2,13 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { teamApi, type Invitation } from '@/features/team/api'
+import { teamApi } from '@/features/team/api'
 import { InviteModal } from '@/features/team/components/InviteModal'
+import { StatusBadge, ROLE_LABELS } from '@/features/team/components/StatusBadge'
 
 export const Route = createFileRoute('/_protected/team/')({
   component: TeamPage,
 })
-
-const ROLE_LABELS: Record<string, string> = {
-  owner: 'Owner',
-  agency_admin: 'Admin',
-  home_support_worker: 'Worker',
-}
-
-function StatusBadge({ invitation }: { invitation: Invitation }) {
-  const now = new Date()
-  const expired = !invitation.accepted_at && new Date(invitation.expires_at) < now
-
-  if (invitation.accepted_at) {
-    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
-  }
-  if (expired) {
-    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">Expired</span>
-  }
-  return <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">Pending</span>
-}
 
 function TeamPage() {
   const [showModal, setShowModal] = useState(false)
