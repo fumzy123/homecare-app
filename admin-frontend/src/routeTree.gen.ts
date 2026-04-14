@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
@@ -18,7 +19,13 @@ import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
 import { Route as ProtectedDashboardShiftsIndexRouteImport } from './routes/_protected/dashboard/shifts/index'
 import { Route as ProtectedDashboardClientsIndexRouteImport } from './routes/_protected/dashboard/clients/index'
+import { Route as ProtectedDashboardWorkersWorkerIdRouteImport } from './routes/_protected/dashboard/workers/$workerId'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -66,14 +73,22 @@ const ProtectedDashboardClientsIndexRoute =
     path: '/dashboard/clients/',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedDashboardWorkersWorkerIdRoute =
+  ProtectedDashboardWorkersWorkerIdRouteImport.update({
+    id: '/dashboard/workers/$workerId',
+    path: '/dashboard/workers/$workerId',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/welcome': typeof WelcomeRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
   '/team/': typeof ProtectedTeamIndexRoute
+  '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRoute
   '/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
   '/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
@@ -83,8 +98,10 @@ export interface FileRoutesByTo {
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/welcome': typeof WelcomeRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
+  '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
   '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
@@ -95,8 +112,10 @@ export interface FileRoutesById {
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/welcome': typeof WelcomeRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
   '/_protected/team/': typeof ProtectedTeamIndexRoute
+  '/_protected/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRoute
   '/_protected/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
   '/_protected/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
@@ -108,8 +127,10 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/login'
     | '/register'
+    | '/welcome'
     | '/dashboard/'
     | '/team/'
+    | '/dashboard/workers/$workerId'
     | '/dashboard/clients/'
     | '/dashboard/shifts/'
     | '/dashboard/workers/'
@@ -119,8 +140,10 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/login'
     | '/register'
+    | '/welcome'
     | '/dashboard'
     | '/team'
+    | '/dashboard/workers/$workerId'
     | '/dashboard/clients'
     | '/dashboard/shifts'
     | '/dashboard/workers'
@@ -130,8 +153,10 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/login'
     | '/register'
+    | '/welcome'
     | '/_protected/dashboard/'
     | '/_protected/team/'
+    | '/_protected/dashboard/workers/$workerId'
     | '/_protected/dashboard/clients/'
     | '/_protected/dashboard/shifts/'
     | '/_protected/dashboard/workers/'
@@ -142,10 +167,18 @@ export interface RootRouteChildren {
   AcceptInviteRoute: typeof AcceptInviteRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  WelcomeRoute: typeof WelcomeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -209,12 +242,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardClientsIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/dashboard/workers/$workerId': {
+      id: '/_protected/dashboard/workers/$workerId'
+      path: '/dashboard/workers/$workerId'
+      fullPath: '/dashboard/workers/$workerId'
+      preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
 interface ProtectedRouteChildren {
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
+  ProtectedDashboardWorkersWorkerIdRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
   ProtectedDashboardClientsIndexRoute: typeof ProtectedDashboardClientsIndexRoute
   ProtectedDashboardShiftsIndexRoute: typeof ProtectedDashboardShiftsIndexRoute
   ProtectedDashboardWorkersIndexRoute: typeof ProtectedDashboardWorkersIndexRoute
@@ -223,6 +264,8 @@ interface ProtectedRouteChildren {
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
+  ProtectedDashboardWorkersWorkerIdRoute:
+    ProtectedDashboardWorkersWorkerIdRoute,
   ProtectedDashboardClientsIndexRoute: ProtectedDashboardClientsIndexRoute,
   ProtectedDashboardShiftsIndexRoute: ProtectedDashboardShiftsIndexRoute,
   ProtectedDashboardWorkersIndexRoute: ProtectedDashboardWorkersIndexRoute,
@@ -237,6 +280,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInviteRoute: AcceptInviteRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
