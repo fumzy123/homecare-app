@@ -5,6 +5,7 @@ from app.models.org_member import OrgMember
 from app.models.worker_profile import WorkerProfile
 from app.models.invitation import Invitation
 from app.schemas.invitation import AcceptInvitationSchema
+from app.schemas.account import AccountUpdateSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
@@ -116,7 +117,59 @@ class OrgMemberService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 2. Get a single member
+    # 3. Update own account (self-edit only)
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def update_self(member_id: str, payload: AccountUpdateSchema, current_user: SupabaseUser, db: Session):
+        try:
+            if str(current_user.id) != member_id:
+                raise AppError(status_code=403, code="FORBIDDEN", message="You can only edit your own account")
+
+            member = db.query(OrgMember).filter(
+                OrgMember.id == member_id,
+                OrgMember.deleted_at == None,  # noqa: E711
+            ).first()
+
+            if not member:
+                raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
+
+            if payload.first_name is not None:
+                member.first_name = payload.first_name
+            if payload.last_name is not None:
+                member.last_name = payload.last_name
+            if payload.email is not None and payload.email != member.email:
+                member.email = payload.email
+
+            # Keep Supabase Auth metadata in sync so the JWT always
+            # reflects the latest name and email after token refresh
+            from app.db.supabase import get_supabase_client
+            supabase = get_supabase_client()
+            auth_update: dict = {}
+            if payload.email is not None and payload.email != current_user.email:
+                auth_update["email"] = payload.email
+            metadata_update = {}
+            if payload.first_name is not None:
+                metadata_update["first_name"] = payload.first_name
+            if payload.last_name is not None:
+                metadata_update["last_name"] = payload.last_name
+            if metadata_update:
+                auth_update["user_metadata"] = metadata_update
+            if auth_update:
+                supabase.auth.admin.update_user_by_id(member_id, auth_update)
+
+            db.commit()
+            db.refresh(member)
+            return member
+
+        except AppError:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 4. Get a single member
     # Enforces tenant isolation (same org only)
     # ─────────────────────────────────────────
     @staticmethod

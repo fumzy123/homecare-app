@@ -16,6 +16,7 @@ import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
+import { Route as ProtectedAccountIndexRouteImport } from './routes/_protected/account/index'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
 import { Route as ProtectedDashboardShiftsIndexRouteImport } from './routes/_protected/dashboard/shifts/index'
 import { Route as ProtectedDashboardClientsIndexRouteImport } from './routes/_protected/dashboard/clients/index'
@@ -56,6 +57,11 @@ const ProtectedDashboardIndexRoute = ProtectedDashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedAccountIndexRoute = ProtectedAccountIndexRouteImport.update({
+  id: '/account/',
+  path: '/account/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedDashboardWorkersIndexRoute =
   ProtectedDashboardWorkersIndexRouteImport.update({
     id: '/dashboard/workers/',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/welcome': typeof WelcomeRoute
+  '/account/': typeof ProtectedAccountIndexRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
   '/team/': typeof ProtectedTeamIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/welcome': typeof WelcomeRoute
+  '/account': typeof ProtectedAccountIndexRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/welcome': typeof WelcomeRoute
+  '/_protected/account/': typeof ProtectedAccountIndexRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
   '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/welcome'
+    | '/account/'
     | '/dashboard/'
     | '/team/'
     | '/dashboard/clients/$clientId'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/welcome'
+    | '/account'
     | '/dashboard'
     | '/team'
     | '/dashboard/clients/$clientId'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/welcome'
+    | '/_protected/account/'
     | '/_protected/dashboard/'
     | '/_protected/team/'
     | '/_protected/dashboard/clients/$clientId'
@@ -234,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/account/': {
+      id: '/_protected/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof ProtectedAccountIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/dashboard/workers/': {
       id: '/_protected/dashboard/workers/'
       path: '/dashboard/workers'
@@ -273,6 +292,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface ProtectedRouteChildren {
+  ProtectedAccountIndexRoute: typeof ProtectedAccountIndexRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
   ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRoute
@@ -283,6 +303,7 @@ interface ProtectedRouteChildren {
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedAccountIndexRoute: ProtectedAccountIndexRoute,
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
   ProtectedDashboardClientsClientIdRoute:

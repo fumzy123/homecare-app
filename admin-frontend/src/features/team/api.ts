@@ -13,6 +13,20 @@ export interface Invitation {
   accepted_at: string | null
 }
 
+export interface OrgMemberUpdatePayload {
+  first_name?: string
+  last_name?: string
+  email?: string
+}
+
+export interface OrgMember {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  role: string
+}
+
 export const teamApi = {
   sendInvitation: async (payload: { email: string; role: InvitationRole }) => {
     const { data } = await apiClient.post('/api/invitations/', payload)
@@ -26,6 +40,11 @@ export const teamApi = {
 
   revokeInvitation: async (id: string) => {
     const { data } = await apiClient.delete(`/api/invitations/${id}`)
+    return data
+  },
+
+  updateMember: async (memberId: string, payload: OrgMemberUpdatePayload): Promise<OrgMember> => {
+    const { data } = await apiClient.patch(`/api/org-members/${memberId}`, payload)
     return data
   },
 }

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.invitation import AcceptInvitationSchema
+from app.schemas.account import AccountUpdateSchema
 from app.services.org_member_service import OrgMemberService
 from app.core.security import require_admin, get_current_user
 from app.core.enums import OrgMemberRole
@@ -47,3 +48,16 @@ async def get_member(
     db: Session = Depends(get_db),
 ):
     return await OrgMemberService.get_member(current_user, member_id, db)
+
+
+# ─────────────────────────────────────────
+# 4. Update own account (self-edit only)
+# ─────────────────────────────────────────
+@router.patch("/{member_id}")
+async def update_member(
+    member_id: str,
+    payload: AccountUpdateSchema,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return await OrgMemberService.update_self(member_id, payload, current_user, db)
