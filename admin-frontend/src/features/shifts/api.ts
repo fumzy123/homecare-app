@@ -97,9 +97,19 @@ export function toCalendarEvents(occurrences: ShiftOccurrence[]): CalendarEvent[
 }
 
 export const shiftsApi = {
-  listShifts: async (fromDate: string, toDate: string): Promise<ShiftOccurrence[]> => {
+  listShifts: async (
+    fromDate: string,
+    toDate: string,
+    workerId?: string,
+    clientId?: string,
+  ): Promise<ShiftOccurrence[]> => {
     const { data } = await apiClient.get('/api/shifts/', {
-      params: { from_date: fromDate, to_date: toDate },
+      params: {
+        from_date: fromDate,
+        to_date: toDate,
+        ...(workerId ? { worker_id: workerId } : {}),
+        ...(clientId ? { client_id: clientId } : {}),
+      },
     })
     return data
   },

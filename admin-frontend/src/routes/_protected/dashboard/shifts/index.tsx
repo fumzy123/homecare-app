@@ -8,6 +8,8 @@ import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
 import { shiftsApi, toCalendarEvents, type ShiftOccurrence, type CalendarEvent } from '@/features/shifts/api'
+import { workersApi } from '@/features/workers/api'
+import { clientsApi } from '@/features/clients/api'
 import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 
@@ -50,12 +52,24 @@ function ShiftsPage() {
   const [showDrawer, setShowDrawer] = useState(false)
   const [pendingShift, setPendingShift] = useState<PendingShiftInfo | null>(null)
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
+  const [filterWorkerId, setFilterWorkerId] = useState('')
+  const [filterClientId, setFilterClientId] = useState('')
 
   const { from, to } = rangeForView(currentDate, view)
 
   const { data: occurrences = [], isLoading } = useQuery({
-    queryKey: ['shifts', from, to],
-    queryFn: () => shiftsApi.listShifts(from, to),
+    queryKey: ['shifts', from, to, filterWorkerId, filterClientId],
+    queryFn: () => shiftsApi.listShifts(from, to, filterWorkerId || undefined, filterClientId || undefined),
+  })
+
+  const { data: workers = [] } = useQuery({
+    queryKey: ['workers'],
+    queryFn: workersApi.listWorkers,
+  })
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ['clients'],
+    queryFn: () => clientsApi.listClients(),
   })
 
   const baseEvents = toCalendarEvents(occurrences)
@@ -98,13 +112,39 @@ function ShiftsPage() {
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between px-8 pb-5 pt-8">
         <h1 className="text-2xl font-semibold text-gray-900">Shifts</h1>
-        <button
-          onClick={() => { setPendingShift(null); setShowDrawer(true) }}
-          className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-        >
-          <Plus size={16} />
-          New Shift
-        </button>
+        <div className="flex items-center gap-3">
+          <select
+            value={filterWorkerId}
+            onChange={(e) => setFilterWorkerId(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400"
+          >
+            <option value="">All workers</option>
+            {workers.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.first_name} {w.last_name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterClientId}
+            onChange={(e) => setFilterClientId(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400"
+          >
+            <option value="">All clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.first_name} {c.last_name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => { setPendingShift(null); setShowDrawer(true) }}
+            className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            <Plus size={16} />
+            New Shift
+          </button>
+        </div>
       </div>
 
       {/* Calendar — min-h-0 lets the flex child shrink so the calendar's own scroll works */}
