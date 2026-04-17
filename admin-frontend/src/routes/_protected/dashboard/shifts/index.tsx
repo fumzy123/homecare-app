@@ -80,9 +80,9 @@ function ShiftsPage() {
   )
 
   return (
-    <div className="flex flex-col p-8">
+    <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-5 flex items-center justify-between">
+      <div className="flex shrink-0 items-center justify-between px-8 pb-5 pt-8">
         <h1 className="text-2xl font-semibold text-gray-900">Shifts</h1>
         <button
           onClick={() => { setSelectedSlot(null); setShowDrawer(true) }}
@@ -93,45 +93,46 @@ function ShiftsPage() {
         </button>
       </div>
 
-
-      {/* Calendar — fixed height so it fills the viewport regardless of scroll container */}
-      <div className="relative rounded-xl border border-gray-200 bg-white p-1 shadow-sm" style={{ height: 'calc(100vh - 140px)' }}>
-        {isLoading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/70">
-            <p className="text-sm text-gray-500">Loading shifts…</p>
-          </div>
-        )}
-        <Calendar
-          localizer={localizer}
-          events={events}
-          view={view}
-          onView={setView}
-          date={currentDate}
-          onNavigate={setCurrentDate}
-          views={['week', 'month']}
-          onRangeChange={handleRangeChange}
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={handleSelectEvent}
-          selectable
-          style={{ height: '100%' }}
-          eventPropGetter={() => ({
-            style: {
-              backgroundColor: '#111827',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '12px',
-              padding: '2px 6px',
-            },
-          })}
-          dayPropGetter={(date) => ({
-            style: {
-              backgroundColor:
-                format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                  ? '#f9fafb'
-                  : undefined,
-            },
-          })}
-        />
+      {/* Calendar — min-h-0 lets the flex child shrink so the calendar's own scroll works */}
+      <div className="relative min-h-0 flex-1 px-8 pb-8">
+        <div className="relative h-full rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          {isLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+              <p className="text-sm text-gray-500">Loading shifts…</p>
+            </div>
+          )}
+          <Calendar
+            localizer={localizer}
+            events={events}
+            view={view}
+            onView={setView}
+            date={currentDate}
+            onNavigate={setCurrentDate}
+            views={['week', 'month']}
+            onRangeChange={handleRangeChange}
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
+            selectable
+            style={{ height: '100%' }}
+            eventPropGetter={() => ({
+              style: {
+                backgroundColor: '#111827',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px',
+                padding: '2px 6px',
+              },
+            })}
+            dayPropGetter={(date) => ({
+              style: {
+                backgroundColor:
+                  format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                    ? '#f9fafb'
+                    : undefined,
+              },
+            })}
+          />
+        </div>
       </div>
 
       {/* Create drawer */}
