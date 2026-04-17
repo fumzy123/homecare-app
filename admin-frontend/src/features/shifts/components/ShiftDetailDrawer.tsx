@@ -55,30 +55,54 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
   const [editError, setEditError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
+  // Only needed when editing a non-recurring shift (recurring edits don't change worker/client)
   const { data: workers = [] } = useQuery({
     queryKey: ['workers'],
     queryFn: workersApi.listWorkers,
-    enabled: isEditing,
+    enabled: isEditing && !shift.is_recurring,
   })
 
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientsApi.listClients(),
-    enabled: isEditing,
+    enabled: isEditing && !shift.is_recurring,
   })
 
   const updateMutation = useMutation({
     mutationFn: () => {
       const startISO = new Date(`${date}T${startTime}`).toISOString()
       const endISO = new Date(`${date}T${endTime}`).toISOString()
-      return shiftsApi.updateShift(shift.shift_id, {
-        worker_id: workerId,
-        client_id: clientId,
-        start_time: startISO,
-        end_time: endISO,
-        location: location || undefined,
-        notes: notes || undefined,
-      })
+
+      if (shift.is_recurring) {
+        // Recurring occurrence → create or update a modification for just this occurrence
+        const originalDate = shift.date  // YYYY-MM-DD identifying which occurrence
+        if (shift.is_modification) {
+          // Modification already exists → update it
+          return shiftsApi.updateModification(shift.shift_id, originalDate, {
+            new_start_time: startISO,
+            new_end_time: endISO,
+            notes: notes || undefined,
+          })
+        } else {
+          // No modification yet → create one
+          return shiftsApi.createModification(shift.shift_id, {
+            original_date: originalDate,
+            new_start_time: startISO,
+            new_end_time: endISO,
+            notes: notes || undefined,
+          })
+        }
+      } else {
+        // Single shift → update the master record
+        return shiftsApi.updateShift(shift.shift_id, {
+          worker_id: workerId,
+          client_id: clientId,
+          start_time: startISO,
+          end_time: endISO,
+          location: location || undefined,
+          notes: notes || undefined,
+        })
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] })
@@ -158,44 +182,50 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
           {isEditing ? (
             /* ── Edit mode ── */
             <>
-              {shift.is_recurring && (
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
-                  <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                  <span>Changes apply to the entire recurring schedule, not just this occurrence.</span>
+              {shift.is_recurring ? (
+                <div className="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+                  <RefreshCw size={13} className="mt-0.5 shrink-0" />
+                  <span>
+                    Only this occurrence will be changed — the rest of the schedule is unaffected.
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Worker — master field, only editable on non-recurring shifts */}
+              {!shift.is_recurring && (
+                <div>
+                  <label className={labelClass}>Worker</label>
+                  <select
+                    className={inputClass}
+                    value={workerId}
+                    onChange={(e) => setWorkerId(e.target.value)}
+                  >
+                    {workers.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.first_name} {w.last_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
-              {/* Worker */}
-              <div>
-                <label className={labelClass}>Worker</label>
-                <select
-                  className={inputClass}
-                  value={workerId}
-                  onChange={(e) => setWorkerId(e.target.value)}
-                >
-                  {workers.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.first_name} {w.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Client */}
-              <div>
-                <label className={labelClass}>Client</label>
-                <select
-                  className={inputClass}
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                >
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Client — master field, only editable on non-recurring shifts */}
+              {!shift.is_recurring && (
+                <div>
+                  <label className={labelClass}>Client</label>
+                  <select
+                    className={inputClass}
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                  >
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.first_name} {c.last_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Date */}
               <div>
@@ -230,16 +260,18 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                 </div>
               </div>
 
-              {/* Location */}
-              <div>
-                <label className={labelClass}>Location</label>
-                <input
-                  className={inputClass}
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Address"
-                />
-              </div>
+              {/* Location — master field, only editable on non-recurring shifts */}
+              {!shift.is_recurring && (
+                <div>
+                  <label className={labelClass}>Location</label>
+                  <input
+                    className={inputClass}
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Address"
+                  />
+                </div>
+              )}
 
               {/* Notes */}
               <div>

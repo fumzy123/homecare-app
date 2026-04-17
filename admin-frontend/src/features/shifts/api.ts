@@ -66,6 +66,19 @@ export interface ShiftUpdatePayload {
   notes?: string
 }
 
+export interface ShiftModificationPayload {
+  original_date: string   // YYYY-MM-DD — identifies which occurrence
+  new_start_time?: string // ISO datetime
+  new_end_time?: string   // ISO datetime
+  notes?: string
+}
+
+export interface ShiftModificationUpdatePayload {
+  new_start_time?: string // ISO datetime
+  new_end_time?: string   // ISO datetime
+  notes?: string
+}
+
 // Shape react-big-calendar expects
 export interface CalendarEvent {
   title: string
@@ -97,6 +110,14 @@ export const shiftsApi = {
 
   updateShift: async (shiftId: string, payload: ShiftUpdatePayload): Promise<void> => {
     await apiClient.patch(`/api/shifts/${shiftId}`, payload)
+  },
+
+  createModification: async (shiftId: string, payload: ShiftModificationPayload): Promise<void> => {
+    await apiClient.post(`/api/shifts/${shiftId}/modifications`, payload)
+  },
+
+  updateModification: async (shiftId: string, originalDate: string, payload: ShiftModificationUpdatePayload): Promise<void> => {
+    await apiClient.patch(`/api/shifts/${shiftId}/modifications/${originalDate}`, payload)
   },
 
   cancelShift: async (shiftId: string): Promise<void> => {
