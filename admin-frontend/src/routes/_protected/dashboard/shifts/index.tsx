@@ -7,8 +7,8 @@ import { format, parse, startOfWeek, startOfMonth, endOfMonth, getDay, addDays }
 import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
-import { shiftsApi, toCalendarEvents, type ShiftOccurrence } from '@/features/shifts/api'
-import { CreateShiftDrawer } from '@/features/shifts/components/CreateShiftDrawer'
+import { shiftsApi, toCalendarEvents, type ShiftOccurrence, type CalendarEvent } from '@/features/shifts/api'
+import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 
 export const Route = createFileRoute('/_protected/dashboard/shifts/')({
@@ -48,7 +48,7 @@ function ShiftsPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<View>('week')
   const [showDrawer, setShowDrawer] = useState(false)
-  const [selectedSlot, setSelectedSlot] = useState<Date | null>(null)
+  const [pendingShift, setPendingShift] = useState<PendingShiftInfo | null>(null)
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
   const { from, to } = rangeForView(currentDate, view)
@@ -58,17 +58,31 @@ function ShiftsPage() {
     queryFn: () => shiftsApi.listShifts(from, to),
   })
 
-  const events = toCalendarEvents(occurrences)
+  const baseEvents = toCalendarEvents(occurrences)
 
-  const handleSelectSlot = useCallback(({ start }: { start: Date }) => {
-    setSelectedSlot(start)
+  // Phantom event — keeps the dragged block visible while the create drawer is open
+  const phantomEvent: CalendarEvent | null =
+    showDrawer && pendingShift
+      ? {
+          title: pendingShift.title,
+          start: pendingShift.start,
+          end: pendingShift.end,
+          resource: { shift_id: '__phantom__' } as ShiftOccurrence,
+        }
+      : null
+
+  const events = phantomEvent ? [...baseEvents, phantomEvent] : baseEvents
+
+  const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
+    setPendingShift({ start, end, title: 'New Shift' })
     setSelectedShift(null)
     setShowDrawer(true)
   }, [])
 
   const handleSelectEvent = useCallback((event: { resource: ShiftOccurrence }) => {
+    if (event.resource?.shift_id === '__phantom__') return
     setSelectedShift(event.resource)
-    setSelectedSlot(null)
+    setPendingShift(null)
   }, [])
 
   const handleRangeChange = useCallback(
@@ -85,7 +99,7 @@ function ShiftsPage() {
       <div className="flex shrink-0 items-center justify-between px-8 pb-5 pt-8">
         <h1 className="text-2xl font-semibold text-gray-900">Shifts</h1>
         <button
-          onClick={() => { setSelectedSlot(null); setShowDrawer(true) }}
+          onClick={() => { setPendingShift(null); setShowDrawer(true) }}
           className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
         >
           <Plus size={16} />
@@ -114,15 +128,28 @@ function ShiftsPage() {
             onSelectEvent={handleSelectEvent}
             selectable
             style={{ height: '100%' }}
-            eventPropGetter={() => ({
-              style: {
-                backgroundColor: '#111827',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '12px',
-                padding: '2px 6px',
-              },
-            })}
+            eventPropGetter={(event) =>
+              event.resource?.shift_id === '__phantom__'
+                ? {
+                    style: {
+                      backgroundColor: 'transparent',
+                      border: '2px dashed #9ca3af',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      padding: '2px 6px',
+                      color: '#6b7280',
+                    },
+                  }
+                : {
+                    style: {
+                      backgroundColor: '#111827',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      padding: '2px 6px',
+                    },
+                  }
+            }
             dayPropGetter={(date) => ({
               style: {
                 backgroundColor:
@@ -138,8 +165,10 @@ function ShiftsPage() {
       {/* Create drawer */}
       {showDrawer && (
         <CreateShiftDrawer
-          initialDate={selectedSlot}
-          onClose={() => setShowDrawer(false)}
+          initialDate={pendingShift?.start ?? null}
+          initialEndDate={pendingShift?.end ?? null}
+          onFormChange={(info) => setPendingShift(info)}
+          onClose={() => { setShowDrawer(false); setPendingShift(null) }}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['shifts'] })}
         />
       )}

@@ -17,8 +17,16 @@ const schema = z.object({
   notes: z.string().optional(),
 })
 
+export interface PendingShiftInfo {
+  start: Date
+  end: Date
+  title: string
+}
+
 interface CreateShiftDrawerProps {
   initialDate?: Date | null
+  initialEndDate?: Date | null
+  onFormChange?: (info: PendingShiftInfo) => void
   onClose: () => void
   onSuccess: () => void
 }
@@ -37,7 +45,7 @@ const inputClass =
   'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400'
 const labelClass = 'block text-sm font-medium text-gray-700'
 
-export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShiftDrawerProps) {
+export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, onClose, onSuccess }: CreateShiftDrawerProps) {
   const [serverError, setServerError] = useState<string | null>(null)
 
   // Fields kept outside TanStack Form for simplicity
@@ -59,6 +67,27 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
 
   const defaultDate = initialDate ? format(initialDate, 'yyyy-MM-dd') : ''
   const defaultStartTime = initialDate ? format(initialDate, 'HH:mm') : '09:00'
+  const defaultEndTime = initialEndDate ? format(initialEndDate, 'HH:mm') : '17:00'
+
+  function notifyFormChange(
+    date: string,
+    startTime: string,
+    endTime: string,
+    workerId: string,
+    clientId: string,
+  ) {
+    if (!onFormChange || !date || !startTime || !endTime) return
+    const start = new Date(`${date}T${startTime}`)
+    const end = new Date(`${date}T${endTime}`)
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return
+    const worker = workers.find((w) => w.id === workerId)
+    const client = clients.find((c) => c.id === clientId)
+    let title = 'New Shift'
+    if (worker && client) title = `${worker.first_name} · ${client.first_name} ${client.last_name}`
+    else if (worker) title = `${worker.first_name} · ?`
+    else if (client) title = `? · ${client.first_name} ${client.last_name}`
+    onFormChange({ start, end, title })
+  }
 
   const form = useForm({
     defaultValues: {
@@ -66,7 +95,7 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
       client_id: '',
       date: defaultDate,
       start_time: defaultStartTime,
-      end_time: '17:00',
+      end_time: defaultEndTime,
       notes: '',
     },
     onSubmit: async ({ value }) => {
@@ -146,7 +175,10 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
                 <select
                   className={inputClass}
                   value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
+                  onChange={(e) => {
+                    field.handleChange(e.target.value)
+                    notifyFormChange(form.state.values.date, form.state.values.start_time, form.state.values.end_time, e.target.value, form.state.values.client_id)
+                  }}
                   onBlur={field.handleBlur}
                 >
                   <option value="">Select a worker…</option>
@@ -182,6 +214,7 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
                     } else {
                       setLocation('')
                     }
+                    notifyFormChange(form.state.values.date, form.state.values.start_time, form.state.values.end_time, form.state.values.worker_id, e.target.value)
                   }}
                   onBlur={field.handleBlur}
                 >
@@ -223,7 +256,10 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
                   type="date"
                   className={inputClass}
                   value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
+                  onChange={(e) => {
+                    field.handleChange(e.target.value)
+                    notifyFormChange(e.target.value, form.state.values.start_time, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                  }}
                   onBlur={field.handleBlur}
                 />
                 <FieldError error={field.state.meta.errors[0]} />
@@ -244,7 +280,10 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
                     type="time"
                     className={inputClass}
                     value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
+                    onChange={(e) => {
+                      field.handleChange(e.target.value)
+                      notifyFormChange(form.state.values.date, e.target.value, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                    }}
                     onBlur={field.handleBlur}
                   />
                   <FieldError error={field.state.meta.errors[0]} />
@@ -263,7 +302,10 @@ export function CreateShiftDrawer({ initialDate, onClose, onSuccess }: CreateShi
                     type="time"
                     className={inputClass}
                     value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
+                    onChange={(e) => {
+                      field.handleChange(e.target.value)
+                      notifyFormChange(form.state.values.date, form.state.values.start_time, e.target.value, form.state.values.worker_id, form.state.values.client_id)
+                    }}
                     onBlur={field.handleBlur}
                   />
                   <FieldError error={field.state.meta.errors[0]} />
