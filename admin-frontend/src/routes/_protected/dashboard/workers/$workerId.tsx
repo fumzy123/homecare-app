@@ -4,13 +4,16 @@ import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { z } from 'zod'
+import { format, startOfMonth, endOfMonth } from 'date-fns'
 import {
   workersApi,
   type Worker,
   type EmploymentType,
   EMPLOYMENT_TYPE_LABELS,
 } from '@/features/workers/api'
+import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
+import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId')({
   component: WorkerDetailPage,
@@ -111,6 +114,9 @@ function WorkerDetailContent({ worker }: { worker: Worker }) {
 
       {/* Section 2: Work Profile */}
       <WorkProfileForm worker={worker} />
+
+      {/* Section 3: Shift History */}
+      <ShiftHistorySection workerId={worker.id} />
 
       {/* Danger zone */}
       <div className="mt-10 rounded-lg border border-red-200 bg-red-50 p-5">
@@ -550,5 +556,89 @@ function WorkProfileForm({ worker }: { worker: Worker }) {
         </div>
       </form>
     </section>
+  )
+}
+
+// ─── Section 3: Shift History ────────────────────────────────────────────────
+
+function ShiftHistorySection({ workerId }: { workerId: string }) {
+  const from = format(startOfMonth(new Date()), 'yyyy-MM-dd')
+  const to   = format(endOfMonth(new Date()), 'yyyy-MM-dd')
+  const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
+
+  const { data: shifts = [], isLoading } = useQuery({
+    queryKey: ['shifts', from, to, workerId, ''],
+    queryFn: () => shiftsApi.listShifts(from, to, workerId),
+  })
+
+  const sorted = [...shifts].sort(
+    (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+  )
+
+  function pillClass(status: string) {
+    switch (status.toLowerCase()) {
+      case 'completed': return 'bg-green-50 text-green-700'
+      case 'cancelled': return 'bg-red-50 text-red-600'
+      default: return 'bg-gray-100 text-gray-600'
+    }
+  }
+
+  return (
+    <>
+      <section className="mt-6 rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-gray-900">Shift History</h2>
+          <span className="text-xs text-gray-400">{format(new Date(), 'MMMM yyyy')}</span>
+        </div>
+
+        {isLoading ? (
+          <p className="px-5 py-6 text-center text-sm text-gray-400">Loading…</p>
+        ) : sorted.length === 0 ? (
+          <p className="px-5 py-6 text-center text-sm text-gray-400">No shifts this month</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Date</th>
+                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Client</th>
+                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Time</th>
+                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Hours</th>
+                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {sorted.map((shift) => {
+                const hours = (
+                  (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3600000
+                ).toFixed(2)
+                return (
+                  <tr
+                    key={`${shift.shift_id}-${shift.date}`}
+                    onClick={() => setSelectedShift(shift)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-5 py-3 text-gray-700">{format(new Date(shift.date), 'MMM d')}</td>
+                    <td className="px-5 py-3 text-gray-700">{shift.client.first_name} {shift.client.last_name}</td>
+                    <td className="px-5 py-3 text-gray-500 tabular-nums">
+                      {format(new Date(shift.start_time), 'h:mm a')} – {format(new Date(shift.end_time), 'h:mm a')}
+                    </td>
+                    <td className="px-5 py-3 text-gray-700 tabular-nums">{hours} h</td>
+                    <td className="px-5 py-3">
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${pillClass(shift.completion_status)}`}>
+                        {shift.completion_status.charAt(0).toUpperCase() + shift.completion_status.slice(1)}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {selectedShift && (
+        <ShiftDetailDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
+      )}
+    </>
   )
 }
