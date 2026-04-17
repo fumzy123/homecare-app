@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { LayoutDashboard, Users, UserRound, CalendarDays, UsersRound, LogOut, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, UserRound, CalendarDays, UsersRound, LogOut, Settings, Clock } from 'lucide-react'
 import { useRef, useState, useEffect } from 'react'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/dashboard/workers', label: 'Workers', icon: Users },
   { to: '/dashboard/clients', label: 'Clients', icon: UserRound },
   { to: '/dashboard/shifts', label: 'Shifts', icon: CalendarDays },
+  { to: '/dashboard/timesheet', label: 'Timesheet', icon: Clock },
   { to: '/team', label: 'Team', icon: UsersRound },
 ]
 
