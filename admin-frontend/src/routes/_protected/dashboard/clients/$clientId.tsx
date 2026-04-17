@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { z } from 'zod'
 import { clientsApi, type ClientStatus, type ServiceType } from '@/features/clients/api'
+import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')({
   component: ClientDetailPage,
@@ -133,6 +134,7 @@ function ClientDetailContent({
       status: client.status,
       funding_source: client.funding_source ?? '',
       notes: client.notes ?? '',
+      requested_schedule: (client.requested_schedule ?? {}) as ScheduleMap,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -161,6 +163,7 @@ function ClientDetailContent({
           status: value.status,
           funding_source: value.funding_source || undefined,
           notes: value.notes || undefined,
+          requested_schedule: Object.keys(value.requested_schedule).length > 0 ? value.requested_schedule : undefined,
         })
         queryClient.invalidateQueries({ queryKey: ['clients'] })
         queryClient.invalidateQueries({ queryKey: ['client', clientId] })
@@ -565,6 +568,18 @@ function ClientDetailContent({
             )}
           </form.Field>
         </div>
+
+        {/* ── Requested Schedule ── */}
+        <SectionHeading>Requested Schedule</SectionHeading>
+
+        <form.Field name="requested_schedule">
+          {(field) => (
+            <AvailabilityGrid
+              value={field.state.value}
+              onChange={(v) => field.handleChange(v)}
+            />
+          )}
+        </form.Field>
 
         {/* ── Administrative ── */}
         <SectionHeading>Administrative</SectionHeading>

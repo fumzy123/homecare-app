@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Date, DateTime, ForeignKey, Enum, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
@@ -40,6 +40,9 @@ class Client(Base):
     emergency_contact_name = Column(String, nullable=False)
     emergency_contact_phone = Column(String, nullable=False)
     emergency_contact_relationship = Column(String, nullable=False)
+
+    # Requested Schedule
+    requested_schedule = Column(JSONB, nullable=True)
 
     # Administrative
     status = Column(Enum(ClientStatus), nullable=False, default=ClientStatus.active)

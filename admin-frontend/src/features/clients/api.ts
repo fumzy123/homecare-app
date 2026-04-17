@@ -1,4 +1,5 @@
 import { apiClient } from '@/shared/lib/api-client'
+import type { ScheduleMap } from '@/shared/components/AvailabilityGrid'
 
 export type ClientStatus = 'active' | 'on_hold' | 'discharged'
 export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing'
@@ -44,6 +45,7 @@ export interface Client {
   care_end_date: string | null
   funding_source: string | null
   notes: string | null
+  requested_schedule: ScheduleMap | null
   created_at: string
   updated_at: string | null
 }
@@ -72,6 +74,7 @@ export interface ClientCreatePayload {
   care_end_date?: string
   funding_source?: string
   notes?: string
+  requested_schedule?: ScheduleMap
 }
 
 export const clientsApi = {

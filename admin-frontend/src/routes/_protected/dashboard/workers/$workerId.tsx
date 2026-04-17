@@ -10,6 +10,7 @@ import {
   type EmploymentType,
   EMPLOYMENT_TYPE_LABELS,
 } from '@/features/workers/api'
+import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId')({
   component: WorkerDetailPage,
@@ -378,7 +379,7 @@ function WorkProfileForm({ worker }: { worker: Worker }) {
       employment_type: (profile?.employment_type ?? '') as EmploymentType | '',
       has_vehicle: profile?.has_vehicle ?? false,
       max_hours_per_week: profile?.max_hours_per_week?.toString() ?? '',
-      availability: profile?.availability ?? '',
+      availability: (profile?.availability ?? {}) as ScheduleMap,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -393,7 +394,7 @@ function WorkProfileForm({ worker }: { worker: Worker }) {
           employment_type: (value.employment_type as EmploymentType) || undefined,
           has_vehicle: value.has_vehicle,
           max_hours_per_week: isNaN(maxHours as number) ? undefined : maxHours,
-          availability: value.availability || undefined,
+          availability: Object.keys(value.availability).length > 0 ? value.availability : undefined,
         })
         queryClient.invalidateQueries({ queryKey: ['worker', worker.id] })
         setSaved(true)
@@ -517,14 +518,13 @@ function WorkProfileForm({ worker }: { worker: Worker }) {
 
         <form.Field name="availability">
           {(field) => (
-            <div className="mt-3">
-              <label className={labelClass}>Availability Notes</label>
-              <textarea
-                className={`${inputClass} resize-none`}
-                rows={3}
+            <div className="mt-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Availability
+              </p>
+              <AvailabilityGrid
                 value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="e.g. Weekdays 8am–5pm, not available Sundays…"
+                onChange={(v) => field.handleChange(v)}
               />
             </div>
           )}

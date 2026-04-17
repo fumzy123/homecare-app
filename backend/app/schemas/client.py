@@ -43,6 +43,9 @@ class ClientCreateSchema(BaseModel):
     emergency_contact_phone: str
     emergency_contact_relationship: str
 
+    # Requested Schedule
+    requested_schedule: Optional[dict] = None
+
     # Administrative
     status: ClientStatus = ClientStatus.active
     care_start_date: date
@@ -80,6 +83,9 @@ class ClientUpdateSchema(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+
+    # Requested Schedule
+    requested_schedule: Optional[dict] = None
 
     # Administrative
     status: Optional[ClientStatus] = None
@@ -122,6 +128,9 @@ class ClientResponse(BaseModel):
     emergency_contact_name: str
     emergency_contact_phone: str
     emergency_contact_relationship: str
+
+    # Requested Schedule
+    requested_schedule: Optional[dict]
 
     # Administrative
     status: ClientStatus

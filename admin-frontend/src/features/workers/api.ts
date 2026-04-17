@@ -1,4 +1,5 @@
 import { apiClient } from '@/shared/lib/api-client'
+import type { ScheduleMap } from '@/shared/components/AvailabilityGrid'
 
 export type EmploymentType = 'full_time' | 'part_time' | 'casual'
 
@@ -17,7 +18,7 @@ export interface WorkerProfile {
   employment_type: EmploymentType | null
   has_vehicle: boolean | null
   max_hours_per_week: number | null
-  availability: string | null
+  availability: ScheduleMap | null
   created_at: string
   updated_at: string | null
 }
@@ -62,7 +63,7 @@ export interface WorkerProfileUpdatePayload {
   employment_type?: EmploymentType
   has_vehicle?: boolean
   max_hours_per_week?: number
-  availability?: string
+  availability?: ScheduleMap
 }
 
 export const workersApi = {

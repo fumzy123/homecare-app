@@ -18,7 +18,7 @@ class WorkerProfileCreateSchema(BaseModel):
     max_hours_per_week: Optional[int] = None
 
     # Scheduling
-    availability: Optional[str] = None
+    availability: Optional[dict] = None
 
 
 class WorkerProfileUpdateSchema(BaseModel):
@@ -34,7 +34,7 @@ class WorkerProfileUpdateSchema(BaseModel):
     max_hours_per_week: Optional[int] = None
 
     # Scheduling
-    availability: Optional[str] = None
+    availability: Optional[dict] = None
 
 
 class OrgMemberUpdateSchema(BaseModel):
@@ -58,7 +58,7 @@ class WorkerProfileResponse(BaseModel):
     employment_type: Optional[EmploymentType]
     has_vehicle: Optional[bool]
     max_hours_per_week: Optional[int]
-    availability: Optional[str]
+    availability: Optional[dict]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
