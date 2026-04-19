@@ -24,7 +24,9 @@ import { Route as ProtectedDashboardClientsIndexRouteImport } from './routes/_pr
 import { Route as ProtectedDashboardWorkersWorkerIdRouteImport } from './routes/_protected/dashboard/workers/$workerId'
 import { Route as ProtectedDashboardClientsClientIdRouteImport } from './routes/_protected/dashboard/clients/$clientId'
 import { Route as ProtectedDashboardWorkersWorkerIdIndexRouteImport } from './routes/_protected/dashboard/workers/$workerId/index'
+import { Route as ProtectedDashboardClientsClientIdIndexRouteImport } from './routes/_protected/dashboard/clients/$clientId/index'
 import { Route as ProtectedDashboardWorkersWorkerIdEditRouteImport } from './routes/_protected/dashboard/workers/$workerId/edit'
+import { Route as ProtectedDashboardClientsClientIdEditRouteImport } from './routes/_protected/dashboard/clients/$clientId/edit'
 
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
@@ -107,11 +109,23 @@ const ProtectedDashboardWorkersWorkerIdIndexRoute =
     path: '/',
     getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
   } as any)
+const ProtectedDashboardClientsClientIdIndexRoute =
+  ProtectedDashboardClientsClientIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
+  } as any)
 const ProtectedDashboardWorkersWorkerIdEditRoute =
   ProtectedDashboardWorkersWorkerIdEditRouteImport.update({
     id: '/edit',
     path: '/edit',
     getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
+  } as any)
+const ProtectedDashboardClientsClientIdEditRoute =
+  ProtectedDashboardClientsClientIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -123,13 +137,15 @@ export interface FileRoutesByFullPath {
   '/account/': typeof ProtectedAccountIndexRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
   '/team/': typeof ProtectedTeamIndexRoute
-  '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRoute
+  '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
   '/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
+  '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
   '/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  '/dashboard/clients/$clientId/': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/dashboard/workers/$workerId/': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -141,12 +157,13 @@ export interface FileRoutesByTo {
   '/account': typeof ProtectedAccountIndexRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
   '/team': typeof ProtectedTeamIndexRoute
-  '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
   '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
+  '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
   '/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
 export interface FileRoutesById {
@@ -159,13 +176,15 @@ export interface FileRoutesById {
   '/_protected/account/': typeof ProtectedAccountIndexRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
   '/_protected/team/': typeof ProtectedTeamIndexRoute
-  '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRoute
+  '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
   '/_protected/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/_protected/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
   '/_protected/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/_protected/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
+  '/_protected/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
   '/_protected/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  '/_protected/dashboard/clients/$clientId/': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/_protected/dashboard/workers/$workerId/': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -185,7 +204,9 @@ export interface FileRouteTypes {
     | '/dashboard/shifts/'
     | '/dashboard/timesheet/'
     | '/dashboard/workers/'
+    | '/dashboard/clients/$clientId/edit'
     | '/dashboard/workers/$workerId/edit'
+    | '/dashboard/clients/$clientId/'
     | '/dashboard/workers/$workerId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -197,12 +218,13 @@ export interface FileRouteTypes {
     | '/account'
     | '/dashboard'
     | '/team'
-    | '/dashboard/clients/$clientId'
     | '/dashboard/clients'
     | '/dashboard/shifts'
     | '/dashboard/timesheet'
     | '/dashboard/workers'
+    | '/dashboard/clients/$clientId/edit'
     | '/dashboard/workers/$workerId/edit'
+    | '/dashboard/clients/$clientId'
     | '/dashboard/workers/$workerId'
   id:
     | '__root__'
@@ -220,7 +242,9 @@ export interface FileRouteTypes {
     | '/_protected/dashboard/shifts/'
     | '/_protected/dashboard/timesheet/'
     | '/_protected/dashboard/workers/'
+    | '/_protected/dashboard/clients/$clientId/edit'
     | '/_protected/dashboard/workers/$workerId/edit'
+    | '/_protected/dashboard/clients/$clientId/'
     | '/_protected/dashboard/workers/$workerId/'
   fileRoutesById: FileRoutesById
 }
@@ -339,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdIndexRouteImport
       parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
     }
+    '/_protected/dashboard/clients/$clientId/': {
+      id: '/_protected/dashboard/clients/$clientId/'
+      path: '/'
+      fullPath: '/dashboard/clients/$clientId/'
+      preLoaderRoute: typeof ProtectedDashboardClientsClientIdIndexRouteImport
+      parentRoute: typeof ProtectedDashboardClientsClientIdRoute
+    }
     '/_protected/dashboard/workers/$workerId/edit': {
       id: '/_protected/dashboard/workers/$workerId/edit'
       path: '/edit'
@@ -346,8 +377,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdEditRouteImport
       parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
     }
+    '/_protected/dashboard/clients/$clientId/edit': {
+      id: '/_protected/dashboard/clients/$clientId/edit'
+      path: '/edit'
+      fullPath: '/dashboard/clients/$clientId/edit'
+      preLoaderRoute: typeof ProtectedDashboardClientsClientIdEditRouteImport
+      parentRoute: typeof ProtectedDashboardClientsClientIdRoute
+    }
   }
 }
+
+interface ProtectedDashboardClientsClientIdRouteChildren {
+  ProtectedDashboardClientsClientIdEditRoute: typeof ProtectedDashboardClientsClientIdEditRoute
+  ProtectedDashboardClientsClientIdIndexRoute: typeof ProtectedDashboardClientsClientIdIndexRoute
+}
+
+const ProtectedDashboardClientsClientIdRouteChildren: ProtectedDashboardClientsClientIdRouteChildren =
+  {
+    ProtectedDashboardClientsClientIdEditRoute:
+      ProtectedDashboardClientsClientIdEditRoute,
+    ProtectedDashboardClientsClientIdIndexRoute:
+      ProtectedDashboardClientsClientIdIndexRoute,
+  }
+
+const ProtectedDashboardClientsClientIdRouteWithChildren =
+  ProtectedDashboardClientsClientIdRoute._addFileChildren(
+    ProtectedDashboardClientsClientIdRouteChildren,
+  )
 
 interface ProtectedDashboardWorkersWorkerIdRouteChildren {
   ProtectedDashboardWorkersWorkerIdEditRoute: typeof ProtectedDashboardWorkersWorkerIdEditRoute
@@ -371,7 +427,7 @@ interface ProtectedRouteChildren {
   ProtectedAccountIndexRoute: typeof ProtectedAccountIndexRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
-  ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRoute
+  ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRouteWithChildren
   ProtectedDashboardWorkersWorkerIdRoute: typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   ProtectedDashboardClientsIndexRoute: typeof ProtectedDashboardClientsIndexRoute
   ProtectedDashboardShiftsIndexRoute: typeof ProtectedDashboardShiftsIndexRoute
@@ -384,7 +440,7 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
   ProtectedDashboardClientsClientIdRoute:
-    ProtectedDashboardClientsClientIdRoute,
+    ProtectedDashboardClientsClientIdRouteWithChildren,
   ProtectedDashboardWorkersWorkerIdRoute:
     ProtectedDashboardWorkersWorkerIdRouteWithChildren,
   ProtectedDashboardClientsIndexRoute: ProtectedDashboardClientsIndexRoute,
