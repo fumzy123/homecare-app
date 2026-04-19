@@ -41,6 +41,43 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
   )
 }
 
+// ─── Top clients ──────────────────────────────────────────────────────────────
+
+function TopClients({ shifts }: { shifts: ShiftOccurrence[] }) {
+  const counts = shifts
+    .filter((s) => s.completion_status === 'completed')
+    .reduce<Record<string, { name: string; count: number }>>((acc, s) => {
+      const id = s.client.id
+      if (!acc[id]) acc[id] = { name: `${s.client.first_name} ${s.client.last_name}`, count: 0 }
+      acc[id].count++
+      return acc
+    }, {})
+
+  const top3 = Object.values(counts)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+
+  if (top3.length === 0) return null
+
+  return (
+    <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+        Top Clients · Completed visits
+      </p>
+      <div className="space-y-2.5">
+        {top3.map((client, i) => (
+          <div key={client.name} className="flex items-center gap-3">
+            <span className="w-4 text-xs font-semibold text-gray-300">{i + 1}</span>
+            <span className="flex-1 text-sm text-gray-700">{client.name}</span>
+            <span className="text-sm font-semibold text-gray-900">{client.count}</span>
+            <span className="text-xs text-gray-400">visits</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 function WorkerOverview() {
@@ -83,6 +120,9 @@ function WorkerOverview() {
         <StatCard label="Completed" value={completed} sub="all time" />
         <StatCard label="Cancelled" value={cancelled} sub="all time" />
       </div>
+
+      {/* Top clients */}
+      <TopClients shifts={shifts} />
 
       {/* Shift history */}
       <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">
