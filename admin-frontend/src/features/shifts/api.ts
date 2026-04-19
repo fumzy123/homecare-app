@@ -95,6 +95,16 @@ export interface ProgressNote {
   updated_at: string | null
 }
 
+// ─── Shift stats ──────────────────────────────────────────────────────────────
+
+export interface ShiftStats {
+  scheduled: number
+  in_progress: number
+  completed: number
+  cancelled: number
+  total: number
+}
+
 // ─── Calendar shape ───────────────────────────────────────────────────────────
 
 // Shape react-big-calendar expects
@@ -115,6 +125,23 @@ export function toCalendarEvents(occurrences: ShiftOccurrence[]): CalendarEvent[
 }
 
 export const shiftsApi = {
+  getShiftStats: async (
+    fromDate: string,
+    toDate: string,
+    workerId?: string,
+    clientId?: string,
+  ): Promise<ShiftStats> => {
+    const { data } = await apiClient.get('/api/shifts/stats', {
+      params: {
+        from_date: fromDate,
+        to_date: toDate,
+        ...(workerId ? { worker_id: workerId } : {}),
+        ...(clientId ? { client_id: clientId } : {}),
+      },
+    })
+    return data
+  },
+
   listShifts: async (
     fromDate: string,
     toDate: string,
