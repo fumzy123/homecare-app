@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { X, Clock, RefreshCw, AlertTriangle, MapPin, Pencil } from 'lucide-react'
+import { X, Clock, RefreshCw, AlertTriangle, MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
 import { format, differenceInMinutes } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
+import { shiftsApi, type ShiftOccurrence, type NoteEntry } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 
@@ -146,6 +146,127 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     setEditError(null)
     setIsEditing(false)
   }
+
+// ─── Progress Notes Section ───────────────────────────────────────────────────
+
+function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
+  const queryClient = useQueryClient()
+  const shiftStart = format(new Date(shift.start_time), 'HH:mm')
+  const shiftEnd   = format(new Date(shift.end_time), 'HH:mm')
+
+  const [addingEntry, setAddingEntry] = useState(false)
+  const [newTime, setNewTime]         = useState(shiftStart)
+  const [newContent, setNewContent]   = useState('')
+
+  const { data: note } = useQuery({
+    queryKey: ['progress-note', shift.shift_id, shift.date],
+    queryFn: () => shiftsApi.getProgressNote(shift.shift_id, shift.date),
+  })
+
+  const entries: NoteEntry[] = note?.entries ?? []
+  const sorted = [...entries].sort((a, b) => a.time.localeCompare(b.time))
+
+  const saveMutation = useMutation({
+    mutationFn: (updated: NoteEntry[]) =>
+      shiftsApi.upsertProgressNote(shift.shift_id, shift.date, updated),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['progress-note', shift.shift_id, shift.date] })
+    },
+  })
+
+  function handleAdd() {
+    if (!newContent.trim()) return
+    const updated = [...entries, { time: newTime, content: newContent.trim() }]
+    saveMutation.mutate(updated)
+    setNewContent('')
+    setNewTime(shiftStart)
+    setAddingEntry(false)
+  }
+
+  function handleDelete(index: number) {
+    const updated = sorted.filter((_, i) => i !== index)
+    saveMutation.mutate(updated)
+  }
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Progress Notes</p>
+        {!addingEntry && (
+          <button
+            onClick={() => setAddingEntry(true)}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          >
+            <Plus size={12} />
+            Add entry
+          </button>
+        )}
+      </div>
+
+      {/* Existing entries */}
+      {sorted.length === 0 && !addingEntry ? (
+        <p className="text-sm text-gray-400 italic">No entries yet</p>
+      ) : (
+        <div className="space-y-2">
+          {sorted.map((entry, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-lg bg-gray-50 px-3 py-2.5">
+              <span className="shrink-0 tabular-nums text-xs font-medium text-gray-500 pt-0.5 w-14">
+                {format(new Date(`1970-01-01T${entry.time}`), 'h:mm a')}
+              </span>
+              <p className="flex-1 text-sm text-gray-700 leading-snug">{entry.content}</p>
+              <button
+                onClick={() => handleDelete(i)}
+                className="shrink-0 text-gray-300 hover:text-red-400 transition-colors"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add entry form */}
+      {addingEntry && (
+        <div className="mt-2 rounded-lg border border-gray-200 p-3 space-y-2">
+          <div className="flex gap-2 items-center">
+            <label className="text-xs font-medium text-gray-600 w-10 shrink-0">Time</label>
+            <input
+              type="time"
+              min={shiftStart}
+              max={shiftEnd}
+              value={newTime}
+              onChange={(e) => setNewTime(e.target.value)}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+            />
+          </div>
+          <textarea
+            rows={2}
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            placeholder="What happened at this time?"
+            className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setAddingEntry(false); setNewContent('') }}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
+              disabled={!newContent.trim() || saveMutation.isPending}
+              className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40"
+            >
+              {saveMutation.isPending ? 'Saving…' : 'Save entry'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
   return (
     <>
@@ -370,6 +491,9 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                   : <p className="text-sm text-gray-400 italic">No notes</p>
                 }
               </div>
+
+              {/* Progress Notes */}
+              <ProgressNotesSection shift={shift} />
 
               {saved && (
                 <p className="text-center text-sm font-medium text-green-600">Changes saved</p>

@@ -79,6 +79,24 @@ export interface ShiftModificationUpdatePayload {
   notes?: string
 }
 
+// ─── Progress Notes ───────────────────────────────────────────────────────────
+
+export interface NoteEntry {
+  time: string     // "HH:MM"
+  content: string
+}
+
+export interface ProgressNote {
+  id: string
+  shift_id: string
+  occurrence_date: string
+  entries: NoteEntry[]
+  created_at: string
+  updated_at: string | null
+}
+
+// ─── Calendar shape ───────────────────────────────────────────────────────────
+
 // Shape react-big-calendar expects
 export interface CalendarEvent {
   title: string
@@ -132,5 +150,24 @@ export const shiftsApi = {
 
   cancelShift: async (shiftId: string): Promise<void> => {
     await apiClient.delete(`/api/shifts/${shiftId}`)
+  },
+
+  getProgressNote: async (shiftId: string, date: string): Promise<ProgressNote | null> => {
+    const { data } = await apiClient.get(`/api/shifts/${shiftId}/notes`, {
+      params: { date },
+    })
+    return data
+  },
+
+  upsertProgressNote: async (
+    shiftId: string,
+    occurrenceDate: string,
+    entries: NoteEntry[],
+  ): Promise<ProgressNote> => {
+    const { data } = await apiClient.put(`/api/shifts/${shiftId}/notes`, {
+      occurrence_date: occurrenceDate,
+      entries,
+    })
+    return data
   },
 }
