@@ -155,6 +155,57 @@ class ShiftService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
+    # 2a. Get occurrence counts by status (includes cancelled)
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def get_stats(
+        from_date: date,
+        to_date: date,
+        current_user: SupabaseUser,
+        db: Session,
+        worker_id: str | None = None,
+        client_id: str | None = None,
+    ) -> dict:
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+
+            query = (
+                db.query(Shift)
+                .options(joinedload(Shift.modifications))
+                .filter(
+                    Shift.org_id == org_id,
+                    Shift.status == ShiftStatus.active,
+                    Shift.deleted_at == None,  # noqa: E711
+                    Shift.start_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc),
+                )
+            )
+            if worker_id:
+                query = query.filter(Shift.worker_id == worker_id)
+            if client_id:
+                query = query.filter(Shift.client_id == client_id)
+
+            shifts = query.all()
+
+            counts: dict[str, int] = {"scheduled": 0, "in_progress": 0, "completed": 0, "cancelled": 0}
+
+            for shift in shifts:
+                mod_map = {m.original_date: m for m in shift.modifications}
+                occurrences = ShiftService._expand_occurrences(shift, from_date, to_date)
+
+                for occ_date in occurrences:
+                    mod = mod_map.get(occ_date)
+                    status = mod.completion_status.value if mod else "scheduled"
+                    counts[status] = counts.get(status, 0) + 1
+
+            counts["total"] = sum(counts.values())
+            return counts
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
     # ─────────────────────────────────────────
     @staticmethod

@@ -123,6 +123,15 @@ class ShiftOccurrenceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# Returned by GET /shifts/stats
+class ShiftStatsResponse(BaseModel):
+    scheduled: int
+    in_progress: int
+    completed: int
+    cancelled: int
+    total: int
+
+
 # Returned by GET /shifts/{id} — the master record
 class ShiftMasterResponse(BaseModel):
     id:                  UUID
