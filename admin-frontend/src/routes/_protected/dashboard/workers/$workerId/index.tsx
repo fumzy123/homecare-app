@@ -1,13 +1,41 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { format, subDays } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subDays } from 'date-fns'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/')({
   component: WorkerOverview,
 })
+
+// ─── Period ───────────────────────────────────────────────────────────────────
+
+type Period = 'all_time' | 'this_month' | 'last_90'
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: 'all_time',   label: 'All time' },
+  { key: 'this_month', label: 'This month' },
+  { key: 'last_90',    label: 'Last 90 days' },
+]
+
+function getDateRange(period: Period): { from: string; to: string } {
+  const today = new Date()
+  switch (period) {
+    case 'all_time':
+      return { from: '2020-01-01', to: '2030-12-31' }
+    case 'this_month':
+      return {
+        from: format(startOfMonth(today), 'yyyy-MM-dd'),
+        to:   format(endOfMonth(today),   'yyyy-MM-dd'),
+      }
+    case 'last_90':
+      return {
+        from: format(subDays(today, 90), 'yyyy-MM-dd'),
+        to:   format(today,              'yyyy-MM-dd'),
+      }
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -82,26 +110,19 @@ function TopClients({ shifts }: { shifts: ShiftOccurrence[] }) {
 
 function WorkerOverview() {
   const { workerId } = Route.useParams()
-
-  // All-time stats (wide range covers past + future scheduled shifts)
-  const statsFrom = '2020-01-01'
-  const statsTo   = '2030-12-31'
-
-  const { data: stats } = useQuery({
-    queryKey: ['shift-stats', statsFrom, statsTo, workerId, ''],
-    queryFn: () => shiftsApi.getShiftStats(statsFrom, statsTo, workerId),
-  })
-
-  // Shift history table — last 90 days, adjustable
-  const defaultFrom = format(subDays(new Date(), 90), 'yyyy-MM-dd')
-  const defaultTo   = format(new Date(), 'yyyy-MM-dd')
-  const [fromDate, setFromDate] = useState(defaultFrom)
-  const [toDate,   setToDate]   = useState(defaultTo)
+  const [period, setPeriod]           = useState<Period>('this_month')
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
+  const { from, to } = getDateRange(period)
+
+  const { data: stats } = useQuery({
+    queryKey: ['shift-stats', from, to, workerId, ''],
+    queryFn: () => shiftsApi.getShiftStats(from, to, workerId),
+  })
+
   const { data: shifts = [], isLoading } = useQuery({
-    queryKey: ['shifts', fromDate, toDate, workerId, ''],
-    queryFn: () => shiftsApi.listShifts(fromDate, toDate, workerId),
+    queryKey: ['shifts', from, to, workerId, ''],
+    queryFn: () => shiftsApi.listShifts(from, to, workerId),
   })
 
   const sorted = [...shifts].sort(
@@ -114,11 +135,28 @@ function WorkerOverview() {
 
   return (
     <>
+      {/* Period toggle */}
+      <div className="mb-5 flex items-center gap-1.5">
+        {PERIODS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setPeriod(key)}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              period === key
+                ? 'bg-gray-900 text-white'
+                : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Stats row */}
       <div className="mb-6 grid grid-cols-3 gap-4">
         <StatCard label="Upcoming" value={upcoming} sub="scheduled shifts" />
-        <StatCard label="Completed" value={completed} sub="all time" />
-        <StatCard label="Cancelled" value={cancelled} sub="all time" />
+        <StatCard label="Completed" value={completed} sub="shifts" />
+        <StatCard label="Cancelled" value={cancelled} sub="shifts" />
       </div>
 
       {/* Top clients */}
@@ -126,26 +164,8 @@ function WorkerOverview() {
 
       {/* Shift history */}
       <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-900 mr-auto">Shift History</h2>
-          <div className="flex items-center gap-2 text-sm">
-            <label className="text-gray-500">From</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-            />
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <label className="text-gray-500">To</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-            />
-          </div>
+        <div className="border-b border-gray-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-gray-900">Shift History</h2>
         </div>
 
         {isLoading ? (
