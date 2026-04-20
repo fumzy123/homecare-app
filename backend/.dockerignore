@@ -1,0 +1,26 @@
+# .dockerignore works exactly like .gitignore but for Docker.
+# Files listed here are NOT copied into the container when Docker runs COPY . .
+# This keeps the image small and prevents secrets from leaking in.
+
+# Virtual environment — Docker installs its own packages via pip.
+# Copying .venv would override the container's own install with Windows binaries
+# that won't run on Linux (the container OS).
+.venv
+
+# Secrets — never bake credentials into an image.
+# The container gets these as environment variables at runtime instead.
+.env
+.env.*
+
+# Python bytecode — gets regenerated automatically, no need to ship it.
+__pycache__
+*.pyc
+*.pyo
+
+# Git history — not needed at runtime.
+.git
+.gitignore
+
+# Editor files
+.vscode
+.idea
