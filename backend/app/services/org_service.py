@@ -51,6 +51,18 @@ class OrgService:
             db.add(new_member)
             db.commit()
 
+            # Write identity fields into Supabase user_metadata so the JWT
+            # carries first_name, last_name, role, and org_id on every login.
+            supabase.auth.admin.update_user_by_id(
+                str(current_user.id),
+                {"user_metadata": {
+                    "first_name": payload.first_name,
+                    "last_name": payload.last_name,
+                    "role": OrgMemberRole.owner.value,
+                    "org_id": str(org_id),
+                }},
+            )
+
             return {
                 "message": "Organization registered successfully",
                 "org_id": str(org_id),

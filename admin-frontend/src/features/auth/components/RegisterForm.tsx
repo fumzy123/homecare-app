@@ -44,6 +44,13 @@ export function RegisterForm() {
           last_name: value.last_name,
         })
 
+        // Hydrate the auth store with the names the user just typed so the
+        // sidebar and Account page reflect them immediately in this session.
+        useAuthStore.getState().updateUser({
+          firstName: value.first_name,
+          lastName: value.last_name,
+        })
+
         setSuccess(true)
       } catch (err: unknown) {
         // Clean up any partial Supabase session so the user isn't
