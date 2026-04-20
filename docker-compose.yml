@@ -1,0 +1,32 @@
+services:
+  backend:
+    # Build the image from the Dockerfile inside the backend/ folder.
+    # Docker Compose builds this automatically the first time you run
+    # "docker compose up". After that it uses the cached image unless
+    # you run "docker compose up --build" to force a rebuild.
+    build: ./backend
+
+    # Map port 8000 on your machine to port 8000 inside the container.
+    # Format is "host:container" — so your frontend still hits localhost:8000
+    # exactly as it does today without Docker.
+    ports:
+      - "8000:8000"
+
+    # Inject environment variables from this file into the container at runtime.
+    # The secrets never touch the image — they're passed in when the container starts.
+    env_file:
+      - ./backend/.env.local
+
+    # Bind mount — this is the key piece for local development.
+    # "./backend" (your real folder on disk) is mounted over "/app" (inside the container).
+    # The container now reads your actual files directly instead of the frozen copy
+    # from the image. Save a file → the container sees it instantly.
+    # Format is "host_path:container_path"
+    volumes:
+      - ./backend:/app
+
+    # Override entrypoint.sh entirely for local development.
+    # We don't want migrations running on every file save.
+    # --reload tells uvicorn to watch for file changes and restart automatically —
+    # same live-reload behaviour you have when running uvicorn directly today.
+    entrypoint: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
