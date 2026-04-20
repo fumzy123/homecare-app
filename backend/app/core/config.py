@@ -1,8 +1,8 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Resolve the repo root (4 levels up from this file)
-base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Resolve the backend directory (3 levels up from this file: core → app → backend)
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # In production the hosting platform injects real env vars — no file needed.
 # In local dev we load from .env.local. Fall back to .env for backwards compat.
