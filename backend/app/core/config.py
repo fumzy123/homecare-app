@@ -1,9 +1,14 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Securely find the exact path to your .env file no matter where you run the server from
+# Resolve the repo root (4 levels up from this file)
 base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-env_path = os.path.join(base_dir, ".env")
+
+# In production the hosting platform injects real env vars — no file needed.
+# In local dev we load from .env.local. Fall back to .env for backwards compat.
+_env_local = os.path.join(base_dir, ".env.local")
+_env_fallback = os.path.join(base_dir, ".env")
+env_path = _env_local if os.path.exists(_env_local) else _env_fallback
 
 class Settings(BaseSettings):
     supabase_url: str
