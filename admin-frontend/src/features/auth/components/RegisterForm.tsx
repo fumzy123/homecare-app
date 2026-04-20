@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { authApi } from '@/features/auth/api'
+import { supabase } from '@/shared/lib/supabase'
+import { useAuthStore } from '@/shared/stores/auth'
 
 const schema = z.object({
   organization_name: z.string().min(2, 'Organization name is required'),
@@ -44,6 +46,10 @@ export function RegisterForm() {
 
         setSuccess(true)
       } catch (err: unknown) {
+        // Clean up any partial Supabase session so the user isn't
+        // silently "logged in" with no backend org profile.
+        useAuthStore.getState().clearAuth()
+        await supabase.auth.signOut()
         const message = err instanceof Error ? err.message : 'Something went wrong'
         setServerError(message)
       }
