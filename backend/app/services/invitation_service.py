@@ -55,7 +55,7 @@ class InvitationService:
             db.flush()
 
             # Send the invite email with role + org_id baked into JWT metadata
-            supabase.auth.admin.invite_user_by_email(
+            invite_response = supabase.auth.admin.invite_user_by_email(
                 payload.email,
                 options={
                     "redirect_to": f"{settings.frontend_url}/accept-invite",
@@ -66,6 +66,10 @@ class InvitationService:
                     },
                 }
             )
+
+            # Store the Supabase user ID so we can clean up auth.users on revoke
+            if invite_response and invite_response.user:
+                invitation.supabase_user_id = invite_response.user.id
 
             db.commit()
             return {"message": f"Invite sent to {payload.email}"}
@@ -97,6 +101,7 @@ class InvitationService:
     # ─────────────────────────────────────────
     @staticmethod
     async def revoke_invitation(invitation_id: str, current_user: SupabaseUser, db: Session):
+        supabase = get_supabase_client()
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
 
@@ -108,8 +113,19 @@ class InvitationService:
             if not invitation:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Invitation not found")
 
+            supabase_user_id = invitation.supabase_user_id
+
             db.delete(invitation)
             db.commit()
+
+            # Remove the pending user from Supabase auth so the same email
+            # can be re-invited cleanly without hitting a 400 "user exists" error.
+            if supabase_user_id:
+                try:
+                    supabase.auth.admin.delete_user(str(supabase_user_id))
+                except Exception:
+                    pass
+
             return {"message": "Invitation revoked"}
 
         except AppError:
