@@ -15,7 +15,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProtectedTeamIndexRouteImport } from './routes/_protected/team/index'
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
 import { Route as ProtectedAccountIndexRouteImport } from './routes/_protected/account/index'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
@@ -57,11 +56,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ProtectedTeamIndexRoute = ProtectedTeamIndexRouteImport.update({
-  id: '/team/',
-  path: '/team/',
-  getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedDashboardIndexRoute = ProtectedDashboardIndexRouteImport.update({
   id: '/dashboard/',
@@ -142,7 +136,6 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/account/': typeof ProtectedAccountIndexRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
-  '/team/': typeof ProtectedTeamIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
@@ -162,7 +155,6 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/account': typeof ProtectedAccountIndexRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
-  '/team': typeof ProtectedTeamIndexRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
   '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet': typeof ProtectedDashboardTimesheetIndexRoute
@@ -182,7 +174,6 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/_protected/account/': typeof ProtectedAccountIndexRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
-  '/_protected/team/': typeof ProtectedTeamIndexRoute
   '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
   '/_protected/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/_protected/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
@@ -204,7 +195,6 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/account/'
     | '/dashboard/'
-    | '/team/'
     | '/dashboard/clients/$clientId'
     | '/dashboard/workers/$workerId'
     | '/dashboard/clients/'
@@ -224,7 +214,6 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/account'
     | '/dashboard'
-    | '/team'
     | '/dashboard/clients'
     | '/dashboard/shifts'
     | '/dashboard/timesheet'
@@ -243,7 +232,6 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/_protected/account/'
     | '/_protected/dashboard/'
-    | '/_protected/team/'
     | '/_protected/dashboard/clients/$clientId'
     | '/_protected/dashboard/workers/$workerId'
     | '/_protected/dashboard/clients/'
@@ -308,13 +296,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_protected/team/': {
-      id: '/_protected/team/'
-      path: '/team'
-      fullPath: '/team/'
-      preLoaderRoute: typeof ProtectedTeamIndexRouteImport
-      parentRoute: typeof ProtectedRoute
     }
     '/_protected/dashboard/': {
       id: '/_protected/dashboard/'
@@ -442,7 +423,6 @@ const ProtectedDashboardWorkersWorkerIdRouteWithChildren =
 interface ProtectedRouteChildren {
   ProtectedAccountIndexRoute: typeof ProtectedAccountIndexRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
-  ProtectedTeamIndexRoute: typeof ProtectedTeamIndexRoute
   ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRouteWithChildren
   ProtectedDashboardWorkersWorkerIdRoute: typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   ProtectedDashboardClientsIndexRoute: typeof ProtectedDashboardClientsIndexRoute
@@ -454,7 +434,6 @@ interface ProtectedRouteChildren {
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedAccountIndexRoute: ProtectedAccountIndexRoute,
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
-  ProtectedTeamIndexRoute: ProtectedTeamIndexRoute,
   ProtectedDashboardClientsClientIdRoute:
     ProtectedDashboardClientsClientIdRouteWithChildren,
   ProtectedDashboardWorkersWorkerIdRoute:
