@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 import { z } from 'zod'
-import { teamApi } from '@/features/team/api'
+import { workersApi } from '@/features/workers/api'
 import { useAuthStore } from '@/shared/stores/auth'
 
 export const Route = createFileRoute('/_protected/account/')({
@@ -44,7 +44,7 @@ function AccountPage() {
       if (!user) return
       setServerError(null)
       try {
-        const updated = await teamApi.updateMember(user.id, {
+        const updated = await workersApi.updateMember(user.id, {
           first_name: value.first_name,
           last_name: value.last_name,
           email: value.email,
