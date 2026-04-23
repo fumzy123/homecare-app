@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { X, Clock, RefreshCw, AlertTriangle, MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
+import { X, Clock, RefreshCw, MapPin, Pencil, Plus, Trash2 } from 'lucide-react'
 import { format, differenceInMinutes } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { shiftsApi, type ShiftOccurrence, type NoteEntry } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
+import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
 
 const COMPLETION_STATUS_LABELS: Record<string, { label: string; className: string }> = {
   scheduled:   { label: 'Scheduled',   className: 'bg-blue-50 text-blue-700' },
@@ -35,6 +36,9 @@ interface ShiftDetailDrawerProps {
 export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  // For non-recurring: inline confirm before deleting
   const [cancelConfirm, setCancelConfirm] = useState(false)
 
   const start = new Date(shift.start_time)
@@ -68,55 +72,25 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     enabled: isEditing && !shift.is_recurring,
   })
 
-  const updateMutation = useMutation({
-    mutationFn: () => {
-      const startISO = new Date(`${date}T${startTime}`).toISOString()
-      const endISO = new Date(`${date}T${endTime}`).toISOString()
-
-      if (shift.is_recurring) {
-        // Recurring occurrence → create or update a modification for just this occurrence
-        const originalDate = shift.date  // YYYY-MM-DD identifying which occurrence
-        if (shift.is_modification) {
-          // Modification already exists → update it
-          return shiftsApi.updateModification(shift.shift_id, originalDate, {
-            new_start_time: startISO,
-            new_end_time: endISO,
-            notes: notes || undefined,
-          })
-        } else {
-          // No modification yet → create one
-          return shiftsApi.createModification(shift.shift_id, {
-            original_date: originalDate,
-            new_start_time: startISO,
-            new_end_time: endISO,
-            notes: notes || undefined,
-          })
-        }
-      } else {
-        // Single shift → update the master record
-        return shiftsApi.updateShift(shift.shift_id, {
-          worker_id: workerId,
-          client_id: clientId,
-          start_time: startISO,
-          end_time: endISO,
-          location: location || undefined,
-          notes: notes || undefined,
-        })
-      }
-    },
+  // Generic save mutation — accepts a thunk so we can swap the API call based on scope
+  const saveMutation = useMutation({
+    mutationFn: (fn: () => Promise<void>) => fn(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] })
       setSaved(true)
       setIsEditing(false)
+      setShowSaveModal(false)
       setTimeout(() => setSaved(false), 2500)
     },
     onError: (err) => {
       setEditError(err instanceof Error ? err.message : 'Something went wrong')
+      setShowSaveModal(false)
     },
   })
 
-  const cancelMutation = useMutation({
-    mutationFn: () => shiftsApi.cancelShift(shift.shift_id),
+  // Generic delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (fn: () => Promise<void>) => fn(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shifts'] })
       onClose()
@@ -131,11 +105,80 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
       setEditError('End time must be after start time.')
       return
     }
-    updateMutation.mutate()
+    if (shift.is_recurring) {
+      // Show scope modal — execution happens in executeSave()
+      setShowSaveModal(true)
+    } else {
+      // Non-recurring: update master directly
+      saveMutation.mutate(() =>
+        shiftsApi.updateShift(shift.shift_id, {
+          worker_id: workerId,
+          client_id: clientId,
+          start_time: s.toISOString(),
+          end_time: e.toISOString(),
+          location: location || undefined,
+          notes: notes || undefined,
+        })
+      )
+    }
+  }
+
+  function executeSave(scope: RecurringScope) {
+    const startISO = new Date(`${date}T${startTime}`).toISOString()
+    const endISO = new Date(`${date}T${endTime}`).toISOString()
+
+    if (scope === 'this') {
+      const originalDate = shift.date
+      if (shift.is_modification) {
+        saveMutation.mutate(() =>
+          shiftsApi.updateModification(shift.shift_id, originalDate, {
+            new_start_time: startISO,
+            new_end_time: endISO,
+            notes: notes || undefined,
+          })
+        )
+      } else {
+        saveMutation.mutate(() =>
+          shiftsApi.createModification(shift.shift_id, {
+            original_date: originalDate,
+            new_start_time: startISO,
+            new_end_time: endISO,
+            notes: notes || undefined,
+          })
+        )
+      }
+    } else if (scope === 'following') {
+      saveMutation.mutate(() =>
+        shiftsApi.editFromDate(shift.shift_id, shift.date, {
+          new_start_time: startISO,
+          new_end_time: endISO,
+          notes: notes || undefined,
+        })
+      )
+    } else {
+      // all — update master (times only; worker/client locked for recurring)
+      saveMutation.mutate(() =>
+        shiftsApi.updateShift(shift.shift_id, {
+          start_time: startISO,
+          end_time: endISO,
+          notes: notes || undefined,
+        })
+      )
+    }
+  }
+
+  function executeDelete(scope: RecurringScope) {
+    if (scope === 'this') {
+      deleteMutation.mutate(() => shiftsApi.cancelOccurrence(shift.shift_id, shift.date))
+    } else if (scope === 'following') {
+      deleteMutation.mutate(() => shiftsApi.cancelFromDate(shift.shift_id, shift.date))
+    } else {
+      deleteMutation.mutate(() => shiftsApi.cancelShift(shift.shift_id))
+    }
+    setShowDeleteModal(false)
   }
 
   function handleDiscardEdit() {
-    // Reset fields back to original
     setWorkerId(shift.worker.id)
     setClientId(shift.client.id)
     setDate(format(start, 'yyyy-MM-dd'))
@@ -203,7 +246,6 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
         )}
       </div>
 
-      {/* Existing entries */}
       {sorted.length === 0 && !addingEntry ? (
         <p className="text-sm text-gray-400 italic">No entries yet</p>
       ) : (
@@ -225,7 +267,6 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
         </div>
       )}
 
-      {/* Add entry form */}
       {addingEntry && (
         <div className="mt-2 rounded-lg border border-gray-200 p-3 space-y-2">
           <div className="flex gap-2 items-center">
@@ -303,14 +344,14 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
           {isEditing ? (
             /* ── Edit mode ── */
             <>
-              {shift.is_recurring ? (
+              {shift.is_recurring && (
                 <div className="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
                   <RefreshCw size={13} className="mt-0.5 shrink-0" />
                   <span>
-                    Only this occurrence will be changed — the rest of the schedule is unaffected.
+                    You'll choose whether to apply changes to this shift, this and following, or all shifts when you save.
                   </span>
                 </div>
-              ) : null}
+              )}
 
               {/* Worker — master field, only editable on non-recurring shifts */}
               {!shift.is_recurring && (
@@ -499,50 +540,51 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
                 <p className="text-center text-sm font-medium text-green-600">Changes saved</p>
               )}
 
-              {/* Cancel */}
+              {/* Delete */}
               <div className="mt-auto border-t border-gray-100 pt-5">
-                {shift.is_recurring && !cancelConfirm && (
-                  <div className="mb-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
-                    <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                    <span>Cancelling a recurring shift removes the entire schedule, not just this occurrence.</span>
-                  </div>
-                )}
-
-                {!cancelConfirm ? (
+                {shift.is_recurring ? (
+                  /* Recurring: one click opens the scope modal */
                   <button
-                    onClick={() => setCancelConfirm(true)}
-                    className="w-full rounded-md border border-red-200 bg-white py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                    onClick={() => setShowDeleteModal(true)}
+                    disabled={deleteMutation.isPending}
+                    className="w-full rounded-md border border-red-200 bg-white py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >
-                    Cancel Shift
+                    {deleteMutation.isPending ? 'Deleting…' : 'Delete Shift'}
                   </button>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-center text-sm text-gray-700">
-                      {shift.is_recurring
-                        ? 'Cancel the entire recurring schedule?'
-                        : 'Cancel this shift?'}
-                    </p>
+                  /* Non-recurring: existing inline confirm */
+                  !cancelConfirm ? (
                     <button
-                      onClick={() => cancelMutation.mutate()}
-                      disabled={cancelMutation.isPending}
-                      className="w-full rounded-md bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      onClick={() => setCancelConfirm(true)}
+                      className="w-full rounded-md border border-red-200 bg-white py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                     >
-                      {cancelMutation.isPending ? 'Cancelling…' : 'Yes, cancel it'}
+                      Cancel Shift
                     </button>
-                    <button
-                      onClick={() => setCancelConfirm(false)}
-                      className="w-full rounded-md border border-gray-300 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      Keep Shift
-                    </button>
-                    {cancelMutation.isError && (
-                      <p className="text-center text-xs text-red-500">
-                        {cancelMutation.error instanceof Error
-                          ? cancelMutation.error.message
-                          : 'Something went wrong'}
-                      </p>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-center text-sm text-gray-700">Cancel this shift?</p>
+                      <button
+                        onClick={() => deleteMutation.mutate(() => shiftsApi.cancelShift(shift.shift_id))}
+                        disabled={deleteMutation.isPending}
+                        className="w-full rounded-md bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleteMutation.isPending ? 'Cancelling…' : 'Yes, cancel it'}
+                      </button>
+                      <button
+                        onClick={() => setCancelConfirm(false)}
+                        className="w-full rounded-md border border-gray-300 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Keep Shift
+                      </button>
+                      {deleteMutation.isError && (
+                        <p className="text-center text-xs text-red-500">
+                          {deleteMutation.error instanceof Error
+                            ? deleteMutation.error.message
+                            : 'Something went wrong'}
+                        </p>
+                      )}
+                    </div>
+                  )
                 )}
               </div>
             </>
@@ -562,14 +604,32 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={updateMutation.isPending}
+              disabled={saveMutation.isPending}
               className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
             >
-              {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
+              {saveMutation.isPending ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         )}
       </div>
+
+      {/* Recurring delete scope modal */}
+      {showDeleteModal && (
+        <RecurringActionModal
+          mode="delete"
+          onConfirm={executeDelete}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+
+      {/* Recurring save scope modal */}
+      {showSaveModal && (
+        <RecurringActionModal
+          mode="edit"
+          onConfirm={executeSave}
+          onCancel={() => setShowSaveModal(false)}
+        />
+      )}
     </>
   )
 }

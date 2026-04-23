@@ -179,6 +179,33 @@ export const shiftsApi = {
     await apiClient.delete(`/api/shifts/${shiftId}`)
   },
 
+  // Cancel just this one occurrence (creates a cancelled modification)
+  cancelOccurrence: async (shiftId: string, occurrenceDate: string): Promise<void> => {
+    await apiClient.post(`/api/shifts/${shiftId}/modifications`, {
+      original_date: occurrenceDate,
+      completion_status: 'cancelled',
+    })
+  },
+
+  // Cancel this occurrence and all following (truncates the series)
+  cancelFromDate: async (shiftId: string, occurrenceDate: string): Promise<void> => {
+    await apiClient.post(`/api/shifts/${shiftId}/cancel-from`, {
+      occurrence_date: occurrenceDate,
+    })
+  },
+
+  // Edit this occurrence and all following (splits the series)
+  editFromDate: async (
+    shiftId: string,
+    occurrenceDate: string,
+    payload: { new_start_time?: string; new_end_time?: string; notes?: string },
+  ): Promise<void> => {
+    await apiClient.post(`/api/shifts/${shiftId}/edit-from`, {
+      occurrence_date: occurrenceDate,
+      ...payload,
+    })
+  },
+
   getProgressNote: async (shiftId: string, date: string): Promise<ProgressNote | null> => {
     const { data } = await apiClient.get(`/api/shifts/${shiftId}/notes`, {
       params: { date },
