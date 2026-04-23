@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
 from app.schemas.shift import (
+    CancelFromSchema,
+    EditFromSchema,
     ShiftCreateSchema,
     ShiftMasterResponse,
     ShiftModificationCreateSchema,
@@ -121,3 +123,29 @@ async def update_modification(
     db: Session = Depends(get_db),
 ):
     return await ShiftService.update_modification(shift_id, original_date, payload, current_user, db)
+
+
+# ─────────────────────────────────────────
+# 8. Cancel this occurrence and all following
+# ─────────────────────────────────────────
+@router.post("/{shift_id}/cancel-from")
+async def cancel_from_date(
+    shift_id: str,
+    payload: CancelFromSchema,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await ShiftService.cancel_from_date(shift_id, payload, current_user, db)
+
+
+# ─────────────────────────────────────────
+# 9. Edit this occurrence and all following (splits the series)
+# ─────────────────────────────────────────
+@router.post("/{shift_id}/edit-from")
+async def edit_from_date(
+    shift_id: str,
+    payload: EditFromSchema,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await ShiftService.edit_from_date(shift_id, payload, current_user, db)

@@ -1,4 +1,5 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
+import uuid
 from dateutil.rrule import rrulestr
 from sqlalchemy.orm import Session, joinedload
 from supabase_auth.types import User as SupabaseUser
@@ -8,6 +9,8 @@ from app.models.client import Client
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
 from app.core.exceptions import AppError
 from app.schemas.shift import (
+    CancelFromSchema,
+    EditFromSchema,
     ShiftCreateSchema,
     ShiftModificationCreateSchema,
     ShiftModificationUpdateSchema,
@@ -363,6 +366,129 @@ class ShiftService:
             return existing
 
         except AppError:
+            raise
+        except Exception as e:
+            db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 8. Cancel this occurrence and all following
+    # Truncates recurrence_end_date; cancels all if first occurrence
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def cancel_from_date(
+        shift_id: str,
+        payload: CancelFromSchema,
+        current_user: SupabaseUser,
+        db: Session,
+    ):
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            shift = ShiftService._get_active_shift(shift_id, org_id, db)
+
+            occurrence_date = payload.occurrence_date
+
+            if occurrence_date <= shift.start_time.date():
+                # Cancelling from the very first occurrence — cancel the whole series
+                shift.status = ShiftStatus.cancelled
+                shift.deleted_at = datetime.now(timezone.utc)
+            else:
+                # Truncate: stop the series the day before this occurrence
+                shift.recurrence_end_date = occurrence_date - timedelta(days=1)
+                # Drop any modifications on or after this date
+                db.query(ShiftModification).filter(
+                    ShiftModification.shift_id == shift_id,
+                    ShiftModification.original_date >= occurrence_date,
+                ).delete(synchronize_session=False)
+
+            db.commit()
+            return {"message": "Occurrences cancelled successfully"}
+
+        except AppError:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 9. Edit this occurrence and all following
+    # Splits the series: truncates old, creates new master from occurrence_date
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def edit_from_date(
+        shift_id: str,
+        payload: EditFromSchema,
+        current_user: SupabaseUser,
+        db: Session,
+    ):
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            shift = ShiftService._get_active_shift(shift_id, org_id, db)
+
+            occurrence_date = payload.occurrence_date
+
+            if occurrence_date <= shift.start_time.date():
+                # Editing from the very first occurrence — just update the master
+                if payload.new_start_time:
+                    shift.start_time = payload.new_start_time
+                if payload.new_end_time:
+                    shift.end_time = payload.new_end_time
+                if payload.notes is not None:
+                    shift.notes = payload.notes
+                db.commit()
+                return {"message": "Shift updated"}
+
+            # Save original end date before we truncate
+            original_end_date = shift.recurrence_end_date
+
+            # Truncate old series to end the day before this occurrence
+            shift.recurrence_end_date = occurrence_date - timedelta(days=1)
+
+            # Drop forward modifications from old series
+            db.query(ShiftModification).filter(
+                ShiftModification.shift_id == shift_id,
+                ShiftModification.original_date >= occurrence_date,
+            ).delete(synchronize_session=False)
+
+            # Build new start/end datetimes for the new series anchor
+            if payload.new_start_time:
+                new_start = datetime.combine(
+                    occurrence_date, payload.new_start_time.timetz()
+                )
+            else:
+                new_start = datetime.combine(
+                    occurrence_date, shift.start_time.timetz()
+                )
+
+            if payload.new_end_time:
+                new_end = datetime.combine(
+                    occurrence_date, payload.new_end_time.timetz()
+                )
+            else:
+                delta = shift.end_time - shift.start_time
+                new_end = new_start + delta
+
+            new_shift = Shift(
+                id=uuid.uuid4(),
+                org_id=shift.org_id,
+                worker_id=shift.worker_id,
+                client_id=shift.client_id,
+                created_by=current_user.id,
+                start_time=new_start,
+                end_time=new_end,
+                is_recurring=shift.is_recurring,
+                recurrence_rule=shift.recurrence_rule,
+                recurrence_end_date=original_end_date,
+                location=shift.location,
+                notes=payload.notes if payload.notes is not None else shift.notes,
+            )
+            db.add(new_shift)
+            db.commit()
+            return {"message": "Shift updated from this occurrence"}
+
+        except AppError:
+            db.rollback()
             raise
         except Exception as e:
             db.rollback()

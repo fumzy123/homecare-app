@@ -88,6 +88,30 @@ class ShiftModificationUpdateSchema(BaseModel):
 
 
 # ─────────────────────────────────────────
+# POST /shifts/{id}/cancel-from — cancel this occurrence and all following
+# ─────────────────────────────────────────
+class CancelFromSchema(BaseModel):
+    occurrence_date: date
+
+
+# ─────────────────────────────────────────
+# POST /shifts/{id}/edit-from — edit this occurrence and all following
+# ─────────────────────────────────────────
+class EditFromSchema(BaseModel):
+    occurrence_date: date
+    new_start_time: datetime | None = None
+    new_end_time: datetime | None = None
+    notes: str | None = None
+
+    @model_validator(mode="after")
+    def validate_times(self):
+        if self.new_start_time and self.new_end_time:
+            if self.new_end_time <= self.new_start_time:
+                raise ValueError("new_end_time must be after new_start_time")
+        return self
+
+
+# ─────────────────────────────────────────
 # Response schemas
 # ─────────────────────────────────────────
 
