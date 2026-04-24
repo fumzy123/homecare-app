@@ -13,6 +13,7 @@ const COMPLETION_STATUS_LABELS: Record<string, { label: string; className: strin
   completed:   { label: 'Completed',   className: 'bg-green-50 text-green-700' },
   no_show:     { label: 'No Show',     className: 'bg-red-50 text-red-600' },
   cancelled:   { label: 'Cancelled',   className: 'bg-gray-100 text-gray-500' },
+  dropped:     { label: 'Dropped',     className: 'bg-orange-50 text-orange-600' },
 }
 
 function formatDuration(start: Date, end: Date): string {
@@ -470,6 +471,7 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
                   <option value="completed">Completed</option>
                   <option value="no_show">No Show</option>
                   <option value="cancelled">Cancelled</option>
+                  <option value="dropped">Dropped</option>
                 </select>
                 {shift.is_recurring && (
                   <p className="mt-1 text-xs text-gray-400">Status changes apply to this occurrence only.</p>

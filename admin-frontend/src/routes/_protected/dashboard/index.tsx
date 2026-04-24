@@ -1,9 +1,9 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { format, startOfWeek, endOfWeek, subDays, addDays } from 'date-fns'
 import { Users, UserRound, CalendarDays, AlertCircle } from 'lucide-react'
-import { clientsApi, SERVICE_TYPE_LABELS } from '@/features/clients/api'
+import { clientsApi } from '@/features/clients/api'
 import { workersApi } from '@/features/workers/api'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
@@ -17,20 +17,26 @@ export const Route = createFileRoute('/_protected/dashboard/')({
 const today = format(new Date(), 'yyyy-MM-dd')
 const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd')
 const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+const droppedFrom = format(subDays(new Date(), 7), 'yyyy-MM-dd')
+const droppedTo = format(addDays(new Date(), 60), 'yyyy-MM-dd')
 
 function statusPillClass(status: string) {
   switch (status.toLowerCase()) {
-    case 'completed': return 'bg-green-50 text-green-700'
-    case 'cancelled': return 'bg-red-50 text-red-600'
-    default: return 'bg-gray-100 text-gray-600'
+    case 'completed':  return 'bg-green-50 text-green-700'
+    case 'cancelled':  return 'bg-red-50 text-red-600'
+    case 'no_show':    return 'bg-amber-50 text-amber-700'
+    case 'dropped':    return 'bg-orange-50 text-orange-600'
+    default:           return 'bg-gray-100 text-gray-600'
   }
 }
 
 function statusLabel(status: string) {
   switch (status.toLowerCase()) {
-    case 'completed': return 'Completed'
-    case 'cancelled': return 'Cancelled'
-    default: return 'Pending'
+    case 'completed':  return 'Completed'
+    case 'cancelled':  return 'Cancelled'
+    case 'no_show':    return 'No Show'
+    case 'dropped':    return 'Dropped'
+    default:           return 'Scheduled'
   }
 }
 
@@ -61,7 +67,6 @@ function StatCard({ label, value, icon: Icon, sub }: StatCardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function DashboardPage() {
-  const navigate = useNavigate()
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
   const { data: clients = [] } = useQuery({
@@ -84,12 +89,20 @@ function DashboardPage() {
     queryFn: () => shiftsApi.listShifts(weekStart, weekEnd),
   })
 
+  const { data: droppedShifts = [] } = useQuery({
+    queryKey: ['shifts', droppedFrom, droppedTo, 'dropped'],
+    queryFn: () => shiftsApi.listShifts(droppedFrom, droppedTo, undefined, undefined, ['dropped']),
+  })
+
   // ─── Derived stats ───────────────────────────────────────────────────────
 
   const activeClients = clients.filter((c) => c.status === 'active')
   const activeWorkers = workers.filter((w) => w.is_active)
   const onHoldClients = clients.filter((c) => c.status === 'on_hold')
-  const unassignedClients = activeClients.filter((c) => !c.assigned_worker_id)
+
+  const sortedDroppedShifts = [...droppedShifts].sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  )
 
   const sortedTodayShifts = [...todayShifts].sort(
     (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
@@ -174,42 +187,47 @@ function DashboardPage() {
           )}
         </div>
 
-        {/* Unassigned Clients */}
+        {/* Shifts Needing Coverage */}
         <div className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="text-sm font-semibold text-gray-900">Unassigned Clients</h2>
-            {unassignedClients.length > 0 && (
-              <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
+            <h2 className="text-sm font-semibold text-gray-900">Shifts Needing Coverage</h2>
+            {sortedDroppedShifts.length > 0 && (
+              <span className="flex items-center gap-1 text-xs font-medium text-orange-600">
                 <AlertCircle size={13} />
-                {unassignedClients.length} need a worker
+                {sortedDroppedShifts.length} shift{sortedDroppedShifts.length !== 1 ? 's' : ''} dropped
               </span>
             )}
           </div>
 
-          {unassignedClients.length === 0 ? (
+          {sortedDroppedShifts.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-5 py-8 text-center">
-              <p className="text-sm font-medium text-green-700">All active clients are assigned</p>
+              <p className="text-sm font-medium text-green-700">All shifts are covered</p>
               <p className="mt-1 text-xs text-gray-400">No action needed</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {unassignedClients.map((client) => (
-                <div
-                  key={client.id}
-                  className="flex items-center gap-4 px-5 py-3.5"
-                >
+              {sortedDroppedShifts.map((shift) => (
+                <div key={`${shift.shift_id}-${shift.date}`} className="flex items-center gap-4 px-5 py-3.5">
+                  <div className="w-24 shrink-0">
+                    <p className="text-xs font-medium text-gray-700 tabular-nums">
+                      {format(new Date(shift.start_time), 'MMM d')}
+                    </p>
+                    <p className="text-xs text-gray-400 tabular-nums">
+                      {format(new Date(shift.start_time), 'h:mm a')}
+                    </p>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-900">
-                      {client.first_name} {client.last_name}
+                      {shift.client.first_name} {shift.client.last_name}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {SERVICE_TYPE_LABELS[client.service_type]} · since{' '}
-                      {format(new Date(client.care_start_date), 'MMM d, yyyy')}
+                    <p className="truncate text-xs text-gray-500">
+                      {shift.worker.first_name} {shift.worker.last_name} dropped
+                      {shift.notes ? ` · ${shift.notes}` : ''}
                     </p>
                   </div>
                   <button
-                    onClick={() => navigate({ to: '/dashboard/clients/$clientId', params: { clientId: client.id } })}
-                    className="shrink-0 rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                    onClick={() => setSelectedShift(shift)}
+                    className="shrink-0 rounded-md border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-100 transition-colors"
                   >
                     Assign
                   </button>
