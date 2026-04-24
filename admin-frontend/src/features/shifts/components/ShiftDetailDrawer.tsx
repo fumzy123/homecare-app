@@ -56,6 +56,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
   const [endTime, setEndTime] = useState(format(end, 'HH:mm'))
   const [location, setLocation] = useState(shift.location ?? '')
   const [notes, setNotes] = useState(shift.notes ?? '')
+  const [completionStatus, setCompletionStatus] = useState(shift.completion_status)
   const [editError, setEditError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -109,9 +110,9 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
       // Show scope modal — execution happens in executeSave()
       setShowSaveModal(true)
     } else {
-      // Non-recurring: update master directly
-      saveMutation.mutate(() =>
-        shiftsApi.updateShift(shift.shift_id, {
+      // Non-recurring: update master fields, then upsert a modification if status changed
+      saveMutation.mutate(async () => {
+        await shiftsApi.updateShift(shift.shift_id, {
           worker_id: workerId,
           client_id: clientId,
           start_time: s.toISOString(),
@@ -119,7 +120,13 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
           location: location || undefined,
           notes: notes || undefined,
         })
-      )
+        if (completionStatus !== shift.completion_status) {
+          await shiftsApi.createModification(shift.shift_id, {
+            original_date: shift.date,
+            completion_status: completionStatus,
+          })
+        }
+      })
     }
   }
 
@@ -134,6 +141,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
           shiftsApi.updateModification(shift.shift_id, originalDate, {
             new_start_time: startISO,
             new_end_time: endISO,
+            completion_status: completionStatus,
             notes: notes || undefined,
           })
         )
@@ -143,6 +151,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
             original_date: originalDate,
             new_start_time: startISO,
             new_end_time: endISO,
+            completion_status: completionStatus,
             notes: notes || undefined,
           })
         )
@@ -186,6 +195,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     setEndTime(format(end, 'HH:mm'))
     setLocation(shift.location ?? '')
     setNotes(shift.notes ?? '')
+    setCompletionStatus(shift.completion_status)
     setEditError(null)
     setIsEditing(false)
   }
@@ -445,6 +455,25 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional"
                 />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className={labelClass}>Status</label>
+                <select
+                  className={inputClass}
+                  value={completionStatus}
+                  onChange={(e) => setCompletionStatus(e.target.value)}
+                >
+                  <option value="scheduled">Scheduled</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="no_show">No Show</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                {shift.is_recurring && (
+                  <p className="mt-1 text-xs text-gray-400">Status changes apply to this occurrence only.</p>
+                )}
               </div>
 
               {editError && (

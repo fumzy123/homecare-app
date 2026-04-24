@@ -70,12 +70,14 @@ export interface ShiftModificationPayload {
   original_date: string   // YYYY-MM-DD — identifies which occurrence
   new_start_time?: string // ISO datetime
   new_end_time?: string   // ISO datetime
+  completion_status?: string
   notes?: string
 }
 
 export interface ShiftModificationUpdatePayload {
   new_start_time?: string // ISO datetime
   new_end_time?: string   // ISO datetime
+  completion_status?: string
   notes?: string
 }
 
