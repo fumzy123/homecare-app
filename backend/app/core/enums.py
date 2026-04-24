@@ -31,6 +31,7 @@ class ShiftCompletionStatus(str, enum.Enum):
     completed = "completed"
     no_show = "no_show"
     cancelled = "cancelled"
+    dropped = "dropped"
 
 class RecurrenceFrequency(str, enum.Enum):
     daily = "daily"
