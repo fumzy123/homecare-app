@@ -26,7 +26,10 @@ function toDateInput(d: Date) {
   return format(d, 'yyyy-MM-dd')
 }
 
-function computeHours(start: string, end: string): number {
+const NON_BILLABLE_STATUSES = new Set(['no_show', 'cancelled'])
+
+function computeHours(start: string, end: string, status?: string): number {
+  if (status && NON_BILLABLE_STATUSES.has(status)) return 0
   const ms = new Date(end).getTime() - new Date(start).getTime()
   return Math.round((ms / 1000 / 3600) * 100) / 100
 }
@@ -39,7 +42,7 @@ function exportCsv(rows: ShiftOccurrence[], from: string, to: string) {
     `${r.client.first_name} ${r.client.last_name}`,
     format(new Date(r.start_time), 'h:mm a'),
     format(new Date(r.end_time), 'h:mm a'),
-    computeHours(r.start_time, r.end_time).toFixed(2),
+    computeHours(r.start_time, r.end_time, r.completion_status).toFixed(2),
     r.completion_status,
   ])
   const csv = [headers, ...lines].map((row) => row.join(',')).join('\n')
@@ -98,7 +101,7 @@ const columns = [
     cell: (info) => format(new Date(info.getValue()), 'h:mm a'),
     enableSorting: false,
   }),
-  col.accessor((row) => computeHours(row.start_time, row.end_time), {
+  col.accessor((row) => computeHours(row.start_time, row.end_time, row.completion_status), {
     id: 'hours',
     header: 'Hours',
     cell: (info) => `${info.getValue().toFixed(2)} h`,
