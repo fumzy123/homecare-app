@@ -81,6 +81,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
     emergency_contact_name: z.string().optional(),
     emergency_contact_phone: z.string().optional(),
     emergency_contact_relationship: z.string().optional(),
+    is_active: z.boolean(),
   })
 
   const form = useForm({
@@ -94,6 +95,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
       emergency_contact_name: worker.emergency_contact_name ?? '',
       emergency_contact_phone: worker.emergency_contact_phone ?? '',
       emergency_contact_relationship: worker.emergency_contact_relationship ?? '',
+      is_active: worker.is_active,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -109,6 +111,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
           emergency_contact_name: value.emergency_contact_name || undefined,
           emergency_contact_phone: value.emergency_contact_phone || undefined,
           emergency_contact_relationship: value.emergency_contact_relationship || undefined,
+          is_active: value.is_active,
         })
         queryClient.invalidateQueries({ queryKey: ['worker', worker.id] })
         queryClient.invalidateQueries({ queryKey: ['workers'] })
@@ -122,7 +125,33 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-6 mb-6">
-      <h2 className="mb-4 text-sm font-semibold text-gray-900">Personal Info</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-gray-900">Personal Info</h2>
+        <form.Field name="is_active">
+          {(field) => (
+            <label className="flex cursor-pointer items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {field.state.value ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={field.state.value}
+                onClick={() => field.handleChange(!field.state.value)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  field.state.value ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+                    field.state.value ? 'translate-x-4' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </label>
+          )}
+        </form.Field>
+      </div>
 
       <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
         <div className="flex gap-3">
