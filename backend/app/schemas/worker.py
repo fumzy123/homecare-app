@@ -47,6 +47,7 @@ class OrgMemberUpdateSchema(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class WorkerProfileResponse(BaseModel):
