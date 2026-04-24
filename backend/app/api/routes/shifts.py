@@ -55,10 +55,12 @@ async def get_shifts(
     to_date: date = Query(..., description="End of date range (YYYY-MM-DD)"),
     worker_id: str | None = Query(default=None),
     client_id: str | None = Query(default=None),
+    completion_statuses: str | None = Query(default=None, description="Comma-separated statuses to include, e.g. completed,no_show,cancelled"),
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return await ShiftService.get_shifts(from_date, to_date, current_user, db, worker_id, client_id)
+    parsed_statuses = [s.strip() for s in completion_statuses.split(",")] if completion_statuses else None
+    return await ShiftService.get_shifts(from_date, to_date, current_user, db, worker_id, client_id, parsed_statuses)
 
 
 # ─────────────────────────────────────────

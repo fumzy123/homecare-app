@@ -219,6 +219,7 @@ class ShiftService:
         db: Session,
         worker_id: str | None = None,
         client_id: str | None = None,
+        completion_statuses: list[str] | None = None,
     ) -> list[ShiftOccurrenceResponse]:
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
@@ -254,9 +255,16 @@ class ShiftService:
 
                 for occurrence_date in occurrences:
                     mod = mod_map.get(occurrence_date)
-                    # Skip cancelled individual occurrences
-                    if mod and mod.completion_status == ShiftCompletionStatus.cancelled:
-                        continue
+                    effective_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
+
+                    if completion_statuses is not None:
+                        if effective_status.value not in completion_statuses:
+                            continue
+                    else:
+                        # Default behaviour: skip individually-cancelled occurrences
+                        if effective_status == ShiftCompletionStatus.cancelled:
+                            continue
+
                     results.append(
                         ShiftService._build_occurrence_response(shift, occurrence_date, mod)
                     )
