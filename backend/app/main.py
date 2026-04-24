@@ -1,9 +1,12 @@
 # Import FastAPI
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.core.security import get_current_user
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
+from app.jobs.shift_completion import mark_shifts_completed
 
 
 # Crea
@@ -20,8 +23,18 @@ from app.api.api import router as api_router
 
 # [Alembic now handles database table creation. Base.metadata.create_all removed!]
 
+scheduler = AsyncIOScheduler()
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.add_job(mark_shifts_completed, "interval", minutes=15)
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
