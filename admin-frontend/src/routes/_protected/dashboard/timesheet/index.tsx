@@ -56,6 +56,7 @@ function statusPillClass(status: string) {
   switch (status.toLowerCase()) {
     case 'completed': return 'bg-green-50 text-green-700'
     case 'cancelled': return 'bg-red-50 text-red-600'
+    case 'no_show': return 'bg-amber-50 text-amber-700'
     default: return 'bg-gray-100 text-gray-600'
   }
 }
@@ -64,7 +65,8 @@ function statusLabel(status: string) {
   switch (status.toLowerCase()) {
     case 'completed': return 'Completed'
     case 'cancelled': return 'Cancelled'
-    default: return 'Pending'
+    case 'no_show': return 'No Show'
+    default: return status
   }
 }
 
@@ -125,9 +127,11 @@ function TimesheetPage() {
   const [sorting, setSorting]           = useState<SortingState>([{ id: 'date', desc: false }])
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
+  const TIMESHEET_STATUSES = ['completed', 'no_show', 'cancelled']
+
   const { data: shifts = [], isLoading } = useQuery({
-    queryKey: ['shifts', fromDate, toDate, filterWorkerId, filterClientId],
-    queryFn: () => shiftsApi.listShifts(fromDate, toDate, filterWorkerId || undefined, filterClientId || undefined),
+    queryKey: ['shifts', fromDate, toDate, filterWorkerId, filterClientId, TIMESHEET_STATUSES],
+    queryFn: () => shiftsApi.listShifts(fromDate, toDate, filterWorkerId || undefined, filterClientId || undefined, TIMESHEET_STATUSES),
   })
 
   const { data: workers = [] } = useQuery({
@@ -143,7 +147,7 @@ function TimesheetPage() {
   // Client-side status filter
   const filteredShifts = useMemo(() => {
     if (!filterStatus) return shifts
-    return shifts.filter((s) => s.completion_status.toLowerCase() === filterStatus)
+    return shifts.filter((s) => s.completion_status === filterStatus)
   }, [shifts, filterStatus])
 
   // Summary stats (completed only)
@@ -217,7 +221,7 @@ function TimesheetPage() {
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass}>
           <option value="">All statuses</option>
           <option value="completed">Completed</option>
-          <option value="pending">Pending</option>
+          <option value="no_show">No Show</option>
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
