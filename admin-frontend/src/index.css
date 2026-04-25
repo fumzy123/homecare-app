@@ -1,1 +1,151 @@
 @import "tailwindcss";
+
+/* ─── Design tokens ── registered as Tailwind utilities via @theme ─────────── */
+@theme {
+  /* Colors */
+  --color-cream:       #F2EEE5;
+  --color-cream-2:     #EDE8DC;
+  --color-cream-3:     #E5DFCF;
+  --color-paper:       #F8F5EC;
+  --color-ink:         #111111;
+  --color-ink-2:       #2A2622;
+  --color-ink-soft:    #4A453E;
+  --color-muted:       #8A8378;
+  --color-line:        #1A1715;
+  --color-line-soft:   rgba(17,17,17,0.18);
+  --color-line-faint:  rgba(17,17,17,0.08);
+  --color-orange:      #FF5A1F;
+  --color-orange-soft: #FFE2D4;
+  --color-mint:        #9DE8DC;
+  --color-mint-soft:   #D8F2EC;
+  --color-mint-dark:   #4FB6A2;
+  --color-yellow:      #F4D35E;
+  --color-lavender:    #C9C4F0;
+  --color-rose:        #F2BFC6;
+
+  /* Typography */
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+  --font-sans:  'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background-color: #F2EEE5;
+  color: #111111;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+}
+
+/* ─── Blueprint grid background ─────────────────────────────────────────────── */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(17,17,17,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17,17,17,0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ─── Corner brackets ───────────────────────────────────────────────────────── */
+.brackets { position: relative; }
+.bracket-tl,
+.bracket-tr,
+.bracket-bl,
+.bracket-br {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+.bracket-tl { top: -1px; left: -1px;  border-top: 1px solid #111; border-left:  1px solid #111; }
+.bracket-tr { top: -1px; right: -1px; border-top: 1px solid #111; border-right: 1px solid #111; }
+.bracket-bl { bottom: -1px; left: -1px;  border-bottom: 1px solid #111; border-left:  1px solid #111; }
+.bracket-br { bottom: -1px; right: -1px; border-bottom: 1px solid #111; border-right: 1px solid #111; }
+
+/* ─── Tape highlight ────────────────────────────────────────────────────────── */
+.tape        { background: #9DE8DC;  padding: 0 0.18em 0.05em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.tape-orange { background: #FFE2D4; padding: 0 0.18em 0.05em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.tape-yellow { background: #F4D35E; padding: 0 0.18em 0.05em; }
+
+/* ─── Lift hover (offset shadow) ────────────────────────────────────────────── */
+.lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.lift:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #111111;
+}
+
+/* ─── Status dot ────────────────────────────────────────────────────────────── */
+.dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #111;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot-orange  { background: #FF5A1F; }
+.dot-mint    { background: #4FB6A2; }
+.dot-yellow  { background: #C9A234; }
+.dot-muted   { background: #8A8378; }
+.dot-ink     { background: #111111; }
+
+/* ─── Progress bar ──────────────────────────────────────────────────────────── */
+.bar {
+  height: 6px;
+  background: rgba(17,17,17,0.08);
+  position: relative;
+  overflow: hidden;
+}
+.bar-fill        { display: block; height: 100%; background: #111111; transition: width 0.3s ease; }
+.bar-fill-mint   { background: #4FB6A2; }
+.bar-fill-orange { background: #FF5A1F; }
+
+/* ─── Ticker animation ──────────────────────────────────────────────────────── */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: inline-flex;
+  gap: 3rem;
+  animation: ticker 60s linear infinite;
+  white-space: nowrap;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #F2EEE5; }
+::-webkit-scrollbar-thumb { background: #8A8378; border: 2px solid #F2EEE5; }
+
+/* ─── Calendar overrides (react-big-calendar) ───────────────────────────────── */
+.rbc-calendar {
+  background: #F8F5EC;
+  border: 1px solid #111;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+.rbc-toolbar { background: #EDE8DC; border-bottom: 1px solid #111; padding: 12px 16px; }
+.rbc-toolbar button {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  border: 1px solid #111;
+  background: transparent;
+  color: #111;
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.rbc-toolbar button:hover, .rbc-toolbar button.rbc-active { background: #111; color: #F2EEE5; }
+.rbc-header { background: #EDE8DC; border-bottom: 1px solid #111 !important; padding: 10px 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #4A453E; }
+.rbc-day-bg { border-left: 1px solid rgba(17,17,17,0.1) !important; }
+.rbc-today { background: #FFE2D4 !important; }
+.rbc-event { background: #FF5A1F !important; border: 1px solid #111 !important; border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.rbc-event.rbc-selected { background: #111 !important; }
+.rbc-off-range-bg { background: rgba(17,17,17,0.03); }
+.rbc-time-slot { border-top: 1px solid rgba(17,17,17,0.06) !important; }
+.rbc-time-gutter .rbc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8A8378; letter-spacing: 0.05em; }
