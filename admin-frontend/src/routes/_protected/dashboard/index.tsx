@@ -6,6 +6,7 @@ import { clientsApi } from '@/features/clients/api'
 import { workersApi } from '@/features/workers/api'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
+import { DayTimeline } from '@/features/shifts/components/DayTimeline'
 import { Card, Avatar, Kicker, StatusDot, ProgressBar, Tag, Btn } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
@@ -50,7 +51,7 @@ function DashboardPage() {
   const completed  = todayShifts.filter((s) => s.completion_status === 'completed')
   const scheduled  = todayShifts.filter((s) => s.completion_status === 'scheduled')
 
-  const sortedToday = [...todayShifts].sort(
+  const sortedToday   = [...todayShifts].sort(
     (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
   )
   const sortedDropped = [...droppedShifts].sort(
@@ -149,47 +150,8 @@ function DashboardPage() {
 
           {loadingToday ? (
             <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>
-          ) : sortedToday.length === 0 ? (
-            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">NO SHIFTS TODAY</p>
           ) : (
-            <div>
-              {sortedToday.map((shift, i) => {
-                const start = new Date(shift.start_time)
-                const end   = new Date(shift.end_time)
-                const statusColor = {
-                  completed:   'bg-ink text-cream',
-                  in_progress: 'bg-mint text-ink border border-ink',
-                  scheduled:   'bg-orange-soft text-ink border border-dashed border-ink',
-                  cancelled:   'bg-cream-2 text-muted',
-                  dropped:     'bg-orange text-white',
-                  no_show:     'bg-cream-2 text-ink-soft',
-                }[shift.completion_status] ?? 'bg-cream-2 text-ink'
-
-                return (
-                  <button
-                    key={`${shift.shift_id}-${shift.date}`}
-                    onClick={() => setSelectedShift(shift)}
-                    className={`flex w-full items-center gap-5 px-6 py-4 text-left hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
-                  >
-                    <div className="w-20 shrink-0">
-                      <p className="font-mono text-[11px] tabular-nums font-medium">{format(start, 'h:mm a')}</p>
-                      <p className="font-mono text-[10px] text-muted tabular-nums">{format(end, 'h:mm a')}</p>
-                    </div>
-                    <Avatar
-                      initials={`${shift.worker.first_name[0]}${shift.worker.last_name[0]}`}
-                      color={(['c1','c2','c3','c4','c5','c6'] as const)[i % 6]}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate">{shift.worker.first_name} {shift.worker.last_name}</p>
-                      <p className="font-mono text-[10px] text-ink-soft truncate">{shift.client.first_name} {shift.client.last_name}</p>
-                    </div>
-                    <span className={`shrink-0 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] ${statusColor}`}>
-                      {shift.completion_status.replace(/_/g, ' ')}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            <DayTimeline shifts={sortedToday} onSelectShift={setSelectedShift} />
           )}
         </Card>
 
