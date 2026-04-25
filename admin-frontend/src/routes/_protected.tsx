@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
-import { Sidebar } from '@/shared/components/layout/Sidebar'
+import { Topbar } from '@/shared/components/layout/Topbar'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: () => {
@@ -14,8 +14,8 @@ export const Route = createFileRoute('/_protected')({
 
 function ProtectedLayout() {
   return (
-    <div className="flex h-screen">
-      <Sidebar />
+    <div className="min-h-screen bg-cream flex flex-col">
+      <Topbar />
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
