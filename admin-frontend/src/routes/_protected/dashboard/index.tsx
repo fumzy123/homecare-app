@@ -2,69 +2,21 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { format, startOfWeek, endOfWeek, subDays, addDays } from 'date-fns'
-import { Users, UserRound, CalendarDays, AlertCircle } from 'lucide-react'
 import { clientsApi } from '@/features/clients/api'
 import { workersApi } from '@/features/workers/api'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
+import { Card, Avatar, Kicker, StatusDot, ProgressBar, Tag, Btn } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
 })
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const today = format(new Date(), 'yyyy-MM-dd')
-const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd')
-const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd')
-const droppedFrom = format(subDays(new Date(), 7), 'yyyy-MM-dd')
-const droppedTo = format(addDays(new Date(), 60), 'yyyy-MM-dd')
-
-function statusPillClass(status: string) {
-  switch (status.toLowerCase()) {
-    case 'completed':  return 'bg-green-50 text-green-700'
-    case 'cancelled':  return 'bg-red-50 text-red-600'
-    case 'no_show':    return 'bg-amber-50 text-amber-700'
-    case 'dropped':    return 'bg-orange-50 text-orange-600'
-    default:           return 'bg-gray-100 text-gray-600'
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status.toLowerCase()) {
-    case 'completed':  return 'Completed'
-    case 'cancelled':  return 'Cancelled'
-    case 'no_show':    return 'No Show'
-    case 'dropped':    return 'Dropped'
-    default:           return 'Scheduled'
-  }
-}
-
-// ─── Stat Card ───────────────────────────────────────────────────────────────
-
-interface StatCardProps {
-  label: string
-  value: number | string
-  icon: React.ElementType
-  sub?: string
-}
-
-function StatCard({ label, value, icon: Icon, sub }: StatCardProps) {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-500">{label}</p>
-        <div className="rounded-md bg-gray-100 p-1.5 text-gray-600">
-          <Icon size={15} />
-        </div>
-      </div>
-      <p className="text-3xl font-semibold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
-    </div>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+const today    = format(new Date(), 'yyyy-MM-dd')
+const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: 1 }), 'yyyy-MM-dd')
+const droppedFrom = format(subDays(new Date(), 7),  'yyyy-MM-dd')
+const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
 
 function DashboardPage() {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
@@ -73,178 +25,276 @@ function DashboardPage() {
     queryKey: ['clients'],
     queryFn: () => clientsApi.listClients(),
   })
-
   const { data: workers = [] } = useQuery({
     queryKey: ['workers'],
     queryFn: workersApi.listWorkers,
   })
-
   const { data: todayShifts = [], isLoading: loadingToday } = useQuery({
     queryKey: ['shifts', today, today],
     queryFn: () => shiftsApi.listShifts(today, today),
   })
-
   const { data: weekShifts = [] } = useQuery({
     queryKey: ['shifts', weekStart, weekEnd],
     queryFn: () => shiftsApi.listShifts(weekStart, weekEnd),
   })
-
   const { data: droppedShifts = [] } = useQuery({
     queryKey: ['shifts', droppedFrom, droppedTo, 'dropped'],
     queryFn: () => shiftsApi.listShifts(droppedFrom, droppedTo, undefined, undefined, ['dropped']),
   })
 
-  // ─── Derived stats ───────────────────────────────────────────────────────
-
   const activeClients = clients.filter((c) => c.status === 'active')
   const activeWorkers = workers.filter((w) => w.is_active)
   const onHoldClients = clients.filter((c) => c.status === 'on_hold')
 
-  const sortedDroppedShifts = [...droppedShifts].sort(
+  const inProgress = todayShifts.filter((s) => s.completion_status === 'in_progress')
+  const completed  = todayShifts.filter((s) => s.completion_status === 'completed')
+  const scheduled  = todayShifts.filter((s) => s.completion_status === 'scheduled')
+
+  const sortedToday = [...todayShifts].sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  )
+  const sortedDropped = [...droppedShifts].sort(
     (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
   )
 
-  const sortedTodayShifts = [...todayShifts].sort(
-    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  )
+  const STATS = [
+    { num: '01', label: 'Active clients',   value: activeClients.length, sub: onHoldClients.length > 0 ? `${onHoldClients.length} on hold` : 'all active',    accent: false },
+    { num: '02', label: 'Active workers',   value: activeWorkers.length, sub: `of ${workers.length} total`,                                                    accent: false },
+    { num: '03', label: 'Shifts today',     value: todayShifts.length,   sub: format(new Date(), 'EEEE, MMM d'),                                               accent: false },
+    { num: '04', label: 'Shifts this week', value: weekShifts.length,    sub: `${weekStart} – ${weekEnd}`,                                                     accent: droppedShifts.length > 0 },
+  ]
 
   return (
-    <div className="p-8 flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+    <div className="min-h-full bg-cream">
 
-      {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Active Clients"
-          value={activeClients.length}
-          icon={UserRound}
-          sub={onHoldClients.length > 0 ? `${onHoldClients.length} on hold` : undefined}
-        />
-        <StatCard
-          label="Active Workers"
-          value={activeWorkers.length}
-          icon={Users}
-          sub={`of ${workers.length} total`}
-        />
-        <StatCard
-          label="Shifts Today"
-          value={todayShifts.length}
-          icon={CalendarDays}
-          sub={format(new Date(), 'EEEE, MMM d')}
-        />
-        <StatCard
-          label="Shifts This Week"
-          value={weekShifts.length}
-          icon={CalendarDays}
-          sub={`${weekStart} – ${weekEnd}`}
-        />
-      </div>
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section className="px-10 pt-12 pb-8 relative">
+        <div className="absolute top-14 right-24 text-ink-soft opacity-40">
+          <svg width="12" height="12" viewBox="0 0 12 12"><line x1="6" y1="0" x2="6" y2="12" stroke="currentColor" strokeWidth="1"/><line x1="0" y1="6" x2="12" y2="6" stroke="currentColor" strokeWidth="1"/></svg>
+        </div>
+        <div className="absolute top-48 right-64 text-ink-soft opacity-30">
+          <svg width="12" height="12" viewBox="0 0 12 12"><line x1="6" y1="0" x2="6" y2="12" stroke="currentColor" strokeWidth="1"/><line x1="0" y1="6" x2="12" y2="6" stroke="currentColor" strokeWidth="1"/></svg>
+        </div>
 
-      {/* ── Today's schedule + Unassigned clients ── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Kicker leader className="mb-5">Operations Console · {format(new Date(), 'EEEE, MMMM d, yyyy')}</Kicker>
 
-        {/* Today's Schedule */}
-        <div className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="text-sm font-semibold text-gray-900">Today's Schedule</h2>
-            <span className="text-xs text-gray-400">{format(new Date(), 'EEEE, MMMM d')}</span>
+        <h1 className="font-serif text-[64px] leading-[0.97] font-medium tracking-[-0.02em] max-w-4xl">
+          {inProgress.length > 0 ? (
+            <>
+              Today there {inProgress.length === 1 ? 'is' : 'are'}{' '}
+              <span className="tape">{inProgress.length} shift{inProgress.length !== 1 ? 's' : ''}</span>{' '}
+              in progress
+              {droppedShifts.length > 0 && (
+                <> and <span className="tape-orange">{droppedShifts.length} {droppedShifts.length === 1 ? 'shift needs' : 'shifts need'}</span> a worker.</>
+              )}.
+            </>
+          ) : (
+            <>
+              <span className="tape">{scheduled.length} shift{scheduled.length !== 1 ? 's' : ''}</span>{' '}
+              scheduled today
+              {droppedShifts.length > 0 && (
+                <> and <span className="tape-orange">{droppedShifts.length} {droppedShifts.length === 1 ? 'needs' : 'need'}</span> coverage.</>
+              )}.
+            </>
+          )}
+        </h1>
+
+        <div className="flex items-center gap-3 mt-8">
+          <Btn variant="orange">Open schedule →</Btn>
+          <Btn variant="ghost">＊ New shift</Btn>
+          <span className="font-mono text-[10px] text-ink-soft tracking-[0.05em] ml-auto">
+            {format(new Date(), 'EEEE, MMM d yyyy')}
+          </span>
+        </div>
+      </section>
+
+      {/* ── Stat strip ───────────────────────────────────────────────────── */}
+      <section className="px-10 mb-8">
+        <div className="grid grid-cols-4 border border-ink bg-paper">
+          {STATS.map((s, i) => (
+            <div key={i} className={`px-7 py-6 relative ${i < 3 ? 'border-r border-ink' : ''}`}>
+              <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
+                {s.num} / {s.label}
+              </div>
+              <div className="flex items-baseline gap-3">
+                <span className={`font-serif text-[72px] leading-none ${s.accent ? 'text-orange' : 'text-ink'}`}>
+                  {s.value}
+                </span>
+                <span className="font-mono text-[11px] text-ink-soft">{s.sub}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Main grid ────────────────────────────────────────────────────── */}
+      <section className="px-10 grid grid-cols-3 gap-6 mb-8">
+
+        {/* Today's timeline — 2/3 width */}
+        <Card className="col-span-2 p-0">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-ink">
+            <div>
+              <Kicker className="mb-1">A · Live Timeline</Kicker>
+              <h3 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
+                Today's shifts{' '}
+                <span className="font-serif italic text-muted">— {format(new Date(), 'EEE, MMM d')}</span>
+              </h3>
+            </div>
+            <div className="flex items-center gap-5 font-mono text-[10px]">
+              <span className="flex items-center gap-1.5"><span className="dot dot-mint" /> In progress {inProgress.length}</span>
+              <span className="flex items-center gap-1.5"><span className="dot dot-ink" /> Done {completed.length}</span>
+              <span className="flex items-center gap-1.5"><span className="dot dot-orange" /> Upcoming {scheduled.length}</span>
+            </div>
           </div>
 
           {loadingToday ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
-          ) : sortedTodayShifts.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-400">No shifts scheduled for today</p>
+            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>
+          ) : sortedToday.length === 0 ? (
+            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">NO SHIFTS TODAY</p>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {sortedTodayShifts.map((shift) => (
-                <button
-                  key={`${shift.shift_id}-${shift.date}`}
-                  onClick={() => setSelectedShift(shift)}
-                  className="flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <div className="w-28 shrink-0">
-                    <p className="text-xs font-medium text-gray-500 tabular-nums">
-                      {format(new Date(shift.start_time), 'h:mm a')}
-                    </p>
-                    <p className="text-xs text-gray-400 tabular-nums">
-                      {format(new Date(shift.end_time), 'h:mm a')}
-                    </p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">
-                      {shift.worker.first_name} {shift.worker.last_name}
-                    </p>
-                    <p className="truncate text-xs text-gray-500">
-                      {shift.client.first_name} {shift.client.last_name}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusPillClass(shift.completion_status)}`}>
-                    {statusLabel(shift.completion_status)}
-                  </span>
-                </button>
-              ))}
+            <div>
+              {sortedToday.map((shift, i) => {
+                const start = new Date(shift.start_time)
+                const end   = new Date(shift.end_time)
+                const statusColor = {
+                  completed:   'bg-ink text-cream',
+                  in_progress: 'bg-mint text-ink border border-ink',
+                  scheduled:   'bg-orange-soft text-ink border border-dashed border-ink',
+                  cancelled:   'bg-cream-2 text-muted',
+                  dropped:     'bg-orange text-white',
+                  no_show:     'bg-cream-2 text-ink-soft',
+                }[shift.completion_status] ?? 'bg-cream-2 text-ink'
+
+                return (
+                  <button
+                    key={`${shift.shift_id}-${shift.date}`}
+                    onClick={() => setSelectedShift(shift)}
+                    className={`flex w-full items-center gap-5 px-6 py-4 text-left hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                  >
+                    <div className="w-20 shrink-0">
+                      <p className="font-mono text-[11px] tabular-nums font-medium">{format(start, 'h:mm a')}</p>
+                      <p className="font-mono text-[10px] text-muted tabular-nums">{format(end, 'h:mm a')}</p>
+                    </div>
+                    <Avatar
+                      initials={`${shift.worker.first_name[0]}${shift.worker.last_name[0]}`}
+                      color={(['c1','c2','c3','c4','c5','c6'] as const)[i % 6]}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium truncate">{shift.worker.first_name} {shift.worker.last_name}</p>
+                      <p className="font-mono text-[10px] text-ink-soft truncate">{shift.client.first_name} {shift.client.last_name}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] ${statusColor}`}>
+                      {shift.completion_status.replace(/_/g, ' ')}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
-        </div>
+        </Card>
 
-        {/* Shifts Needing Coverage */}
-        <div className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="text-sm font-semibold text-gray-900">Shifts Needing Coverage</h2>
-            {sortedDroppedShifts.length > 0 && (
-              <span className="flex items-center gap-1 text-xs font-medium text-orange-600">
-                <AlertCircle size={13} />
-                {sortedDroppedShifts.length} shift{sortedDroppedShifts.length !== 1 ? 's' : ''} dropped
-              </span>
-            )}
-          </div>
+        {/* Right column — 1/3 width */}
+        <div className="flex flex-col gap-6">
 
-          {sortedDroppedShifts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-5 py-8 text-center">
-              <p className="text-sm font-medium text-green-700">All shifts are covered</p>
-              <p className="mt-1 text-xs text-gray-400">No action needed</p>
-            </div>
+          {/* Shifts needing coverage */}
+          {sortedDropped.length > 0 ? (
+            <Card variant="orange" className="p-6">
+              <div className="font-mono text-[10px] tracking-[0.15em] opacity-80 mb-2">B / NEEDS ATTENTION</div>
+              <div className="font-serif text-[28px] leading-[1.05] mb-3">
+                {sortedDropped.length} shift{sortedDropped.length !== 1 ? 's' : ''} dropped
+              </div>
+              <div className="space-y-3">
+                {sortedDropped.slice(0, 2).map((shift) => (
+                  <div key={`${shift.shift_id}-${shift.date}`} className="text-[12px] opacity-90 leading-snug">
+                    {format(new Date(shift.start_time), 'EEE MMM d')} · {format(new Date(shift.start_time), 'h:mm a')} – {format(new Date(shift.end_time), 'h:mm a')} · {shift.client.first_name} {shift.client.last_name}
+                    {shift.notes && <span className="opacity-70"> — {shift.notes}</span>}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => sortedDropped[0] && setSelectedShift(sortedDropped[0])}
+                className="mt-5 flex items-center gap-2 px-4 py-2 bg-white text-orange border border-white rounded-full font-mono text-[11px] tracking-wide hover:bg-ink hover:text-cream hover:border-ink transition-all"
+              >
+                Assign worker →
+              </button>
+            </Card>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {sortedDroppedShifts.map((shift) => (
-                <div key={`${shift.shift_id}-${shift.date}`} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="w-24 shrink-0">
-                    <p className="text-xs font-medium text-gray-700 tabular-nums">
-                      {format(new Date(shift.start_time), 'MMM d')}
-                    </p>
-                    <p className="text-xs text-gray-400 tabular-nums">
-                      {format(new Date(shift.start_time), 'h:mm a')}
-                    </p>
+            <Card className="p-6">
+              <Kicker className="mb-2">B / Coverage</Kicker>
+              <div className="font-serif text-[22px] leading-none mt-2 mb-1">All shifts covered</div>
+              <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTION NEEDED</p>
+            </Card>
+          )}
+
+          {/* Worker utilization */}
+          <Card className="p-6">
+            <Kicker className="mb-1">C / Utilization</Kicker>
+            <h3 className="font-serif text-[22px] leading-none mt-2 mb-1">
+              Workers <span className="italic text-muted">— this week</span>
+            </h3>
+            <p className="font-mono text-[10px] text-ink-soft mb-5 tracking-wide">ACTIVE STAFF</p>
+            <div className="space-y-4">
+              {activeWorkers.slice(0, 5).map((w, i) => (
+                <div key={w.id}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <Avatar
+                        initials={`${w.first_name[0]}${w.last_name[0]}`}
+                        color={(['c1','c2','c3','c4','c5'] as const)[i % 5]}
+                        size="sm"
+                      />
+                      <span className="text-[12px] font-medium">{w.first_name} {w.last_name}</span>
+                    </div>
+                    <StatusDot status="active" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">
-                      {shift.client.first_name} {shift.client.last_name}
-                    </p>
-                    <p className="truncate text-xs text-gray-500">
-                      {shift.worker.first_name} {shift.worker.last_name} dropped
-                      {shift.notes ? ` · ${shift.notes}` : ''}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedShift(shift)}
-                    className="shrink-0 rounded-md border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 hover:bg-orange-100 transition-colors"
-                  >
-                    Assign
-                  </button>
+                  <ProgressBar value={75} max={100} variant="mint" />
                 </div>
               ))}
+              {activeWorkers.length === 0 && (
+                <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTIVE WORKERS</p>
+              )}
             </div>
-          )}
+          </Card>
         </div>
+      </section>
 
-      </div>
+      {/* ── Client roster strip ───────────────────────────────────────────── */}
+      <section className="px-10 pb-12">
+        <Card variant="cream" className="p-0">
+          <div className="px-6 py-5 border-b border-ink">
+            <Kicker className="mb-1">D / Active Roster</Kicker>
+            <h3 className="font-serif text-[24px] leading-none mt-2 tracking-[-0.02em]">
+              Active client roster
+            </h3>
+          </div>
+          <div>
+            {activeClients.slice(0, 6).map((c, i) => (
+              <div
+                key={c.id}
+                className={`flex items-center gap-5 px-6 py-4 ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+              >
+                <span className="font-mono text-[10px] text-muted w-6 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                <Avatar
+                  initials={`${c.first_name[0]}${c.last_name[0]}`}
+                  color={(['c1','c2','c3','c4','c5','c6'] as const)[i % 6]}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium">{c.first_name} {c.last_name}</p>
+                  <p className="font-mono text-[10px] text-ink-soft">{c.id} · age {c.date_of_birth ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear() : '—'}</p>
+                </div>
+                <Tag variant="default">{c.service_type.replace(/_/g, ' ')}</Tag>
+                <StatusDot status={c.status} />
+              </div>
+            ))}
+            {activeClients.length === 0 && (
+              <p className="px-6 py-8 font-mono text-[11px] text-muted text-center tracking-wide">NO ACTIVE CLIENTS</p>
+            )}
+          </div>
+        </Card>
+      </section>
 
-      {/* Shift detail drawer */}
       {selectedShift && (
-        <ShiftDetailDrawer
-          shift={selectedShift}
-          onClose={() => setSelectedShift(null)}
-        />
+        <ShiftDetailDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
       )}
     </div>
   )

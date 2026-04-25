@@ -1,80 +1,86 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Plus, LayoutList, LayoutGrid, Search } from 'lucide-react'
-import { clientsApi, type ClientStatus } from '@/features/clients/api'
-import { ClientCard } from '@/features/clients/components/ClientCard'
-import { ClientTable } from '@/features/clients/components/ClientTable'
+import { useState, useMemo } from 'react'
+import { Search } from 'lucide-react'
+import { clientsApi, type ClientStatus, type Client, SERVICE_TYPE_LABELS } from '@/features/clients/api'
 import { CreateClientDrawer } from '@/features/clients/components/CreateClientDrawer'
-
-type ViewMode = 'table' | 'cards'
+import { Avatar, Card, Kicker, StatusDot, Tag, Btn } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/')({
   component: ClientsPage,
 })
 
 const STATUS_OPTIONS: { value: ClientStatus | ''; label: string }[] = [
-  { value: '', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'on_hold', label: 'On Hold' },
+  { value: '',           label: 'All'        },
+  { value: 'active',     label: 'Active'     },
+  { value: 'on_hold',    label: 'On Hold'    },
   { value: 'discharged', label: 'Discharged' },
 ]
 
+const AVATAR_COLORS = ['c1','c2','c3','c4','c5','c6'] as const
+
 function ClientsPage() {
   const queryClient = useQueryClient()
-
-  const [view, setView] = useState<ViewMode>('table')
-  const [showDrawer, setShowDrawer] = useState(false)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ClientStatus | ''>('')
+  const [showDrawer, setShowDrawer]       = useState(false)
+  const [search, setSearch]               = useState('')
+  const [statusFilter, setStatusFilter]   = useState<ClientStatus | ''>('')
 
   const { data: clients = [], isLoading, isError } = useQuery({
     queryKey: ['clients', statusFilter],
-    queryFn: () => clientsApi.listClients(statusFilter || undefined),
+    queryFn:  () => clientsApi.listClients(statusFilter || undefined),
   })
 
+  const filtered = useMemo(() => {
+    if (!search) return clients
+    const q = search.toLowerCase()
+    return clients.filter((c) =>
+      `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.city?.toLowerCase().includes(q)
+    )
+  }, [clients, search])
+
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+    <div className="min-h-full bg-cream">
+      {/* Page header */}
+      <div className="flex items-end justify-between px-10 pt-10 pb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Clients</h1>
-          {!isLoading && (
-            <p className="mt-1 text-sm text-gray-500">
-              {clients.length} {clients.length === 1 ? 'client' : 'clients'}
-            </p>
-          )}
+          <Kicker leader className="mb-4">02 / Client files</Kicker>
+          <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
+            Clients{' '}
+            <span className="font-serif italic text-muted">
+              — {clients.length} on record
+            </span>
+          </h1>
         </div>
-        <button
-          onClick={() => setShowDrawer(true)}
-          className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-        >
-          <Plus size={16} />
-          New Client
-        </button>
+        <Btn variant="primary" onClick={() => setShowDrawer(true)}>＊ New client</Btn>
       </div>
 
-      {/* Toolbar: search + status filter + view toggle */}
-      <div className="mb-4 flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* Toolbar */}
+      <div className="px-10 mb-6 flex items-center gap-3">
+        {/* Search */}
+        <div className="relative">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
-            className="w-full rounded-md border border-gray-300 py-2 pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+            className="bg-paper border border-ink pl-8 pr-3 py-2 font-mono text-[12px] text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-ink w-56"
             placeholder="Search clients…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
-        <div className="flex rounded-md border border-gray-300 overflow-hidden">
-          {STATUS_OPTIONS.map((opt) => (
+        {/* Status filter pills */}
+        <div className="flex items-center border border-ink overflow-hidden">
+          {STATUS_OPTIONS.map((opt, i) => (
             <button
               key={opt.value}
               onClick={() => setStatusFilter(opt.value)}
-              className={`px-3 py-2 text-xs font-medium transition-colors ${
+              className={`px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                i > 0 ? 'border-l border-ink' : ''
+              } ${
                 statusFilter === opt.value
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'bg-ink text-cream'
+                  : 'bg-transparent text-ink-soft hover:bg-cream-2'
               }`}
             >
               {opt.label}
@@ -82,64 +88,47 @@ function ClientsPage() {
           ))}
         </div>
 
-        <div className="ml-auto flex rounded-md border border-gray-300 overflow-hidden">
-          <button
-            onClick={() => setView('table')}
-            title="Table view"
-            className={`p-2 transition-colors ${
-              view === 'table' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-            }`}
-          >
-            <LayoutList size={15} />
-          </button>
-          <button
-            onClick={() => setView('cards')}
-            title="Card view"
-            className={`p-2 transition-colors ${
-              view === 'cards' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
-            }`}
-          >
-            <LayoutGrid size={15} />
-          </button>
-        </div>
+        <span className="font-mono text-[10px] text-muted ml-auto tracking-wide">
+          {filtered.length} RESULTS
+        </span>
       </div>
 
-      {/* Content */}
-      {isLoading && <p className="text-sm text-gray-500">Loading clients…</p>}
+      {/* Table */}
+      <div className="px-10 pb-12">
+        {isLoading && (
+          <p className="font-mono text-[11px] text-muted tracking-wide py-8">LOADING CLIENTS…</p>
+        )}
+        {isError && (
+          <p className="font-mono text-[11px] text-orange tracking-wide py-8">FAILED TO LOAD CLIENTS</p>
+        )}
 
-      {isError && <p className="text-sm text-red-500">Failed to load clients.</p>}
+        {!isLoading && !isError && filtered.length === 0 && (
+          <div className="border border-dashed border-ink p-16 text-center">
+            <p className="font-serif text-[24px] mb-2">No clients found</p>
+            <p className="font-mono text-[11px] text-muted tracking-wide">
+              {search ? 'TRY A DIFFERENT SEARCH TERM' : 'CLICK NEW CLIENT TO ADD YOUR FIRST CLIENT'}
+            </p>
+          </div>
+        )}
 
-      {!isLoading && !isError && clients.length === 0 && (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <p className="text-sm font-medium text-gray-900">No clients yet</p>
-          <p className="mt-1 text-sm text-gray-500">Click New Client to add your first client.</p>
-        </div>
-      )}
-
-      {!isLoading && !isError && clients.length > 0 && (
-        <>
-          {view === 'table' ? (
-            <ClientTable clients={clients} globalFilter={search} />
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {clients
-                .filter((c) => {
-                  if (!search) return true
-                  const q = search.toLowerCase()
-                  return (
-                    c.first_name.toLowerCase().includes(q) ||
-                    c.last_name.toLowerCase().includes(q) ||
-                    c.email?.toLowerCase().includes(q) ||
-                    c.city.toLowerCase().includes(q)
-                  )
-                })
-                .map((client) => (
-                  <ClientCard key={client.id} client={client} />
-                ))}
+        {!isLoading && !isError && filtered.length > 0 && (
+          <Card className="p-0">
+            {/* Table header */}
+            <div className="grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] bg-cream-2 border-b border-ink">
+              {['#', 'Client', 'Location', 'Service', 'Status', 'Since'].map((h, i) => (
+                <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
+                  {h}
+                </div>
+              ))}
             </div>
-          )}
-        </>
-      )}
+
+            {/* Rows */}
+            {filtered.map((client, i) => (
+              <ClientRow key={client.id} client={client} index={i} />
+            ))}
+          </Card>
+        )}
+      </div>
 
       {showDrawer && (
         <CreateClientDrawer
@@ -148,5 +137,50 @@ function ClientsPage() {
         />
       )}
     </div>
+  )
+}
+
+function ClientRow({ client, index }: { client: Client; index: number }) {
+  const color = AVATAR_COLORS[index % AVATAR_COLORS.length]
+  const initials = `${client.first_name[0]}${client.last_name[0]}`
+  const age = client.date_of_birth
+    ? new Date().getFullYear() - new Date(client.date_of_birth).getFullYear()
+    : null
+
+  return (
+    <Link
+      to="/dashboard/clients/$clientId"
+      params={{ clientId: client.id } as never}
+      className={`grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] items-center hover:bg-cream-2 transition-colors ${
+        index > 0 ? 'border-t border-dashed border-line-soft' : ''
+      }`}
+    >
+      <div className="px-4 py-3.5 font-mono text-[10px] text-muted">
+        {String(index + 1).padStart(2, '0')}
+      </div>
+      <div className="px-4 py-3.5 flex items-center gap-3">
+        <Avatar initials={initials} color={color} />
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium leading-snug">
+            {client.first_name} {client.last_name}
+          </p>
+          <p className="font-mono text-[10px] text-ink-soft">
+            {client.id.slice(0, 8).toUpperCase()}{age ? ` · age ${age}` : ''}
+          </p>
+        </div>
+      </div>
+      <div className="px-4 py-3.5 font-mono text-[11px] text-ink-soft">
+        {client.city || '—'}
+      </div>
+      <div className="px-4 py-3.5">
+        <Tag variant="default">{SERVICE_TYPE_LABELS[client.service_type] ?? client.service_type}</Tag>
+      </div>
+      <div className="px-4 py-3.5">
+        <StatusDot status={client.status} />
+      </div>
+      <div className="px-4 py-3.5 font-mono text-[11px] text-ink-soft">
+        {new Date(client.care_start_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+      </div>
+    </Link>
   )
 }
