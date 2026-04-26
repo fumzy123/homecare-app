@@ -50,7 +50,7 @@ function WorkersPage() {
             </span>
           </h1>
         </div>
-        <Btn variant="primary" onClick={() => setShowModal(true)}>＊ Invite member</Btn>
+        <Btn variant="ghost" onClick={() => setShowModal(true)}>＊ Invite member</Btn>
       </div>
 
       {/* Tabs */}

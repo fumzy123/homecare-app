@@ -193,7 +193,7 @@ function ShiftsPage() {
             <option value="">All clients</option>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
           </select>
-          <Btn variant="orange" onClick={() => { setPendingShift(null); setShowDrawer(true) }}>
+          <Btn variant="ghost" onClick={() => { setPendingShift(null); setShowDrawer(true) }}>
             ＊ New shift
           </Btn>
         </div>
@@ -202,12 +202,12 @@ function ShiftsPage() {
       {/* Legend */}
       <div className="px-10 pb-4 flex items-center gap-6 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft">
         {[
-          { label: 'Completed',   color: '#111111' },
-          { label: 'In progress', color: '#9DE8DC', border: '#111' },
           { label: 'Scheduled',   color: '#FFE2D4', border: '#111', dashed: true },
+          { label: 'In Progress', color: '#9DE8DC', border: '#111' },
+          { label: 'Completed',   color: '#111111' },
           { label: 'No Show',     color: '#FF5A1F' },
-          { label: 'Dropped',     color: '#F4D35E', border: '#111' },
           { label: 'Cancelled',   color: '#EDE8DC', border: '#8A8378' },
+          { label: 'Dropped',     color: '#F4D35E', border: '#111' },
         ].map(({ label, color, border, dashed }) => (
           <span key={label} className="flex items-center gap-2">
             <span style={{
