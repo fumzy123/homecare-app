@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
-import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar'
-import { format, parse, startOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
+import { Calendar, dateFnsLocalizer, Navigate, type View, type ToolbarProps } from 'react-big-calendar'
+import { format, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
 import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
@@ -73,6 +73,56 @@ function MonthHeader({ label }: { label: string }) {
     <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft px-2 py-2">
       {label}
     </p>
+  )
+}
+
+function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps) {
+  const ws = startOfWeek(date, { weekStartsOn: 1 })
+  const we = endOfWeek(date, { weekStartsOn: 1 })
+
+  let label: string
+  if (view === 'week') {
+    if (format(ws, 'MMMM yyyy') === format(we, 'MMMM yyyy')) {
+      label = `${format(ws, 'MMMM d')} – ${format(we, 'd, yyyy')}`
+    } else if (format(ws, 'yyyy') === format(we, 'yyyy')) {
+      label = `${format(ws, 'MMMM d')} – ${format(we, 'MMMM d, yyyy')}`
+    } else {
+      label = `${format(ws, 'MMMM d, yyyy')} – ${format(we, 'MMMM d, yyyy')}`
+    }
+  } else {
+    label = format(date, 'MMMM yyyy')
+  }
+
+  const navBtn = 'w-8 h-8 rounded-full border border-ink/40 flex items-center justify-center font-mono text-[13px] text-ink hover:bg-cream-2 hover:border-ink transition-colors'
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-ink bg-paper">
+      {/* Left: nav group */}
+      <div className="flex items-center gap-3 flex-1">
+        <button onClick={() => onNavigate(Navigate.PREVIOUS)} className={navBtn}>←</button>
+        <span className="font-serif text-[20px] leading-none tracking-[-0.01em]">
+          {label}
+        </span>
+        <button onClick={() => onNavigate(Navigate.NEXT)} className={navBtn}>→</button>
+      </div>
+
+      {/* Right: Today + view toggle */}
+      <button
+        onClick={() => onNavigate(Navigate.TODAY)}
+        className="px-4 py-1.5 rounded-full border border-ink/40 hover:border-ink font-mono text-[10px] tracking-[0.05em] uppercase text-ink hover:bg-cream-2 transition-colors"
+      >
+        Today
+      </button>
+      <div className="w-px h-5 bg-ink/20 mx-1" />
+      {(['week', 'month'] as View[]).map((v) => (
+        <button key={v} onClick={() => onView(v)}
+          className={`px-3.5 py-1.5 rounded-full font-mono text-[10px] tracking-[0.05em] uppercase transition-colors border ${
+            view === v ? 'bg-ink text-cream border-ink' : 'border-ink/40 text-ink hover:border-ink hover:bg-cream-2'
+          }`}>
+          {v}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -195,8 +245,9 @@ function ShiftsPage() {
             selectable
             style={{ height: '100%' }}
             components={{
-              week:  { header: WeekHeader },
-              month: { header: MonthHeader },
+              toolbar: CustomToolbar,
+              week:    { header: WeekHeader },
+              month:   { header: MonthHeader },
             }}
             eventPropGetter={(event) => {
               if (event.resource?.shift_id === '__phantom__') {
