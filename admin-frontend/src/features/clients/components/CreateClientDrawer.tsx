@@ -110,16 +110,16 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
           {/* Personal Info */}
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="first_name" validators={{ onChange: ({ value }) => { const r = schema.shape.first_name.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>First Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Jane" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>First Name <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Jane" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="last_name" validators={{ onChange: ({ value }) => { const r = schema.shape.last_name.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Last Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Doe" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Last Name <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Doe" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="date_of_birth" validators={{ onChange: ({ value }) => { const r = schema.shape.date_of_birth.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Date of Birth</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Date of Birth <span className="text-orange">*</span></label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="gender">
               {(field) => (<div><label className={labelClass}>Gender</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}><option value="">Select…</option><option value="male">Male</option><option value="female">Female</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></div>)}
@@ -139,18 +139,18 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
           <SectionLabel>Address</SectionLabel>
 
           <form.Field name="street" validators={{ onChange: ({ value }) => { const r = schema.shape.street.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-            {(field) => (<div><label className={labelClass}>Street</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="123 Main St" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+            {(field) => (<div><label className={labelClass}>Street <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="123 Main St" /><FieldError error={field.state.meta.errors[0]} /></div>)}
           </form.Field>
 
           <div className="grid grid-cols-[1fr_80px_90px] gap-3">
             <form.Field name="city" validators={{ onChange: ({ value }) => { const r = schema.shape.city.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>City</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Vancouver" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>City <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Vancouver" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="province" validators={{ onChange: ({ value }) => { const r = schema.shape.province.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Province</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur}><option value="">—</option>{PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}</select><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Province <span className="text-orange">*</span></label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur}><option value="">—</option>{PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}</select><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="postal_code" validators={{ onChange: ({ value }) => { const r = schema.shape.postal_code.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Postal</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="V6B 1A1" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Postal <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="V6B 1A1" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
           </div>
 
@@ -159,7 +159,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="service_type" validators={{ onChange: ({ value }) => { const r = schema.shape.service_type.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Service Type</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ServiceType)} onBlur={field.handleBlur}><option value="personal_care">Personal Care</option><option value="companionship">Companionship</option><option value="respite">Respite</option><option value="nursing">Nursing</option></select><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Service Type <span className="text-orange">*</span></label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ServiceType)} onBlur={field.handleBlur}><option value="personal_care">Personal Care</option><option value="companionship">Companionship</option><option value="respite">Respite</option><option value="nursing">Nursing</option></select><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="status">
               {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
@@ -168,7 +168,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="care_start_date" validators={{ onChange: ({ value }) => { const r = schema.shape.care_start_date.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Care Start</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Care Start <span className="text-orange">*</span></label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="care_end_date">
               {(field) => (<div><label className={labelClass}>Care End</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>)}
@@ -187,15 +187,15 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
           <SectionLabel>Emergency contact</SectionLabel>
 
           <form.Field name="emergency_contact_name" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_name.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-            {(field) => (<div><label className={labelClass}>Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Full name" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+            {(field) => (<div><label className={labelClass}>Name <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Full name" /><FieldError error={field.state.meta.errors[0]} /></div>)}
           </form.Field>
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="emergency_contact_phone" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_phone.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 (555) 000-0000" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Phone <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 (555) 000-0000" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="emergency_contact_relationship" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_relationship.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Relationship</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Spouse, Parent…" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Relationship <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Spouse, Parent…" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
           </div>
 
