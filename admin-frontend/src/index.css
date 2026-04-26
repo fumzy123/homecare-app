@@ -144,8 +144,8 @@ html, body {
 .rbc-header { background: #EDE8DC; border-bottom: 1px solid #111 !important; padding: 10px 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #4A453E; }
 .rbc-day-bg { border-left: 1px solid rgba(17,17,17,0.1) !important; }
 .rbc-today { background: #FFE2D4 !important; }
-.rbc-event { background: #FF5A1F !important; border: 1px solid #111 !important; border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-.rbc-event.rbc-selected { background: #111 !important; }
+.rbc-event { border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.rbc-event.rbc-selected { filter: brightness(0.88) !important; }
 .rbc-off-range-bg { background: rgba(17,17,17,0.03); }
 .rbc-time-slot { border-top: 1px solid rgba(17,17,17,0.06) !important; }
 .rbc-time-gutter .rbc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8A8378; letter-spacing: 0.05em; }
