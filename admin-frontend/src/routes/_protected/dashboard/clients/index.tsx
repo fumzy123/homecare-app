@@ -53,7 +53,7 @@ function ClientsPage() {
             </span>
           </h1>
         </div>
-        <Btn variant="primary" onClick={() => setShowDrawer(true)}>＊ New client</Btn>
+        <Btn variant="ghost" onClick={() => setShowDrawer(true)}>＊ New client</Btn>
       </div>
 
       {/* Toolbar */}
@@ -151,7 +151,7 @@ function ClientRow({ client, index }: { client: Client; index: number }) {
     <Link
       to="/dashboard/clients/$clientId"
       params={{ clientId: client.id } as never}
-      className={`grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] items-center hover:bg-cream-2 transition-colors ${
+      className={`grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] items-center transition-all hover:bg-[#FFE2D4] hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_#111111] hover:z-10 relative ${
         index > 0 ? 'border-t border-dashed border-line-soft' : ''
       }`}
     >
