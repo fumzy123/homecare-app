@@ -62,7 +62,7 @@ export function AvailabilityGrid({ value, onChange, readOnly = false }: Availabi
             {DAYS.map((d) => (
               <th
                 key={d.key}
-                className="pb-2 text-center text-xs font-medium text-gray-500 w-10"
+                className="pb-2 text-center font-mono text-[10px] tracking-[0.08em] text-ink-soft w-10"
               >
                 {d.label}
               </th>
@@ -75,10 +75,10 @@ export function AvailabilityGrid({ value, onChange, readOnly = false }: Availabi
               {/* Period label + tooltip */}
               <td className="py-1.5 pr-3">
                 <div className="flex items-center gap-1">
-                  <span className="text-xs font-medium text-gray-700">{period.label}</span>
+                  <span className="font-mono text-[10px] tracking-[0.05em] text-ink-soft">{period.label}</span>
                   <div className="group relative">
                     <Info size={11} className="cursor-help text-gray-400" />
-                    <div className="pointer-events-none absolute left-5 top-1/2 z-10 -translate-y-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="pointer-events-none absolute left-5 top-1/2 z-10 -translate-y-1/2 whitespace-nowrap bg-ink px-2 py-1 font-mono text-[9px] text-cream opacity-0 transition-opacity group-hover:opacity-100">
                       {period.hours}
                     </div>
                   </div>
@@ -95,10 +95,10 @@ export function AvailabilityGrid({ value, onChange, readOnly = false }: Availabi
                       onClick={() => toggle(day.key, period.key)}
                       aria-label={`${day.label} ${period.label}`}
                       aria-pressed={checked}
-                      className={`mx-auto flex h-7 w-7 items-center justify-center rounded transition-colors
+                      className={`mx-auto flex h-7 w-7 items-center justify-center transition-colors
                         ${checked
-                          ? 'bg-gray-900 text-white'
-                          : 'border border-gray-200 bg-white text-transparent hover:border-gray-400'
+                          ? 'bg-ink text-cream border border-ink'
+                          : 'border border-ink/20 bg-cream-2 hover:border-ink/50'
                         }
                         ${readOnly ? 'cursor-default' : 'cursor-pointer'}
                       `}
