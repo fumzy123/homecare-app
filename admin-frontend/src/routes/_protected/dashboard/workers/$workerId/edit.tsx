@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
@@ -50,6 +50,14 @@ function WorkerEditPage() {
 
   return (
     <div className="p-10 space-y-6">
+      <Link
+        to="/dashboard/workers/$workerId"
+        params={{ workerId } as never}
+        className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink"
+      >
+        ← Overview
+      </Link>
+
       <PersonalInfoForm worker={worker} />
       <WorkProfileForm worker={worker} />
       <DangerZone worker={worker} />

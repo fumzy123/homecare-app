@@ -31,7 +31,7 @@ function WorkerLayout() {
     <div className="flex min-h-full bg-cream">
 
       {/* ── Left: Profile card ────────────────────────────────────── */}
-      <div className="w-72 shrink-0 border-r border-ink flex flex-col p-8 gap-6">
+      <div className="w-72 shrink-0 border-r border-ink flex flex-col p-8 gap-6 sticky top-0 overflow-hidden" style={{ height: '100vh' }}>
 
         <Link
           to="/dashboard/workers"
