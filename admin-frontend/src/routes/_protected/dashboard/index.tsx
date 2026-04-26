@@ -7,7 +7,7 @@ import { workersApi } from '@/features/workers/api'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { DayTimeline } from '@/features/shifts/components/DayTimeline'
-import { Card, Avatar, Kicker, StatusDot, ProgressBar, Tag, Btn } from '@/shared/components/ui'
+import { Card, Avatar, Kicker, ProgressBar } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
@@ -58,11 +58,31 @@ function DashboardPage() {
     (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
   )
 
+  const TARGET_HOURS = 40
+
+  const workerHours = weekShifts.reduce<Record<string, number>>((acc, shift) => {
+    if (['cancelled', 'dropped'].includes(shift.completion_status)) return acc
+    const hrs = (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000
+    acc[shift.worker.id] = (acc[shift.worker.id] ?? 0) + hrs
+    return acc
+  }, {})
+
+  const clientHours = weekShifts.reduce<Record<string, number>>((acc, shift) => {
+    if (['cancelled', 'dropped'].includes(shift.completion_status)) return acc
+    const hrs = (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000
+    acc[shift.client.id] = (acc[shift.client.id] ?? 0) + hrs
+    return acc
+  }, {})
+
+  const rosterClients = [...activeClients]
+    .sort((a, b) => (clientHours[b.id] ?? 0) - (clientHours[a.id] ?? 0))
+    .slice(0, 7)
+
   const STATS = [
-    { num: '01', label: 'Active clients',   value: activeClients.length, sub: onHoldClients.length > 0 ? `${onHoldClients.length} on hold` : 'all active',    accent: false },
-    { num: '02', label: 'Active workers',   value: activeWorkers.length, sub: `of ${workers.length} total`,                                                    accent: false },
-    { num: '03', label: 'Shifts today',     value: todayShifts.length,   sub: format(new Date(), 'EEEE, MMM d'),                                               accent: false },
-    { num: '04', label: 'Shifts this week', value: weekShifts.length,    sub: `${weekStart} – ${weekEnd}`,                                                     accent: droppedShifts.length > 0 },
+    { label: 'Active clients',   value: activeClients.length, sub: onHoldClients.length > 0 ? `${onHoldClients.length} on hold` : 'all active',    accent: false },
+    { label: 'Active workers',   value: activeWorkers.length, sub: `of ${workers.length} total`,                                                    accent: false },
+    { label: 'Shifts today',     value: todayShifts.length,   sub: format(new Date(), 'EEEE, MMM d'),                                               accent: false },
+    { label: 'Shifts this week', value: weekShifts.length,    sub: `${weekStart} – ${weekEnd}`,                                                     accent: droppedShifts.length > 0 },
   ]
 
   return (
@@ -77,7 +97,7 @@ function DashboardPage() {
           <svg width="12" height="12" viewBox="0 0 12 12"><line x1="6" y1="0" x2="6" y2="12" stroke="currentColor" strokeWidth="1"/><line x1="0" y1="6" x2="12" y2="6" stroke="currentColor" strokeWidth="1"/></svg>
         </div>
 
-        <Kicker leader className="mb-5">Operations Console · {format(new Date(), 'EEEE, MMMM d, yyyy')}</Kicker>
+        <Kicker leader className="mb-5">{format(new Date(), 'EEEE, MMMM d, yyyy')}</Kicker>
 
         <h1 className="font-serif text-[64px] leading-[0.97] font-medium tracking-[-0.02em] max-w-4xl">
           {inProgress.length > 0 ? (
@@ -100,13 +120,6 @@ function DashboardPage() {
           )}
         </h1>
 
-        <div className="flex items-center gap-3 mt-8">
-          <Btn variant="orange">Open schedule →</Btn>
-          <Btn variant="ghost">＊ New shift</Btn>
-          <span className="font-mono text-[10px] text-ink-soft tracking-[0.05em] ml-auto">
-            {format(new Date(), 'EEEE, MMM d yyyy')}
-          </span>
-        </div>
       </section>
 
       {/* ── Stat strip ───────────────────────────────────────────────────── */}
@@ -115,7 +128,7 @@ function DashboardPage() {
           {STATS.map((s, i) => (
             <div key={i} className={`px-7 py-6 relative ${i < 3 ? 'border-r border-ink' : ''}`}>
               <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
-                {s.num} / {s.label}
+                {s.label}
               </div>
               <div className="flex items-baseline gap-3">
                 <span className={`font-serif text-[72px] leading-none ${s.accent ? 'text-orange' : 'text-ink'}`}>
@@ -192,26 +205,30 @@ function DashboardPage() {
           <Card className="p-6">
             <Kicker className="mb-1">C / Utilization</Kicker>
             <h3 className="font-serif text-[22px] leading-none mt-2 mb-1">
-              Workers <span className="italic text-muted">— this week</span>
+              Worker hours <span className="italic text-muted">— this week</span>
             </h3>
-            <p className="font-mono text-[10px] text-ink-soft mb-5 tracking-wide">ACTIVE STAFF</p>
             <div className="space-y-4">
-              {activeWorkers.slice(0, 5).map((w, i) => (
-                <div key={w.id}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <Avatar
-                        initials={`${w.first_name[0]}${w.last_name[0]}`}
-                        color={(['c1','c2','c3','c4','c5'] as const)[i % 5]}
-                        size="sm"
-                      />
-                      <span className="text-[12px] font-medium">{w.first_name} {w.last_name}</span>
+              {activeWorkers.slice(0, 5).map((w, i) => {
+                const hrs = Math.round(workerHours[w.id] ?? 0)
+                return (
+                  <div key={w.id}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <Avatar
+                          initials={`${w.first_name[0]}${w.last_name[0]}`}
+                          color={(['c1','c2','c3','c4','c5'] as const)[i % 5]}
+                          size="sm"
+                        />
+                        <span className="text-[12px] font-medium">{w.first_name} {w.last_name}</span>
+                      </div>
+                      <span className="font-mono text-[11px] text-ink-soft">
+                        <span className="font-bold text-ink">{hrs}</span>/{TARGET_HOURS}h
+                      </span>
                     </div>
-                    <StatusDot status="active" />
+                    <ProgressBar value={hrs} max={TARGET_HOURS} variant="mint" />
                   </div>
-                  <ProgressBar value={75} max={100} variant="mint" />
-                </div>
-              ))}
+                )
+              })}
               {activeWorkers.length === 0 && (
                 <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTIVE WORKERS</p>
               )}
@@ -224,30 +241,38 @@ function DashboardPage() {
       <section className="px-10 pb-12">
         <Card variant="cream" className="p-0">
           <div className="px-6 py-5 border-b border-ink">
-            <Kicker className="mb-1">D / Active Roster</Kicker>
+            <Kicker className="mb-1">E / Clients by hours</Kicker>
             <h3 className="font-serif text-[24px] leading-none mt-2 tracking-[-0.02em]">
               Active client roster
             </h3>
           </div>
           <div>
-            {activeClients.slice(0, 6).map((c, i) => (
-              <div
-                key={c.id}
-                className={`flex items-center gap-5 px-6 py-4 ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
-              >
-                <span className="font-mono text-[10px] text-muted w-6 shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                <Avatar
-                  initials={`${c.first_name[0]}${c.last_name[0]}`}
-                  color={(['c1','c2','c3','c4','c5','c6'] as const)[i % 6]}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium">{c.first_name} {c.last_name}</p>
-                  <p className="font-mono text-[10px] text-ink-soft">{c.id} · age {c.date_of_birth ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear() : '—'}</p>
+            {rosterClients.map((c, i) => {
+              const age = c.date_of_birth
+                ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear()
+                : null
+              const hrs = Math.round(clientHours[c.id] ?? 0)
+              return (
+                <div
+                  key={c.id}
+                  className={`flex items-center gap-5 px-6 py-4 ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                >
+                  <span className="font-mono text-[10px] text-muted w-6 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                  <Avatar
+                    initials={`${c.first_name[0]}${c.last_name[0]}`}
+                    color={(['c1','c2','c3','c4','c5','c6'] as const)[i % 6]}
+                  />
+                  <div className="min-w-0" style={{ width: 180 }}>
+                    <p className="text-[13px] font-medium">{c.first_name} {c.last_name}</p>
+                    <p className="font-mono text-[10px] text-ink-soft">{age ? `age ${age}` : '—'}</p>
+                  </div>
+                  <p className="flex-1 font-mono text-[11px] text-ink-soft leading-snug">
+                    {c.medical_conditions ?? '—'}
+                  </p>
+                  <span className="font-mono text-[13px] font-bold shrink-0">{hrs}h/wk</span>
                 </div>
-                <Tag variant="default">{c.service_type.replace(/_/g, ' ')}</Tag>
-                <StatusDot status={c.status} />
-              </div>
-            ))}
+              )
+            })}
             {activeClients.length === 0 && (
               <p className="px-6 py-8 font-mono text-[11px] text-muted text-center tracking-wide">NO ACTIVE CLIENTS</p>
             )}

@@ -32,10 +32,6 @@ function ProtectedLayout() {
           </span>
           <div className="flex items-center gap-6 font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft">
             <span>WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}</span>
-            <span className="flex items-center gap-1.5">
-              <span className="dot dot-mint" />
-              System OK
-            </span>
           </div>
         </div>
         <main className="flex-1 overflow-y-auto">
