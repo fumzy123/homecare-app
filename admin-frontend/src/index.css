@@ -158,7 +158,8 @@ html, body {
 .rbc-today { background: #FFE2D4 !important; }
 .rbc-allday-cell { display: none; }
 .rbc-time-header-content > .rbc-row.rbc-row-resource { display: none; }
-.rbc-event { border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.rbc-event { border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; transition: transform 0.1s ease, box-shadow 0.1s ease; cursor: pointer; }
+.rbc-event:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #111111; position: relative; z-index: 10; }
 .rbc-event.rbc-selected { filter: brightness(0.88) !important; }
 .rbc-off-range-bg { background: rgba(17,17,17,0.03); }
 .rbc-time-slot { border-top: 1px solid rgba(17,17,17,0.06) !important; }
