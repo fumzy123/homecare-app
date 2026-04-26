@@ -2,11 +2,11 @@ import { format } from 'date-fns'
 import { Avatar } from '@/shared/components/ui'
 import type { ShiftOccurrence } from '@/features/shifts/api'
 
-// Timeline window: 06:00 – 21:00 (15 hours)
 const START_HOUR = 6
 const END_HOUR   = 21
 const SPAN       = END_HOUR - START_HOUR
 const HOURS      = Array.from({ length: SPAN + 1 }, (_, i) => START_HOUR + i)
+const LABEL_W    = 168
 
 const AVATAR_COLORS = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'] as const
 
@@ -15,20 +15,15 @@ function toDecimalHour(iso: string): number {
   return d.getHours() + d.getMinutes() / 60
 }
 
-function pct(hour: number): string {
-  const clamped = Math.max(START_HOUR, Math.min(END_HOUR, hour))
-  return `${((clamped - START_HOUR) / SPAN) * 100}%`
+function trackPct(hour: number): number {
+  return ((Math.max(START_HOUR, Math.min(END_HOUR, hour)) - START_HOUR) / SPAN) * 100
 }
 
-function widthPct(startHour: number, endHour: number): string {
-  const s = Math.max(START_HOUR, startHour)
-  const e = Math.min(END_HOUR, endHour)
-  return `${((e - s) / SPAN) * 100}%`
+function trackWidthPct(startHour: number, endHour: number): number {
+  return ((Math.min(END_HOUR, endHour) - Math.max(START_HOUR, startHour)) / SPAN) * 100
 }
 
-const STATUS_STYLE: Record<string, {
-  bg: string; color: string; border: string; borderStyle: string
-}> = {
+const STATUS_STYLE: Record<string, { bg: string; color: string; border: string; borderStyle: string }> = {
   completed:   { bg: '#111111', color: '#F2EEE5', border: '#111111', borderStyle: 'solid' },
   in_progress: { bg: '#9DE8DC', color: '#111111', border: '#111111', borderStyle: 'solid' },
   scheduled:   { bg: '#FFE2D4', color: '#111111', border: '#111111', borderStyle: 'dashed' },
@@ -43,7 +38,6 @@ interface DayTimelineProps {
 }
 
 export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
-  // Group shifts by worker id, preserving first-seen order
   const workerOrder: string[] = []
   const byWorker: Record<string, ShiftOccurrence[]> = {}
   for (const s of shifts) {
@@ -52,14 +46,14 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
     byWorker[wid].push(s)
   }
 
-  // Current time indicator
   const nowHour = toDecimalHour(new Date().toISOString())
   const showNow = nowHour >= START_HOUR && nowHour <= END_HOUR
+  const nowPct  = trackPct(nowHour)
 
   return (
     <div className="overflow-x-auto">
       {/* Hour ruler */}
-      <div className="flex border-b border-ink" style={{ paddingLeft: 148 }}>
+      <div className="flex border-b border-ink" style={{ paddingLeft: LABEL_W }}>
         {HOURS.map((h) => (
           <div
             key={h}
@@ -77,14 +71,10 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
         {showNow && (
           <div
             className="absolute top-0 bottom-0 z-10 pointer-events-none"
-            style={{ left: `calc(148px + ${pct(nowHour)} * (100% - 148px) / 100 * 100)` }}
+            style={{ left: `calc(${LABEL_W}px + (100% - ${LABEL_W}px) * ${nowPct / 100})` }}
           >
-            {/* Simpler: use inline style with calc */}
-            <div
-              className="absolute top-0 bottom-0 w-px bg-orange"
-              style={{ left: 0 }}
-            />
-            <div className="absolute -top-0 left-1 bg-orange text-white font-mono text-[9px] px-1.5 py-0.5 whitespace-nowrap">
+            <div className="absolute top-0 bottom-0 w-px bg-orange" />
+            <div className="absolute top-0 left-1 bg-orange text-white font-mono text-[9px] px-1.5 py-0.5 whitespace-nowrap">
               NOW · {format(new Date(), 'HH:mm')}
             </div>
           </div>
@@ -98,32 +88,32 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
 
         {workerOrder.map((wid, wi) => {
           const workerShifts = byWorker[wid]
-          const worker = workerShifts[0].worker
-          const initials = `${worker.first_name[0]}${worker.last_name[0]}`
-          const color = AVATAR_COLORS[wi % AVATAR_COLORS.length]
+          const worker       = workerShifts[0].worker
+          const firstClient  = workerShifts[0].client
+          const initials     = `${worker.first_name[0]}${worker.last_name[0]}`
+          const color        = AVATAR_COLORS[wi % AVATAR_COLORS.length]
 
           return (
             <div
               key={wid}
               className={`flex items-center ${wi > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
-              style={{ minHeight: 64 }}
+              style={{ minHeight: 76 }}
             >
               {/* Worker label */}
-              <div className="flex items-center gap-2.5 shrink-0 px-4" style={{ width: 148 }}>
+              <div className="flex items-center gap-2.5 shrink-0 px-4" style={{ width: LABEL_W }}>
                 <Avatar initials={initials} color={color} />
                 <div className="min-w-0">
                   <p className="text-[12px] font-medium leading-snug truncate">
                     {worker.first_name} {worker.last_name}
                   </p>
-                  <p className="font-mono text-[9px] text-orange">
-                    {worker.id.slice(0, 6).toUpperCase()}
+                  <p className="text-[11px] text-ink-soft leading-snug truncate">
+                    {firstClient.first_name} {firstClient.last_name}
                   </p>
                 </div>
               </div>
 
               {/* Timeline track */}
               <div className="relative flex-1 self-stretch" style={{ minWidth: 0 }}>
-                {/* Hour column lines */}
                 {HOURS.map((h) => (
                   <div
                     key={h}
@@ -132,35 +122,37 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
                   />
                 ))}
 
-                {/* Shift blocks */}
                 {workerShifts.map((shift) => {
                   const startH = toDecimalHour(shift.start_time)
                   const endH   = toDecimalHour(shift.end_time)
-                  const s = STATUS_STYLE[shift.completion_status] ?? STATUS_STYLE.scheduled
+                  const s      = STATUS_STYLE[shift.completion_status] ?? STATUS_STYLE.scheduled
 
                   return (
                     <button
                       key={`${shift.shift_id}-${shift.date}`}
                       onClick={() => onSelectShift(shift)}
-                      className="absolute top-2 bottom-2 flex items-center overflow-hidden transition-all hover:-translate-x-px hover:-translate-y-px"
+                      className="absolute top-3 bottom-3 overflow-hidden transition-all hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_#111111]"
                       style={{
-                        left: `calc(${pct(startH)} + 2px)`,
-                        width: `calc(${widthPct(startH, endH)} - 4px)`,
-                        background: s.bg,
-                        color: s.color,
-                        border: `1px ${s.borderStyle} ${s.border}`,
-                        boxShadow: undefined,
+                        left:       `calc(${trackPct(startH)}% + 2px)`,
+                        width:      `calc(${trackWidthPct(startH, endH)}% - 4px)`,
+                        background: '#F2EEE5',
+                        border:     `1px ${s.borderStyle} ${s.border}`,
+                        padding:    '3px',
                       }}
-                      title={`${shift.client.first_name} ${shift.client.last_name}`}
                     >
-                      <span
-                        className="px-2 font-mono text-[10px] leading-snug whitespace-nowrap overflow-hidden text-ellipsis"
-                        style={{ color: s.color }}
+                      <div
+                        className="w-full h-full flex items-center overflow-hidden"
+                        style={{ background: s.bg }}
                       >
-                        {format(new Date(shift.start_time), 'HH:mm')}
-                        {' → '}
-                        {format(new Date(shift.end_time), 'HH:mm')}
-                      </span>
+                        <span
+                          className="px-2 font-mono text-[10px] leading-snug whitespace-nowrap overflow-hidden text-ellipsis"
+                          style={{ color: s.color }}
+                        >
+                          {format(new Date(shift.start_time), 'HH:mm')}
+                          {' → '}
+                          {format(new Date(shift.end_time), 'HH:mm')}
+                        </span>
+                      </div>
                     </button>
                   )
                 })}
