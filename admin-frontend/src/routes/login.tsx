@@ -52,7 +52,7 @@ function LoginPage() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="w-[420px] shrink-0 flex flex-col justify-center px-14 py-14 bg-paper border-l border-ink">
+      <div className="w-[480px] shrink-0 flex flex-col justify-center px-14 py-14 bg-paper border-l border-ink">
 
         <div className="mb-8">
           <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-2">Sign in</p>
