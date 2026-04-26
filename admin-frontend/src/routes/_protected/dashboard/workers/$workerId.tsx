@@ -49,6 +49,11 @@ function WorkerLayout() {
           <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mt-2">
             {worker.role.replace(/_/g, ' ')}
           </p>
+          <span className={`mt-3 inline-block font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border ${
+            worker.is_active ? 'bg-ink text-cream border-ink' : 'border-line-soft text-muted'
+          }`}>
+            {worker.is_active ? 'Active' : 'Inactive'}
+          </span>
         </div>
 
         <div className="border-t border-ink" />
@@ -92,20 +97,13 @@ function WorkerLayout() {
 
         <div className="border-t border-ink" />
 
-        <div className="flex items-center justify-between">
-          <span className={`font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border ${
-            worker.is_active ? 'bg-ink text-cream border-ink' : 'border-line-soft text-muted'
-          }`}>
-            {worker.is_active ? 'Active' : 'Inactive'}
-          </span>
-          <Link
-            to="/dashboard/workers/$workerId/edit"
-            params={{ workerId } as never}
-            className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink"
-          >
-            Edit →
-          </Link>
-        </div>
+        <Link
+          to="/dashboard/workers/$workerId/edit"
+          params={{ workerId } as never}
+          className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink"
+        >
+          Edit →
+        </Link>
       </div>
 
       {/* ── Right: Shift data ─────────────────────────────────────── */}
