@@ -51,7 +51,7 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
   const nowPct  = trackPct(nowHour)
 
   return (
-    <div className="overflow-x-auto">
+    <div>
       {/* Hour ruler */}
       <div className="flex border-b border-ink" style={{ paddingLeft: LABEL_W }}>
         {HOURS.map((h) => (
