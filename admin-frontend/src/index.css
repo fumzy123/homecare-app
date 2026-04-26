@@ -141,7 +141,7 @@ html, body {
   padding: 4px 12px;
 }
 .rbc-toolbar button:hover, .rbc-toolbar button.rbc-active { background: #111; color: #F2EEE5; }
-.rbc-header { background: #EDE8DC; border-bottom: 1px solid #111 !important; padding: 10px 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #4A453E; }
+.rbc-header { background: #F2EEE5; border-bottom: 1px solid #111 !important; padding: 0; }
 .rbc-day-bg { border-left: 1px solid rgba(17,17,17,0.1) !important; }
 .rbc-today { background: #FFE2D4 !important; }
 .rbc-event { border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; }

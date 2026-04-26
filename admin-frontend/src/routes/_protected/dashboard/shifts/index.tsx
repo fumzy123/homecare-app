@@ -49,6 +49,33 @@ const STATUS_COLORS: Record<string, { bg: string; border: string; color: string;
   dropped:     { bg: '#F4D35E',  border: '#111111', color: '#111111' },
 }
 
+function WeekHeader({ date }: { date: Date }) {
+  const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+  return (
+    <div className="px-3 py-3 text-left">
+      <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft leading-none">
+        {format(date, 'EEE')}
+      </p>
+      <p className="font-serif text-[30px] leading-none font-medium mt-1 text-ink">
+        {format(date, 'd')}
+      </p>
+      {isToday && (
+        <span className="mt-2 inline-block font-mono text-[8px] tracking-[0.1em] uppercase border border-ink px-1.5 py-0.5 text-ink">
+          Today
+        </span>
+      )}
+    </div>
+  )
+}
+
+function MonthHeader({ label }: { label: string }) {
+  return (
+    <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft px-2 py-2">
+      {label}
+    </p>
+  )
+}
+
 function ShiftsPage() {
   const queryClient = useQueryClient()
   const [currentDate, setCurrentDate]   = useState(new Date())
@@ -167,6 +194,10 @@ function ShiftsPage() {
             onSelectEvent={handleSelectEvent}
             selectable
             style={{ height: '100%' }}
+            components={{
+              week:  { header: WeekHeader },
+              month: { header: MonthHeader },
+            }}
             eventPropGetter={(event) => {
               if (event.resource?.shift_id === '__phantom__') {
                 return {
