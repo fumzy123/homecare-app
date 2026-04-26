@@ -1,20 +1,20 @@
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
+import { Kicker } from '@/shared/components/ui'
 
 const schema = z.object({
   worker_id: z.string().min(1, 'Select a worker'),
   client_id: z.string().min(1, 'Select a client'),
-  date: z.string().min(1, 'Required'),
+  date:       z.string().min(1, 'Required'),
   start_time: z.string().min(1, 'Required'),
-  end_time: z.string().min(1, 'Required'),
-  notes: z.string().optional(),
+  end_time:   z.string().min(1, 'Required'),
+  notes:      z.string().optional(),
 })
 
 export interface PendingShiftInfo {
@@ -38,47 +38,32 @@ function validate<T>(shape: z.ZodType<T>, value: T) {
 
 function FieldError({ error }: { error: unknown }) {
   if (!error) return null
-  return <p className="mt-1 text-xs text-red-500">{error as string}</p>
+  return <p className="mt-1 font-mono text-[10px] text-orange">{error as string}</p>
 }
 
-const inputClass =
-  'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400'
-const labelClass = 'block text-sm font-medium text-gray-700'
+const labelClass  = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
+const inputClass  = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+const selectClass = `${inputClass} appearance-none`
 
 export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, onClose, onSuccess }: CreateShiftDrawerProps) {
   const [serverError, setServerError] = useState<string | null>(null)
-
-  // Fields kept outside TanStack Form for simplicity
-  const [location, setLocation] = useState('')
-  const [isRecurring, setIsRecurring] = useState(false)
-  const [frequency, setFrequency] = useState<RecurrenceFrequency>('weekly')
-  const [daysOfWeek, setDaysOfWeek] = useState<DayOfWeek[]>([])
+  const [location, setLocation]             = useState('')
+  const [isRecurring, setIsRecurring]       = useState(false)
+  const [frequency, setFrequency]           = useState<RecurrenceFrequency>('weekly')
+  const [daysOfWeek, setDaysOfWeek]         = useState<DayOfWeek[]>([])
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
-  const { data: workers = [] } = useQuery({
-    queryKey: ['workers'],
-    queryFn: workersApi.listWorkers,
-  })
+  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
+  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => clientsApi.listClients(),
-  })
+  const defaultDate      = initialDate    ? format(initialDate,    'yyyy-MM-dd') : ''
+  const defaultStartTime = initialDate    ? format(initialDate,    'HH:mm')      : '09:00'
+  const defaultEndTime   = initialEndDate ? format(initialEndDate, 'HH:mm')      : '17:00'
 
-  const defaultDate = initialDate ? format(initialDate, 'yyyy-MM-dd') : ''
-  const defaultStartTime = initialDate ? format(initialDate, 'HH:mm') : '09:00'
-  const defaultEndTime = initialEndDate ? format(initialEndDate, 'HH:mm') : '17:00'
-
-  function notifyFormChange(
-    date: string,
-    startTime: string,
-    endTime: string,
-    workerId: string,
-    clientId: string,
-  ) {
+  function notifyFormChange(date: string, startTime: string, endTime: string, workerId: string, clientId: string) {
     if (!onFormChange || !date || !startTime || !endTime) return
     const start = new Date(`${date}T${startTime}`)
-    const end = new Date(`${date}T${endTime}`)
+    const end   = new Date(`${date}T${endTime}`)
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return
     const worker = workers.find((w) => w.id === workerId)
     const client = clients.find((c) => c.id === clientId)
@@ -91,45 +76,35 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
 
   const form = useForm({
     defaultValues: {
-      worker_id: '',
-      client_id: '',
-      date: defaultDate,
+      worker_id:  '',
+      client_id:  '',
+      date:       defaultDate,
       start_time: defaultStartTime,
-      end_time: defaultEndTime,
-      notes: '',
+      end_time:   defaultEndTime,
+      notes:      '',
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
-
-      // Validate recurrence
       if (isRecurring && frequency === 'weekly' && daysOfWeek.length === 0) {
         setServerError('Select at least one day for weekly recurrence.')
         return
       }
-
-      // Combine date + time → ISO datetime
       const startISO = new Date(`${value.date}T${value.start_time}`).toISOString()
-      const endISO = new Date(`${value.date}T${value.end_time}`).toISOString()
-
+      const endISO   = new Date(`${value.date}T${value.end_time}`).toISOString()
       if (new Date(endISO) <= new Date(startISO)) {
         setServerError('End time must be after start time.')
         return
       }
-
       try {
         await shiftsApi.createShift({
-          worker_id: value.worker_id,
-          client_id: value.client_id,
+          worker_id:  value.worker_id,
+          client_id:  value.client_id,
           start_time: startISO,
-          end_time: endISO,
-          location: location || undefined,
-          notes: value.notes || undefined,
+          end_time:   endISO,
+          location:   location || undefined,
+          notes:      value.notes || undefined,
           recurrence: isRecurring
-            ? {
-                frequency,
-                days_of_week: frequency === 'weekly' ? daysOfWeek : undefined,
-                recurrence_end_date: recurrenceEndDate || undefined,
-              }
+            ? { frequency, days_of_week: frequency === 'weekly' ? daysOfWeek : undefined, recurrence_end_date: recurrenceEndDate || undefined }
             : undefined,
         })
         onSuccess()
@@ -141,40 +116,32 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
   })
 
   function toggleDay(day: DayOfWeek) {
-    setDaysOfWeek((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    )
+    setDaysOfWeek((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day])
   }
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
 
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-xl">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-[420px] flex-col bg-paper border-l border-ink">
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-gray-900">New Shift</h2>
-          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-            <X size={18} />
-          </button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
+          <Kicker>New Shift</Kicker>
+          <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
         {/* Form body */}
         <form
-          className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4"
+          className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5"
           onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}
         >
           {/* Worker */}
-          <form.Field
-            name="worker_id"
-            validators={{ onChange: ({ value }) => validate(schema.shape.worker_id, value) }}
-          >
+          <form.Field name="worker_id" validators={{ onChange: ({ value }) => validate(schema.shape.worker_id, value) }}>
             {(field) => (
               <div>
-                <label className={labelClass}>Worker *</label>
-                <select
-                  className={inputClass}
-                  value={field.state.value}
+                <label className={labelClass}>Worker</label>
+                <select className={selectClass} value={field.state.value}
                   onChange={(e) => {
                     field.handleChange(e.target.value)
                     notifyFormChange(form.state.values.date, form.state.values.start_time, form.state.values.end_time, e.target.value, form.state.values.client_id)
@@ -182,11 +149,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   onBlur={field.handleBlur}
                 >
                   <option value="">Select a worker…</option>
-                  {workers.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.first_name} {w.last_name}
-                    </option>
-                  ))}
+                  {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
                 </select>
                 <FieldError error={field.state.meta.errors[0]} />
               </div>
@@ -194,120 +157,78 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
           </form.Field>
 
           {/* Client */}
-          <form.Field
-            name="client_id"
-            validators={{ onChange: ({ value }) => validate(schema.shape.client_id, value) }}
-          >
+          <form.Field name="client_id" validators={{ onChange: ({ value }) => validate(schema.shape.client_id, value) }}>
             {(field) => (
               <div>
-                <label className={labelClass}>Client *</label>
-                <select
-                  className={inputClass}
-                  value={field.state.value}
+                <label className={labelClass}>Client</label>
+                <select className={selectClass} value={field.state.value}
                   onChange={(e) => {
                     field.handleChange(e.target.value)
                     const selected = clients.find((c) => c.id === e.target.value)
-                    if (selected) {
-                      setLocation(
-                        `${selected.street}, ${selected.city}, ${selected.province} ${selected.postal_code}`
-                      )
-                    } else {
-                      setLocation('')
-                    }
+                    setLocation(selected ? `${selected.street}, ${selected.city}, ${selected.province} ${selected.postal_code}` : '')
                     notifyFormChange(form.state.values.date, form.state.values.start_time, form.state.values.end_time, form.state.values.worker_id, e.target.value)
                   }}
                   onBlur={field.handleBlur}
                 >
                   <option value="">Select a client…</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name}
-                    </option>
-                  ))}
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                 </select>
                 <FieldError error={field.state.meta.errors[0]} />
               </div>
             )}
           </form.Field>
 
-          {/* Location — auto-filled from client, editable */}
+          {/* Location */}
           <div>
             <label className={labelClass}>Location</label>
-            <input
-              className={inputClass}
-              value={location}
+            <input className={inputClass} value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Address will fill when you select a client"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              Defaults to the client's address. Edit to override.
-            </p>
+              placeholder="Auto-filled from client address" />
           </div>
 
           {/* Date */}
-          <form.Field
-            name="date"
-            validators={{ onChange: ({ value }) => validate(schema.shape.date, value) }}
-          >
+          <form.Field name="date" validators={{ onChange: ({ value }) => validate(schema.shape.date, value) }}>
             {(field) => (
               <div>
-                <label className={labelClass}>Date *</label>
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={field.state.value}
+                <label className={labelClass}>Date</label>
+                <input type="date" className={inputClass} value={field.state.value}
                   onChange={(e) => {
                     field.handleChange(e.target.value)
                     notifyFormChange(e.target.value, form.state.values.start_time, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
                   }}
-                  onBlur={field.handleBlur}
-                />
+                  onBlur={field.handleBlur} />
                 <FieldError error={field.state.meta.errors[0]} />
               </div>
             )}
           </form.Field>
 
-          {/* Start + End time */}
-          <div className="flex gap-3">
-            <form.Field
-              name="start_time"
-              validators={{ onChange: ({ value }) => validate(schema.shape.start_time, value) }}
-            >
+          {/* Start / End time */}
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="start_time" validators={{ onChange: ({ value }) => validate(schema.shape.start_time, value) }}>
               {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Start Time *</label>
-                  <input
-                    type="time"
-                    className={inputClass}
-                    value={field.state.value}
+                <div>
+                  <label className={labelClass}>Start Time</label>
+                  <input type="time" className={inputClass} value={field.state.value}
                     onChange={(e) => {
                       field.handleChange(e.target.value)
                       notifyFormChange(form.state.values.date, e.target.value, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
                     }}
-                    onBlur={field.handleBlur}
-                  />
+                    onBlur={field.handleBlur} />
                   <FieldError error={field.state.meta.errors[0]} />
                 </div>
               )}
             </form.Field>
 
-            <form.Field
-              name="end_time"
-              validators={{ onChange: ({ value }) => validate(schema.shape.end_time, value) }}
-            >
+            <form.Field name="end_time" validators={{ onChange: ({ value }) => validate(schema.shape.end_time, value) }}>
               {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>End Time *</label>
-                  <input
-                    type="time"
-                    className={inputClass}
-                    value={field.state.value}
+                <div>
+                  <label className={labelClass}>End Time</label>
+                  <input type="time" className={inputClass} value={field.state.value}
                     onChange={(e) => {
                       field.handleChange(e.target.value)
                       notifyFormChange(form.state.values.date, form.state.values.start_time, e.target.value, form.state.values.worker_id, form.state.values.client_id)
                     }}
-                    onBlur={field.handleBlur}
-                  />
+                    onBlur={field.handleBlur} />
                   <FieldError error={field.state.meta.errors[0]} />
                 </div>
               )}
@@ -319,65 +240,67 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
             {(field) => (
               <div>
                 <label className={labelClass}>Notes</label>
-                <textarea
-                  className={`${inputClass} resize-none`}
-                  rows={2}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="Optional"
-                />
+                <textarea className={`${inputClass} resize-none`} rows={2} value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)} placeholder="Optional" />
               </div>
             )}
           </form.Field>
 
-          {/* ── Recurrence ── */}
-          <div className="border-t border-gray-100 pt-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300"
-                checked={isRecurring}
-                onChange={(e) => setIsRecurring(e.target.checked)}
-              />
-              <span className="text-sm font-medium text-gray-700">Repeat this shift</span>
+          {/* Recurrence */}
+          <div className="border-t border-dashed border-line-soft pt-5">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isRecurring}
+                onClick={() => setIsRecurring((v) => !v)}
+                className={`relative inline-flex h-5 w-9 items-center border transition-colors ${
+                  isRecurring ? 'bg-ink border-ink' : 'bg-cream-2 border-line-soft'
+                }`}
+              >
+                <span className={`inline-block h-3 w-3 bg-cream transition-transform ${isRecurring ? 'translate-x-5' : 'translate-x-1'}`} />
+              </button>
+              <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
+                Repeat this shift
+              </span>
             </label>
 
             {isRecurring && (
-              <div className="mt-4 flex flex-col gap-4">
+              <div className="mt-5 flex flex-col gap-5">
+
                 {/* Frequency */}
                 <div>
-                  <label className={labelClass}>Frequency</label>
-                  <div className="mt-1 flex gap-3">
+                  <p className={labelClass}>Frequency</p>
+                  <div className="flex gap-2 mt-1">
                     {(['daily', 'weekly'] as RecurrenceFrequency[]).map((f) => (
-                      <label key={f} className="flex items-center gap-1.5 cursor-pointer text-sm text-gray-700">
-                        <input
-                          type="radio"
-                          name="frequency"
-                          value={f}
-                          checked={frequency === f}
-                          onChange={() => setFrequency(f)}
-                          className="h-4 w-4 border-gray-300"
-                        />
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setFrequency(f)}
+                        className={`px-4 py-2 font-mono text-[10px] tracking-[0.05em] uppercase border transition-colors ${
+                          frequency === f ? 'bg-ink text-cream border-ink' : 'border-ink text-ink-soft hover:text-ink'
+                        }`}
+                      >
                         {f === 'daily' ? 'Daily' : 'Weekly'}
-                      </label>
+                      </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Days of week (only for weekly) */}
+                {/* Days of week */}
                 {frequency === 'weekly' && (
                   <div>
-                    <label className={labelClass}>Days *</label>
-                    <div className="mt-2 flex gap-2">
+                    <p className={labelClass}>Days</p>
+                    <div className="flex gap-1.5 mt-1">
                       {ORDERED_DAYS.map((day) => (
                         <button
                           key={day}
                           type="button"
                           onClick={() => toggleDay(day)}
-                          className={`h-8 w-10 rounded-md text-xs font-medium transition-colors ${
+                          className={`h-8 w-9 font-mono text-[9px] tracking-[0.05em] uppercase border transition-colors ${
                             daysOfWeek.includes(day)
-                              ? 'bg-gray-900 text-white'
-                              : 'border border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                              ? 'bg-ink text-cream border-ink'
+                              : 'border-ink text-ink-soft hover:text-ink'
                           }`}
                         >
                           {DAY_LABELS[day]}
@@ -387,46 +310,33 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   </div>
                 )}
 
-                {/* Recurrence end date */}
+                {/* End date */}
                 <div>
-                  <label className={labelClass}>End Date</label>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={recurrenceEndDate}
-                    onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                  />
-                  <p className="mt-1 text-xs text-gray-400">Leave blank to repeat indefinitely.</p>
+                  <label className={labelClass}>End Date <span className="normal-case text-muted">(optional)</span></label>
+                  <input type="date" className={inputClass} value={recurrenceEndDate}
+                    onChange={(e) => setRecurrenceEndDate(e.target.value)} />
+                  <p className="mt-1 font-mono text-[9px] text-muted">Leave blank to repeat indefinitely.</p>
                 </div>
               </div>
             )}
           </div>
 
           {serverError && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+            <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
           )}
-
-          <div className="h-2" />
         </form>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+        <div className="border-t border-ink px-6 py-4 flex justify-end gap-3">
+          <button type="button" onClick={onClose}
+            className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors">
             Cancel
           </button>
           <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => (
-              <button
-                type="button"
-                onClick={() => form.handleSubmit()}
-                disabled={isSubmitting}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
-                {isSubmitting ? 'Saving…' : isRecurring ? 'Create Recurring Shift' : 'Create Shift'}
+              <button type="button" onClick={() => form.handleSubmit()} disabled={isSubmitting}
+                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
+                {isSubmitting ? 'Saving…' : isRecurring ? 'Create Recurring' : 'Create Shift'}
               </button>
             )}
           </form.Subscribe>
