@@ -1,33 +1,23 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { z } from 'zod'
 import { clientsApi, type ClientCreatePayload, type ClientStatus, type ServiceType } from '@/features/clients/api'
+import { Kicker } from '@/shared/components/ui'
 
 const schema = z.object({
   first_name: z.string().min(1, 'Required'),
   last_name: z.string().min(1, 'Required'),
   date_of_birth: z.string().min(1, 'Required'),
-  gender: z.string().optional(),
-  phone_number: z.string().optional(),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
   street: z.string().min(1, 'Required'),
   city: z.string().min(1, 'Required'),
   province: z.string().min(1, 'Required'),
   postal_code: z.string().min(1, 'Required'),
   service_type: z.enum(['personal_care', 'companionship', 'respite', 'nursing']),
   care_start_date: z.string().min(1, 'Required'),
-  care_end_date: z.string().optional(),
-  medical_conditions: z.string().optional(),
-  allergies: z.string().optional(),
-  medications: z.string().optional(),
-  special_instructions: z.string().optional(),
   emergency_contact_name: z.string().min(1, 'Required'),
   emergency_contact_phone: z.string().min(1, 'Required'),
   emergency_contact_relationship: z.string().min(1, 'Required'),
-  status: z.enum(['active', 'on_hold', 'discharged']),
-  funding_source: z.string().optional(),
-  notes: z.string().optional(),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
 })
 
 interface CreateClientDrawerProps {
@@ -35,70 +25,49 @@ interface CreateClientDrawerProps {
   onSuccess: () => void
 }
 
-function validate<T>(shape: z.ZodType<T>, value: T) {
-  const result = shape.safeParse(value)
-  return result.success ? undefined : result.error.issues[0].message
-}
-
 function FieldError({ error }: { error: unknown }) {
   if (!error) return null
-  return <p className="mt-1 text-xs text-red-500">{error as string}</p>
+  return <p className="mt-1 font-mono text-[10px] text-orange">{error as string}</p>
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+const labelClass  = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
+const inputClass  = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+const selectClass = `${inputClass} appearance-none`
+
+const PROVINCES = ['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT']
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3 mt-6 first:mt-0">
-      {children}
-    </h3>
+    <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft border-t border-dashed border-line-soft pt-5 mb-4">
+      {children as string}
+    </p>
   )
 }
-
-const inputClass =
-  'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400'
-const labelClass = 'block text-sm font-medium text-gray-700'
 
 export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerProps) {
   const [serverError, setServerError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
-      first_name: '',
-      last_name: '',
-      date_of_birth: '',
-      gender: '',
-      phone_number: '',
-      email: '',
-      street: '',
-      city: '',
-      province: '',
-      postal_code: '',
-      service_type: 'personal_care' as ServiceType,
-      care_start_date: '',
-      care_end_date: '',
-      medical_conditions: '',
-      allergies: '',
-      medications: '',
-      special_instructions: '',
-      emergency_contact_name: '',
-      emergency_contact_phone: '',
-      emergency_contact_relationship: '',
-      status: 'active' as ClientStatus,
-      funding_source: '',
-      notes: '',
+      first_name: '', last_name: '', date_of_birth: '', gender: '',
+      phone_number: '', email: '', street: '', city: '', province: '',
+      postal_code: '', service_type: 'personal_care' as ServiceType,
+      care_start_date: '', care_end_date: '', medical_conditions: '',
+      allergies: '', medications: '', special_instructions: '',
+      emergency_contact_name: '', emergency_contact_phone: '',
+      emergency_contact_relationship: '', status: 'active' as ClientStatus,
+      funding_source: '', notes: '',
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
       const payload: ClientCreatePayload = {
-        first_name: value.first_name,
-        last_name: value.last_name,
+        first_name: value.first_name, last_name: value.last_name,
         date_of_birth: value.date_of_birth,
         gender: value.gender || undefined,
         phone_number: value.phone_number || undefined,
         email: value.email || undefined,
-        street: value.street,
-        city: value.city,
-        province: value.province,
-        postal_code: value.postal_code,
+        street: value.street, city: value.city,
+        province: value.province, postal_code: value.postal_code,
         service_type: value.service_type,
         care_start_date: value.care_start_date,
         care_end_date: value.care_end_date || undefined,
@@ -115,470 +84,138 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
       }
       try {
         await clientsApi.createClient(payload)
-        onSuccess()
-        onClose()
+        onSuccess(); onClose()
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setServerError(message)
+        setServerError(err instanceof Error ? err.message : 'Something went wrong')
       }
     },
   })
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/20"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
 
-      {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-white shadow-xl">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-[480px] flex-col bg-paper border-l border-ink">
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-gray-900">New Client</h2>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X size={18} />
-          </button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
+          <Kicker>New Client</Kicker>
+          <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
-        {/* Scrollable form body */}
-        <form
-          className="flex-1 overflow-y-auto px-6 py-5"
-          onSubmit={(e) => {
-            e.preventDefault()
-            form.handleSubmit()
-          }}
-        >
-          {/* ── Personal Info ── */}
-          <SectionHeading>Personal Info</SectionHeading>
+        {/* Form body */}
+        <form className="flex-1 overflow-y-auto px-6 py-6 space-y-4"
+          onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
 
-          <div className="flex gap-3">
-            <form.Field
-              name="first_name"
-              validators={{ onChange: ({ value }) => validate(schema.shape.first_name, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>First Name *</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="Jane"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+          {/* Personal Info */}
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="first_name" validators={{ onChange: ({ value }) => { const r = schema.shape.first_name.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>First Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Jane" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
-
-            <form.Field
-              name="last_name"
-              validators={{ onChange: ({ value }) => validate(schema.shape.last_name, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Last Name *</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="Doe"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+            <form.Field name="last_name" validators={{ onChange: ({ value }) => { const r = schema.shape.last_name.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Last Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Doe" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
           </div>
 
-          <div className="mt-3 flex gap-3">
-            <form.Field
-              name="date_of_birth"
-              validators={{ onChange: ({ value }) => validate(schema.shape.date_of_birth, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Date of Birth *</label>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="date_of_birth" validators={{ onChange: ({ value }) => { const r = schema.shape.date_of_birth.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Date of Birth</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
-
             <form.Field name="gender">
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Gender</label>
-                  <select
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  >
-                    <option value="">Select…</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="non_binary">Non-binary</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
-                  </select>
-                </div>
-              )}
+              {(field) => (<div><label className={labelClass}>Gender</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}><option value="">Select…</option><option value="male">Male</option><option value="female">Female</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></div>)}
             </form.Field>
           </div>
 
-          <div className="mt-3 flex gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <form.Field name="phone_number">
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Phone</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                  />
-                </div>
-              )}
+              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (555) 000-0000" /></div>)}
             </form.Field>
-
-            <form.Field
-              name="email"
-              validators={{ onChange: ({ value }) => validate(schema.shape.email, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Email</label>
-                  <input
-                    type="email"
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="jane@example.com"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+            <form.Field name="email" validators={{ onChange: ({ value }) => { if (!value) return undefined; const r = schema.shape.email.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Email</label><input type="email" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="jane@example.com" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
           </div>
 
-          {/* ── Address ── */}
-          <SectionHeading>Address</SectionHeading>
+          {/* Address */}
+          <SectionLabel>Address</SectionLabel>
 
-          <form.Field
-            name="street"
-            validators={{ onChange: ({ value }) => validate(schema.shape.street, value) }}
-          >
-            {(field) => (
-              <div>
-                <label className={labelClass}>Street *</label>
-                <input
-                  className={inputClass}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  placeholder="123 Main St"
-                />
-                <FieldError error={field.state.meta.errors[0]} />
-              </div>
-            )}
+          <form.Field name="street" validators={{ onChange: ({ value }) => { const r = schema.shape.street.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+            {(field) => (<div><label className={labelClass}>Street</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="123 Main St" /><FieldError error={field.state.meta.errors[0]} /></div>)}
           </form.Field>
 
-          <div className="mt-3 flex gap-3">
-            <form.Field
-              name="city"
-              validators={{ onChange: ({ value }) => validate(schema.shape.city, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>City *</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="Vancouver"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+          <div className="grid grid-cols-[1fr_80px_90px] gap-3">
+            <form.Field name="city" validators={{ onChange: ({ value }) => { const r = schema.shape.city.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>City</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Vancouver" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
-
-            <form.Field
-              name="province"
-              validators={{ onChange: ({ value }) => validate(schema.shape.province, value) }}
-            >
-              {(field) => (
-                <div className="w-28">
-                  <label className={labelClass}>Province *</label>
-                  <select
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  >
-                    <option value="">—</option>
-                    {['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'].map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+            <form.Field name="province" validators={{ onChange: ({ value }) => { const r = schema.shape.province.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Province</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur}><option value="">—</option>{PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}</select><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
-
-            <form.Field
-              name="postal_code"
-              validators={{ onChange: ({ value }) => validate(schema.shape.postal_code, value) }}
-            >
-              {(field) => (
-                <div className="w-28">
-                  <label className={labelClass}>Postal Code *</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="V6B 1A1"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+            <form.Field name="postal_code" validators={{ onChange: ({ value }) => { const r = schema.shape.postal_code.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Postal</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="V6B 1A1" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
           </div>
 
-          {/* ── Care Details ── */}
-          <SectionHeading>Care Details</SectionHeading>
+          {/* Care Details */}
+          <SectionLabel>Care details</SectionLabel>
 
-          <div className="flex gap-3">
-            <form.Field
-              name="service_type"
-              validators={{ onChange: ({ value }) => validate(schema.shape.service_type, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Service Type *</label>
-                  <select
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value as ServiceType)}
-                    onBlur={field.handleBlur}
-                  >
-                    <option value="personal_care">Personal Care</option>
-                    <option value="companionship">Companionship</option>
-                    <option value="respite">Respite</option>
-                    <option value="nursing">Nursing</option>
-                  </select>
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="service_type" validators={{ onChange: ({ value }) => { const r = schema.shape.service_type.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Service Type</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ServiceType)} onBlur={field.handleBlur}><option value="personal_care">Personal Care</option><option value="companionship">Companionship</option><option value="respite">Respite</option><option value="nursing">Nursing</option></select><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
-
-            <form.Field
-              name="care_start_date"
-              validators={{ onChange: ({ value }) => validate(schema.shape.care_start_date, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Care Start Date *</label>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
-            </form.Field>
-          </div>
-
-          <div className="mt-3">
-            <form.Field name="care_end_date">
-              {(field) => (
-                <div className="w-1/2 pr-1.5">
-                  <label className={labelClass}>Care End Date</label>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                </div>
-              )}
-            </form.Field>
-          </div>
-
-          {(['medical_conditions', 'allergies', 'medications', 'special_instructions'] as const).map((name) => (
-            <form.Field key={name} name={name}>
-              {(field) => (
-                <div className="mt-3">
-                  <label className={labelClass}>
-                    {name === 'medical_conditions' ? 'Medical Conditions'
-                      : name === 'allergies' ? 'Allergies'
-                      : name === 'medications' ? 'Medications'
-                      : 'Special Instructions'}
-                  </label>
-                  <textarea
-                    className={`${inputClass} resize-none`}
-                    rows={2}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-              )}
-            </form.Field>
-          ))}
-
-          {/* ── Emergency Contact ── */}
-          <SectionHeading>Emergency Contact</SectionHeading>
-
-          <form.Field
-            name="emergency_contact_name"
-            validators={{ onChange: ({ value }) => validate(schema.shape.emergency_contact_name, value) }}
-          >
-            {(field) => (
-              <div>
-                <label className={labelClass}>Name *</label>
-                <input
-                  className={inputClass}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                  placeholder="John Doe"
-                />
-                <FieldError error={field.state.meta.errors[0]} />
-              </div>
-            )}
-          </form.Field>
-
-          <div className="mt-3 flex gap-3">
-            <form.Field
-              name="emergency_contact_phone"
-              validators={{ onChange: ({ value }) => validate(schema.shape.emergency_contact_phone, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Phone *</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="+1 (555) 000-0000"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field
-              name="emergency_contact_relationship"
-              validators={{ onChange: ({ value }) => validate(schema.shape.emergency_contact_relationship, value) }}
-            >
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Relationship *</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="Spouse, Parent…"
-                  />
-                  <FieldError error={field.state.meta.errors[0]} />
-                </div>
-              )}
-            </form.Field>
-          </div>
-
-          {/* ── Administrative ── */}
-          <SectionHeading>Administrative</SectionHeading>
-
-          <div className="flex gap-3">
             <form.Field name="status">
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Status</label>
-                  <select
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value as ClientStatus)}
-                  >
-                    <option value="active">Active</option>
-                    <option value="on_hold">On Hold</option>
-                    <option value="discharged">Discharged</option>
-                  </select>
-                </div>
-              )}
-            </form.Field>
-
-            <form.Field name="funding_source">
-              {(field) => (
-                <div className="flex-1">
-                  <label className={labelClass}>Funding Source</label>
-                  <input
-                    className={inputClass}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="e.g. CLBC, Private"
-                  />
-                </div>
-              )}
+              {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
             </form.Field>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="care_start_date" validators={{ onChange: ({ value }) => { const r = schema.shape.care_start_date.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Care Start</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+            </form.Field>
+            <form.Field name="care_end_date">
+              {(field) => (<div><label className={labelClass}>Care End</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>)}
+            </form.Field>
+          </div>
+
+          <form.Field name="medical_conditions">
+            {(field) => (<div><label className={labelClass}>Medical Conditions</label><textarea className={`${inputClass} resize-none`} rows={2} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="Optional" /></div>)}
+          </form.Field>
 
           <form.Field name="notes">
-            {(field) => (
-              <div className="mt-3">
-                <label className={labelClass}>Notes</label>
-                <textarea
-                  className={`${inputClass} resize-none`}
-                  rows={3}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="Any additional notes…"
-                />
-              </div>
-            )}
+            {(field) => (<div><label className={labelClass}>Notes</label><textarea className={`${inputClass} resize-none`} rows={2} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="Optional" /></div>)}
           </form.Field>
 
+          {/* Emergency Contact */}
+          <SectionLabel>Emergency contact</SectionLabel>
+
+          <form.Field name="emergency_contact_name" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_name.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+            {(field) => (<div><label className={labelClass}>Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Full name" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+          </form.Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="emergency_contact_phone" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_phone.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 (555) 000-0000" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+            </form.Field>
+            <form.Field name="emergency_contact_relationship" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_relationship.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
+              {(field) => (<div><label className={labelClass}>Relationship</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Spouse, Parent…" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+            </form.Field>
+          </div>
+
           {serverError && (
-            <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+            <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
           )}
 
-          {/* Bottom padding so last field isn't hidden under sticky footer */}
           <div className="h-4" />
         </form>
 
-        {/* Sticky footer */}
-        <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+        {/* Footer */}
+        <div className="border-t border-ink px-6 py-4 flex justify-end gap-3">
+          <button type="button" onClick={onClose}
+            className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors">
             Cancel
           </button>
-          <form.Subscribe selector={(state) => state.isSubmitting}>
+          <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => (
-              <button
-                type="button"
-                onClick={() => form.handleSubmit()}
-                disabled={isSubmitting}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
+              <button type="button" onClick={() => form.handleSubmit()} disabled={isSubmitting}
+                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
                 {isSubmitting ? 'Saving…' : 'Create Client'}
               </button>
             )}
