@@ -144,6 +144,8 @@ html, body {
 .rbc-header { background: #F2EEE5; border-bottom: 1px solid #111 !important; padding: 0; }
 .rbc-day-bg { border-left: 1px solid rgba(17,17,17,0.1) !important; }
 .rbc-today { background: #FFE2D4 !important; }
+.rbc-allday-cell { display: none; }
+.rbc-time-header-content > .rbc-row.rbc-row-resource { display: none; }
 .rbc-event { border-radius: 0 !important; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
 .rbc-event.rbc-selected { filter: brightness(0.88) !important; }
 .rbc-off-range-bg { background: rgba(17,17,17,0.03); }
