@@ -1,13 +1,16 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { invitationsApi, type InvitationRole } from '@/features/invitations/api'
+import { Kicker } from '@/shared/components/ui'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
-  role: z.enum(['agency_admin', 'home_support_worker']),
+  role:  z.enum(['agency_admin', 'home_support_worker']),
 })
+
+const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
+const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 
 interface InviteModalProps {
   onClose: () => void
@@ -26,46 +29,43 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
         onSuccess()
         onClose()
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Something went wrong'
-        setServerError(message)
+        setServerError(err instanceof Error ? err.message : 'Something went wrong')
       }
     },
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Invite member</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30">
+      <div className="w-full max-w-sm bg-paper border border-ink">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
+          <Kicker>Invite member</Kicker>
+          <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
+        {/* Form */}
         <form
           onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}
-          className="flex flex-col gap-4"
+          className="px-6 py-6 flex flex-col gap-5"
         >
-          <form.Field
-            name="email"
-            validators={{ onChange: ({ value }) => {
-              const result = schema.shape.email.safeParse(value)
-              return result.success ? undefined : result.error.issues[0].message
-            }}}
-          >
+          <form.Field name="email" validators={{ onChange: ({ value }) => {
+            const r = schema.shape.email.safeParse(value)
+            return r.success ? undefined : r.error.issues[0].message
+          }}}>
             {(field) => (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <label className={labelClass}>Email</label>
                 <input
                   type="email"
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  className={inputClass}
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
                   placeholder="jane@example.com"
                 />
                 {field.state.meta.errors[0] && (
-                  <p className="mt-1 text-xs text-red-500">{field.state.meta.errors[0]}</p>
+                  <p className="mt-1 font-mono text-[10px] text-orange">{field.state.meta.errors[0]}</p>
                 )}
               </div>
             )}
@@ -74,9 +74,9 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
           <form.Field name="role">
             {(field) => (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Role</label>
+                <label className={labelClass}>Role</label>
                 <select
-                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  className={`${inputClass} appearance-none`}
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value as InvitationRole)}
                 >
@@ -88,25 +88,25 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
           </form.Field>
 
           {serverError && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+            <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-3 pt-1">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
             >
               Cancel
             </button>
-            <form.Subscribe selector={(state) => state.isSubmitting}>
+            <form.Subscribe selector={(s) => s.isSubmitting}>
               {(isSubmitting) => (
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                  className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
                 >
-                  {isSubmitting ? 'Sending...' : 'Send invite'}
+                  {isSubmitting ? 'Sending…' : 'Send invite'}
                 </button>
               )}
             </form.Subscribe>
