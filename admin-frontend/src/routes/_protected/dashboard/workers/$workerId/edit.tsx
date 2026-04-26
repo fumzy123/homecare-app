@@ -58,6 +58,7 @@ function WorkerEditPage() {
         ← Overview
       </Link>
 
+      <div className="h-2" />
       <PersonalInfoForm worker={worker} />
       <WorkProfileForm worker={worker} />
       <DangerZone worker={worker} />
