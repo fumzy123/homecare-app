@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, getWeek } from 'date-fns'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { Kicker } from '@/shared/components/ui'
@@ -31,7 +31,6 @@ const weekStart  = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
 const weekEnd    = format(endOfWeek(now,   { weekStartsOn: 1 }), 'yyyy-MM-dd')
 const monthStart = format(startOfMonth(now), 'yyyy-MM-dd')
 const monthEnd   = format(endOfMonth(now),   'yyyy-MM-dd')
-const weekNum    = getWeek(now, { weekStartsOn: 1 })
 
 function getDateRange(period: Period): { from: string; to: string } {
   switch (period) {
@@ -74,16 +73,6 @@ function WorkerOverview() {
 
   const { from, to } = getDateRange(period)
 
-  const { data: weekShifts = [] } = useQuery({
-    queryKey: ['shifts', weekStart, weekEnd, workerId],
-    queryFn: () => shiftsApi.listShifts(weekStart, weekEnd, workerId),
-  })
-
-  const { data: monthShifts = [] } = useQuery({
-    queryKey: ['shifts', monthStart, monthEnd, workerId],
-    queryFn: () => shiftsApi.listShifts(monthStart, monthEnd, workerId),
-  })
-
   const { data: periodShifts = [], isLoading } = useQuery({
     queryKey: ['shifts', from, to, workerId, ''],
     queryFn: () => shiftsApi.listShifts(from, to, workerId),
@@ -94,16 +83,11 @@ function WorkerOverview() {
     queryFn: () => shiftsApi.getShiftStats(from, to, workerId),
   })
 
-  const weekHrs    = Math.round(sumHours(weekShifts))
-  const mtdHrs     = Math.round(sumHours(monthShifts))
-  const periodHrs  = Math.round(sumHours(periodShifts))
+  const periodHrs = Math.round(sumHours(periodShifts))
   const upcoming  = (stats?.scheduled ?? 0) + (stats?.in_progress ?? 0)
   const completed = stats?.completed ?? 0
   const cancelled = stats?.cancelled ?? 0
 
-  const sortedWeek = [...weekShifts].sort(
-    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-  )
   const sortedPeriod = [...periodShifts].sort(
     (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
   )
@@ -121,57 +105,6 @@ function WorkerOverview() {
 
   return (
     <div className="p-10 space-y-8">
-
-      {/* ── Utilization / this week ─────────────────────────────────── */}
-      <div className="border border-ink bg-paper">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>Utilization / Week {weekNum}</Kicker>
-          <span className="font-mono text-[11px] text-ink-soft">
-            <span className="text-ink font-bold">{weekHrs}</span> / 40 hrs
-            {' · '}MTD {mtdHrs}h
-          </span>
-        </div>
-
-        <div className="px-6 py-5">
-          <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em] mb-5">
-            Assigned shifts <span className="italic text-muted">this week</span>
-          </h2>
-
-          {sortedWeek.length === 0 ? (
-            <p className="font-mono text-[10px] text-muted tracking-wide py-2">NO SHIFTS THIS WEEK</p>
-          ) : (
-            <>
-              <div className="grid grid-cols-4 gap-6 pb-2 border-b border-ink">
-                {['Day', 'Time', 'Client', 'Status'].map(h => (
-                  <p key={h} className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">{h}</p>
-                ))}
-              </div>
-              {sortedWeek.map((shift, i) => {
-                const hrs = ((new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000).toFixed(1)
-                return (
-                  <div
-                    key={`${shift.shift_id}-${shift.date}`}
-                    onClick={() => setSelectedShift(shift)}
-                    className={`grid grid-cols-4 gap-6 py-3 cursor-pointer hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
-                  >
-                    <p className="font-mono text-[11px]">
-                      <span className="font-bold">{format(new Date(shift.start_time), 'EEE').toUpperCase()}</span>
-                      {' · '}{format(new Date(shift.start_time), 'MMM d')}
-                    </p>
-                    <p className="font-mono text-[11px]">
-                      {format(new Date(shift.start_time), 'HH:mm')} → {format(new Date(shift.end_time), 'HH:mm')} · {hrs}h
-                    </p>
-                    <p className="text-[12px]">
-                      {shift.client.first_name} {shift.client.last_name}
-                    </p>
-                    <StatusCell status={shift.completion_status} />
-                  </div>
-                )
-              })}
-            </>
-          )}
-        </div>
-      </div>
 
       {/* ── Period toggle + stats ───────────────────────────────────── */}
       <div>
@@ -229,12 +162,9 @@ function WorkerOverview() {
       {/* ── Shift history ────────────────────────────────────────────── */}
       <div className="border border-ink bg-paper">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <div>
-            <Kicker className="mb-1">Shift history</Kicker>
-            <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
-              Assigned shifts <span className="italic text-muted">{PERIOD_TITLE[period]}</span>
-            </h2>
-          </div>
+          <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
+            Assigned shifts <span className="italic text-muted">{PERIOD_TITLE[period]}</span>
+          </h2>
           <span className="font-mono text-[11px] text-ink-soft">
             <span className="text-ink font-bold">{periodHrs}</span>h total
           </span>
