@@ -10,13 +10,21 @@ export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/')
   component: WorkerOverview,
 })
 
-type Period = 'all_time' | 'this_month' | 'last_90'
+type Period = 'this_week' | 'this_month' | 'last_90' | 'all_time'
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'all_time',   label: 'All time'     },
-  { key: 'this_month', label: 'This month'   },
-  { key: 'last_90',    label: 'Last 90 days' },
+  { key: 'this_week',  label: 'This week'     },
+  { key: 'this_month', label: 'This month'    },
+  { key: 'last_90',    label: 'Last 3 months' },
+  { key: 'all_time',   label: 'All time'      },
 ]
+
+const PERIOD_TITLE: Record<Period, string> = {
+  this_week:  'this week',
+  this_month: 'this month',
+  last_90:    'last 3 months',
+  all_time:   'all time',
+}
 
 const now        = new Date()
 const weekStart  = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
@@ -27,9 +35,10 @@ const weekNum    = getWeek(now, { weekStartsOn: 1 })
 
 function getDateRange(period: Period): { from: string; to: string } {
   switch (period) {
-    case 'all_time':   return { from: '2020-01-01', to: '2030-12-31' }
+    case 'this_week':  return { from: weekStart, to: weekEnd }
     case 'this_month': return { from: monthStart, to: monthEnd }
     case 'last_90':    return { from: format(subDays(now, 90), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') }
+    case 'all_time':   return { from: '2020-01-01', to: '2030-12-31' }
   }
 }
 
@@ -60,7 +69,7 @@ function StatusCell({ status }: { status: string }) {
 
 function WorkerOverview() {
   const { workerId } = Route.useParams()
-  const [period, setPeriod] = useState<Period>('all_time')
+  const [period, setPeriod] = useState<Period>('this_week')
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
   const { from, to } = getDateRange(period)
@@ -85,8 +94,9 @@ function WorkerOverview() {
     queryFn: () => shiftsApi.getShiftStats(from, to, workerId),
   })
 
-  const weekHrs  = Math.round(sumHours(weekShifts))
-  const mtdHrs   = Math.round(sumHours(monthShifts))
+  const weekHrs    = Math.round(sumHours(weekShifts))
+  const mtdHrs     = Math.round(sumHours(monthShifts))
+  const periodHrs  = Math.round(sumHours(periodShifts))
   const upcoming  = (stats?.scheduled ?? 0) + (stats?.in_progress ?? 0)
   const completed = stats?.completed ?? 0
   const cancelled = stats?.cancelled ?? 0
@@ -218,8 +228,16 @@ function WorkerOverview() {
 
       {/* ── Shift history ────────────────────────────────────────────── */}
       <div className="border border-ink bg-paper">
-        <div className="px-6 py-4 border-b border-ink">
-          <Kicker>Shift history</Kicker>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
+          <div>
+            <Kicker className="mb-1">Shift history</Kicker>
+            <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
+              Assigned shifts <span className="italic text-muted">{PERIOD_TITLE[period]}</span>
+            </h2>
+          </div>
+          <span className="font-mono text-[11px] text-ink-soft">
+            <span className="text-ink font-bold">{periodHrs}</span>h total
+          </span>
         </div>
 
         {isLoading ? (
@@ -227,8 +245,8 @@ function WorkerOverview() {
         ) : sortedPeriod.length === 0 ? (
           <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO SHIFTS IN THIS PERIOD</p>
         ) : (
-          <>
-            <div className="grid grid-cols-5 gap-4 px-6 py-2 bg-cream-2 border-b border-ink">
+          <div className="px-6 py-5">
+            <div className="grid grid-cols-5 gap-6 pb-2 border-b border-ink">
               {['Date', 'Client', 'Time', 'Hours', 'Status'].map(h => (
                 <p key={h} className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">{h}</p>
               ))}
@@ -239,7 +257,7 @@ function WorkerOverview() {
                 <div
                   key={`${shift.shift_id}-${shift.date}`}
                   onClick={() => setSelectedShift(shift)}
-                  className={`grid grid-cols-5 gap-4 px-6 py-3 cursor-pointer hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                  className={`grid grid-cols-5 gap-6 py-3 cursor-pointer hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
                 >
                   <p className="font-mono text-[11px]">{format(new Date(shift.date), 'MMM d, yyyy')}</p>
                   <p className="text-[12px]">{shift.client.first_name} {shift.client.last_name}</p>
@@ -251,7 +269,7 @@ function WorkerOverview() {
                 </div>
               )
             })}
-          </>
+          </div>
         )}
       </div>
 
