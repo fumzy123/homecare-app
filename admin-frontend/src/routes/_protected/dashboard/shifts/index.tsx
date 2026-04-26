@@ -44,9 +44,9 @@ const STATUS_COLORS: Record<string, { bg: string; border: string; color: string;
   completed:   { bg: '#111111',  border: '#111111', color: '#F2EEE5' },
   in_progress: { bg: '#9DE8DC',  border: '#111111', color: '#111111' },
   scheduled:   { bg: '#FFE2D4',  border: '#111111', color: '#111111', dashed: true },
-  no_show:     { bg: '#F4D35E',  border: '#111111', color: '#111111' },
+  no_show:     { bg: '#FF5A1F',  border: '#FF5A1F', color: '#ffffff' },
   cancelled:   { bg: '#EDE8DC',  border: '#8A8378', color: '#8A8378' },
-  dropped:     { bg: '#FF5A1F',  border: '#FF5A1F', color: '#ffffff' },
+  dropped:     { bg: '#F4D35E',  border: '#111111', color: '#111111' },
 }
 
 function ShiftsPage() {
@@ -128,8 +128,9 @@ function ShiftsPage() {
           { label: 'Completed',   color: '#111111' },
           { label: 'In progress', color: '#9DE8DC', border: '#111' },
           { label: 'Scheduled',   color: '#FFE2D4', border: '#111', dashed: true },
+          { label: 'No Show',     color: '#FF5A1F' },
+          { label: 'Dropped',     color: '#F4D35E', border: '#111' },
           { label: 'Cancelled',   color: '#EDE8DC', border: '#8A8378' },
-          { label: 'Dropped',     color: '#FF5A1F' },
         ].map(({ label, color, border, dashed }) => (
           <span key={label} className="flex items-center gap-2">
             <span style={{

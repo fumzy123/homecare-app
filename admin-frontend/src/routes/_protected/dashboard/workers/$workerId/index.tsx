@@ -51,9 +51,9 @@ const STATUS_CONFIG: Record<string, { bg: string; label: string }> = {
   completed:   { bg: 'bg-ink',       label: 'COMPLETED'   },
   in_progress: { bg: 'bg-mint',      label: 'IN PROGRESS' },
   scheduled:   { bg: 'bg-orange',    label: 'SCHEDULED'   },
-  no_show:     { bg: 'bg-yellow',    label: 'NO SHOW'     },
+  no_show:     { bg: 'bg-orange',    label: 'NO SHOW'     },
   cancelled:   { bg: 'bg-cream-2',   label: 'CANCELLED'   },
-  dropped:     { bg: 'bg-orange',    label: 'DROPPED'     },
+  dropped:     { bg: 'bg-yellow',    label: 'DROPPED'     },
 }
 
 function StatusCell({ status }: { status: string }) {

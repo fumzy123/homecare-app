@@ -13,9 +13,9 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; 
   scheduled:   { label: 'Scheduled',   bg: '#FFE2D4', color: '#111111', border: '#111111' },
   in_progress: { label: 'In Progress', bg: '#9DE8DC', color: '#111111', border: '#111111' },
   completed:   { label: 'Completed',   bg: '#111111', color: '#F2EEE5', border: '#111111' },
-  no_show:     { label: 'No Show',     bg: '#F4D35E', color: '#111111', border: '#111111' },
+  no_show:     { label: 'No Show',     bg: '#FF5A1F', color: '#ffffff', border: '#FF5A1F' },
   cancelled:   { label: 'Cancelled',   bg: '#EDE8DC', color: '#8A8378', border: '#8A8378' },
-  dropped:     { label: 'Dropped',     bg: '#FF5A1F', color: '#ffffff', border: '#FF5A1F' },
+  dropped:     { label: 'Dropped',     bg: '#F4D35E', color: '#111111', border: '#111111' },
 }
 
 // ─── Shared form styles ───────────────────────────────────────────────────────

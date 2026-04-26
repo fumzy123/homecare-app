@@ -27,9 +27,9 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; border: string; 
   completed:   { bg: '#111111', color: '#F2EEE5', border: '#111111', borderStyle: 'solid' },
   in_progress: { bg: '#9DE8DC', color: '#111111', border: '#111111', borderStyle: 'solid' },
   scheduled:   { bg: '#FFE2D4', color: '#111111', border: '#111111', borderStyle: 'dashed' },
-  no_show:     { bg: '#F4D35E', color: '#111111', border: '#111111', borderStyle: 'solid' },
+  no_show:     { bg: '#FF5A1F', color: '#ffffff', border: '#FF5A1F', borderStyle: 'solid' },
   cancelled:   { bg: '#EDE8DC', color: '#8A8378', border: '#8A8378', borderStyle: 'dashed' },
-  dropped:     { bg: '#FF5A1F', color: '#ffffff', border: '#FF5A1F', borderStyle: 'solid' },
+  dropped:     { bg: '#F4D35E', color: '#111111', border: '#111111', borderStyle: 'solid' },
 }
 
 interface DayTimelineProps {
