@@ -164,3 +164,10 @@ html, body {
 .rbc-off-range-bg { background: rgba(17,17,17,0.03); }
 .rbc-time-slot { border-top: 1px solid rgba(17,17,17,0.06) !important; }
 .rbc-time-gutter .rbc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8A8378; letter-spacing: 0.05em; }
+
+/* DayTimeline horizontal scroll — thin styled scrollbar, no grey track */
+.timeline-scroll { overflow-x: auto; }
+.timeline-scroll::-webkit-scrollbar { height: 4px; }
+.timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+.timeline-scroll::-webkit-scrollbar-thumb { background: rgba(17,17,17,0.2); border-radius: 2px; }
+.timeline-scroll::-webkit-scrollbar-thumb:hover { background: rgba(17,17,17,0.4); }
