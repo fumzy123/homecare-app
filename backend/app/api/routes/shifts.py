@@ -5,6 +5,7 @@ from app.db.session import get_db
 from app.core.security import require_admin
 from app.schemas.shift import (
     CancelFromSchema,
+    CancelShiftSchema,
     EditFromSchema,
     ShiftCreateSchema,
     ShiftMasterResponse,
@@ -91,13 +92,14 @@ async def update_shift(
 # ─────────────────────────────────────────
 # 5. Cancel entire shift schedule
 # ─────────────────────────────────────────
-@router.delete("/{shift_id}")
+@router.post("/{shift_id}/cancel")
 async def cancel_shift(
     shift_id: str,
+    payload: CancelShiftSchema,
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return await ShiftService.cancel_shift(shift_id, current_user, db)
+    return await ShiftService.cancel_shift(shift_id, payload, current_user, db)
 
 
 # ─────────────────────────────────────────

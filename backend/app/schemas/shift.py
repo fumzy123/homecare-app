@@ -53,14 +53,22 @@ class ShiftUpdateSchema(BaseModel):
 
 
 # ─────────────────────────────────────────
+# POST /shifts/{id}/cancel — cancel a shift with a reason
+# ─────────────────────────────────────────
+class CancelShiftSchema(BaseModel):
+    cancellation_reason: str | None = None
+
+
+# ─────────────────────────────────────────
 # POST /shifts/{id}/modifications — override a specific occurrence
 # ─────────────────────────────────────────
 class ShiftModificationCreateSchema(BaseModel):
-    original_date:     date
-    new_start_time:    datetime | None = None
-    new_end_time:      datetime | None = None
-    completion_status: ShiftCompletionStatus | None = None
-    notes:             str | None = None
+    original_date:       date
+    new_start_time:      datetime | None = None
+    new_end_time:        datetime | None = None
+    completion_status:   ShiftCompletionStatus | None = None
+    notes:               str | None = None
+    cancellation_reason: str | None = None
 
     @model_validator(mode="after")
     def validate_times(self):
@@ -74,10 +82,11 @@ class ShiftModificationCreateSchema(BaseModel):
 # PATCH /shifts/{id}/modifications/{date} — update an existing modification
 # ─────────────────────────────────────────
 class ShiftModificationUpdateSchema(BaseModel):
-    new_start_time:    datetime | None = None
-    new_end_time:      datetime | None = None
-    completion_status: ShiftCompletionStatus | None = None
-    notes:             str | None = None
+    new_start_time:      datetime | None = None
+    new_end_time:        datetime | None = None
+    completion_status:   ShiftCompletionStatus | None = None
+    notes:               str | None = None
+    cancellation_reason: str | None = None
 
     @model_validator(mode="after")
     def validate_times(self):
@@ -91,7 +100,8 @@ class ShiftModificationUpdateSchema(BaseModel):
 # POST /shifts/{id}/cancel-from — cancel this occurrence and all following
 # ─────────────────────────────────────────
 class CancelFromSchema(BaseModel):
-    occurrence_date: date
+    occurrence_date:     date
+    cancellation_reason: str | None = None
 
 
 # ─────────────────────────────────────────
