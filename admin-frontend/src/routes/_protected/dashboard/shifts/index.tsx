@@ -12,6 +12,7 @@ import { clientsApi } from '@/features/clients/api'
 import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { Kicker, Btn } from '@/shared/components/ui'
+import { STATUS_TOKENS, getStatusToken } from '@/shared/lib/shiftStatus'
 
 export const Route = createFileRoute('/_protected/dashboard/shifts/')({
   component: ShiftsPage,
@@ -39,15 +40,6 @@ function rangeForView(date: Date, view: View): { from: string; to: string } {
   }
 }
 
-// Status → color mapping matching the design system
-const STATUS_COLORS: Record<string, { bg: string; border: string; color: string; dashed?: boolean }> = {
-  completed:   { bg: '#111111',  border: '#111111', color: '#F2EEE5' },
-  in_progress: { bg: '#9DE8DC',  border: '#111111', color: '#111111' },
-  scheduled:   { bg: '#FFE2D4',  border: '#111111', color: '#111111', dashed: true },
-  no_show:     { bg: '#FF5A1F',  border: '#FF5A1F', color: '#ffffff' },
-  cancelled:   { bg: '#EDE8DC',  border: '#8A8378', color: '#8A8378' },
-  dropped:     { bg: '#F4D35E',  border: '#111111', color: '#111111' },
-}
 
 function WeekHeader({ date }: { date: Date }) {
   const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
@@ -140,7 +132,7 @@ function ShiftsPage() {
 
   const { data: occurrences = [], isLoading } = useQuery({
     queryKey: ['shifts', from, to, filterWorkerId, filterClientId],
-    queryFn:  () => shiftsApi.listShifts(from, to, filterWorkerId || undefined, filterClientId || undefined),
+    queryFn:  () => shiftsApi.listShifts(from, to, filterWorkerId || undefined, filterClientId || undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped']),
   })
   const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
   const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
@@ -199,27 +191,23 @@ function ShiftsPage() {
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Legend — driven by STATUS_TOKENS so colours stay in sync automatically */}
       <div className="px-10 pb-4 flex items-center gap-6 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft">
-        {[
-          { label: 'Scheduled',   color: '#FFE2D4', border: '#111', dashed: true },
-          { label: 'In Progress', color: '#9DE8DC', border: '#111' },
-          { label: 'Completed',   color: '#111111' },
-          { label: 'No Show',     color: '#FF5A1F' },
-          { label: 'Cancelled',   color: '#EDE8DC', border: '#8A8378' },
-          { label: 'Dropped',     color: '#F4D35E', border: '#111' },
-        ].map(({ label, color, border, dashed }) => (
-          <span key={label} className="flex items-center gap-2">
-            <span style={{
-              width: 14, height: 14,
-              background: color,
-              border: `1px ${dashed ? 'dashed' : 'solid'} ${border ?? color}`,
-              display: 'inline-block',
-              flexShrink: 0,
-            }} />
-            {label}
-          </span>
-        ))}
+        {(['scheduled', 'in_progress', 'completed', 'no_show', 'cancelled', 'dropped'] as const).map((key) => {
+          const t = STATUS_TOKENS[key]
+          return (
+            <span key={key} className="flex items-center gap-2">
+              <span style={{
+                width: 14, height: 14,
+                background: t.bg,
+                border: `1px ${t.dashed ? 'dashed' : 'solid'} ${t.border}`,
+                display: 'inline-block',
+                flexShrink: 0,
+              }} />
+              {t.label}
+            </span>
+          )
+        })}
         <span className="ml-auto">＊ click any shift to inspect or edit</span>
       </div>
 
@@ -243,6 +231,7 @@ function ShiftsPage() {
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
             selectable
+            scrollToTime={new Date(1970, 1, 1, 7, 0, 0)}
             style={{ height: '100%' }}
             components={{
               toolbar: CustomToolbar,
@@ -264,7 +253,7 @@ function ShiftsPage() {
                 }
               }
               const status = event.resource?.completion_status ?? 'scheduled'
-              const m = STATUS_COLORS[status] ?? STATUS_COLORS.scheduled
+              const m = getStatusToken(status)
               return {
                 style: {
                   background: m.bg,
