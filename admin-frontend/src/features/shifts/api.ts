@@ -179,22 +179,27 @@ export const shiftsApi = {
     await apiClient.patch(`/api/shifts/${shiftId}/modifications/${originalDate}`, payload)
   },
 
-  cancelShift: async (shiftId: string): Promise<void> => {
-    await apiClient.delete(`/api/shifts/${shiftId}`)
+  // Cancel entire shift / series
+  cancelShift: async (shiftId: string, cancellationReason?: string): Promise<void> => {
+    await apiClient.post(`/api/shifts/${shiftId}/cancel`, {
+      cancellation_reason: cancellationReason ?? null,
+    })
   },
 
   // Cancel just this one occurrence (creates a cancelled modification)
-  cancelOccurrence: async (shiftId: string, occurrenceDate: string): Promise<void> => {
+  cancelOccurrence: async (shiftId: string, occurrenceDate: string, cancellationReason?: string): Promise<void> => {
     await apiClient.post(`/api/shifts/${shiftId}/modifications`, {
       original_date: occurrenceDate,
       completion_status: 'cancelled',
+      cancellation_reason: cancellationReason ?? null,
     })
   },
 
   // Cancel this occurrence and all following (truncates the series)
-  cancelFromDate: async (shiftId: string, occurrenceDate: string): Promise<void> => {
+  cancelFromDate: async (shiftId: string, occurrenceDate: string, cancellationReason?: string): Promise<void> => {
     await apiClient.post(`/api/shifts/${shiftId}/cancel-from`, {
       occurrence_date: occurrenceDate,
+      cancellation_reason: cancellationReason ?? null,
     })
   },
 

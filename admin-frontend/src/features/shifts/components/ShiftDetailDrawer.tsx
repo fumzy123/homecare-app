@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { getStatusToken, STATUS_TOKENS, ADMIN_SELECTABLE_STATUSES } from '@/shared/lib/shiftStatus'
+import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { shiftsApi, type ShiftOccurrence, type NoteEntry } from '@/features/shifts/api'
@@ -9,14 +11,6 @@ import { Avatar, Kicker } from '@/shared/components/ui'
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  scheduled:   { label: 'Scheduled',   bg: '#FFE2D4', color: '#111111', border: '#111111' },
-  in_progress: { label: 'In Progress', bg: '#9DE8DC', color: '#111111', border: '#111111' },
-  completed:   { label: 'Completed',   bg: '#111111', color: '#F2EEE5', border: '#111111' },
-  no_show:     { label: 'No Show',     bg: '#FF5A1F', color: '#ffffff', border: '#FF5A1F' },
-  cancelled:   { label: 'Cancelled',   bg: '#EDE8DC', color: '#8A8378', border: '#8A8378' },
-  dropped:     { label: 'Dropped',     bg: '#F4D35E', color: '#111111', border: '#111111' },
-}
 
 // ─── Shared form styles ───────────────────────────────────────────────────────
 
@@ -43,19 +37,22 @@ interface ShiftDetailDrawerProps {
 
 export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
   const queryClient = useQueryClient()
-  const [isEditing, setIsEditing] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isEditing, setIsEditing]         = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [cancelConfirm, setCancelConfirm] = useState(false)
+  const [showCancelFlow, setShowCancelFlow]   = useState(false)
+  const [cancelScope, setCancelScope]         = useState<'this' | 'following' | 'all'>('this')
+  const [cancelReason, setCancelReason]       = useState('')
+  const [cancelReasonOther, setCancelReasonOther] = useState('')
 
   const start = new Date(shift.start_time)
   const end   = new Date(shift.end_time)
-  const statusCfg = STATUS_CONFIG[shift.completion_status] ?? STATUS_CONFIG.scheduled
+  const statusCfg = getStatusToken(shift.completion_status)
 
   // Edit state
   const [workerId, setWorkerId]               = useState(shift.worker.id)
   const [clientId, setClientId]               = useState(shift.client.id)
   const [date, setDate]                       = useState(format(start, 'yyyy-MM-dd'))
+  const [endDate, setEndDate]                 = useState(format(end, 'yyyy-MM-dd'))
   const [startTime, setStartTime]             = useState(format(start, 'HH:mm'))
   const [endTime, setEndTime]                 = useState(format(end, 'HH:mm'))
   const [location, setLocation]               = useState(shift.location ?? '')
@@ -99,11 +96,16 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     },
   })
 
+  function nextDay(d: string): string {
+    const dt = new Date(`${d}T00:00`)
+    dt.setDate(dt.getDate() + 1)
+    return format(dt, 'yyyy-MM-dd')
+  }
+
   function handleSave() {
     setEditError(null)
     const s = new Date(`${date}T${startTime}`)
-    const e = new Date(`${date}T${endTime}`)
-    if (e <= s) { setEditError('End time must be after start time.'); return }
+    const e = new Date(`${endDate}T${endTime}`)
     if (shift.is_recurring) {
       setShowSaveModal(true)
     } else {
@@ -124,7 +126,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
 
   function executeSave(scope: RecurringScope) {
     const startISO = new Date(`${date}T${startTime}`).toISOString()
-    const endISO   = new Date(`${date}T${endTime}`).toISOString()
+    const endISO   = new Date(`${endDate}T${endTime}`).toISOString()
     if (scope === 'this') {
       const originalDate = shift.date
       if (shift.is_modification) {
@@ -149,11 +151,12 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     }
   }
 
-  function executeDelete(scope: RecurringScope) {
-    if (scope === 'this') deleteMutation.mutate(() => shiftsApi.cancelOccurrence(shift.shift_id, shift.date))
-    else if (scope === 'following') deleteMutation.mutate(() => shiftsApi.cancelFromDate(shift.shift_id, shift.date))
-    else deleteMutation.mutate(() => shiftsApi.cancelShift(shift.shift_id))
-    setShowDeleteModal(false)
+  function confirmCancel() {
+    const reason = cancelReason === 'other' ? cancelReasonOther : cancelReason
+    const scope  = shift.is_recurring ? cancelScope : 'all'
+    if (scope === 'this')      deleteMutation.mutate(() => shiftsApi.cancelOccurrence(shift.shift_id, shift.date, reason))
+    else if (scope === 'following') deleteMutation.mutate(() => shiftsApi.cancelFromDate(shift.shift_id, shift.date, reason))
+    else                       deleteMutation.mutate(() => shiftsApi.cancelShift(shift.shift_id, reason))
   }
 
   function handleDiscard() {
@@ -215,9 +218,26 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                 </div>
               )}
 
-              <div>
-                <label className={labelClass}>Date</label>
-                <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
+              {/* Date row — end date appears for overnight shifts */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>{endDate !== date ? 'Start Date' : 'Date'}</label>
+                  <input type="date" className={inputClass} value={date}
+                    onChange={(e) => {
+                      const newDate = e.target.value
+                      if (endDate === nextDay(date)) setEndDate(nextDay(newDate))
+                      else if (endDate === date) setEndDate(newDate)
+                      setDate(newDate)
+                    }} />
+                </div>
+                {endDate !== date && (
+                  <div>
+                    <label className={labelClass}>End Date</label>
+                    <input type="date" className={inputClass} value={endDate}
+                      min={date}
+                      onChange={(e) => setEndDate(e.target.value)} />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -227,7 +247,15 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                 </div>
                 <div>
                   <label className={labelClass}>End Time</label>
-                  <input type="time" className={inputClass} value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                  <input type="time" className={inputClass} value={endTime}
+                    onChange={(e) => {
+                      const newEnd = e.target.value
+                      setEndTime(newEnd)
+                      if (newEnd && startTime && newEnd <= startTime && endDate === date)
+                        setEndDate(nextDay(date))
+                      if (newEnd && startTime && newEnd > startTime && endDate === nextDay(date))
+                        setEndDate(date)
+                    }} />
                 </div>
               </div>
 
@@ -247,8 +275,8 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
               <div>
                 <label className={labelClass}>Status</label>
                 <select className={inputClass} value={completionStatus} onChange={(e) => setCompletionStatus(e.target.value)}>
-                  {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-                    <option key={val} value={val}>{cfg.label}</option>
+                  {ADMIN_SELECTABLE_STATUSES.map((val) => (
+                    <option key={val} value={val}>{STATUS_TOKENS[val].label}</option>
                   ))}
                 </select>
                 {shift.is_recurring && (
@@ -351,44 +379,84 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                 <p className="font-mono text-[10px] text-mint tracking-wide uppercase text-center">Changes saved ✓</p>
               )}
 
-              {/* Delete / cancel */}
+              {/* Cancel shift */}
               <div className="mt-auto border-t border-ink pt-5">
-                {shift.is_recurring ? (
+                {!showCancelFlow ? (
                   <button
-                    onClick={() => setShowDeleteModal(true)}
-                    disabled={deleteMutation.isPending}
-                    className="w-full border border-orange text-orange py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:bg-orange hover:text-white transition-colors disabled:opacity-40"
-                  >
-                    {deleteMutation.isPending ? 'Deleting…' : 'Delete Shift'}
-                  </button>
-                ) : !cancelConfirm ? (
-                  <button
-                    onClick={() => setCancelConfirm(true)}
+                    onClick={() => { setShowCancelFlow(true); setCancelReason(''); setCancelScope('this') }}
                     className="w-full border border-orange text-orange py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:bg-orange hover:text-white transition-colors"
                   >
                     Cancel Shift
                   </button>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="font-mono text-[10px] text-ink-soft text-center tracking-wide">Cancel this shift?</p>
-                    <button
-                      onClick={() => deleteMutation.mutate(() => shiftsApi.cancelShift(shift.shift_id))}
-                      disabled={deleteMutation.isPending}
-                      className="w-full bg-orange text-white py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
-                    >
-                      {deleteMutation.isPending ? 'Cancelling…' : 'Yes, cancel it'}
-                    </button>
-                    <button
-                      onClick={() => setCancelConfirm(false)}
-                      className="w-full border border-ink py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
-                    >
-                      Keep Shift
-                    </button>
+                  <div className="flex flex-col gap-4">
+                    <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">
+                      Cancellation reason
+                    </p>
+
+                    {/* Scope selector — only for recurring shifts */}
+                    {shift.is_recurring && (
+                      <div className="flex flex-col gap-1.5">
+                        {([
+                          { value: 'this',      label: 'Just this occurrence'       },
+                          { value: 'following', label: 'This and all following'     },
+                          { value: 'all',       label: 'All occurrences'            },
+                        ] as const).map(({ value, label }) => (
+                          <label key={value} className="flex items-center gap-2.5 cursor-pointer">
+                            <span className={`w-3.5 h-3.5 border border-ink flex items-center justify-center shrink-0 ${cancelScope === value ? 'bg-ink' : ''}`}>
+                              {cancelScope === value && <span className="w-1.5 h-1.5 bg-cream block" />}
+                            </span>
+                            <span className="font-mono text-[10px] text-ink">{label}</span>
+                            <input type="radio" className="sr-only" value={value} checked={cancelScope === value} onChange={() => setCancelScope(value)} />
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reason list */}
+                    <div className="flex flex-col gap-1.5">
+                      {CANCELLATION_REASONS.map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2.5 cursor-pointer">
+                          <span className={`w-3.5 h-3.5 border border-ink flex items-center justify-center shrink-0 ${cancelReason === value ? 'bg-ink' : ''}`}>
+                            {cancelReason === value && <span className="w-1.5 h-1.5 bg-cream block" />}
+                          </span>
+                          <span className="font-mono text-[10px] text-ink">{label}</span>
+                          <input type="radio" className="sr-only" value={value} checked={cancelReason === value} onChange={() => setCancelReason(value)} />
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Other free text */}
+                    {cancelReason === 'other' && (
+                      <input
+                        className={inputClass}
+                        placeholder="Describe the reason…"
+                        value={cancelReasonOther}
+                        onChange={(e) => setCancelReasonOther(e.target.value)}
+                      />
+                    )}
+
                     {deleteMutation.isError && (
-                      <p className="font-mono text-[10px] text-orange text-center">
+                      <p className="font-mono text-[10px] text-orange">
                         {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Something went wrong'}
                       </p>
                     )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowCancelFlow(false)}
+                        className="flex-1 border border-ink py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={confirmCancel}
+                        disabled={!cancelReason || (cancelReason === 'other' && !cancelReasonOther.trim()) || deleteMutation.isPending}
+                        className="flex-1 bg-orange text-white py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
+                      >
+                        {deleteMutation.isPending ? 'Cancelling…' : 'Confirm Cancel'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -411,9 +479,6 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
         )}
       </div>
 
-      {showDeleteModal && (
-        <RecurringActionModal mode="delete" onConfirm={executeDelete} onCancel={() => setShowDeleteModal(false)} />
-      )}
       {showSaveModal && (
         <RecurringActionModal mode="edit" onConfirm={executeSave} onCancel={() => setShowSaveModal(false)} />
       )}
