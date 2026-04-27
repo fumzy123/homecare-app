@@ -222,6 +222,7 @@ function ShiftsPage() {
           <Calendar
             localizer={localizer}
             events={events}
+            showMultiDayTimes={true}
             view={view}
             onView={setView}
             date={currentDate}
