@@ -16,6 +16,8 @@ export const Route = createFileRoute('/_protected/dashboard/')({
 const today    = format(new Date(), 'yyyy-MM-dd')
 const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
 const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: 1 }), 'yyyy-MM-dd')
+const weekStartDisplay = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM d')
+const weekEndDisplay   = format(endOfWeek(new Date(),   { weekStartsOn: 1 }), 'MMM d')
 const droppedFrom = format(subDays(new Date(), 7),  'yyyy-MM-dd')
 const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
 
@@ -82,7 +84,7 @@ function DashboardPage() {
     { label: 'Active clients',   value: activeClients.length, sub: onHoldClients.length > 0 ? `${onHoldClients.length} on hold` : 'all active',    accent: false },
     { label: 'Active workers',   value: activeWorkers.length, sub: `of ${workers.length} total`,                                                    accent: false },
     { label: 'Shifts today',     value: todayShifts.length,   sub: format(new Date(), 'EEEE, MMM d'),                                               accent: false },
-    { label: 'Shifts this week', value: weekShifts.length,    sub: `${weekStart} – ${weekEnd}`,                                                     accent: droppedShifts.length > 0 },
+    { label: 'Shifts this week', value: weekShifts.length,    sub: `${weekStartDisplay} – ${weekEndDisplay}`,                                       accent: droppedShifts.length > 0 },
   ]
 
   return (
