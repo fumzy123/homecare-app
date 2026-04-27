@@ -8,6 +8,12 @@ import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { Kicker } from '@/shared/components/ui'
 
+function nextDay(date: string): string {
+  const d = new Date(`${date}T00:00`)
+  d.setDate(d.getDate() + 1)
+  return format(d, 'yyyy-MM-dd')
+}
+
 const schema = z.object({
   worker_id: z.string().min(1, 'Select a worker'),
   client_id: z.string().min(1, 'Select a client'),
@@ -46,7 +52,12 @@ const inputClass  = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-
 const selectClass = `${inputClass} appearance-none`
 
 export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, onClose, onSuccess }: CreateShiftDrawerProps) {
+  const defaultDate      = initialDate    ? format(initialDate,    'yyyy-MM-dd') : ''
+  const defaultStartTime = initialDate    ? format(initialDate,    'HH:mm')      : '09:00'
+  const defaultEndTime   = initialEndDate ? format(initialEndDate, 'HH:mm')      : '17:00'
+
   const [serverError, setServerError] = useState<string | null>(null)
+  const [endDate, setEndDate]               = useState(defaultDate)
   const [location, setLocation]             = useState('')
   const [isRecurring, setIsRecurring]       = useState(false)
   const [frequency, setFrequency]           = useState<RecurrenceFrequency>('weekly')
@@ -56,14 +67,10 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
   const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
   const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
 
-  const defaultDate      = initialDate    ? format(initialDate,    'yyyy-MM-dd') : ''
-  const defaultStartTime = initialDate    ? format(initialDate,    'HH:mm')      : '09:00'
-  const defaultEndTime   = initialEndDate ? format(initialEndDate, 'HH:mm')      : '17:00'
-
-  function notifyFormChange(date: string, startTime: string, endTime: string, workerId: string, clientId: string) {
-    if (!onFormChange || !date || !startTime || !endTime) return
-    const start = new Date(`${date}T${startTime}`)
-    const end   = new Date(`${date}T${endTime}`)
+  function notifyFormChange(startDate: string, startTime: string, endD: string, endTime: string, workerId: string, clientId: string) {
+    if (!onFormChange || !startDate || !startTime || !endTime) return
+    const start = new Date(`${startDate}T${startTime}`)
+    const end   = new Date(`${endD}T${endTime}`)
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return
     const worker = workers.find((w) => w.id === workerId)
     const client = clients.find((c) => c.id === clientId)
@@ -90,11 +97,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
         return
       }
       const startISO = new Date(`${value.date}T${value.start_time}`).toISOString()
-      const endISO   = new Date(`${value.date}T${value.end_time}`).toISOString()
-      if (new Date(endISO) <= new Date(startISO)) {
-        setServerError('End time must be after start time.')
-        return
-      }
+      const endISO   = new Date(`${endDate}T${value.end_time}`).toISOString()
       try {
         await shiftsApi.createShift({
           worker_id:  value.worker_id,
@@ -186,21 +189,41 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
               placeholder="Auto-filled from client address" />
           </div>
 
-          {/* Date */}
-          <form.Field name="date" validators={{ onChange: ({ value }) => validate(schema.shape.date, value) }}>
-            {(field) => (
+          {/* Date row — end date appears beside start date for overnight shifts */}
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field name="date" validators={{ onChange: ({ value }) => validate(schema.shape.date, value) }}>
+              {(field) => (
+                <div>
+                  <label className={labelClass}>{endDate !== field.state.value ? 'Start Date' : 'Date'}</label>
+                  <input type="date" className={inputClass} value={field.state.value}
+                    onChange={(e) => {
+                      field.handleChange(e.target.value)
+                      // Keep end date in sync if it was just date+1
+                      if (endDate === nextDay(field.state.value)) setEndDate(nextDay(e.target.value))
+                      else if (endDate === field.state.value) setEndDate(e.target.value)
+                      notifyFormChange(e.target.value, form.state.values.start_time, endDate, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                    }}
+                    onBlur={field.handleBlur} />
+                  <FieldError error={field.state.meta.errors[0]} />
+                </div>
+              )}
+            </form.Field>
+
+            {endDate !== form.state.values.date && (
               <div>
-                <label className={labelClass}>Date</label>
-                <input type="date" className={inputClass} value={field.state.value}
+                <label className={labelClass}>End Date</label>
+                <input type="date" className={inputClass} value={endDate}
+                  min={form.state.values.date}
                   onChange={(e) => {
-                    field.handleChange(e.target.value)
-                    notifyFormChange(e.target.value, form.state.values.start_time, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
-                  }}
-                  onBlur={field.handleBlur} />
-                <FieldError error={field.state.meta.errors[0]} />
+                    setEndDate(e.target.value)
+                    notifyFormChange(form.state.values.date, form.state.values.start_time, e.target.value, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                  }} />
+                {endDate === form.state.values.date && (
+                  <p className="mt-1 font-mono text-[9px] text-ink-soft">Same day — end date hidden</p>
+                )}
               </div>
             )}
-          </form.Field>
+          </div>
 
           {/* Start / End time */}
           <div className="grid grid-cols-2 gap-3">
@@ -211,7 +234,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   <input type="time" className={inputClass} value={field.state.value}
                     onChange={(e) => {
                       field.handleChange(e.target.value)
-                      notifyFormChange(form.state.values.date, e.target.value, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                      notifyFormChange(form.state.values.date, e.target.value, endDate, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
                     }}
                     onBlur={field.handleBlur} />
                   <FieldError error={field.state.meta.errors[0]} />
@@ -225,8 +248,19 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   <label className={labelClass}>End Time</label>
                   <input type="time" className={inputClass} value={field.state.value}
                     onChange={(e) => {
-                      field.handleChange(e.target.value)
-                      notifyFormChange(form.state.values.date, form.state.values.start_time, e.target.value, form.state.values.worker_id, form.state.values.client_id)
+                      const newEnd = e.target.value
+                      field.handleChange(newEnd)
+                      const startTime = form.state.values.start_time
+                      const date      = form.state.values.date
+                      // Auto-advance end date when crossing midnight
+                      if (newEnd && startTime && newEnd <= startTime && endDate === date) {
+                        setEndDate(nextDay(date))
+                      }
+                      // Auto-reset end date when no longer overnight
+                      if (newEnd && startTime && newEnd > startTime && endDate === nextDay(date)) {
+                        setEndDate(date)
+                      }
+                      notifyFormChange(date, startTime, endDate, newEnd, form.state.values.worker_id, form.state.values.client_id)
                     }}
                     onBlur={field.handleBlur} />
                   <FieldError error={field.state.meta.errors[0]} />
