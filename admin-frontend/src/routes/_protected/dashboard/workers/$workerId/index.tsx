@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { Kicker } from '@/shared/components/ui'
+import { Kicker, ShiftStatusBadge } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/')({
   component: WorkerOverview,
@@ -47,23 +47,8 @@ function sumHours(shifts: ShiftOccurrence[]): number {
     .reduce((sum, s) => sum + (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3_600_000, 0)
 }
 
-const STATUS_CONFIG: Record<string, { bg: string; label: string }> = {
-  completed:   { bg: 'bg-ink',       label: 'COMPLETED'   },
-  in_progress: { bg: 'bg-mint',      label: 'IN PROGRESS' },
-  scheduled:   { bg: 'bg-orange',    label: 'SCHEDULED'   },
-  no_show:     { bg: 'bg-orange',    label: 'NO SHOW'     },
-  cancelled:   { bg: 'bg-cream-2',   label: 'CANCELLED'   },
-  dropped:     { bg: 'bg-yellow',    label: 'DROPPED'     },
-}
-
 function StatusCell({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { bg: 'bg-cream-2', label: status.toUpperCase() }
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 border border-ink/20 ${cfg.bg}`} />
-      <span className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft">{cfg.label}</span>
-    </div>
-  )
+  return <ShiftStatusBadge status={status} />
 }
 
 function WorkerOverview() {

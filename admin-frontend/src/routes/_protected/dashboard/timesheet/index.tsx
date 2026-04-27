@@ -15,7 +15,7 @@ import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { Card, Kicker, Tag, Btn } from '@/shared/components/ui'
+import { Card, Kicker, Btn, ShiftStatusBadge } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/timesheet/')({
   component: TimesheetPage,
@@ -56,19 +56,6 @@ function exportCsv(rows: ShiftOccurrence[], from: string, to: string) {
   URL.revokeObjectURL(url)
 }
 
-function statusTagVariant(status: string) {
-  switch (status) {
-    case 'completed':  return 'mint'    as const
-    case 'cancelled':  return 'rose'    as const
-    case 'no_show':    return 'yellow'  as const
-    case 'dropped':    return 'orange'  as const
-    default:           return 'default' as const
-  }
-}
-
-function statusLabel(status: string) {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-}
 
 // ─── Column helper ────────────────────────────────────────────────────────────
 
@@ -114,11 +101,7 @@ const columns = [
   }),
   col.accessor('completion_status', {
     header: 'Status',
-    cell: (info) => (
-      <Tag variant={statusTagVariant(info.getValue())}>
-        {statusLabel(info.getValue())}
-      </Tag>
-    ),
+    cell: (info) => <ShiftStatusBadge status={info.getValue()} />,
   }),
 ]
 

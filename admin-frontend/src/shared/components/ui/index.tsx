@@ -1,4 +1,5 @@
 import { type ReactNode, type ButtonHTMLAttributes } from 'react'
+import { getStatusToken } from '@/shared/lib/shiftStatus'
 
 // ─── cn utility ──────────────────────────────────────────────────────────────
 function cn(...classes: (string | undefined | false | null)[]) {
@@ -206,6 +207,29 @@ export function StatusDot({ status, className }: StatusDotProps) {
     <span className={cn('inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.1em]', className)}>
       <span className={cn('dot', m.dot)} />
       {m.label}
+    </span>
+  )
+}
+
+// ─── ShiftStatusBadge ────────────────────────────────────────────────────────
+// Single badge component for shift completion status — uses STATUS_TOKENS as
+// the sole source of truth. Import this instead of defining local status maps.
+export function ShiftStatusBadge({ status }: { status: string }) {
+  const t = getStatusToken(status)
+  return (
+    <span style={{
+      background: t.bg,
+      color: t.color,
+      border: `1px ${t.dashed ? 'dashed' : 'solid'} ${t.border}`,
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 9,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+      padding: '3px 8px',
+      display: 'inline-block',
+      whiteSpace: 'nowrap',
+    }}>
+      {t.label}
     </span>
   )
 }
