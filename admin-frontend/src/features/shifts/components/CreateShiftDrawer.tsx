@@ -96,8 +96,14 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
         setServerError('Select at least one day for weekly recurrence.')
         return
       }
+      // Safety net: forcibly roll over the end date if the time is overnight
+      let safeEndDate = endDate
+      if (value.end_time <= value.start_time && safeEndDate === value.date) {
+        safeEndDate = nextDay(value.date)
+      }
+
       const startISO = new Date(`${value.date}T${value.start_time}`).toISOString()
-      const endISO   = new Date(`${endDate}T${value.end_time}`).toISOString()
+      const endISO   = new Date(`${safeEndDate}T${value.end_time}`).toISOString()
       try {
         await shiftsApi.createShift({
           worker_id:  value.worker_id,
@@ -233,8 +239,21 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   <label className={labelClass}>Start Time</label>
                   <input type="time" className={inputClass} value={field.state.value}
                     onChange={(e) => {
-                      field.handleChange(e.target.value)
-                      notifyFormChange(form.state.values.date, e.target.value, endDate, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                      const newStart = e.target.value
+                      field.handleChange(newStart)
+                      const endTime = form.state.values.end_time
+                      const date    = form.state.values.date
+                      
+                      // Auto-advance end date when crossing midnight
+                      if (newStart && endTime && endTime <= newStart && endDate === date) {
+                        setEndDate(nextDay(date))
+                      }
+                      // Auto-reset end date when no longer overnight
+                      if (newStart && endTime && endTime > newStart && endDate === nextDay(date)) {
+                        setEndDate(date)
+                      }
+                      
+                      notifyFormChange(date, newStart, endDate, endTime, form.state.values.worker_id, form.state.values.client_id)
                     }}
                     onBlur={field.handleBlur} />
                   <FieldError error={field.state.meta.errors[0]} />
