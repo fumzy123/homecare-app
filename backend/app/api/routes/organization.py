@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
+from slowapi.util import get_remote_address
 from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, OrganizationResponseSchema
 from app.services.org_service import OrgService
 from app.core.security import require_admin, require_owner, get_current_user
+from app.core.limiter import limiter
 from app.db.session import get_db
 
 router = APIRouter()
@@ -14,7 +16,9 @@ router = APIRouter()
 # then calls this endpoint with the JWT to set up the org
 # ─────────────────────────────────────────
 @router.post("/", response_model=None)
+@limiter.limit("5/minute", key_func=get_remote_address)
 async def register_organization(
+    request: Request,
     payload: RegisterOrganizationSchema,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),

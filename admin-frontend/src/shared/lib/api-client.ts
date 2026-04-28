@@ -4,6 +4,7 @@ import { supabase } from '@/shared/lib/supabase'
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_API_URL ?? 'http://127.0.0.1:8000',
+  timeout: 15000,
 })
 
 apiClient.interceptors.request.use((config) => {

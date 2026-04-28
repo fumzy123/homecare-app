@@ -25,6 +25,9 @@ function AcceptTermsPage() {
       setTermsAccepted(CURRENT_TERMS_VERSION)
       navigate({ to: '/dashboard' })
     },
+    onError: (err) => {
+      console.error('[accept-terms] failed:', err)
+    },
   })
 
   return (
@@ -107,7 +110,10 @@ function AcceptTermsPage() {
           {/* Error */}
           {accept.isError && (
             <p className="font-mono text-[11px] text-orange mb-4">
-              Something went wrong. Please try again.
+              {(accept.error as any)?.code === 'ECONNABORTED'
+                ? 'Request timed out — make sure the backend server is running.'
+                : (accept.error as any)?.response?.data?.error?.message
+                  ?? 'Something went wrong. Check the browser console for details.'}
             </p>
           )}
 

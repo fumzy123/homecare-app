@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (updates) => set((state) => ({
         user: state.user ? { ...state.user, ...updates } : null,
       })),
-      clearAuth: () => set({ accessToken: null, user: null, termsAcceptedVersion: null }),
+      clearAuth: () => set({ accessToken: null, user: null }),
     }),
     {
       name: 'auth-storage',

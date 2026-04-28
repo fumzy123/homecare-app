@@ -7,9 +7,6 @@ import { supabase } from '@/shared/lib/supabase'
 import { useAuthStore } from '@/shared/stores/auth'
 import './index.css'
 
-// Supabase is the single source of truth for the JWT.
-// Whenever it refreshes the token, we sync it into Zustand
-// so the Axios interceptor always sends a valid Bearer token.
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session) {
     useAuthStore.getState().setAuth(session.access_token, {

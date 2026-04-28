@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.invitation import CreateInvitationSchema
 from app.services.invitation_service import InvitationService
 from app.core.security import require_admin
+from app.core.limiter import limiter
 
 router = APIRouter()
 
@@ -14,7 +15,9 @@ router = APIRouter()
 # Only owners and admins can do this
 # ─────────────────────────────────────────
 @router.post("/")
+@limiter.limit("20/hour")
 async def create_invitation(
+    request: Request,
     payload: CreateInvitationSchema,
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
