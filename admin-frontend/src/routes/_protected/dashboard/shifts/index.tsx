@@ -69,7 +69,7 @@ function MonthHeader({ label }: { label: string }) {
   )
 }
 
-function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps) {
+function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps<CalendarEvent, object>) {
   const ws = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
   const we = endOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
 

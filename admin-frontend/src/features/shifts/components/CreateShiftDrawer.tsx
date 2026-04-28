@@ -153,7 +153,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                 <select className={selectClass} value={field.state.value}
                   onChange={(e) => {
                     field.handleChange(e.target.value)
-                    notifyFormChange(form.state.values.date, form.state.values.start_time, form.state.values.end_time, e.target.value, form.state.values.client_id)
+                    notifyFormChange(form.state.values.date, form.state.values.start_time, endDate, form.state.values.end_time, e.target.value, form.state.values.client_id)
                   }}
                   onBlur={field.handleBlur}
                 >
@@ -175,7 +175,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                     field.handleChange(e.target.value)
                     const selected = clients.find((c) => c.id === e.target.value)
                     setLocation(selected ? `${selected.street}, ${selected.city}, ${selected.province} ${selected.postal_code}` : '')
-                    notifyFormChange(form.state.values.date, form.state.values.start_time, form.state.values.end_time, form.state.values.worker_id, e.target.value)
+                    notifyFormChange(form.state.values.date, form.state.values.start_time, endDate, form.state.values.end_time, form.state.values.worker_id, e.target.value)
                   }}
                   onBlur={field.handleBlur}
                 >
