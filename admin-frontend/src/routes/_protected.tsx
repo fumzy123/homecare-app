@@ -3,15 +3,30 @@ import { useState } from 'react'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
-import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
+import { CURRENT_TERMS_VERSION, legalApi } from '@/shared/lib/legal'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 
 export const Route = createFileRoute('/_protected')({
-  beforeLoad: () => {
+  beforeLoad: async () => {
     const { accessToken, termsAcceptedVersion } = useAuthStore.getState()
     if (!accessToken) throw redirect({ to: '/login' })
-    if (termsAcceptedVersion !== CURRENT_TERMS_VERSION) throw redirect({ to: '/accept-terms' })
+
+    // Fast path — already accepted and stored locally
+    if (termsAcceptedVersion === CURRENT_TERMS_VERSION) return
+
+    // Store is stale or empty (e.g. after logout) — check the database
+    try {
+      const status = await legalApi.getStatus()
+      if (status.accepted && status.accepted_version === CURRENT_TERMS_VERSION) {
+        useAuthStore.getState().setTermsAccepted(status.accepted_version)
+        return
+      }
+    } catch {
+      // Backend unreachable — fall through to terms gate
+    }
+
+    throw redirect({ to: '/accept-terms' })
   },
   component: ProtectedLayout,
 })
