@@ -1,7 +1,7 @@
 """add_terms_consent_to_organizations
 
-Revision ID: a1b2c3d4e5f6
-Revises: edf8be3e0429
+Revision ID: b7c8d9e0f1a2
+Revises: a822248969df
 Create Date: 2026-04-28 10:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'a1b2c3d4e5f6'
-down_revision: Union[str, Sequence[str], None] = 'edf8be3e0429'
+revision: str = 'b7c8d9e0f1a2'
+down_revision: Union[str, Sequence[str], None] = 'a822248969df'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
