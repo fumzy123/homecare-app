@@ -42,11 +42,15 @@ function WorkersPage() {
       {/* Page header */}
       <div className="flex items-end justify-between px-10 pt-10 pb-6">
         <div>
-          <Kicker leader className="mb-4">03 / Personnel</Kicker>
+          <Kicker leader className="mb-4">02 / Profile Management - Workers</Kicker>
           <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
-            Workers{' '}
-            <span className="font-serif italic text-muted">
+            Home Support{' '}
+            {/* <span className="font-serif italic text-muted">
               — {workers.length} on staff
+            </span> */}
+
+            <span className="font-serif italic text-muted">
+              workers.
             </span>
           </h1>
         </div>
