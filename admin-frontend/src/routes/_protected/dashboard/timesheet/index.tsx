@@ -158,10 +158,10 @@ function TimesheetPage() {
   return (
     <div className="min-h-full bg-cream flex flex-col">
       {/* Header */}
-      <div className="flex items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-y-5 gap-x-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">05 / Timesheets</Kicker>
-          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
             Timesheets{' '}
             <span className="font-serif italic text-muted">— payroll record</span>
           </h1>
@@ -170,6 +170,7 @@ function TimesheetPage() {
           variant="ghost"
           onClick={() => exportCsv(filteredShifts, fromDate, toDate)}
           disabled={filteredShifts.length === 0}
+          className="max-sm:w-full max-sm:justify-center"
         >
           <Download size={14} />
           Export CSV
@@ -177,29 +178,37 @@ function TimesheetPage() {
       </div>
 
       {/* Filters */}
-      <div className="px-10 max-md:px-4 pb-6 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">From</label>
-          <DateInput value={fromDate} onChange={setFromDate} />
+      <div className="px-10 max-md:px-4 pb-6 flex flex-wrap items-center gap-x-6 gap-y-4">
+        
+        {/* Date Filter Group */}
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-2">
+            <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft shrink-0">From</label>
+            <DateInput value={fromDate} onChange={setFromDate} />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft shrink-0">To</label>
+            <DateInput value={toDate} onChange={setToDate} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">To</label>
-          <DateInput value={toDate} onChange={setToDate} />
+
+        {/* Dropdown Group */}
+        <div className="flex flex-wrap items-center gap-3 flex-1 w-full sm:w-auto">
+          <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+            <option value="">All workers</option>
+            {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
+          </select>
+          <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+            <option value="">All clients</option>
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+            <option value="">All statuses</option>
+            <option value="completed">Completed</option>
+            <option value="no_show">No Show</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
-        <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass}>
-          <option value="">All workers</option>
-          {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
-        </select>
-        <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass}>
-          <option value="">All clients</option>
-          {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-        </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass}>
-          <option value="">All statuses</option>
-          <option value="completed">Completed</option>
-          <option value="no_show">No Show</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
       </div>
 
       {/* Table */}
