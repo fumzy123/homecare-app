@@ -114,9 +114,9 @@ function ClientsPage() {
         {!isLoading && !isError && filtered.length > 0 && (
           <Card className="p-0">
             {/* Table header */}
-            <div className="grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] bg-cream-2 border-b border-ink">
+            <div className="grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] bg-ink border-b border-ink">
               {['#', 'Client', 'Location', 'Service', 'Status', 'Since'].map((h, i) => (
-                <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
+                <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80">
                   {h}
                 </div>
               ))}
@@ -151,7 +151,7 @@ function ClientRow({ client, index }: { client: Client; index: number }) {
     <Link
       to="/dashboard/clients/$clientId"
       params={{ clientId: client.id } as never}
-      className={`grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] items-center transition-all hover:bg-[#FFE2D4] hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_#111111] hover:z-10 relative ${
+      className={`grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] items-center transition-all hover:bg-cream-2 hover:z-10 relative ${
         index > 0 ? 'border-t border-dashed border-line-soft' : ''
       }`}
     >

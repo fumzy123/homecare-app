@@ -88,7 +88,7 @@ function WorkersPage() {
               </div>
             )}
             {workers.length > 0 && (
-              <div className="grid grid-cols-2 gap-0 border border-ink lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {workers.map((worker, i) => (
                   <WorkerRow key={worker.id} worker={worker} index={i} />
                 ))}
@@ -165,17 +165,12 @@ function WorkersPage() {
 function WorkerRow({ worker, index }: { worker: Worker; index: number }) {
   const color = AVATAR_COLORS[index % AVATAR_COLORS.length]
   const initials = `${worker.first_name[0]}${worker.last_name[0]}`
-  const col = index % 4
-  const row = Math.floor(index / 4)
 
   return (
     <Link
       to="/dashboard/workers/$workerId"
       params={{ workerId: worker.id } as never}
-      className={`flex items-center gap-4 p-5 bg-paper hover:bg-cream-2 transition-colors lift
-        ${col > 0 ? 'border-l border-ink' : ''}
-        ${row > 0 ? 'border-t border-ink' : ''}
-      `}
+      className="flex items-center gap-4 p-5 bg-paper border border-ink hover:bg-cream-2 transition-colors lift"
     >
       <Avatar initials={initials} color={color} size="lg" />
       <div className="flex-1 min-w-0">
