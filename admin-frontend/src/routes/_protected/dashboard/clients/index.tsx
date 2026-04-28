@@ -45,11 +45,11 @@ function ClientsPage() {
       {/* Page header */}
       <div className="flex items-end justify-between px-10 pt-10 pb-6">
         <div>
-          <Kicker leader className="mb-4">02 / Client files</Kicker>
+          <Kicker leader className="mb-4">03 / Profile Management - Clients</Kicker>
           <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
-            Clients{' '}
+            Clients &{' '}
             <span className="font-serif italic text-muted">
-              — {clients.length} on record
+              care plans.
             </span>
           </h1>
         </div>
