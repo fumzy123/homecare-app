@@ -16,7 +16,7 @@ import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { Card, Kicker, Btn, ShiftStatusBadge } from '@/shared/components/ui'
+import { Card, Kicker, Btn, ShiftStatusBadge, DateInput } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/timesheet/')({
   component: TimesheetPage,
@@ -180,11 +180,11 @@ function TimesheetPage() {
       <div className="px-10 pb-6 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">From</label>
-          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className={inputClass} />
+          <DateInput value={fromDate} onChange={setFromDate} />
         </div>
         <div className="flex items-center gap-2">
           <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">To</label>
-          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className={inputClass} />
+          <DateInput value={toDate} onChange={setToDate} />
         </div>
         <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass}>
           <option value="">All workers</option>
