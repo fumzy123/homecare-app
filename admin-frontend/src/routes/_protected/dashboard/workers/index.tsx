@@ -111,43 +111,45 @@ function WorkersPage() {
                 <p className="font-mono text-[11px] text-muted tracking-wide">CLICK INVITE TO ADD A MEMBER</p>
               </div>
             ) : (
-              <Card className="p-0">
-                {/* Table header */}
-                <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_40px] bg-cream-2 border-b border-ink">
-                  {['Email', 'Role', 'Status', 'Invited', 'Expires', ''].map((h, i) => (
-                    <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
-                      {h}
+              <div className="overflow-x-auto">
+                <Card className="p-0 min-w-[560px]">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_40px] bg-cream-2 border-b border-ink">
+                    {['Email', 'Role', 'Status', 'Invited', 'Expires', ''].map((h, i) => (
+                      <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
+                        {h}
+                      </div>
+                    ))}
+                  </div>
+                  {invitations.map((inv, i) => (
+                    <div
+                      key={inv.id}
+                      className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_40px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                    >
+                      <div className="px-4 py-3 text-[13px]">{inv.email}</div>
+                      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{ROLE_LABELS[inv.role] ?? inv.role}</div>
+                      <div className="px-4 py-3">
+                        <Tag variant={inv.accepted_at ? 'mint' : 'default'}>
+                          {inv.accepted_at ? 'Accepted' : 'Pending'}
+                        </Tag>
+                      </div>
+                      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.invited_at).toLocaleDateString()}</div>
+                      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.expires_at).toLocaleDateString()}</div>
+                      <div className="px-4 py-3">
+                        {!inv.accepted_at && (
+                          <button
+                            onClick={() => revoke.mutate(inv.id)}
+                            className="text-muted hover:text-orange transition-colors"
+                            title="Revoke"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
-                </div>
-                {invitations.map((inv, i) => (
-                  <div
-                    key={inv.id}
-                    className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_40px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
-                  >
-                    <div className="px-4 py-3 text-[13px]">{inv.email}</div>
-                    <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{ROLE_LABELS[inv.role] ?? inv.role}</div>
-                    <div className="px-4 py-3">
-                      <Tag variant={inv.accepted_at ? 'mint' : 'default'}>
-                        {inv.accepted_at ? 'Accepted' : 'Pending'}
-                      </Tag>
-                    </div>
-                    <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.invited_at).toLocaleDateString()}</div>
-                    <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.expires_at).toLocaleDateString()}</div>
-                    <div className="px-4 py-3">
-                      {!inv.accepted_at && (
-                        <button
-                          onClick={() => revoke.mutate(inv.id)}
-                          className="text-muted hover:text-orange transition-colors"
-                          title="Revoke"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </Card>
+                </Card>
+              </div>
             )}
           </>
         )}

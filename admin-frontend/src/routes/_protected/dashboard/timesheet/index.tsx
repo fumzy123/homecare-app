@@ -204,55 +204,57 @@ function TimesheetPage() {
 
       {/* Table */}
       <div className="flex-1 px-10 max-md:px-4 pb-12">
-        <Card className="p-0 overflow-hidden">
+        <Card className="p-0">
           {isLoading ? (
             <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>
           ) : filteredShifts.length === 0 ? (
             <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">NO SHIFTS FOR THIS PERIOD</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="bg-ink border-b border-ink">
-                    {hg.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        onClick={header.column.getToggleSortingHandler()}
-                        className={`px-4 py-3 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80 select-none ${
-                          header.column.getCanSort() ? 'cursor-pointer hover:text-cream' : ''
-                        }`}
-                      >
-                        <span className="flex items-center gap-1">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            <span className="text-muted">
-                              {{ asc: '↑', desc: '↓' }[header.column.getIsSorted() as string] ?? '↕'}
-                            </span>
-                          )}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row, i) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => setSelectedShift(row.original)}
-                    className={`cursor-pointer hover:bg-cream-2 transition-colors ${
-                      i > 0 ? 'border-t border-dashed border-line-soft' : ''
-                    }`}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3.5">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-sm">
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="bg-ink border-b border-ink">
+                      {hg.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          onClick={header.column.getToggleSortingHandler()}
+                          className={`px-4 py-3 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80 select-none ${
+                            header.column.getCanSort() ? 'cursor-pointer hover:text-cream' : ''
+                          }`}
+                        >
+                          <span className="flex items-center gap-1">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getCanSort() && (
+                              <span className="text-muted">
+                                {{ asc: '↑', desc: '↓' }[header.column.getIsSorted() as string] ?? '↕'}
+                              </span>
+                            )}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => setSelectedShift(row.original)}
+                      className={`cursor-pointer hover:bg-cream-2 transition-colors ${
+                        i > 0 ? 'border-t border-dashed border-line-soft' : ''
+                      }`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3.5">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* Summary footer */}

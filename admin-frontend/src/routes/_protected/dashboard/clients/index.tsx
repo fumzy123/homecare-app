@@ -112,21 +112,23 @@ function ClientsPage() {
         )}
 
         {!isLoading && !isError && filtered.length > 0 && (
-          <Card className="p-0">
-            {/* Table header */}
-            <div className="grid grid-cols-[40px_10fr_8fr_6fr_3fr_4fr] bg-ink border-b border-ink">
-              {['#', 'Client', 'Location', 'Service', 'Status', 'Since'].map((h, i) => (
-                <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80">
-                  {h}
-                </div>
-              ))}
-            </div>
+          <div className="overflow-x-auto">
+            <Card className="p-0 min-w-[640px]">
+              {/* Table header */}
+              <div className="grid grid-cols-[40px_10fr_8fr_6fr_3fr_4fr] bg-ink border-b border-ink">
+                {['#', 'Client', 'Location', 'Service', 'Status', 'Since'].map((h, i) => (
+                  <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80">
+                    {h}
+                  </div>
+                ))}
+              </div>
 
-            {/* Rows */}
-            {filtered.map((client, i) => (
-              <ClientRow key={client.id} client={client} index={i} />
-            ))}
-          </Card>
+              {/* Rows */}
+              {filtered.map((client, i) => (
+                <ClientRow key={client.id} client={client} index={i} />
+              ))}
+            </Card>
+          </div>
         )}
       </div>
 
