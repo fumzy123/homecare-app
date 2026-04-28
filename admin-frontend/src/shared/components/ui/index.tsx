@@ -1,4 +1,11 @@
-import { type ReactNode, type ButtonHTMLAttributes } from 'react'
+import { type ReactNode, type ButtonHTMLAttributes, useState, useRef, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import {
+  format, parse, addDays, addMonths, subMonths,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  isSameDay, isSameMonth, isToday,
+} from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { getStatusToken } from '@/shared/lib/shiftStatus'
 
 // ─── cn utility ──────────────────────────────────────────────────────────────
@@ -278,4 +285,162 @@ export function SectionHeader({ kicker, title, sub, right, className }: SectionH
 // ─── Dashed divider ───────────────────────────────────────────────────────────
 export function Divider({ className }: { className?: string }) {
   return <div className={cn('border-t border-dashed border-line-soft', className)} />
+}
+
+// ─── DateInput ────────────────────────────────────────────────────────────────
+// Custom date picker that matches the design system.
+// value / onChange use 'yyyy-MM-dd' strings, same API as <input type="date">.
+
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+interface DateInputProps {
+  value: string
+  onChange: (value: string) => void
+  onBlur?: () => void
+  min?: string
+  max?: string
+  placeholder?: string
+  className?: string
+}
+
+export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Select date', className }: DateInputProps) {
+  const [open, setOpen]         = useState(false)
+  const [viewDate, setViewDate] = useState<Date>(() =>
+    value ? parse(value, 'yyyy-MM-dd', new Date()) : new Date()
+  )
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        onBlur?.()
+      }
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [open, onBlur])
+
+  useEffect(() => {
+    if (value) setViewDate(parse(value, 'yyyy-MM-dd', new Date()))
+  }, [value])
+
+  const selected = value ? parse(value, 'yyyy-MM-dd', new Date()) : null
+  const minDate  = min ? parse(min, 'yyyy-MM-dd', new Date()) : null
+  const maxDate  = max ? parse(max, 'yyyy-MM-dd', new Date()) : null
+
+  function buildDays(): Date[] {
+    const start = startOfWeek(startOfMonth(viewDate), { weekStartsOn: WEEK_STARTS_ON })
+    const end   = endOfWeek(endOfMonth(viewDate),     { weekStartsOn: WEEK_STARTS_ON })
+    const days: Date[] = []
+    let cur = start
+    while (cur <= end) { days.push(cur); cur = addDays(cur, 1) }
+    return days
+  }
+
+  function disabled(day: Date) {
+    return (minDate != null && day < minDate) || (maxDate != null && day > maxDate)
+  }
+
+  function select(day: Date) {
+    if (disabled(day)) return
+    onChange(format(day, 'yyyy-MM-dd'))
+    setOpen(false)
+    onBlur?.()
+  }
+
+  function goToday() {
+    const today = new Date()
+    setViewDate(today)
+    if (!disabled(today)) { onChange(format(today, 'yyyy-MM-dd')); setOpen(false); onBlur?.() }
+  }
+
+  const displayValue = selected ? format(selected, 'MMM d, yyyy') : ''
+  const days = buildDays()
+
+  return (
+    <div ref={ref} className={cn('relative', className)}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink w-full text-left flex items-center justify-between gap-2"
+      >
+        <span className={displayValue ? 'text-ink' : 'text-ink-soft'}>{displayValue || placeholder}</span>
+        <Calendar size={12} className="text-ink-soft shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-paper border border-ink p-4 w-64 shadow-sm">
+          {/* Month navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <button type="button" onClick={() => setViewDate(d => subMonths(d, 1))} className="p-1 hover:bg-cream-2 transition-colors">
+              <ChevronLeft size={13} />
+            </button>
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink">
+              {format(viewDate, 'MMMM yyyy')}
+            </span>
+            <button type="button" onClick={() => setViewDate(d => addMonths(d, 1))} className="p-1 hover:bg-cream-2 transition-colors">
+              <ChevronRight size={13} />
+            </button>
+          </div>
+
+          {/* Day-of-week headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {DAY_LABELS.map(d => (
+              <div key={d} className="text-center font-mono text-[9px] uppercase tracking-[0.06em] text-ink-soft py-1">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* Days grid */}
+          <div className="grid grid-cols-7">
+            {days.map((day, i) => {
+              const sel      = selected != null && isSameDay(day, selected)
+              const inMonth  = isSameMonth(day, viewDate)
+              const todayDay = isToday(day)
+              const dis      = disabled(day)
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={dis}
+                  onClick={() => select(day)}
+                  className={cn(
+                    'h-8 w-full font-mono text-[11px] transition-colors',
+                    sel      ? 'bg-ink text-cream'
+                    : todayDay ? 'border border-ink text-ink hover:bg-cream-2'
+                    :            'hover:bg-cream-2 text-ink',
+                    !inMonth && 'opacity-30',
+                    dis      && 'opacity-20 cursor-not-allowed',
+                  )}
+                >
+                  {format(day, 'd')}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between mt-3 pt-3 border-t border-dashed border-line-soft">
+            <button
+              type="button"
+              onClick={() => { onChange(''); setOpen(false); onBlur?.() }}
+              className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink transition-colors"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={goToday}
+              className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink transition-colors"
+            >
+              Today
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }

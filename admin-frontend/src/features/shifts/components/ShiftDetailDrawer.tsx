@@ -7,7 +7,7 @@ import { shiftsApi, type ShiftOccurrence, type NoteEntry } from '@/features/shif
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
-import { Avatar, Kicker } from '@/shared/components/ui'
+import { Avatar, Kicker, DateInput } from '@/shared/components/ui'
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -222,20 +222,17 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>{endDate !== date ? 'Start Date' : 'Date'}</label>
-                  <input type="date" className={inputClass} value={date}
-                    onChange={(e) => {
-                      const newDate = e.target.value
-                      if (endDate === nextDay(date)) setEndDate(nextDay(newDate))
-                      else if (endDate === date) setEndDate(newDate)
-                      setDate(newDate)
-                    }} />
+                  <DateInput value={date}
+                    onChange={(v) => {
+                      if (endDate === nextDay(date)) setEndDate(nextDay(v))
+                      else if (endDate === date) setEndDate(v)
+                      setDate(v)
+                    }} className="w-full" />
                 </div>
                 {endDate !== date && (
                   <div>
                     <label className={labelClass}>End Date</label>
-                    <input type="date" className={inputClass} value={endDate}
-                      min={date}
-                      onChange={(e) => setEndDate(e.target.value)} />
+                    <DateInput value={endDate} min={date} onChange={setEndDate} className="w-full" />
                   </div>
                 )}
               </div>

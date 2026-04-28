@@ -2,7 +2,7 @@ import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 import { z } from 'zod'
 import { clientsApi, type ClientCreatePayload, type ClientStatus, type ServiceType } from '@/features/clients/api'
-import { Kicker } from '@/shared/components/ui'
+import { Kicker, DateInput } from '@/shared/components/ui'
 
 const schema = z.object({
   first_name: z.string().min(1, 'Required'),
@@ -127,7 +127,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="date_of_birth" validators={{ onChange: ({ value }) => { const r = schema.shape.date_of_birth.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Date of Birth <span className="text-orange">*</span></label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Date of Birth <span className="text-orange">*</span></label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="gender">
               {(field) => (<div><label className={labelClass}>Gender</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}><option value="">Select…</option><option value="male">Male</option><option value="female">Female</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></div>)}
@@ -176,10 +176,10 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="care_start_date" validators={{ onChange: ({ value }) => { const r = schema.shape.care_start_date.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Care Start <span className="text-orange">*</span></label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Care Start <span className="text-orange">*</span></label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="care_end_date">
-              {(field) => (<div><label className={labelClass}>Care End</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>)}
+              {(field) => (<div><label className={labelClass}>Care End</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" /></div>)}
             </form.Field>
           </div>
 

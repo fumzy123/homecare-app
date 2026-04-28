@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { clientsApi, type ClientStatus, type ServiceType } from '@/features/clients/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
-import { Kicker } from '@/shared/components/ui'
+import { Kicker, DateInput } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/edit')({
   component: ClientEditPage,
@@ -177,7 +177,7 @@ function ClientEditForm({ clientId, client }: { clientId: string; client: Client
           </div>
           <div className="grid grid-cols-2 gap-4">
             <form.Field name="date_of_birth" validators={{ onChange: ({ value }) => validate(schema.shape.date_of_birth, value) }}>
-              {(field) => (<div><label className={labelClass}>Date of Birth</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Date of Birth</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="gender">
               {(field) => (<div><label className={labelClass}>Gender</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}><option value="">Select…</option><option value="male">Male</option><option value="female">Female</option><option value="non_binary">Non-binary</option><option value="prefer_not_to_say">Prefer not to say</option></select></div>)}
@@ -232,10 +232,10 @@ function ClientEditForm({ clientId, client }: { clientId: string; client: Client
           </div>
           <div className="grid grid-cols-2 gap-4">
             <form.Field name="care_start_date" validators={{ onChange: ({ value }) => validate(schema.shape.care_start_date, value) }}>
-              {(field) => (<div><label className={labelClass}>Care Start</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Care Start</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="care_end_date">
-              {(field) => (<div><label className={labelClass}>Care End</label><input type="date" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>)}
+              {(field) => (<div><label className={labelClass}>Care End</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" /></div>)}
             </form.Field>
           </div>
           <form.Field name="funding_source">

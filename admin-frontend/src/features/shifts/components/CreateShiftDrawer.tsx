@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
-import { Kicker } from '@/shared/components/ui'
+import { Kicker, DateInput } from '@/shared/components/ui'
 
 function nextDay(date: string): string {
   const d = new Date(`${date}T00:00`)
@@ -201,15 +201,14 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
               {(field) => (
                 <div>
                   <label className={labelClass}>{endDate !== field.state.value ? 'Start Date' : 'Date'}</label>
-                  <input type="date" className={inputClass} value={field.state.value}
-                    onChange={(e) => {
-                      field.handleChange(e.target.value)
-                      // Keep end date in sync if it was just date+1
-                      if (endDate === nextDay(field.state.value)) setEndDate(nextDay(e.target.value))
-                      else if (endDate === field.state.value) setEndDate(e.target.value)
-                      notifyFormChange(e.target.value, form.state.values.start_time, endDate, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                  <DateInput value={field.state.value}
+                    onChange={(v) => {
+                      field.handleChange(v)
+                      if (endDate === nextDay(field.state.value)) setEndDate(nextDay(v))
+                      else if (endDate === field.state.value) setEndDate(v)
+                      notifyFormChange(v, form.state.values.start_time, endDate, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
                     }}
-                    onBlur={field.handleBlur} />
+                    onBlur={field.handleBlur} className="w-full" />
                   <FieldError error={field.state.meta.errors[0]} />
                 </div>
               )}
@@ -218,12 +217,12 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
             {endDate !== form.state.values.date && (
               <div>
                 <label className={labelClass}>End Date</label>
-                <input type="date" className={inputClass} value={endDate}
+                <DateInput value={endDate}
                   min={form.state.values.date}
-                  onChange={(e) => {
-                    setEndDate(e.target.value)
-                    notifyFormChange(form.state.values.date, form.state.values.start_time, e.target.value, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
-                  }} />
+                  onChange={(v) => {
+                    setEndDate(v)
+                    notifyFormChange(form.state.values.date, form.state.values.start_time, v, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
+                  }} className="w-full" />
                 {endDate === form.state.values.date && (
                   <p className="mt-1 font-mono text-[9px] text-ink-soft">Same day — end date hidden</p>
                 )}
@@ -366,8 +365,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                 {/* End date */}
                 <div>
                   <label className={labelClass}>End Date <span className="normal-case text-muted">(optional)</span></label>
-                  <input type="date" className={inputClass} value={recurrenceEndDate}
-                    onChange={(e) => setRecurrenceEndDate(e.target.value)} />
+                  <DateInput value={recurrenceEndDate} onChange={setRecurrenceEndDate} className="w-full" />
                   <p className="mt-1 font-mono text-[9px] text-muted">Leave blank to repeat indefinitely.</p>
                 </div>
               </div>

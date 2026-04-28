@@ -10,7 +10,7 @@ import {
   EMPLOYMENT_TYPE_LABELS,
 } from '@/features/workers/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
-import { Kicker } from '@/shared/components/ui'
+import { Kicker, DateInput } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
   component: WorkerEditPage,
@@ -209,8 +209,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
             {(field) => (
               <div>
                 <label className={labelClass}>Date of Birth</label>
-                <input type="date" className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} />
+                <DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" />
               </div>
             )}
           </form.Field>
@@ -219,8 +218,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
             {(field) => (
               <div>
                 <label className={labelClass}>Hire Date</label>
-                <input type="date" className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} />
+                <DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" />
               </div>
             )}
           </form.Field>
