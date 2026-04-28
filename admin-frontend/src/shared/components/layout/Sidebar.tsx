@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
+import { X } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
 import { Avatar } from '@/shared/components/ui'
@@ -12,7 +13,12 @@ const NAV = [
   { to: '/dashboard/timesheet', num: '05', label: 'Timesheets' },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  open: boolean
+  onClose: () => void
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
   const routerState = useRouterState()
@@ -46,11 +52,16 @@ export function Sidebar() {
   }, [menuOpen])
 
   return (
-    <aside className="flex h-screen w-52 flex-col border-r border-ink bg-cream shrink-0">
+    <aside className={`
+      max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50
+      flex h-screen w-52 flex-col border-r border-ink bg-cream shrink-0
+      transition-transform duration-200 ease-in-out
+      ${open ? '' : 'max-lg:-translate-x-full'}
+    `}>
 
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-ink">
-        <Link to="/dashboard" className="flex items-center gap-2.5">
+      <div className="px-5 py-5 border-b border-ink flex items-center justify-between">
+        <Link to="/dashboard" onClick={onClose} className="flex items-center gap-2.5">
           <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
             <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
             <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
@@ -61,12 +72,19 @@ export function Sidebar() {
             <p className="font-mono text-[8px] tracking-[0.18em] uppercase text-ink-soft mt-0.5">HOME CARE OS</p>
           </div>
         </Link>
+        <button
+          onClick={onClose}
+          className="hidden max-lg:block p-1 text-ink-soft hover:text-ink transition-colors"
+          aria-label="Close menu"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 py-2">
         {NAV.map(({ to, num, label }) => (
-          <Link key={to} to={to}>
+          <Link key={to} to={to} onClick={onClose}>
             <div className={`flex items-center justify-between px-4 py-2.5 font-mono text-[11px] tracking-[0.03em] transition-colors border border-transparent ${
               isActive(to)
                 ? 'bg-ink text-cream border-ink'
