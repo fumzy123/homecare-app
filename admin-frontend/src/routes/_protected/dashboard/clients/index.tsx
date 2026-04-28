@@ -114,7 +114,7 @@ function ClientsPage() {
         {!isLoading && !isError && filtered.length > 0 && (
           <Card className="p-0">
             {/* Table header */}
-            <div className="grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] bg-ink border-b border-ink">
+            <div className="grid grid-cols-[40px_10fr_8fr_6fr_3fr_4fr] bg-ink border-b border-ink">
               {['#', 'Client', 'Location', 'Service', 'Status', 'Since'].map((h, i) => (
                 <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80">
                   {h}
@@ -151,7 +151,7 @@ function ClientRow({ client, index }: { client: Client; index: number }) {
     <Link
       to="/dashboard/clients/$clientId"
       params={{ clientId: client.id } as never}
-      className={`grid grid-cols-[40px_2fr_1fr_1fr_1fr_1fr] items-center transition-all hover:bg-cream-2 hover:z-10 relative ${
+      className={`grid grid-cols-[40px_10fr_8fr_6fr_3fr_4fr] items-center transition-all hover:bg-cream-2 hover:z-10 relative ${
         index > 0 ? 'border-t border-dashed border-line-soft' : ''
       }`}
     >
@@ -164,13 +164,18 @@ function ClientRow({ client, index }: { client: Client; index: number }) {
           <p className="text-[13px] font-medium leading-snug">
             {client.first_name} {client.last_name}
           </p>
-          <p className="font-mono text-[10px] text-ink-soft">
-            {client.id.slice(0, 8).toUpperCase()}{age ? ` · age ${age}` : ''}
-          </p>
+          {age && (
+            <p className="font-mono text-[10px] text-ink-soft">
+              age {age}
+            </p>
+          )}
         </div>
       </div>
-      <div className="px-4 py-3.5 font-mono text-[11px] text-ink-soft">
-        {client.city || '—'}
+      <div className="px-4 py-3.5 min-w-0">
+        <p className="font-mono text-[11px] text-ink truncate">{client.street || '—'}</p>
+        <p className="font-mono text-[10px] text-ink-soft truncate">
+          {[client.city, client.province, client.postal_code].filter(Boolean).join(', ')}
+        </p>
       </div>
       <div className="px-4 py-3.5">
         <Tag variant="default">{SERVICE_TYPE_LABELS[client.service_type] ?? client.service_type}</Tag>
