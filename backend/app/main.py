@@ -36,6 +36,7 @@ def _scrub_pii(event, _hint):
 if settings.backend_sentry_dsn:
     sentry_sdk.init(
         dsn=settings.backend_sentry_dsn,
+        environment=settings.app_env,
         integrations=[
             FastApiIntegration(),
             SqlalchemyIntegration(),
