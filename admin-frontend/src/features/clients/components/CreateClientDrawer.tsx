@@ -97,15 +97,22 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-12 pointer-events-none">
         <div className="pointer-events-auto flex w-full max-w-[640px] max-h-full flex-col bg-paper border border-ink relative">
+          
+          {/* Aesthetic corner brackets */}
+          <div className="absolute top-3 left-3 w-2 h-2 border-t border-l border-ink pointer-events-none" />
+          <div className="absolute top-3 right-3 w-2 h-2 border-t border-r border-ink pointer-events-none" />
+          <div className="absolute bottom-3 left-3 w-2 h-2 border-b border-l border-ink pointer-events-none" />
+          <div className="absolute bottom-3 right-3 w-2 h-2 border-b border-r border-ink pointer-events-none" />
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-dashed border-line-soft">
-          <h2 className="font-serif italic text-[28px] leading-none tracking-tight text-ink">New Client</h2>
-          <button onClick={onClose} className="font-mono text-[24px] text-ink-soft hover:text-ink leading-none">×</button>
-        </div>
+          {/* Header */}
+          <div className="flex flex-col relative px-8 pt-8 pb-6 border-b-[2px] border-dashed border-line-soft">
+            <button onClick={onClose} className="absolute top-6 right-8 font-mono text-[22px] text-ink-soft hover:text-ink leading-none">×</button>
+            <Kicker className="mb-2 tracking-[0.1em]">04 · Client Registry</Kicker>
+            <h2 className="font-serif italic text-[28px] leading-none tracking-tight text-ink">New Client</h2>
+          </div>
 
         {/* Form body */}
-        <form className="flex-1 overflow-y-auto px-6 py-6 space-y-4"
+        <form className="flex-1 overflow-y-auto px-8 py-6 space-y-4 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
 
           {/* Personal Info */}
@@ -208,7 +215,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
         </form>
 
         {/* Footer */}
-        <div className="border-t border-ink px-6 py-4 flex justify-end gap-3">
+        <div className="border-t-[2px] border-dashed border-line-soft px-8 py-6 flex justify-end gap-3">
           <button type="button" onClick={onClose}
             className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors">
             Cancel
