@@ -212,13 +212,13 @@ function TimesheetPage() {
             <table className="w-full text-sm">
               <thead>
                 {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="bg-cream-2 border-b border-ink">
+                  <tr key={hg.id} className="bg-ink border-b border-ink">
                     {hg.headers.map((header) => (
                       <th
                         key={header.id}
                         onClick={header.column.getToggleSortingHandler()}
-                        className={`px-4 py-3 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft select-none ${
-                          header.column.getCanSort() ? 'cursor-pointer hover:text-ink' : ''
+                        className={`px-4 py-3 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80 select-none ${
+                          header.column.getCanSort() ? 'cursor-pointer hover:text-cream' : ''
                         }`}
                       >
                         <span className="flex items-center gap-1">
@@ -256,7 +256,7 @@ function TimesheetPage() {
 
           {/* Summary footer */}
           {filteredShifts.length > 0 && (
-            <div className="flex items-center justify-between border-t border-ink bg-cream-2 px-4 py-3">
+            <div className="flex items-center justify-between border-t border-ink px-4 py-3">
               <p className="font-mono text-[10px] text-ink-soft uppercase tracking-[0.08em]">
                 {filteredShifts.length} shift{filteredShifts.length !== 1 ? 's' : ''}
                 {filterStatus === '' && completedRows.length !== filteredShifts.length
