@@ -1,6 +1,6 @@
 import { apiClient } from './api-client'
 
-export const CURRENT_TERMS_VERSION = '1.0'
+export const CURRENT_TERMS_VERSION = '0.0'
 
 export const legalApi = {
   getStatus: () =>

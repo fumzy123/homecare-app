@@ -10,7 +10,7 @@ from app.models.organization import Organization
 
 router = APIRouter()
 
-CURRENT_TERMS_VERSION = "1.0"
+CURRENT_TERMS_VERSION = "0.0"
 
 
 class TermsStatusResponse(BaseModel):

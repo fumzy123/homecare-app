@@ -5,7 +5,7 @@ export const Route = createFileRoute('/terms')({
 })
 
 const EFFECTIVE_DATE = 'May 1, 2026'
-const VERSION = '1.0'
+const VERSION = '0.0'
 
 function TermsPage() {
   return (
