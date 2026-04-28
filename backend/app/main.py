@@ -1,27 +1,23 @@
-# Import FastAPI
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.core.security import get_current_user
+from app.core.limiter import limiter
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
 from app.jobs.shift_completion import mark_shifts_completed
 
-
-# Crea
 from app.db.session import engine
-# from app.models.base import Base (No longer needed since Alembic handles this)
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
 from app.models.organization import Organization # noqa: F401
 from app.models.org_member import OrgMember      # noqa: F401
 
-
-# Import router
 from app.api.api import router as api_router
-
-# [Alembic now handles database table creation. Base.metadata.create_all removed!]
 
 scheduler = AsyncIOScheduler()
 
@@ -34,7 +30,24 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        headers={"Retry-After": str(exc.retry_after)},
+        content={
+            "error": {
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": f"Too many requests. Retry after {exc.retry_after} second(s).",
+                "details": None,
+            }
+        },
+    )
+
+
 app = FastAPI(lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,28 +57,27 @@ app.add_middleware(
         "https://homecare-app-production-admin-frontend.vercel.app",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-# Global exception handlers — all errors return a consistent JSON envelope
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 app.add_exception_handler(Exception, unhandled_error_handler)
 
-# Mount all Routers
 app.include_router(api_router)
+
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
-# Here is our first Protected Route!
+
 @app.get("/api/me")
-def view_my_profile(current_user = Depends(get_current_user)):
-    # This route will only execute if the user passes the Bouncer in security.py
+def view_my_profile(current_user=Depends(get_current_user)):
     return {
         "message": "Welcome back! The Bouncer let you in.",
         "user_id": current_user.id,
-        "email": current_user.email
+        "email": current_user.email,
     }
