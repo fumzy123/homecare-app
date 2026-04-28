@@ -11,6 +11,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
@@ -108,8 +109,8 @@ const columns = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function TimesheetPage() {
-  const weekStart = toDateInput(startOfWeek(new Date(), { weekStartsOn: 1 }))
-  const weekEnd   = toDateInput(endOfWeek(new Date(),   { weekStartsOn: 1 }))
+  const weekStart = toDateInput(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }))
+  const weekEnd   = toDateInput(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }))
 
   const [fromDate, setFromDate]         = useState(weekStart)
   const [toDate, setToDate]             = useState(weekEnd)

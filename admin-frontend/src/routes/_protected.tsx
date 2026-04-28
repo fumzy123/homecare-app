@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 
@@ -17,8 +18,8 @@ const now      = new Date()
 const weekNum  = Math.ceil(
   ((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
 )
-const wkStart  = format(startOfWeek(now, { weekStartsOn: 1 }), 'MMM d')
-const wkEnd    = format(endOfWeek(now,   { weekStartsOn: 1 }), 'MMM d')
+const wkStart  = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
+const wkEnd    = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 
 function ProtectedLayout() {
   return (

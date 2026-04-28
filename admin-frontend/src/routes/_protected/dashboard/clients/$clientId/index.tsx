@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, getWeek } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { Kicker, ShiftStatusBadge } from '@/shared/components/ui'
@@ -27,11 +28,11 @@ const PERIOD_TITLE: Record<Period, string> = {
 }
 
 const now        = new Date()
-const weekStart  = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd')
-const weekEnd    = format(endOfWeek(now,   { weekStartsOn: 1 }), 'yyyy-MM-dd')
+const weekStart  = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
+const weekEnd    = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
 const monthStart = format(startOfMonth(now), 'yyyy-MM-dd')
 const monthEnd   = format(endOfMonth(now),   'yyyy-MM-dd')
-const weekNum    = getWeek(now, { weekStartsOn: 1 })
+const weekNum    = getWeek(now, { weekStartsOn: WEEK_STARTS_ON })
 
 function getDateRange(period: Period): { from: string; to: string } {
   switch (period) {

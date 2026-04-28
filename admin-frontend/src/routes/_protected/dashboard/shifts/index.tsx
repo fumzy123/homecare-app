@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { Calendar, dateFnsLocalizer, Navigate, type View, type ToolbarProps } from 'react-big-calendar'
 import { format, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
@@ -21,7 +22,7 @@ export const Route = createFileRoute('/_protected/dashboard/shifts/')({
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: 1 }),
+  startOfWeek: () => startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }),
   getDay,
   locales: { 'en-US': enUS },
 })
@@ -33,7 +34,7 @@ function rangeForView(date: Date, view: View): { from: string; to: string } {
       to:   format(endOfMonth(date),   'yyyy-MM-dd'),
     }
   }
-  const ws = startOfWeek(date, { weekStartsOn: 1 })
+  const ws = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
   return {
     from: format(ws, 'yyyy-MM-dd'),
     to:   format(addDays(ws, 6), 'yyyy-MM-dd'),
@@ -69,8 +70,8 @@ function MonthHeader({ label }: { label: string }) {
 }
 
 function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps) {
-  const ws = startOfWeek(date, { weekStartsOn: 1 })
-  const we = endOfWeek(date, { weekStartsOn: 1 })
+  const ws = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
+  const we = endOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
 
   let label: string
   if (view === 'week') {

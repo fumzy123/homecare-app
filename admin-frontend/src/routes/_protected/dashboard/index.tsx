@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { format, startOfWeek, endOfWeek, subDays, addDays } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { clientsApi } from '@/features/clients/api'
 import { workersApi } from '@/features/workers/api'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
@@ -14,10 +15,10 @@ export const Route = createFileRoute('/_protected/dashboard/')({
 })
 
 const today    = format(new Date(), 'yyyy-MM-dd')
-const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: 1 }), 'yyyy-MM-dd')
-const weekStartDisplay = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM d')
-const weekEndDisplay   = format(endOfWeek(new Date(),   { weekStartsOn: 1 }), 'MMM d')
+const weekStart = format(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
+const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
+const weekStartDisplay = format(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
+const weekEndDisplay   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 const droppedFrom = format(subDays(new Date(), 7),  'yyyy-MM-dd')
 const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
 

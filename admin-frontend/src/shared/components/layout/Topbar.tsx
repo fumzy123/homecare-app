@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
 import { Pill, Avatar } from '@/shared/components/ui'
@@ -15,8 +16,8 @@ const NAV = [
 
 const now      = new Date()
 const weekNum  = Math.ceil((now.getDate() - now.getDay() + 1) / 7) + Math.ceil(new Date(now.getFullYear(), 0, 1).getDay() / 7)
-const wkStart  = format(startOfWeek(now, { weekStartsOn: 1 }), 'MMM d')
-const wkEnd    = format(endOfWeek(now,   { weekStartsOn: 1 }), 'MMM d')
+const wkStart  = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
+const wkEnd    = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 const wkYear   = format(now, 'yyyy')
 
 export function Topbar() {
