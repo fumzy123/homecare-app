@@ -1,58 +1,42 @@
 import { Link } from '@tanstack/react-router'
 import { type Worker } from '@/features/workers/api'
+import { Avatar } from '@/shared/components/ui'
 
-function getInitials(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
-}
-
-export function WorkerCard({ worker }: { worker: Worker }) {
-  const initials = getInitials(worker.first_name, worker.last_name)
+export function WorkerCard({ worker, index = 0 }: { worker: Worker; index?: number }) {
+  const initials = `${worker.first_name[0] ?? ''}${worker.last_name[0] ?? ''}`.toUpperCase()
+  const color = (['c1','c2','c3','c4','c5','c6'] as const)[index % 6]
 
   return (
     <Link
       to="/dashboard/workers/$workerId"
       params={{ workerId: worker.id }}
-      className="block rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+      className="block border border-ink bg-paper p-5 transition-all hover:-translate-x-px hover:-translate-y-px hover:shadow-[4px_4px_0_#111111]"
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-sm font-semibold text-white">
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate font-medium text-gray-900">
-              {worker.first_name} {worker.last_name}
-            </p>
-            <p className="truncate text-sm text-gray-500">{worker.email}</p>
-          </div>
-          <span
-            className={`ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              worker.is_active
-                ? 'bg-green-50 text-green-700'
-                : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            {worker.is_active ? 'Active' : 'Inactive'}
-          </span>
+      <div className="flex items-center gap-3 mb-4">
+        <Avatar initials={initials} color={color} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-medium truncate">{worker.first_name} {worker.last_name}</p>
+          <p className="font-mono text-[10px] text-ink-soft truncate">{worker.email}</p>
         </div>
+        <span className={`font-mono text-[9px] tracking-[0.1em] uppercase px-2 py-0.5 border shrink-0 ${
+          worker.is_active ? 'bg-ink text-cream border-ink' : 'border-line-soft text-muted'
+        }`}>
+          {worker.is_active ? 'Active' : 'Inactive'}
+        </span>
+      </div>
 
-        <div className="border-t border-gray-100 pt-3 grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <p className="text-xs text-gray-400">Phone</p>
-            <p className="text-gray-700 truncate">{worker.phone_number ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Hire Date</p>
-            <p className="text-gray-700">
-              {worker.hire_date
-                ? new Date(worker.hire_date).toLocaleDateString('en-CA', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })
-                : '—'}
-            </p>
-          </div>
+      <div className="border-t border-dashed border-line-soft pt-3 grid grid-cols-2 gap-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase text-muted mb-0.5">Phone</p>
+          <p className="font-mono text-[11px] truncate">{worker.phone_number ?? '—'}</p>
+        </div>
+        <div>
+          <p className="font-mono text-[9px] uppercase text-muted mb-0.5">Hire Date</p>
+          <p className="font-mono text-[11px]">
+            {worker.hire_date
+              ? new Date(worker.hire_date).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+              : '—'}
+          </p>
         </div>
       </div>
     </Link>

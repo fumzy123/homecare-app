@@ -1,25 +1,12 @@
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { format } from 'date-fns'
 import { clientsApi } from '@/features/clients/api'
+import { Avatar } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')({
   component: ClientLayout,
 })
-
-function statusBadge(status: string) {
-  switch (status) {
-    case 'active':     return 'bg-green-50 text-green-700'
-    case 'on_hold':    return 'bg-amber-50 text-amber-700'
-    case 'discharged': return 'bg-gray-100 text-gray-500'
-    default:           return 'bg-gray-100 text-gray-500'
-  }
-}
-
-function statusLabel(status: string) {
-  if (status === 'on_hold') return 'On Hold'
-  return status.charAt(0).toUpperCase() + status.slice(1)
-}
 
 function ClientLayout() {
   const { clientId } = Route.useParams()
@@ -29,59 +16,94 @@ function ClientLayout() {
     queryFn: () => clientsApi.getClient(clientId),
   })
 
-  if (isLoading) {
-    return <div className="p-8 text-sm text-gray-500">Loading…</div>
-  }
-
-  if (isError || !client) {
-    return (
-      <div className="p-8">
-        <p className="text-sm text-red-500">Failed to load client.</p>
-        <Link to="/dashboard/clients" className="mt-2 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
-          <ArrowLeft size={14} /> Back to Clients
-        </Link>
-      </div>
-    )
-  }
+  if (isLoading) return <div className="p-8 font-mono text-[11px] text-muted">Loading…</div>
+  if (isError || !client) return <div className="p-8 font-mono text-[11px] text-orange">Client not found.</div>
 
   const initials = `${client.first_name[0] ?? ''}${client.last_name[0] ?? ''}`.toUpperCase()
+  const age = client.date_of_birth
+    ? new Date().getFullYear() - new Date(client.date_of_birth).getFullYear()
+    : null
 
   return (
-    <div className="p-8 max-w-5xl">
-      {/* Back */}
-      <Link
-        to="/dashboard/clients"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft size={14} />
-        Clients
-      </Link>
+    <div className="flex min-h-full bg-cream">
 
-      {/* Header */}
-      <div className="mt-4 mb-8 flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-lg font-semibold text-white">
-          {initials}
-        </div>
+      {/* ── Left: Profile card ── */}
+      <div className="w-72 shrink-0 border-r border-ink flex flex-col p-8 gap-6 sticky top-0 overflow-hidden" style={{ height: '100vh' }}>
+
+        <Link to="/dashboard/clients" className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink">
+          ← Clients
+        </Link>
+
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {client.first_name} {client.last_name}
+          <Avatar initials={initials} color="c2" size="xl" className="mb-5" />
+          <h1 className="font-serif text-[34px] leading-[1.0] font-medium tracking-[-0.02em]">
+            {client.first_name}<br />
+            <em>{client.last_name}</em>
           </h1>
-          <p className="text-sm text-gray-500">{client.city}, {client.province}</p>
+          <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mt-2">
+            {client.service_type.replace(/_/g, ' ')}
+          </p>
+          <span className={`mt-3 inline-block font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border ${
+            client.status === 'active'     ? 'bg-ink text-cream border-ink' :
+            client.status === 'on_hold'    ? 'border-ink text-ink-soft' :
+                                             'border-line-soft text-muted'
+          }`}>
+            {client.status === 'on_hold' ? 'On Hold' : client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+          </span>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusBadge(client.status)}`}>
-          {statusLabel(client.status)}
-        </span>
+
+        <div className="border-t border-ink" />
+
+        <div className="space-y-4">
+          {age !== null && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Age</p>
+              <p className="text-[13px]">{age} yrs · {format(new Date(client.date_of_birth), 'yyyy-MM-dd')}</p>
+            </div>
+          )}
+          {client.phone_number && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Phone</p>
+              <p className="text-[13px]">{client.phone_number}</p>
+            </div>
+          )}
+          {client.email && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Email</p>
+              <p className="text-[12px] break-all">{client.email}</p>
+            </div>
+          )}
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Location</p>
+            <p className="text-[13px]">{client.city}, {client.province}</p>
+          </div>
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Care Start</p>
+            <p className="text-[13px]">{format(new Date(client.care_start_date), 'yyyy-MM-dd')}</p>
+          </div>
+          {client.funding_source && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Funding</p>
+              <p className="text-[13px]">{client.funding_source}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-ink" />
+
         <Link
           to="/dashboard/clients/$clientId/edit"
-          params={{ clientId }}
-          className="ml-auto flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          params={{ clientId } as never}
+          className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink"
         >
-          <Pencil size={14} />
-          Edit Profile
+          Edit →
         </Link>
       </div>
 
-      <Outlet />
+      {/* ── Right: Content ── */}
+      <div className="flex-1 min-w-0">
+        <Outlet />
+      </div>
     </div>
   )
 }

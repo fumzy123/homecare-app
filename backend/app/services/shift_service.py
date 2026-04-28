@@ -10,6 +10,7 @@ from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequen
 from app.core.exceptions import AppError
 from app.schemas.shift import (
     CancelFromSchema,
+    CancelShiftSchema,
     EditFromSchema,
     ShiftCreateSchema,
     ShiftModificationCreateSchema,
@@ -93,13 +94,26 @@ class ShiftService:
             delta = shift.end_time - shift.start_time
             end_time = start_time + delta
 
+        # Dynamically compute effective status based on current time.
+        # Only override when the stored status is still 'scheduled' — never
+        # overwrite a status the admin has explicitly set (completed, cancelled, etc.).
+        stored_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
+        now = datetime.now(timezone.utc)
+        if stored_status == ShiftCompletionStatus.scheduled:
+            if start_time <= now <= end_time:
+                effective_status = ShiftCompletionStatus.in_progress
+            else:
+                effective_status = ShiftCompletionStatus.scheduled
+        else:
+            effective_status = stored_status
+
         return ShiftOccurrenceResponse(
             shift_id=shift.id,
             modification_id=mod.id if mod else None,
             date=occurrence_date,
             start_time=start_time,
             end_time=end_time,
-            completion_status=mod.completion_status if mod else ShiftCompletionStatus.scheduled,
+            completion_status=effective_status,
             is_modification=mod is not None,
             is_recurring=shift.is_recurring,
             worker=shift.worker,
@@ -317,13 +331,14 @@ class ShiftService:
     # 5. Cancel entire shift schedule (soft delete)
     # ─────────────────────────────────────────
     @staticmethod
-    async def cancel_shift(shift_id: str, current_user: SupabaseUser, db: Session):
+    async def cancel_shift(shift_id: str, payload: "CancelShiftSchema", current_user: SupabaseUser, db: Session):
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
             shift = ShiftService._get_active_shift(shift_id, org_id, db)
 
             shift.status = ShiftStatus.cancelled
             shift.deleted_at = datetime.now(timezone.utc)
+            shift.cancellation_reason = payload.cancellation_reason
             db.commit()
 
             return {"message": "Shift cancelled successfully"}
@@ -362,11 +377,15 @@ class ShiftService:
                 updates = payload.model_dump(exclude_unset=True, exclude={"original_date"})
                 for field, value in updates.items():
                     setattr(existing, field, value)
+                if payload.completion_status == ShiftCompletionStatus.cancelled and not existing.cancelled_at:
+                    existing.cancelled_at = datetime.now(timezone.utc)
             else:
                 existing = ShiftModification(
                     shift_id=shift_id,
                     **payload.model_dump(),
                 )
+                if payload.completion_status == ShiftCompletionStatus.cancelled:
+                    existing.cancelled_at = datetime.now(timezone.utc)
                 db.add(existing)
 
             db.commit()
@@ -400,9 +419,11 @@ class ShiftService:
                 # Cancelling from the very first occurrence — cancel the whole series
                 shift.status = ShiftStatus.cancelled
                 shift.deleted_at = datetime.now(timezone.utc)
+                shift.cancellation_reason = payload.cancellation_reason
             else:
                 # Truncate: stop the series the day before this occurrence
                 shift.recurrence_end_date = occurrence_date - timedelta(days=1)
+                shift.cancellation_reason = payload.cancellation_reason
                 # Drop any modifications on or after this date
                 db.query(ShiftModification).filter(
                     ShiftModification.shift_id == shift_id,

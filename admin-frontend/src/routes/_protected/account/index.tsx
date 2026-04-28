@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { workersApi } from '@/features/workers/api'
 import { useAuthStore } from '@/shared/stores/auth'
+import { Kicker } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/account/')({
   component: AccountPage,
@@ -11,34 +12,23 @@ export const Route = createFileRoute('/_protected/account/')({
 
 const schema = z.object({
   first_name: z.string().min(1, 'Required'),
-  last_name: z.string().min(1, 'Required'),
-  email: z.string().email('Invalid email'),
+  last_name:  z.string().min(1, 'Required'),
+  email:      z.string().email('Invalid email'),
 })
 
-function validate<T>(shape: z.ZodType<T>, value: T) {
-  const r = shape.safeParse(value)
-  return r.success ? undefined : r.error.issues[0].message
-}
-
-function FieldError({ error }: { error: unknown }) {
-  if (!error) return null
-  return <p className="mt-1 text-xs text-red-500">{error as string}</p>
-}
-
-const inputClass =
-  'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400'
-const labelClass = 'block text-sm font-medium text-gray-700'
+const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
+const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 
 function AccountPage() {
   const { user, updateUser } = useAuthStore()
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved]             = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
       first_name: user?.firstName ?? '',
-      last_name: user?.lastName ?? '',
-      email: user?.email ?? '',
+      last_name:  user?.lastName  ?? '',
+      email:      user?.email     ?? '',
     },
     onSubmit: async ({ value }) => {
       if (!user) return
@@ -46,14 +36,10 @@ function AccountPage() {
       try {
         const updated = await workersApi.updateMember(user.id, {
           first_name: value.first_name,
-          last_name: value.last_name,
-          email: value.email,
+          last_name:  value.last_name,
+          email:      value.email,
         })
-        updateUser({
-          firstName: updated.first_name,
-          lastName: updated.last_name,
-          email: updated.email,
-        })
+        updateUser({ firstName: updated.first_name, lastName: updated.last_name, email: updated.email })
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
       } catch (err: unknown) {
@@ -63,90 +49,90 @@ function AccountPage() {
   })
 
   return (
-    <div className="p-8 max-w-xl">
-      <h1 className="text-2xl font-semibold text-gray-900">Account</h1>
-      <p className="mt-1 text-sm text-gray-500">Update your name and email address.</p>
+    <div className="min-h-full bg-cream px-10 py-10">
+      <div className="max-w-lg">
+        <Kicker className="mb-4">Account settings</Kicker>
+        <h1 className="font-serif text-[36px] leading-none tracking-[-0.02em] font-medium mb-8">
+          Your profile
+        </h1>
 
-      <form
-        className="mt-8 flex flex-col gap-5"
-        onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}
-      >
-        <div className="flex gap-4">
-          <form.Field
-            name="first_name"
-            validators={{ onChange: ({ value }) => validate(schema.shape.first_name, value) }}
+        <div className="border border-ink bg-paper">
+          <div className="px-6 py-4 border-b border-ink">
+            <Kicker>Personal info</Kicker>
+          </div>
+
+          <form
+            className="px-6 py-6 flex flex-col gap-5"
+            onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}
           >
-            {(field) => (
-              <div className="flex-1">
-                <label className={labelClass}>First Name</label>
-                <input
-                  className={inputClass}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                <FieldError error={field.state.meta.errors[0]} />
-              </div>
-            )}
-          </form.Field>
+            <div className="grid grid-cols-2 gap-4">
+              <form.Field name="first_name" validators={{ onChange: ({ value }) => {
+                const r = schema.shape.first_name.safeParse(value)
+                return r.success ? undefined : r.error.issues[0].message
+              }}}>
+                {(field) => (
+                  <div>
+                    <label className={labelClass}>First Name</label>
+                    <input className={inputClass} value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} />
+                    {field.state.meta.errors[0] && (
+                      <p className="mt-1 font-mono text-[10px] text-orange">{field.state.meta.errors[0] as string}</p>
+                    )}
+                  </div>
+                )}
+              </form.Field>
 
-          <form.Field
-            name="last_name"
-            validators={{ onChange: ({ value }) => validate(schema.shape.last_name, value) }}
-          >
-            {(field) => (
-              <div className="flex-1">
-                <label className={labelClass}>Last Name</label>
-                <input
-                  className={inputClass}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                <FieldError error={field.state.meta.errors[0]} />
-              </div>
-            )}
-          </form.Field>
-        </div>
-
-        <form.Field
-          name="email"
-          validators={{ onChange: ({ value }) => validate(schema.shape.email, value) }}
-        >
-          {(field) => (
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                type="email"
-                className={inputClass}
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-              />
-              <FieldError error={field.state.meta.errors[0]} />
+              <form.Field name="last_name" validators={{ onChange: ({ value }) => {
+                const r = schema.shape.last_name.safeParse(value)
+                return r.success ? undefined : r.error.issues[0].message
+              }}}>
+                {(field) => (
+                  <div>
+                    <label className={labelClass}>Last Name</label>
+                    <input className={inputClass} value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} />
+                    {field.state.meta.errors[0] && (
+                      <p className="mt-1 font-mono text-[10px] text-orange">{field.state.meta.errors[0] as string}</p>
+                    )}
+                  </div>
+                )}
+              </form.Field>
             </div>
-          )}
-        </form.Field>
 
-        {serverError && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
-        )}
+            <form.Field name="email" validators={{ onChange: ({ value }) => {
+              const r = schema.shape.email.safeParse(value)
+              return r.success ? undefined : r.error.issues[0].message
+            }}}>
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Email</label>
+                  <input type="email" className={inputClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} />
+                  {field.state.meta.errors[0] && (
+                    <p className="mt-1 font-mono text-[10px] text-orange">{field.state.meta.errors[0]}</p>
+                  )}
+                </div>
+              )}
+            </form.Field>
 
-        <div className="flex items-center gap-3">
-          <form.Subscribe selector={(s) => s.isSubmitting}>
-            {(isSubmitting) => (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
-                {isSubmitting ? 'Saving…' : 'Save Changes'}
-              </button>
+            {serverError && (
+              <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
             )}
-          </form.Subscribe>
-          {saved && <p className="text-sm text-green-600">Saved</p>}
+
+            <div className="flex items-center justify-end gap-4 pt-1">
+              {saved && <span className="font-mono text-[10px] text-mint tracking-wide uppercase">Saved ✓</span>}
+              <form.Subscribe selector={(s) => s.isSubmitting}>
+                {(isSubmitting) => (
+                  <button type="submit" disabled={isSubmitting}
+                    className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
+                    {isSubmitting ? 'Saving…' : 'Save Changes'}
+                  </button>
+                )}
+              </form.Subscribe>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

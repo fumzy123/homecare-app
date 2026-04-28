@@ -11,10 +11,12 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
+import { Card, Kicker, Btn, ShiftStatusBadge, DateInput } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/timesheet/')({
   component: TimesheetPage,
@@ -26,10 +28,10 @@ function toDateInput(d: Date) {
   return format(d, 'yyyy-MM-dd')
 }
 
-const NON_BILLABLE_STATUSES = new Set(['no_show', 'cancelled'])
+const NON_BILLABLE = new Set(['no_show', 'cancelled'])
 
 function computeHours(start: string, end: string, status?: string): number {
-  if (status && NON_BILLABLE_STATUSES.has(status)) return 0
+  if (status && NON_BILLABLE.has(status)) return 0
   const ms = new Date(end).getTime() - new Date(start).getTime()
   return Math.round((ms / 1000 / 3600) * 100) / 100
 }
@@ -55,23 +57,6 @@ function exportCsv(rows: ShiftOccurrence[], from: string, to: string) {
   URL.revokeObjectURL(url)
 }
 
-function statusPillClass(status: string) {
-  switch (status.toLowerCase()) {
-    case 'completed': return 'bg-green-50 text-green-700'
-    case 'cancelled': return 'bg-red-50 text-red-600'
-    case 'no_show': return 'bg-amber-50 text-amber-700'
-    default: return 'bg-gray-100 text-gray-600'
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status.toLowerCase()) {
-    case 'completed': return 'Completed'
-    case 'cancelled': return 'Cancelled'
-    case 'no_show': return 'No Show'
-    default: return status
-  }
-}
 
 // ─── Column helper ────────────────────────────────────────────────────────────
 
@@ -80,47 +65,52 @@ const col = createColumnHelper<ShiftOccurrence>()
 const columns = [
   col.accessor('date', {
     header: 'Date',
-    cell: (info) => format(new Date(info.getValue()), 'MMM d, yyyy'),
-    sortingFn: 'alphanumeric',
+    cell: (info) => (
+      <span className="font-mono text-[11px]">
+        {format(new Date(info.getValue()), 'MMM d, yyyy')}
+      </span>
+    ),
   }),
   col.accessor((row) => `${row.worker.first_name} ${row.worker.last_name}`, {
     id: 'worker',
     header: 'Worker',
+    cell: (info) => <span className="text-[13px] font-medium">{info.getValue()}</span>,
   }),
   col.accessor((row) => `${row.client.first_name} ${row.client.last_name}`, {
     id: 'client',
     header: 'Client',
+    cell: (info) => <span className="text-[13px]">{info.getValue()}</span>,
   }),
   col.accessor('start_time', {
     header: 'Start',
-    cell: (info) => format(new Date(info.getValue()), 'h:mm a'),
+    cell: (info) => <span className="font-mono text-[11px] text-ink-soft">{format(new Date(info.getValue()), 'h:mm a')}</span>,
     enableSorting: false,
   }),
   col.accessor('end_time', {
     header: 'End',
-    cell: (info) => format(new Date(info.getValue()), 'h:mm a'),
+    cell: (info) => <span className="font-mono text-[11px] text-ink-soft">{format(new Date(info.getValue()), 'h:mm a')}</span>,
     enableSorting: false,
   }),
   col.accessor((row) => computeHours(row.start_time, row.end_time, row.completion_status), {
     id: 'hours',
     header: 'Hours',
-    cell: (info) => `${info.getValue().toFixed(2)} h`,
+    cell: (info) => (
+      <span className="font-mono text-[12px] font-semibold tabular-nums">
+        {info.getValue().toFixed(2)} h
+      </span>
+    ),
   }),
   col.accessor('completion_status', {
     header: 'Status',
-    cell: (info) => (
-      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusPillClass(info.getValue())}`}>
-        {statusLabel(info.getValue())}
-      </span>
-    ),
+    cell: (info) => <ShiftStatusBadge status={info.getValue()} />,
   }),
 ]
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function TimesheetPage() {
-  const weekStart = toDateInput(startOfWeek(new Date(), { weekStartsOn: 0 }))
-  const weekEnd   = toDateInput(endOfWeek(new Date(), { weekStartsOn: 0 }))
+  const weekStart = toDateInput(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }))
+  const weekEnd   = toDateInput(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }))
 
   const [fromDate, setFromDate]         = useState(weekStart)
   const [toDate, setToDate]             = useState(weekEnd)
@@ -137,25 +127,16 @@ function TimesheetPage() {
     queryFn: () => shiftsApi.listShifts(fromDate, toDate, filterWorkerId || undefined, filterClientId || undefined, TIMESHEET_STATUSES),
   })
 
-  const { data: workers = [] } = useQuery({
-    queryKey: ['workers'],
-    queryFn: workersApi.listWorkers,
-  })
+  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
+  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => clientsApi.listClients(),
-  })
-
-  // Client-side status filter
   const filteredShifts = useMemo(() => {
     if (!filterStatus) return shifts
     return shifts.filter((s) => s.completion_status === filterStatus)
   }, [shifts, filterStatus])
 
-  // Summary stats (completed only)
   const completedRows = useMemo(
-    () => filteredShifts.filter((s) => s.completion_status.toLowerCase() === 'completed'),
+    () => filteredShifts.filter((s) => s.completion_status === 'completed'),
     [filteredShifts]
   )
   const totalHours = useMemo(
@@ -172,137 +153,138 @@ function TimesheetPage() {
     getSortedRowModel: getSortedRowModel(),
   })
 
-  const inputClass = 'rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400'
+  const inputClass = 'bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="min-h-full bg-cream flex flex-col">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between px-8 pb-5 pt-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Timesheet</h1>
-        <button
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-y-5 gap-x-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
+        <div>
+          <Kicker leader className="mb-4">05 / Timesheets</Kicker>
+          <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
+            Timesheets{' '}
+            <span className="font-serif italic text-muted">— payroll record</span>
+          </h1>
+        </div>
+        <Btn
+          variant="ghost"
           onClick={() => exportCsv(filteredShifts, fromDate, toDate)}
           disabled={filteredShifts.length === 0}
-          className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          className="max-sm:w-full max-sm:justify-center"
         >
-          <Download size={15} />
+          <Download size={14} />
           Export CSV
-        </button>
+        </Btn>
       </div>
 
       {/* Filters */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3 px-8 pb-5">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-500">From</label>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className={inputClass}
-          />
+      <div className="px-10 max-md:px-4 pb-6 flex flex-wrap items-center gap-x-6 gap-y-4">
+        
+        {/* Date Filter Group */}
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-2">
+            <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft shrink-0">From</label>
+            <DateInput value={fromDate} onChange={setFromDate} />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft shrink-0">To</label>
+            <DateInput value={toDate} onChange={setToDate} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-medium text-gray-500">To</label>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className={inputClass}
-          />
+
+        {/* Dropdown Group */}
+        <div className="flex flex-wrap items-center gap-3 flex-1 w-full sm:w-auto">
+          <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+            <option value="">All workers</option>
+            {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
+          </select>
+          <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+            <option value="">All clients</option>
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+            <option value="">All statuses</option>
+            <option value="completed">Completed</option>
+            <option value="no_show">No Show</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
-        <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass}>
-          <option value="">All workers</option>
-          {workers.map((w) => (
-            <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>
-          ))}
-        </select>
-        <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass}>
-          <option value="">All clients</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
-          ))}
-        </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass}>
-          <option value="">All statuses</option>
-          <option value="completed">Completed</option>
-          <option value="no_show">No Show</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
       </div>
 
       {/* Table */}
-      <div className="min-h-0 flex-1 overflow-auto px-8 pb-8">
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex-1 px-10 max-md:px-4 pb-12">
+        <Card className="p-0">
           {isLoading ? (
-            <p className="px-6 py-10 text-center text-sm text-gray-400">Loading…</p>
+            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>
           ) : filteredShifts.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-gray-400">No shifts found for this period</p>
+            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">NO SHIFTS FOR THIS PERIOD</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-gray-100 bg-gray-50">
-                    {hg.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        onClick={header.column.getToggleSortingHandler()}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 select-none
-                          ${header.column.getCanSort() ? 'cursor-pointer hover:text-gray-900' : ''}
-                        `}
-                      >
-                        <span className="flex items-center gap-1">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            <span className="text-gray-300">
-                              {{ asc: '↑', desc: '↓' }[header.column.getIsSorted() as string] ?? '↕'}
-                            </span>
-                          )}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => setSelectedShift(row.original)}
-                    className="cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 text-gray-700">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-sm">
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="bg-ink border-b border-ink">
+                      {hg.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          onClick={header.column.getToggleSortingHandler()}
+                          className={`px-4 py-3 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-cream/80 select-none ${
+                            header.column.getCanSort() ? 'cursor-pointer hover:text-cream' : ''
+                          }`}
+                        >
+                          <span className="flex items-center gap-1">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getCanSort() && (
+                              <span className="text-muted">
+                                {{ asc: '↑', desc: '↓' }[header.column.getIsSorted() as string] ?? '↕'}
+                              </span>
+                            )}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row, i) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => setSelectedShift(row.original)}
+                      className={`cursor-pointer hover:bg-cream-2 transition-colors ${
+                        i > 0 ? 'border-t border-dashed border-line-soft' : ''
+                      }`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3.5">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
-          {/* Summary row */}
+          {/* Summary footer */}
           {filteredShifts.length > 0 && (
-            <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50 px-4 py-3">
-              <p className="text-xs text-gray-500">
+            <div className="flex items-center justify-between border-t border-ink px-4 py-3">
+              <p className="font-mono text-[10px] text-ink-soft uppercase tracking-[0.08em]">
                 {filteredShifts.length} shift{filteredShifts.length !== 1 ? 's' : ''}
                 {filterStatus === '' && completedRows.length !== filteredShifts.length
                   ? ` · ${completedRows.length} completed`
                   : ''}
               </p>
-              <p className="text-xs font-semibold text-gray-700">
+              <p className="font-mono text-[12px] font-semibold text-ink">
                 {totalHours.toFixed(2)} hrs completed
               </p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
-      {/* Detail drawer */}
       {selectedShift && (
-        <ShiftDetailDrawer
-          shift={selectedShift}
-          onClose={() => setSelectedShift(null)}
-        />
+        <ShiftDetailDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
       )}
     </div>
   )

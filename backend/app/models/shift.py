@@ -35,6 +35,8 @@ class Shift(Base):
     location = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
 
+    cancellation_reason = Column(Text, nullable=True)
+
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 
@@ -17,27 +17,71 @@ function WelcomePage() {
   }, [])
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-10 shadow-sm text-center">
-        <div className="mb-4 flex justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-            <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+    <div className="flex h-screen bg-cream">
+
+      {/* ── Left: Editorial panel ── */}
+      <div className="flex-1 flex flex-col justify-between px-16 py-14 border-r border-ink max-md:hidden">
+
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+            <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
+            <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
+            <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
+          </svg>
+          <div>
+            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Homecare</p>
+            <p className="font-mono text-[8px] tracking-[0.18em] uppercase text-ink-soft mt-0.5">Home Care OS</p>
           </div>
         </div>
 
-        <h1 className="mb-2 text-xl font-semibold text-gray-900">Account successfully created</h1>
+        {/* Headline */}
+        <div className="max-w-lg">
+          <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-mint mb-6">
+            ✓ Account created
+          </p>
+          <h1 className="font-serif text-[56px] leading-[1.0] font-medium tracking-[-0.02em]">
+            You're{' '}
+            <span className="tape">all set</span>.
+          </h1>
+          <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
+            {orgName
+              ? <>Welcome to <span className="text-ink">{orgName}</span>. Your account is ready.</>
+              : 'Your account is ready to go.'
+            }
+          </p>
+        </div>
 
-        <p className="text-sm text-gray-500 leading-relaxed">
-          You will be notified via email to download the Homecare Worker app on your iOS or
-          Android phone once development of the mobile app is complete.
-          {orgName && (
-            <>
-              {' '}In the meantime, welcome to <span className="font-medium text-gray-700">{orgName}</span>.
-            </>
-          )}
+        <p className="font-mono text-[9px] text-muted tracking-[0.08em] uppercase">
+          Admin Console · {new Date().getFullYear()}
         </p>
+      </div>
+
+      {/* ── Right: Confirmation panel ── */}
+      <div className="w-[480px] max-md:w-full shrink-0 flex flex-col justify-center px-14 max-md:px-8 py-14 bg-paper border-l border-ink">
+
+        <div className="border border-ink bg-cream p-6 mb-8">
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">What's next</p>
+          <div className="space-y-4">
+            {[
+              { num: '01', text: 'Download the Homecare Worker app when it becomes available on iOS and Android.' },
+              { num: '02', text: 'You\'ll receive an email notification once the mobile app is ready for download.' },
+              { num: '03', text: 'Your agency admin can assign you shifts in the meantime.' },
+            ].map(({ num, text }) => (
+              <div key={num} className="flex gap-4">
+                <span className="font-mono text-[10px] text-muted shrink-0 mt-px">{num}</span>
+                <p className="font-mono text-[11px] text-ink-soft leading-relaxed">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Link
+          to="/login"
+          className="w-full bg-ink text-cream py-3 font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 transition-opacity text-center block"
+        >
+          Go to sign in →
+        </Link>
       </div>
     </div>
   )

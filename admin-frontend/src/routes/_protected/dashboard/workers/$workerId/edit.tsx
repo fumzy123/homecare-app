@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
-import { ArrowLeft, Trash2 } from 'lucide-react'
 import { z } from 'zod'
 import {
   workersApi,
@@ -11,12 +10,17 @@ import {
   EMPLOYMENT_TYPE_LABELS,
 } from '@/features/workers/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
+import { Kicker, DateInput } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
   component: WorkerEditPage,
 })
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Shared styles ────────────────────────────────────────────────────────────
+
+const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
+const inputClass = 'w-full bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+const selectClass = `${inputClass} appearance-none`
 
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : ''
@@ -24,12 +28,12 @@ function toDateInput(value: string | null) {
 
 function FieldError({ error }: { error: unknown }) {
   if (!error) return null
-  return <p className="mt-1 text-xs text-red-500">{error as string}</p>
+  return <p className="mt-1 font-mono text-[10px] text-orange">{error as string}</p>
 }
 
-const inputClass =
-  'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400'
-const labelClass = 'block text-sm font-medium text-gray-700'
+function SavedBadge() {
+  return <span className="font-mono text-[10px] text-mint tracking-wide uppercase">Saved ✓</span>
+}
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
@@ -41,22 +45,20 @@ function WorkerEditPage() {
     queryFn: () => workersApi.getWorker(workerId),
   })
 
-  if (isLoading) return <div className="py-6 text-sm text-gray-500">Loading…</div>
-  if (isError || !worker) return <div className="py-6 text-sm text-red-500">Worker not found.</div>
+  if (isLoading) return <div className="p-10 font-mono text-[11px] text-muted">Loading…</div>
+  if (isError || !worker) return <div className="p-10 font-mono text-[11px] text-orange">Worker not found.</div>
 
   return (
-    <div>
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          to="/dashboard/workers/$workerId"
-          params={{ workerId }}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900"
-        >
-          <ArrowLeft size={14} />
-          Back to overview
-        </Link>
-      </div>
+    <div className="p-10 space-y-6">
+      <Link
+        to="/dashboard/workers/$workerId"
+        params={{ workerId } as never}
+        className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink"
+      >
+        ← Overview
+      </Link>
 
+      <div className="h-2" />
       <PersonalInfoForm worker={worker} />
       <WorkProfileForm worker={worker} />
       <DangerZone worker={worker} />
@@ -74,14 +76,6 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
   const schema = z.object({
     first_name: z.string().min(1, 'Required'),
     last_name: z.string().min(1, 'Required'),
-    phone_number: z.string().optional(),
-    gender: z.string().optional(),
-    date_of_birth: z.string().optional(),
-    hire_date: z.string().optional(),
-    emergency_contact_name: z.string().optional(),
-    emergency_contact_phone: z.string().optional(),
-    emergency_contact_relationship: z.string().optional(),
-    is_active: z.boolean(),
   })
 
   const form = useForm({
@@ -124,13 +118,13 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
   })
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6 mb-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">Personal Info</h2>
+    <section className="border border-ink bg-paper">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
+        <Kicker>Personal info</Kicker>
         <form.Field name="is_active">
           {(field) => (
-            <label className="flex cursor-pointer items-center gap-2">
-              <span className="text-sm text-gray-600">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
                 {field.state.value ? 'Active' : 'Inactive'}
               </span>
               <button
@@ -138,32 +132,27 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
                 role="switch"
                 aria-checked={field.state.value}
                 onClick={() => field.handleChange(!field.state.value)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                  field.state.value ? 'bg-green-500' : 'bg-gray-300'
+                className={`relative inline-flex h-5 w-9 items-center border transition-colors ${
+                  field.state.value ? 'bg-ink border-ink' : 'bg-cream-2 border-line-soft'
                 }`}
               >
-                <span
-                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-                    field.state.value ? 'translate-x-4' : 'translate-x-1'
-                  }`}
-                />
+                <span className={`inline-block h-3 w-3 bg-cream transition-transform ${
+                  field.state.value ? 'translate-x-5' : 'translate-x-1'
+                }`} />
               </button>
             </label>
           )}
         </form.Field>
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
-        <div className="flex gap-3">
-          <form.Field
-            name="first_name"
-            validators={{ onChange: ({ value }) => {
-              const r = schema.shape.first_name.safeParse(value)
-              return r.success ? undefined : r.error.issues[0].message
-            }}}
-          >
+      <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="px-6 py-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <form.Field name="first_name" validators={{ onChange: ({ value }) => {
+            const r = schema.shape.first_name.safeParse(value)
+            return r.success ? undefined : r.error.issues[0].message
+          }}}>
             {(field) => (
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>First Name</label>
                 <input className={inputClass} value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} />
@@ -172,15 +161,12 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
             )}
           </form.Field>
 
-          <form.Field
-            name="last_name"
-            validators={{ onChange: ({ value }) => {
-              const r = schema.shape.last_name.safeParse(value)
-              return r.success ? undefined : r.error.issues[0].message
-            }}}
-          >
+          <form.Field name="last_name" validators={{ onChange: ({ value }) => {
+            const r = schema.shape.last_name.safeParse(value)
+            return r.success ? undefined : r.error.issues[0].message
+          }}}>
             {(field) => (
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>Last Name</label>
                 <input className={inputClass} value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} />
@@ -190,10 +176,10 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
           </form.Field>
         </div>
 
-        <div className="mt-3 flex gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <form.Field name="phone_number">
             {(field) => (
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>Phone</label>
                 <input className={inputClass} value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (555) 000-0000" />
@@ -203,9 +189,9 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
 
           <form.Field name="gender">
             {(field) => (
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>Gender</label>
-                <select className={inputClass} value={field.state.value}
+                <select className={selectClass} value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}>
                   <option value="">Select…</option>
                   <option value="male">Male</option>
@@ -218,35 +204,32 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
           </form.Field>
         </div>
 
-        <div className="mt-3 flex gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <form.Field name="date_of_birth">
             {(field) => (
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>Date of Birth</label>
-                <input type="date" className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} />
+                <DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" />
               </div>
             )}
           </form.Field>
 
           <form.Field name="hire_date">
             {(field) => (
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>Hire Date</label>
-                <input type="date" className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} />
+                <DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" />
               </div>
             )}
           </form.Field>
         </div>
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Emergency Contact
-          </p>
+        <div className="border-t border-dashed border-line-soft pt-4">
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Emergency Contact</p>
+
           <form.Field name="emergency_contact_name">
             {(field) => (
-              <div>
+              <div className="mb-4">
                 <label className={labelClass}>Name</label>
                 <input className={inputClass} value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)} placeholder="Full name" />
@@ -254,10 +237,10 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
             )}
           </form.Field>
 
-          <div className="mt-3 flex gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <form.Field name="emergency_contact_phone">
               {(field) => (
-                <div className="flex-1">
+                <div>
                   <label className={labelClass}>Phone</label>
                   <input className={inputClass} value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (555) 000-0000" />
@@ -267,7 +250,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
 
             <form.Field name="emergency_contact_relationship">
               {(field) => (
-                <div className="flex-1">
+                <div>
                   <label className={labelClass}>Relationship</label>
                   <input className={inputClass} value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)} placeholder="Spouse, Parent…" />
@@ -278,18 +261,15 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
         </div>
 
         {serverError && (
-          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+          <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
         )}
 
-        <div className="mt-4 flex items-center justify-end gap-3">
-          {saved && <span className="text-sm text-green-600">Saved</span>}
+        <div className="flex items-center justify-end gap-4 pt-2">
+          {saved && <SavedBadge />}
           <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
+              <button type="submit" disabled={isSubmitting}
+                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
                 {isSubmitting ? 'Saving…' : 'Save'}
               </button>
             )}
@@ -345,141 +325,137 @@ function WorkProfileForm({ worker }: { worker: Worker }) {
   })
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6 mb-6">
-      <h2 className="mb-4 text-sm font-semibold text-gray-900">Work Profile</h2>
+    <section className="border border-ink bg-paper">
+      <div className="px-6 py-4 border-b border-ink">
+        <Kicker>Work profile</Kicker>
+      </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Address</p>
+      <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="px-6 py-6 space-y-4">
+        <div>
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Address</p>
 
-        <form.Field name="street">
-          {(field) => (
-            <div>
-              <label className={labelClass}>Street</label>
-              <input className={inputClass} value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)} placeholder="123 Main St" />
-            </div>
-          )}
-        </form.Field>
-
-        <div className="mt-3 flex gap-3">
-          <form.Field name="city">
+          <form.Field name="street">
             {(field) => (
-              <div className="flex-1">
-                <label className={labelClass}>City</label>
+              <div className="mb-4">
+                <label className={labelClass}>Street</label>
                 <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} placeholder="Vancouver" />
+                  onChange={(e) => field.handleChange(e.target.value)} placeholder="123 Main St" />
               </div>
             )}
           </form.Field>
 
-          <form.Field name="province">
-            {(field) => (
-              <div className="w-28">
-                <label className={labelClass}>Province</label>
-                <select className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}>
-                  <option value="">—</option>
-                  {['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'].map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </form.Field>
+          <div className="grid grid-cols-[1fr_120px_120px] gap-4">
+            <form.Field name="city">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>City</label>
+                  <input className={inputClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)} placeholder="Vancouver" />
+                </div>
+              )}
+            </form.Field>
 
-          <form.Field name="postal_code">
-            {(field) => (
-              <div className="w-28">
-                <label className={labelClass}>Postal Code</label>
-                <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} placeholder="V6B 1A1" />
-              </div>
-            )}
-          </form.Field>
+            <form.Field name="province">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Province</label>
+                  <select className={selectClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}>
+                    <option value="">—</option>
+                    {['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'].map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="postal_code">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Postal Code</label>
+                  <input className={inputClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)} placeholder="V6B 1A1" />
+                </div>
+              )}
+            </form.Field>
+          </div>
         </div>
 
-        <p className="mb-3 mt-5 text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Employment
-        </p>
+        <div className="border-t border-dashed border-line-soft pt-4">
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Employment</p>
 
-        <div className="flex gap-3">
-          <form.Field name="employment_type">
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <form.Field name="employment_type">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Employment Type</label>
+                  <select className={selectClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value as EmploymentType | '')}>
+                    <option value="">Select…</option>
+                    {(Object.entries(EMPLOYMENT_TYPE_LABELS) as [EmploymentType, string][]).map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="max_hours_per_week">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Max Hours / Week</label>
+                  <input type="number" min={0} max={80} className={inputClass}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)} placeholder="40" />
+                </div>
+              )}
+            </form.Field>
+          </div>
+
+          <form.Field name="has_vehicle">
             {(field) => (
-              <div className="flex-1">
-                <label className={labelClass}>Employment Type</label>
-                <select className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value as EmploymentType | '')}>
-                  <option value="">Select…</option>
-                  {(Object.entries(EMPLOYMENT_TYPE_LABELS) as [EmploymentType, string][]).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </form.Field>
-
-          <form.Field name="max_hours_per_week">
-            {(field) => (
-              <div className="w-36">
-                <label className={labelClass}>Max Hours / Week</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={80}
-                  className={inputClass}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="40"
-                />
-              </div>
-            )}
-          </form.Field>
-        </div>
-
-        <form.Field name="has_vehicle">
-          {(field) => (
-            <div className="mt-3 flex items-center gap-2">
-              <input
-                id="has_vehicle"
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-gray-900"
-                checked={field.state.value}
-                onChange={(e) => field.handleChange(e.target.checked)}
-              />
-              <label htmlFor="has_vehicle" className="text-sm text-gray-700">
-                Has a vehicle
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={field.state.value}
+                  onClick={() => field.handleChange(!field.state.value)}
+                  className={`relative inline-flex h-5 w-9 items-center border transition-colors ${
+                    field.state.value ? 'bg-ink border-ink' : 'bg-cream-2 border-line-soft'
+                  }`}
+                >
+                  <span className={`inline-block h-3 w-3 bg-cream transition-transform ${
+                    field.state.value ? 'translate-x-5' : 'translate-x-1'
+                  }`} />
+                </button>
+                <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
+                  Has a vehicle
+                </span>
               </label>
-            </div>
-          )}
-        </form.Field>
+            )}
+          </form.Field>
+        </div>
 
-        <form.Field name="availability">
-          {(field) => (
-            <div className="mt-5">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Availability
-              </p>
-              <AvailabilityGrid
-                value={field.state.value}
-                onChange={(v) => field.handleChange(v)}
-              />
-            </div>
-          )}
-        </form.Field>
+        <div className="border-t border-dashed border-line-soft pt-4">
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Availability</p>
+          <form.Field name="availability">
+            {(field) => (
+              <AvailabilityGrid value={field.state.value} onChange={(v) => field.handleChange(v)} />
+            )}
+          </form.Field>
+        </div>
 
         {serverError && (
-          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{serverError}</p>
+          <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
         )}
 
-        <div className="mt-4 flex items-center justify-end gap-3">
-          {saved && <span className="text-sm text-green-600">Saved</span>}
+        <div className="flex items-center justify-end gap-4 pt-2">
+          {saved && <SavedBadge />}
           <form.Subscribe selector={(s) => s.isSubmitting}>
             {(isSubmitting) => (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
-              >
+              <button type="submit" disabled={isSubmitting}
+                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
                 {isSubmitting ? 'Saving…' : 'Save'}
               </button>
             )}
@@ -508,42 +484,45 @@ function DangerZone({ worker }: { worker: Worker }) {
   })
 
   return (
-    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-5">
-      <h3 className="text-sm font-semibold text-red-800">Danger Zone</h3>
-      <p className="mt-1 text-sm text-red-600">
-        Deleting a worker is permanent and cannot be undone.
-      </p>
+    <section className="border border-orange bg-paper">
+      <div className="px-6 py-4 border-b border-orange">
+        <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-orange">Danger zone</p>
+      </div>
+      <div className="px-6 py-5">
+        <p className="font-mono text-[11px] text-ink-soft mb-4">
+          Deleting a worker is permanent and cannot be undone.
+        </p>
 
-      {deleteError && (
-        <p className="mt-2 text-sm text-red-700 font-medium">{deleteError}</p>
-      )}
+        {deleteError && (
+          <p className="font-mono text-[10px] text-orange mb-3">{deleteError}</p>
+        )}
 
-      {deleteConfirm ? (
-        <div className="mt-3 flex items-center gap-3">
-          <span className="text-sm text-red-700">Are you sure?</span>
+        {deleteConfirm ? (
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[10px] text-ink-soft uppercase tracking-wide">Are you sure?</span>
+            <button
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="bg-orange text-white px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete'}
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(false)}
+              className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
           <button
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            onClick={() => setDeleteConfirm(true)}
+            className="border border-orange text-orange px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:bg-orange hover:text-white transition-colors"
           >
-            {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete'}
+            Delete Worker
           </button>
-          <button
-            onClick={() => setDeleteConfirm(false)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setDeleteConfirm(true)}
-          className="mt-3 flex items-center gap-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
-        >
-          <Trash2 size={14} />
-          Delete Worker
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+    </section>
   )
 }

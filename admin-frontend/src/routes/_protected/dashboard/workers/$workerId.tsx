@@ -1,7 +1,8 @@
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { format } from 'date-fns'
 import { workersApi } from '@/features/workers/api'
+import { Avatar } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId')({
   component: WorkerLayout,
@@ -15,56 +16,100 @@ function WorkerLayout() {
     queryFn: () => workersApi.getWorker(workerId),
   })
 
-  if (isLoading) {
-    return <div className="p-8 text-sm text-gray-500">Loading…</div>
-  }
+  if (isLoading) return (
+    <div className="p-8 font-mono text-[11px] text-muted">Loading…</div>
+  )
 
-  if (isError || !worker) {
-    return <div className="p-8 text-sm text-red-500">Worker not found.</div>
-  }
+  if (isError || !worker) return (
+    <div className="p-8 font-mono text-[11px] text-orange">Worker not found.</div>
+  )
 
   const initials = `${worker.first_name[0] ?? ''}${worker.last_name[0] ?? ''}`.toUpperCase()
+  const profile  = worker.worker_profile
 
   return (
-    <div className="p-8 max-w-5xl">
-      {/* Back */}
-      <Link
-        to="/dashboard/workers"
-        className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900"
-      >
-        <ArrowLeft size={14} />
-        Workers
-      </Link>
+    <div className="flex min-h-full bg-cream">
 
-      {/* Header */}
-      <div className="mb-8 flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gray-900 text-lg font-semibold text-white">
-          {initials}
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {worker.first_name} {worker.last_name}
-          </h1>
-          <p className="text-sm text-gray-500">{worker.email}</p>
-        </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${
-            worker.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-          }`}
+      {/* ── Left: Profile card ────────────────────────────────────── */}
+      <div className="w-72 shrink-0 border-r border-ink flex flex-col p-8 gap-6 sticky top-0 overflow-hidden" style={{ height: '100vh' }}>
+
+        <Link
+          to="/dashboard/workers"
+          className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink"
         >
-          {worker.is_active ? 'Active' : 'Inactive'}
-        </span>
+          ← Workers
+        </Link>
+
+        <div>
+          <Avatar initials={initials} color="c1" size="xl" className="mb-5" />
+          <h1 className="font-serif text-[34px] leading-[1.0] font-medium tracking-[-0.02em]">
+            {worker.first_name}<br />
+            <em>{worker.last_name}</em>
+          </h1>
+          <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mt-2">
+            {worker.role.replace(/_/g, ' ')}
+          </p>
+          <span className={`mt-3 inline-block font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border ${
+            worker.is_active ? 'bg-ink text-cream border-ink' : 'border-line-soft text-muted'
+          }`}>
+            {worker.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+
+        <div className="border-t border-ink" />
+
+        <div className="space-y-4">
+          {worker.hire_date && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Hired</p>
+              <p className="text-[13px]">{format(new Date(worker.hire_date), 'yyyy-MM-dd')}</p>
+            </div>
+          )}
+          {profile?.employment_type && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Employment</p>
+              <p className="text-[13px] capitalize">{profile.employment_type.replace(/_/g, ' ')}</p>
+            </div>
+          )}
+          {worker.phone_number && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Phone</p>
+              <p className="text-[13px]">{worker.phone_number}</p>
+            </div>
+          )}
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Email</p>
+            <p className="text-[12px] break-all">{worker.email}</p>
+          </div>
+          {profile?.max_hours_per_week != null && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Max hrs / wk</p>
+              <p className="text-[13px]">{profile.max_hours_per_week}h</p>
+            </div>
+          )}
+          {profile?.has_vehicle != null && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Vehicle</p>
+              <p className="text-[13px]">{profile.has_vehicle ? 'Yes' : 'No'}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-ink" />
+
         <Link
           to="/dashboard/workers/$workerId/edit"
-          params={{ workerId }}
-          className="ml-auto flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          params={{ workerId } as never}
+          className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink"
         >
-          <Pencil size={14} />
-          Edit Profile
+          Edit →
         </Link>
       </div>
 
-      <Outlet />
+      {/* ── Right: Shift data ─────────────────────────────────────── */}
+      <div className="flex-1 min-w-0">
+        <Outlet />
+      </div>
     </div>
   )
 }
