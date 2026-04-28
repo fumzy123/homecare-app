@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
 export const Route = createFileRoute('/dpa')({
   component: DpaPage,
 })
 
 const EFFECTIVE_DATE = 'May 1, 2026'
-const VERSION = '0.0'
 
 function DpaPage() {
   return (
@@ -14,7 +14,7 @@ function DpaPage() {
       <div className="max-w-3xl mx-auto px-8 py-16">
 
         <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
-          Legal · Version {VERSION} · Effective {EFFECTIVE_DATE}
+          Legal · Version {CURRENT_TERMS_VERSION} · Effective {EFFECTIVE_DATE}
         </p>
         <h1 className="font-serif text-[48px] leading-[1.0] font-medium tracking-[-0.02em] mb-2">
           Data Processing Agreement
@@ -145,7 +145,7 @@ function DpaPage() {
 
         <hr className="border-ink mt-12 mb-8" />
         <p className="font-mono text-[10px] text-muted tracking-[0.08em] uppercase">
-          Homecare · Data Processing Agreement · Version {VERSION} · {EFFECTIVE_DATE}
+          Homecare · Data Processing Agreement · Version {CURRENT_TERMS_VERSION} · {EFFECTIVE_DATE}
         </p>
       </div>
     </div>
