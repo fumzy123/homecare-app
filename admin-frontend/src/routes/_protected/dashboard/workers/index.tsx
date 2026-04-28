@@ -40,10 +40,10 @@ function WorkersPage() {
   return (
     <div className="min-h-full bg-cream">
       {/* Page header */}
-      <div className="flex items-end justify-between px-10 pt-10 pb-6">
+      <div className="flex items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">02 / Profile Management - Workers</Kicker>
-          <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
             Home Support{' '}
             {/* <span className="font-serif italic text-muted">
               — {workers.length} on staff
@@ -58,7 +58,7 @@ function WorkersPage() {
       </div>
 
       {/* Tabs */}
-      <div className="px-10 mb-6">
+      <div className="px-10 max-md:px-4 mb-6">
         <div className="flex items-center gap-1 border-b border-ink pb-0">
           {(['workers', 'invitations'] as Tab[]).map((t) => (
             <button
@@ -76,7 +76,7 @@ function WorkersPage() {
         </div>
       </div>
 
-      <div className="px-10 pb-12">
+      <div className="px-10 max-md:px-4 pb-12">
         {tab === 'workers' && (
           <>
             {isLoading && (
@@ -92,7 +92,7 @@ function WorkersPage() {
               </div>
             )}
             {workers.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-4 max-xl:grid-cols-3 max-lg:grid-cols-2 max-md:grid-cols-1 gap-4">
                 {workers.map((worker, i) => (
                   <WorkerRow key={worker.id} worker={worker} index={i} />
                 ))}

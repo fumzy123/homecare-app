@@ -271,7 +271,7 @@ interface SectionHeaderProps {
 
 export function SectionHeader({ kicker, title, sub, right, className }: SectionHeaderProps) {
   return (
-    <div className={cn('flex items-end justify-between gap-8 px-10 pt-10 pb-6', className)}>
+    <div className={cn('flex items-end justify-between max-md:flex-col max-md:items-start gap-8 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6', className)}>
       <div className="flex-1">
         <Kicker leader className="mb-4">{kicker}</Kicker>
         <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">{title}</h1>

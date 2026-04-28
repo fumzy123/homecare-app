@@ -43,10 +43,10 @@ function ClientsPage() {
   return (
     <div className="min-h-full bg-cream">
       {/* Page header */}
-      <div className="flex items-end justify-between px-10 pt-10 pb-6">
+      <div className="flex items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">03 / Profile Management - Clients</Kicker>
-          <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
             Clients &{' '}
             <span className="font-serif italic text-muted">
               care plans.
@@ -57,7 +57,7 @@ function ClientsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="px-10 mb-6 flex items-center gap-3">
+      <div className="px-10 max-md:px-4 mb-6 flex items-center gap-3">
         {/* Search */}
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -94,7 +94,7 @@ function ClientsPage() {
       </div>
 
       {/* Table */}
-      <div className="px-10 pb-12">
+      <div className="px-10 max-md:px-4 pb-12">
         {isLoading && (
           <p className="font-mono text-[11px] text-muted tracking-wide py-8">LOADING CLIENTS…</p>
         )}

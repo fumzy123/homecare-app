@@ -158,10 +158,10 @@ function TimesheetPage() {
   return (
     <div className="min-h-full bg-cream flex flex-col">
       {/* Header */}
-      <div className="flex items-end justify-between px-10 pt-10 pb-6">
+      <div className="flex items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">05 / Timesheets</Kicker>
-          <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
             Timesheets{' '}
             <span className="font-serif italic text-muted">— payroll record</span>
           </h1>
@@ -177,7 +177,7 @@ function TimesheetPage() {
       </div>
 
       {/* Filters */}
-      <div className="px-10 pb-6 flex flex-wrap items-center gap-3">
+      <div className="px-10 max-md:px-4 pb-6 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">From</label>
           <DateInput value={fromDate} onChange={setFromDate} />
@@ -203,7 +203,7 @@ function TimesheetPage() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 px-10 pb-12">
+      <div className="flex-1 px-10 max-md:px-4 pb-12">
         <Card className="p-0 overflow-hidden">
           {isLoading ? (
             <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>

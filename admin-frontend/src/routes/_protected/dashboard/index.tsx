@@ -92,7 +92,7 @@ function DashboardPage() {
     <div className="min-h-full bg-cream">
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="px-10 pt-12 pb-8 relative">
+      <section className="px-10 max-md:px-4 pt-12 max-md:pt-6 pb-8 relative">
         <div className="absolute top-14 right-24 text-ink-soft opacity-40">
           <svg width="12" height="12" viewBox="0 0 12 12"><line x1="6" y1="0" x2="6" y2="12" stroke="currentColor" strokeWidth="1"/><line x1="0" y1="6" x2="12" y2="6" stroke="currentColor" strokeWidth="1"/></svg>
         </div>
@@ -102,7 +102,7 @@ function DashboardPage() {
 
         <Kicker leader className="mb-5">{format(new Date(), 'EEEE, MMMM d, yyyy')}</Kicker>
 
-        <h1 className="font-serif text-[64px] leading-[0.97] font-medium tracking-[-0.02em] max-w-4xl">
+        <h1 className="font-serif text-[64px] max-md:text-[36px] leading-[0.97] font-medium tracking-[-0.02em] max-w-4xl">
           {inProgress.length > 0 ? (
             <>
               Today there {inProgress.length === 1 ? 'is' : 'are'}{' '}
@@ -126,10 +126,10 @@ function DashboardPage() {
       </section>
 
       {/* ── Stat strip ───────────────────────────────────────────────────── */}
-      <section className="px-10 mb-8">
-        <div className="grid grid-cols-4 border border-ink bg-paper">
+      <section className="px-10 max-md:px-4 mb-8">
+        <div className="grid grid-cols-4 max-md:grid-cols-2 border border-ink bg-paper overflow-hidden">
           {STATS.map((s, i) => (
-            <div key={i} className={`px-7 py-6 relative ${i < 3 ? 'border-r border-ink' : ''}`}>
+            <div key={i} className="px-7 max-md:px-4 py-6 relative border-r border-b border-ink">
               <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
                 {s.label}
               </div>
@@ -145,10 +145,10 @@ function DashboardPage() {
       </section>
 
       {/* ── Main grid ────────────────────────────────────────────────────── */}
-      <section className="px-10 grid grid-cols-3 gap-6 mb-8">
+      <section className="px-10 max-md:px-4 grid grid-cols-3 max-md:grid-cols-1 gap-6 mb-8">
 
-        {/* Today's timeline — 2/3 width */}
-        <Card className="col-span-2 p-0">
+        {/* Today's timeline — 2/3 width on desktop, full width on mobile */}
+        <Card className="col-span-2 max-md:col-span-1 p-0">
           <div className="flex items-center justify-between px-6 py-5 border-b border-ink">
             <div>
               <Kicker className="mb-1">A · Live Timeline</Kicker>
@@ -241,7 +241,7 @@ function DashboardPage() {
       </section>
 
       {/* ── Client roster strip ───────────────────────────────────────────── */}
-      <section className="px-10 pb-12">
+      <section className="px-10 max-md:px-4 pb-12">
         <Card variant="cream" className="p-0">
           <div className="px-6 py-5 border-b border-ink">
             <Kicker className="mb-1">E / Clients by hours</Kicker>

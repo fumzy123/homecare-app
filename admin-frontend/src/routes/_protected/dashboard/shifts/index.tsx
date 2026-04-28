@@ -169,10 +169,10 @@ function ShiftsPage() {
   return (
     <div className="min-h-full bg-cream flex flex-col" style={{ height: 'calc(100vh - 89px)' }}>
       {/* Header */}
-      <div className="flex shrink-0 items-end justify-between px-10 pt-10 pb-6">
+      <div className="flex shrink-0 items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">04 / Schedule</Kicker>
-          <h1 className="font-serif text-[52px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
             {format(currentDate, 'MMMM yyyy')}{' '}
             <span className="font-serif italic text-muted">— schedule</span>
           </h1>
@@ -193,7 +193,7 @@ function ShiftsPage() {
       </div>
 
       {/* Legend — driven by STATUS_TOKENS so colours stay in sync automatically */}
-      <div className="px-10 pb-4 flex items-center gap-6 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft">
+      <div className="px-10 max-md:px-4 pb-4 flex flex-wrap items-center gap-4 max-md:gap-3 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft">
         {(['scheduled', 'in_progress', 'completed', 'no_show', 'cancelled', 'dropped'] as const).map((key) => {
           const t = STATUS_TOKENS[key]
           return (
@@ -213,7 +213,7 @@ function ShiftsPage() {
       </div>
 
       {/* Calendar */}
-      <div className="relative min-h-0 flex-1 px-10 pb-10">
+      <div className="relative min-h-0 flex-1 px-10 max-md:px-4 pb-10">
         <div className="relative h-full border border-ink overflow-hidden bg-paper">
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-cream/80">
