@@ -43,10 +43,10 @@ function ClientsPage() {
   return (
     <div className="min-h-full bg-cream">
       {/* Page header */}
-      <div className="flex items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
+      <div className="flex flex-wrap items-end justify-between gap-y-5 gap-x-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">03 / Profile Management - Clients</Kicker>
-          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
             Clients &{' '}
             <span className="font-serif italic text-muted">
               care plans.
@@ -57,12 +57,14 @@ function ClientsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="px-10 max-md:px-4 mb-6 flex items-center gap-3">
+      <div className="px-10 max-md:px-4 mb-8 flex flex-wrap items-center justify-between gap-4">
+        
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto flex-1">
         {/* Search */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
-            className="bg-paper border border-ink pl-8 pr-3 py-2 font-mono text-[12px] text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-ink w-56"
+            className="bg-paper border border-ink pl-8 pr-3 py-2 font-mono text-[12px] text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-ink w-full sm:w-56"
             placeholder="Search clients…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -70,12 +72,12 @@ function ClientsPage() {
         </div>
 
         {/* Status filter pills */}
-        <div className="flex items-center border border-ink overflow-hidden">
+        <div className="flex items-center border border-ink overflow-hidden overflow-x-auto scrollbar-hide shrink-0">
           {STATUS_OPTIONS.map((opt, i) => (
             <button
               key={opt.value}
               onClick={() => setStatusFilter(opt.value)}
-              className={`px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors ${
+              className={`px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] whitespace-nowrap transition-colors ${
                 i > 0 ? 'border-l border-ink' : ''
               } ${
                 statusFilter === opt.value
@@ -87,11 +89,12 @@ function ClientsPage() {
             </button>
           ))}
         </div>
-
-        <span className="font-mono text-[10px] text-muted ml-auto tracking-wide">
-          {filtered.length} RESULTS
-        </span>
       </div>
+
+      <span className="font-mono text-[10px] text-muted tracking-wide shrink-0 max-sm:w-full">
+        {filtered.length} RESULTS
+      </span>
+    </div>
 
       {/* Table */}
       <div className="px-10 max-md:px-4 pb-12">
