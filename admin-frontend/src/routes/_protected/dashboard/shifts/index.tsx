@@ -89,7 +89,7 @@ function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps) {
   const navBtn = 'w-8 h-8 rounded-full border border-ink/40 flex items-center justify-center font-mono text-[13px] text-ink hover:bg-cream-2 hover:border-ink transition-colors'
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-ink bg-paper">
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-ink bg-paper max-md:flex-wrap">
       {/* Left: nav group */}
       <div className="flex items-center gap-3 flex-1">
         <button onClick={() => onNavigate(Navigate.PREVIOUS)} className={navBtn}>←</button>
@@ -168,31 +168,33 @@ function ShiftsPage() {
 
   return (
     <div className="min-h-full bg-cream flex flex-col" style={{ height: 'calc(100vh - 89px)' }}>
-      {/* Header */}
-      <div className="flex shrink-0 items-end justify-between max-md:flex-col max-md:items-start gap-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
+      {/* Page header */}
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-y-5 gap-x-4 px-10 max-md:px-4 pt-10 max-md:pt-6 pb-6">
         <div>
           <Kicker leader className="mb-4">04 / Schedule</Kicker>
-          <h1 className="font-serif text-[52px] max-md:text-[32px] leading-[0.98] font-medium tracking-[-0.02em]">
+          <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
             {format(currentDate, 'MMMM yyyy')}{' '}
             <span className="font-serif italic text-muted">— schedule</span>
           </h1>
         </div>
-        <div className="flex items-center gap-3">
-          <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass}>
-            <option value="">All workers</option>
-            {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
-          </select>
-          <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass}>
-            <option value="">All clients</option>
-            {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-          </select>
-          <Btn variant="ghost" onClick={() => { setPendingShift(null); setShowDrawer(true) }}>
-            ＊ New shift
-          </Btn>
-        </div>
+        <Btn variant="ghost" onClick={() => { setPendingShift(null); setShowDrawer(true) }} className="max-sm:w-full max-sm:justify-center">
+          ＊ New shift
+        </Btn>
       </div>
 
-      {/* Legend — driven by STATUS_TOKENS so colours stay in sync automatically */}
+      {/* Toolbar */}
+      <div className="px-10 max-md:px-4 mb-4 flex flex-wrap items-center gap-3">
+        <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
+          <option value="">All workers</option>
+          {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
+        </select>
+        <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
+          <option value="">All clients</option>
+          {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+        </select>
+      </div>
+
+      {/* Legend */}
       <div className="px-10 max-md:px-4 pb-4 flex flex-wrap items-center gap-4 max-md:gap-3 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft">
         {(['scheduled', 'in_progress', 'completed', 'no_show', 'cancelled', 'dropped'] as const).map((key) => {
           const t = STATUS_TOKENS[key]
@@ -209,7 +211,6 @@ function ShiftsPage() {
             </span>
           )
         })}
-        <span className="ml-auto">＊ click any shift to inspect or edit</span>
       </div>
 
       {/* Calendar */}

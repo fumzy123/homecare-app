@@ -79,7 +79,7 @@ interface BtnProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Btn({ variant = 'primary', size = 'md', className, children, ...props }: BtnProps) {
-  const base = 'inline-flex items-center gap-2 rounded-full border font-mono tracking-wide transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+  const base = 'inline-flex items-center gap-2 rounded-full border font-mono tracking-wide transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap'
   const sizes = { sm: 'px-3 py-1.5 text-[11px]', md: 'px-4 py-2 text-[12px]' }
   const variants: Record<BtnVariant, string> = {
     primary: 'bg-ink text-cream border-ink hover:bg-orange hover:border-orange',
