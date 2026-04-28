@@ -1,4 +1,5 @@
 import { format } from 'date-fns'
+import { useEffect, useRef } from 'react'
 import { Avatar } from '@/shared/components/ui'
 import type { ShiftOccurrence } from '@/features/shifts/api'
 import { getStatusToken } from '@/shared/lib/shiftStatus'
@@ -32,6 +33,8 @@ interface DayTimelineProps {
   onSelectShift: (shift: ShiftOccurrence) => void
 }
 
+let hasAnimatedTimelineScroll = false
+
 export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
   const workerOrder: string[] = []
   const byWorker: Record<string, ShiftOccurrence[]> = {}
@@ -44,6 +47,23 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
   const nowHour = toDecimalHour(new Date().toISOString())
   const showNow = nowHour >= START_HOUR && nowHour <= END_HOUR
   const nowPct  = trackPct(nowHour)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current && showNow) {
+      const container = scrollRef.current
+      // Center the NOW line in the viewport based on the total scrollable width
+      const targetScroll = (nowPct / 100) * container.scrollWidth - container.clientWidth / 2
+      
+      container.scrollTo({ 
+        left: Math.max(0, targetScroll), 
+        behavior: hasAnimatedTimelineScroll ? 'auto' : 'smooth' 
+      })
+      
+      hasAnimatedTimelineScroll = true
+    }
+  }, [nowPct, showNow])
 
   return (
     <div className="flex">
@@ -84,7 +104,7 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
       </div>
 
       {/* ── Scrollable track ── */}
-      <div className="timeline-scroll flex-1">
+      <div className="timeline-scroll flex-1" ref={scrollRef}>
         <div style={{ minWidth: MIN_TRACK_W }}>
 
           {/* Hour ruler — explicit height matches label spacer */}
