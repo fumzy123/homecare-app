@@ -93,14 +93,15 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
 
-      <div className="fixed inset-y-0 right-0 z-50 flex w-[480px] flex-col bg-paper border-l border-ink">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-12 pointer-events-none">
+        <div className="pointer-events-auto flex w-full max-w-[640px] max-h-full flex-col bg-paper border border-ink relative">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>New Client</Kicker>
-          <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
+        <div className="flex items-center justify-between px-8 py-6 border-b border-dashed border-line-soft">
+          <h2 className="font-serif italic text-[28px] leading-none tracking-tight text-ink">New Client</h2>
+          <button onClick={onClose} className="font-mono text-[24px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
         {/* Form body */}
@@ -221,6 +222,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
             )}
           </form.Subscribe>
         </div>
+      </div>
       </div>
     </>
   )
