@@ -170,7 +170,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     <>
       <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
 
-      <div className="fixed inset-y-0 right-0 z-50 flex w-[400px] flex-col bg-paper border-l border-ink">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[400px] flex-col bg-paper border-l border-ink">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">

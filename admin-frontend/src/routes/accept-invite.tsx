@@ -34,7 +34,7 @@ function AcceptInvitePage() {
     <div className="flex h-screen bg-cream">
 
       {/* ── Left: Editorial panel ── */}
-      <div className="flex-1 flex flex-col justify-between px-16 py-14 border-r border-ink">
+      <div className="flex-1 flex flex-col justify-between px-16 py-14 border-r border-ink max-md:hidden">
 
         {/* Logo */}
         <div className="flex items-center gap-3">
@@ -69,7 +69,7 @@ function AcceptInvitePage() {
       </div>
 
       {/* ── Right: Form panel ── */}
-      <div className="w-[480px] shrink-0 flex flex-col justify-center px-14 py-14 bg-paper border-l border-ink">
+      <div className="w-[480px] max-md:w-full shrink-0 flex flex-col justify-center px-14 max-md:px-8 py-14 bg-paper border-l border-ink">
         <div className="mb-8">
           <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-2">Account setup</p>
           <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em] font-medium">Complete your account</h2>
