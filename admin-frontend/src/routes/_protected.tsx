@@ -3,15 +3,15 @@ import { useState } from 'react'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
+import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: () => {
-    const token = useAuthStore.getState().accessToken
-    if (!token) {
-      throw redirect({ to: '/login' })
-    }
+    const { accessToken, termsAcceptedVersion } = useAuthStore.getState()
+    if (!accessToken) throw redirect({ to: '/login' })
+    if (termsAcceptedVersion !== CURRENT_TERMS_VERSION) throw redirect({ to: '/accept-terms' })
   },
   component: ProtectedLayout,
 })

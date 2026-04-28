@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { RegisterForm } from '@/features/auth/components/RegisterForm'
+import { LegalFooter } from '@/shared/components/LegalFooter'
 
 export const Route = createFileRoute('/register')({
   beforeLoad: () => {
@@ -67,6 +68,8 @@ function RegisterPage() {
             Sign in
           </Link>
         </p>
+
+        <LegalFooter />
       </div>
     </div>
   )

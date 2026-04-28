@@ -10,8 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DpaRouteImport } from './routes/dpa'
+import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
@@ -33,14 +37,34 @@ const WelcomeRoute = WelcomeRouteImport.update({
   path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DpaRoute = DpaRouteImport.update({
+  id: '/dpa',
+  path: '/dpa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptTermsRoute = AcceptTermsRouteImport.update({
+  id: '/accept-terms',
+  path: '/accept-terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptInviteRoute = AcceptInviteRouteImport.update({
@@ -131,8 +155,12 @@ const ProtectedDashboardClientsClientIdEditRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/accept-terms': typeof AcceptTermsRoute
+  '/dpa': typeof DpaRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
+  '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/account/': typeof ProtectedAccountIndexRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
@@ -150,8 +178,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/accept-terms': typeof AcceptTermsRoute
+  '/dpa': typeof DpaRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
+  '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/account': typeof ProtectedAccountIndexRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
@@ -169,8 +201,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_protected': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
+  '/accept-terms': typeof AcceptTermsRoute
+  '/dpa': typeof DpaRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
+  '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/_protected/account/': typeof ProtectedAccountIndexRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
@@ -190,8 +226,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accept-invite'
+    | '/accept-terms'
+    | '/dpa'
     | '/login'
+    | '/privacy'
     | '/register'
+    | '/terms'
     | '/welcome'
     | '/account/'
     | '/dashboard/'
@@ -209,8 +249,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept-invite'
+    | '/accept-terms'
+    | '/dpa'
     | '/login'
+    | '/privacy'
     | '/register'
+    | '/terms'
     | '/welcome'
     | '/account'
     | '/dashboard'
@@ -227,8 +271,12 @@ export interface FileRouteTypes {
     | '/'
     | '/_protected'
     | '/accept-invite'
+    | '/accept-terms'
+    | '/dpa'
     | '/login'
+    | '/privacy'
     | '/register'
+    | '/terms'
     | '/welcome'
     | '/_protected/account/'
     | '/_protected/dashboard/'
@@ -248,8 +296,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AcceptInviteRoute: typeof AcceptInviteRoute
+  AcceptTermsRoute: typeof AcceptTermsRoute
+  DpaRoute: typeof DpaRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
+  TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
 }
 
@@ -262,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -269,11 +328,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dpa': {
+      id: '/dpa'
+      path: '/dpa'
+      fullPath: '/dpa'
+      preLoaderRoute: typeof DpaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-terms': {
+      id: '/accept-terms'
+      path: '/accept-terms'
+      fullPath: '/accept-terms'
+      preLoaderRoute: typeof AcceptTermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-invite': {
@@ -452,8 +532,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProtectedRoute: ProtectedRouteWithChildren,
   AcceptInviteRoute: AcceptInviteRoute,
+  AcceptTermsRoute: AcceptTermsRoute,
+  DpaRoute: DpaRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,
+  TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport

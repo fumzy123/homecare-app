@@ -1,4 +1,5 @@
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
+import { LegalFooter } from '@/shared/components/LegalFooter'
 import { useAuthStore } from '@/shared/stores/auth'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 
@@ -67,6 +68,8 @@ function LoginPage() {
             Create an account
           </Link>
         </p>
+
+        <LegalFooter />
       </div>
     </div>
   )
