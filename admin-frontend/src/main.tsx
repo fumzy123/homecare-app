@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
@@ -6,6 +7,38 @@ import { routeTree } from './routeTree.gen'
 import { supabase } from '@/shared/lib/supabase'
 import { useAuthStore } from '@/shared/stores/auth'
 import './index.css'
+
+
+// ─── Sentry ──────────────────────────────────────────────────────────────────
+// Only active when VITE_SENTRY_DSN is set (staging / production).
+// beforeSend strips any form values so patient data is never transmitted.
+
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.VITE_APP_ENV ?? 'development',
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      }),
+    ],
+    tracesSampleRate: 0.2,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 1.0,
+    sendDefaultPii: false,
+    beforeSend(event) {
+      if (event.request?.data) {
+        delete event.request.data
+      }
+      return event
+    },
+  })
+}
+
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session) {
@@ -20,6 +53,9 @@ supabase.auth.onAuthStateChange((_event, session) => {
     useAuthStore.getState().clearAuth()
   }
 })
+
+
+// ─── Router & Query client ────────────────────────────────────────────────────
 
 const router = createRouter({ routeTree })
 
