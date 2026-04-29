@@ -282,6 +282,41 @@ export function SectionHeader({ kicker, title, sub, right, className }: SectionH
   )
 }
 
+// ─── StatCard ─────────────────────────────────────────────────────────────────
+// Single stat cell: label / big number / sub-label.
+// Always hoverable. Drop into any border-divided grid via className.
+interface StatCardProps {
+  label: string
+  value: string | number
+  sub?: string
+  valueColor?: string      // extra class on the value, e.g. 'text-orange'
+  size?: 'sm' | 'md' | 'lg'  // 40 / 48 / 72px
+  sublabelInline?: boolean // place sub next to value instead of below
+  className?: string
+}
+
+export function StatCard({
+  label, value, sub, valueColor, size = 'md', sublabelInline = false, className,
+}: StatCardProps) {
+  const sizeClass = { sm: 'text-[40px]', md: 'text-[48px]', lg: 'text-[72px]' }[size]
+  return (
+    <div className={cn('px-6 py-5 hover:bg-cream-2 transition-colors', className)}>
+      <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{label}</p>
+      {sublabelInline ? (
+        <div className="flex items-baseline gap-3">
+          <span className={cn(`font-serif ${sizeClass} leading-none`, valueColor ?? 'text-ink')}>{value}</span>
+          {sub && <span className="font-mono text-[11px] text-ink-soft">{sub}</span>}
+        </div>
+      ) : (
+        <>
+          <p className={cn(`font-serif ${sizeClass} leading-none`, valueColor ?? 'text-ink')}>{value}</p>
+          {sub && <p className="font-mono text-[10px] text-ink-soft mt-1">{sub}</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ─── Dashed divider ───────────────────────────────────────────────────────────
 export function Divider({ className }: { className?: string }) {
   return <div className={cn('border-t border-dashed border-line-soft', className)} />

@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, getW
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { Kicker, ShiftStatusBadge } from '@/shared/components/ui'
+import { Kicker, ShiftStatusBadge, StatCard } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/')({
   component: ClientOverview,
@@ -119,16 +119,19 @@ function ClientOverview() {
 
         <div className="grid grid-cols-4 border border-ink bg-paper">
           {[
-            { label: 'Upcoming',       value: upcoming,                    sub: 'scheduled visits'  },
-            { label: 'Completed',      value: completed,                   sub: 'visits'            },
-            { label: 'Hours Delivered',value: `${hoursDelivered.toFixed(1)}h`, sub: 'of completed care' },
-            { label: 'Cancelled',      value: cancelled,                   sub: 'visits'            },
+            { label: 'Upcoming',        value: upcoming,                        sub: 'scheduled visits'  },
+            { label: 'Completed',       value: completed,                       sub: 'visits'            },
+            { label: 'Hours Delivered', value: `${hoursDelivered.toFixed(1)}h`, sub: 'of completed care' },
+            { label: 'Cancelled',       value: cancelled,                       sub: 'visits'            },
           ].map((s, i) => (
-            <div key={s.label} className={`px-6 py-5 hover:bg-cream-2 transition-colors ${i < 3 ? 'border-r border-ink' : ''}`}>
-              <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{s.label}</p>
-              <p className="font-serif text-[40px] leading-none">{s.value}</p>
-              <p className="font-mono text-[10px] text-ink-soft mt-1">{s.sub}</p>
-            </div>
+            <StatCard
+              key={s.label}
+              label={s.label}
+              value={s.value}
+              sub={s.sub}
+              size="sm"
+              className={i < 3 ? 'border-r border-ink' : ''}
+            />
           ))}
         </div>
       </div>

@@ -8,7 +8,7 @@ import { workersApi } from '@/features/workers/api'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { DayTimeline } from '@/features/shifts/components/DayTimeline'
-import { Card, Avatar, Kicker, ProgressBar } from '@/shared/components/ui'
+import { Card, Avatar, Kicker, ProgressBar, StatCard } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
@@ -129,17 +129,16 @@ function DashboardPage() {
       <section className="px-10 max-md:px-4 mb-8">
         <div className="grid grid-cols-4 max-md:grid-cols-2 border border-ink bg-paper overflow-hidden">
           {STATS.map((s, i) => (
-            <div key={i} className="px-7 max-md:px-4 py-6 relative border-r border-b border-ink hover:bg-cream-2 transition-colors">
-              <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
-                {s.label}
-              </div>
-              <div className="flex items-baseline gap-3">
-                <span className={`font-serif text-[72px] leading-none ${s.accent ? 'text-orange' : 'text-ink'}`}>
-                  {s.value}
-                </span>
-                <span className="font-mono text-[11px] text-ink-soft">{s.sub}</span>
-              </div>
-            </div>
+            <StatCard
+              key={i}
+              label={s.label}
+              value={s.value}
+              sub={s.sub}
+              valueColor={s.accent ? 'text-orange' : undefined}
+              size="lg"
+              sublabelInline
+              className="px-7 max-md:px-4 py-6 border-r border-b border-ink"
+            />
           ))}
         </div>
       </section>

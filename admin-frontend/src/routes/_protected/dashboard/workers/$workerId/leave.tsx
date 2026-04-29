@@ -10,6 +10,7 @@ import {
   type LeaveType,
   type LeaveRecordCreatePayload,
 } from '@/features/leave/api'
+import { StatCard } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/leave')({
   component: WorkerLeave,
@@ -86,15 +87,13 @@ function WorkerLeave() {
       {/* ── Stat counters ───────────────────────────────────────── */}
       <div className="grid grid-cols-4 border border-ink bg-paper">
         {LEAVE_TYPES.map((type, i) => (
-          <div key={type} className={`px-6 py-5 hover:bg-cream-2 transition-colors ${i < 3 ? 'border-r border-ink' : ''}`}>
-            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">
-              {LEAVE_TYPE_LABELS[type]}
-            </p>
-            <p className="font-serif text-[48px] leading-none">{stats[type]}</p>
-            <p className="font-mono text-[10px] text-ink-soft mt-1">
-              {stats[type] === 1 ? 'day' : 'days'}
-            </p>
-          </div>
+          <StatCard
+            key={type}
+            label={LEAVE_TYPE_LABELS[type]}
+            value={stats[type]}
+            sub={stats[type] === 1 ? 'day' : 'days'}
+            className={i < 3 ? 'border-r border-ink' : ''}
+          />
         ))}
       </div>
 
