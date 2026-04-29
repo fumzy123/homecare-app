@@ -129,7 +129,7 @@ function DashboardPage() {
       <section className="px-10 max-md:px-4 mb-8">
         <div className="grid grid-cols-4 max-md:grid-cols-2 border border-ink bg-paper overflow-hidden">
           {STATS.map((s, i) => (
-            <div key={i} className="px-7 max-md:px-4 py-6 relative border-r border-b border-ink">
+            <div key={i} className="px-7 max-md:px-4 py-6 relative border-r border-b border-ink hover:bg-cream-2 transition-colors">
               <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
                 {s.label}
               </div>

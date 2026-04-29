@@ -124,7 +124,7 @@ function ClientOverview() {
             { label: 'Hours Delivered',value: `${hoursDelivered.toFixed(1)}h`, sub: 'of completed care' },
             { label: 'Cancelled',      value: cancelled,                   sub: 'visits'            },
           ].map((s, i) => (
-            <div key={s.label} className={`px-6 py-5 ${i < 3 ? 'border-r border-ink' : ''}`}>
+            <div key={s.label} className={`px-6 py-5 hover:bg-cream-2 transition-colors ${i < 3 ? 'border-r border-ink' : ''}`}>
               <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{s.label}</p>
               <p className="font-serif text-[40px] leading-none">{s.value}</p>
               <p className="font-mono text-[10px] text-ink-soft mt-1">{s.sub}</p>

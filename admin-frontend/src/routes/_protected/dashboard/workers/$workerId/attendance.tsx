@@ -111,7 +111,7 @@ function WorkerAttendance() {
             { label: 'Shifts Cancelled ',        value: annual.cancelled + annual.dropped,             sub: 'by admin or client'         },
             { label: 'Shifts Expected',         value: annual.scheduled - (annual.cancelled + annual.dropped), sub: 'to be attended by worker' },
           ].map((s, i) => (
-            <div key={s.label} className={`px-6 py-5 ${i < 2 ? 'border-r border-ink' : ''}`}>
+            <div key={s.label} className={`px-6 py-5 hover:bg-cream-2 transition-colors ${i < 2 ? 'border-r border-ink' : ''}`}>
               <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{s.label}</p>
               <p className="font-serif text-[48px] leading-none">{s.value}</p>
               <p className="font-mono text-[10px] text-ink-soft mt-1">{s.sub}</p>
@@ -125,7 +125,7 @@ function WorkerAttendance() {
             { label: 'No-shows',        value: annual.no_show,                                sub: 'missed',                color: false },
             { label: 'Attendance rate', value: annualRate !== null ? `${annualRate}%` : '—',  sub: 'of this year so far',    color: true  },
           ].map((s, i) => (
-            <div key={s.label} className={`px-6 py-5 ${i < 2 ? 'border-r border-ink' : ''}`}>
+            <div key={s.label} className={`px-6 py-5 hover:bg-cream-2 transition-colors ${i < 2 ? 'border-r border-ink' : ''}`}>
               <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{s.label}</p>
               <p className={`font-serif text-[48px] leading-none ${s.color ? rateColor(annualRate) : ''}`}>{s.value}</p>
               <p className="font-mono text-[10px] text-ink-soft mt-1">{s.sub}</p>
