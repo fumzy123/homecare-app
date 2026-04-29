@@ -29,7 +29,9 @@ import { Route as ProtectedDashboardWorkersWorkerIdRouteImport } from './routes/
 import { Route as ProtectedDashboardClientsClientIdRouteImport } from './routes/_protected/dashboard/clients/$clientId'
 import { Route as ProtectedDashboardWorkersWorkerIdIndexRouteImport } from './routes/_protected/dashboard/workers/$workerId/index'
 import { Route as ProtectedDashboardClientsClientIdIndexRouteImport } from './routes/_protected/dashboard/clients/$clientId/index'
+import { Route as ProtectedDashboardWorkersWorkerIdLeaveRouteImport } from './routes/_protected/dashboard/workers/$workerId/leave'
 import { Route as ProtectedDashboardWorkersWorkerIdEditRouteImport } from './routes/_protected/dashboard/workers/$workerId/edit'
+import { Route as ProtectedDashboardWorkersWorkerIdAttendanceRouteImport } from './routes/_protected/dashboard/workers/$workerId/attendance'
 import { Route as ProtectedDashboardClientsClientIdEditRouteImport } from './routes/_protected/dashboard/clients/$clientId/edit'
 
 const WelcomeRoute = WelcomeRouteImport.update({
@@ -139,10 +141,22 @@ const ProtectedDashboardClientsClientIdIndexRoute =
     path: '/',
     getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
+const ProtectedDashboardWorkersWorkerIdLeaveRoute =
+  ProtectedDashboardWorkersWorkerIdLeaveRouteImport.update({
+    id: '/leave',
+    path: '/leave',
+    getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
+  } as any)
 const ProtectedDashboardWorkersWorkerIdEditRoute =
   ProtectedDashboardWorkersWorkerIdEditRouteImport.update({
     id: '/edit',
     path: '/edit',
+    getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
+  } as any)
+const ProtectedDashboardWorkersWorkerIdAttendanceRoute =
+  ProtectedDashboardWorkersWorkerIdAttendanceRouteImport.update({
+    id: '/attendance',
+    path: '/attendance',
     getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
   } as any)
 const ProtectedDashboardClientsClientIdEditRoute =
@@ -171,7 +185,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
   '/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  '/dashboard/workers/$workerId/leave': typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
   '/dashboard/clients/$clientId/': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/dashboard/workers/$workerId/': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
@@ -192,7 +208,9 @@ export interface FileRoutesByTo {
   '/dashboard/timesheet': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
   '/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  '/dashboard/workers/$workerId/leave': typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
@@ -217,7 +235,9 @@ export interface FileRoutesById {
   '/_protected/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
   '/_protected/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/_protected/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
   '/_protected/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  '/_protected/dashboard/workers/$workerId/leave': typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
   '/_protected/dashboard/clients/$clientId/': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/_protected/dashboard/workers/$workerId/': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
@@ -242,7 +262,9 @@ export interface FileRouteTypes {
     | '/dashboard/timesheet/'
     | '/dashboard/workers/'
     | '/dashboard/clients/$clientId/edit'
+    | '/dashboard/workers/$workerId/attendance'
     | '/dashboard/workers/$workerId/edit'
+    | '/dashboard/workers/$workerId/leave'
     | '/dashboard/clients/$clientId/'
     | '/dashboard/workers/$workerId/'
   fileRoutesByTo: FileRoutesByTo
@@ -263,7 +285,9 @@ export interface FileRouteTypes {
     | '/dashboard/timesheet'
     | '/dashboard/workers'
     | '/dashboard/clients/$clientId/edit'
+    | '/dashboard/workers/$workerId/attendance'
     | '/dashboard/workers/$workerId/edit'
+    | '/dashboard/workers/$workerId/leave'
     | '/dashboard/clients/$clientId'
     | '/dashboard/workers/$workerId'
   id:
@@ -287,7 +311,9 @@ export interface FileRouteTypes {
     | '/_protected/dashboard/timesheet/'
     | '/_protected/dashboard/workers/'
     | '/_protected/dashboard/clients/$clientId/edit'
+    | '/_protected/dashboard/workers/$workerId/attendance'
     | '/_protected/dashboard/workers/$workerId/edit'
+    | '/_protected/dashboard/workers/$workerId/leave'
     | '/_protected/dashboard/clients/$clientId/'
     | '/_protected/dashboard/workers/$workerId/'
   fileRoutesById: FileRoutesById
@@ -447,11 +473,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardClientsClientIdIndexRouteImport
       parentRoute: typeof ProtectedDashboardClientsClientIdRoute
     }
+    '/_protected/dashboard/workers/$workerId/leave': {
+      id: '/_protected/dashboard/workers/$workerId/leave'
+      path: '/leave'
+      fullPath: '/dashboard/workers/$workerId/leave'
+      preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdLeaveRouteImport
+      parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
+    }
     '/_protected/dashboard/workers/$workerId/edit': {
       id: '/_protected/dashboard/workers/$workerId/edit'
       path: '/edit'
       fullPath: '/dashboard/workers/$workerId/edit'
       preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdEditRouteImport
+      parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
+    }
+    '/_protected/dashboard/workers/$workerId/attendance': {
+      id: '/_protected/dashboard/workers/$workerId/attendance'
+      path: '/attendance'
+      fullPath: '/dashboard/workers/$workerId/attendance'
+      preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdAttendanceRouteImport
       parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
     }
     '/_protected/dashboard/clients/$clientId/edit': {
@@ -483,14 +523,20 @@ const ProtectedDashboardClientsClientIdRouteWithChildren =
   )
 
 interface ProtectedDashboardWorkersWorkerIdRouteChildren {
+  ProtectedDashboardWorkersWorkerIdAttendanceRoute: typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
   ProtectedDashboardWorkersWorkerIdEditRoute: typeof ProtectedDashboardWorkersWorkerIdEditRoute
+  ProtectedDashboardWorkersWorkerIdLeaveRoute: typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
   ProtectedDashboardWorkersWorkerIdIndexRoute: typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
 
 const ProtectedDashboardWorkersWorkerIdRouteChildren: ProtectedDashboardWorkersWorkerIdRouteChildren =
   {
+    ProtectedDashboardWorkersWorkerIdAttendanceRoute:
+      ProtectedDashboardWorkersWorkerIdAttendanceRoute,
     ProtectedDashboardWorkersWorkerIdEditRoute:
       ProtectedDashboardWorkersWorkerIdEditRoute,
+    ProtectedDashboardWorkersWorkerIdLeaveRoute:
+      ProtectedDashboardWorkersWorkerIdLeaveRoute,
     ProtectedDashboardWorkersWorkerIdIndexRoute:
       ProtectedDashboardWorkersWorkerIdIndexRoute,
   }
