@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { workersApi } from '@/features/workers/api'
@@ -7,6 +7,38 @@ import { Avatar } from '@/shared/components/ui'
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId')({
   component: WorkerLayout,
 })
+
+const TABS = [
+  { label: 'Shifts',     to: '/dashboard/workers/$workerId' },
+  { label: 'Attendance', to: '/dashboard/workers/$workerId/attendance' },
+  { label: 'Leave',      to: '/dashboard/workers/$workerId/leave' },
+] as const
+
+function WorkerTabNav({ workerId }: { workerId: string }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  return (
+    <div className="flex border-b border-ink bg-cream px-8">
+      {TABS.map(({ label, to }) => {
+        const href = to.replace('$workerId', workerId)
+        const active = pathname === href || (label === 'Shifts' && pathname === href.replace(/\/$/, ''))
+        return (
+          <Link
+            key={label}
+            to={to}
+            params={{ workerId } as never}
+            className={`px-4 py-3 font-mono text-[10px] tracking-[0.08em] uppercase border-b-2 transition-colors ${
+              active
+                ? 'border-ink text-ink'
+                : 'border-transparent text-ink-soft hover:text-ink'
+            }`}
+          >
+            {label}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
 
 function WorkerLayout() {
   const { workerId } = Route.useParams()
@@ -106,8 +138,9 @@ function WorkerLayout() {
         </Link>
       </div>
 
-      {/* ── Right: Shift data ─────────────────────────────────────── */}
-      <div className="flex-1 min-w-0">
+      {/* ── Right: Tab nav + content ──────────────────────────────── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <WorkerTabNav workerId={workerId} />
         <Outlet />
       </div>
     </div>

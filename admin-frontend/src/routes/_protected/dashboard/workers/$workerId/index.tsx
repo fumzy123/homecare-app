@@ -64,15 +64,7 @@ function WorkerOverview() {
     queryFn: () => shiftsApi.listShifts(from, to, workerId),
   })
 
-  const { data: stats } = useQuery({
-    queryKey: ['shift-stats', from, to, workerId, ''],
-    queryFn: () => shiftsApi.getShiftStats(from, to, workerId),
-  })
-
   const periodHrs = Math.round(sumHours(periodShifts))
-  const upcoming  = (stats?.scheduled ?? 0) + (stats?.in_progress ?? 0)
-  const completed = stats?.completed ?? 0
-  const cancelled = stats?.cancelled ?? 0
 
   const sortedPeriod = [...periodShifts].sort(
     (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
@@ -110,19 +102,6 @@ function WorkerOverview() {
           ))}
         </div>
 
-        <div className="grid grid-cols-3 border border-ink bg-paper">
-          {[
-            { label: 'Upcoming',  value: upcoming,  sub: 'scheduled shifts' },
-            { label: 'Completed', value: completed, sub: 'shifts'           },
-            { label: 'Cancelled', value: cancelled, sub: 'shifts'           },
-          ].map((s, i) => (
-            <div key={s.label} className={`px-6 py-5 ${i < 2 ? 'border-r border-ink' : ''}`}>
-              <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{s.label}</p>
-              <p className="font-serif text-[48px] leading-none">{s.value}</p>
-              <p className="font-mono text-[10px] text-ink-soft mt-1">{s.sub}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* ── Top clients ─────────────────────────────────────────────── */}
