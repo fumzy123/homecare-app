@@ -1,5 +1,6 @@
 import { apiClient } from '@/shared/lib/api-client'
 import type { ScheduleMap } from '@/shared/components/AvailabilityGrid'
+import type { NoteEntry } from '@/features/shifts/api'
 
 export type ClientStatus = 'active' | 'on_hold' | 'discharged'
 export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing'
@@ -77,6 +78,16 @@ export interface ClientCreatePayload {
   requested_schedule?: ScheduleMap
 }
 
+export interface ClientNoteItem {
+  shift_id: string
+  occurrence_date: string
+  worker_first_name: string
+  worker_last_name: string
+  entries: NoteEntry[]
+  created_at: string
+  updated_at: string | null
+}
+
 export const clientsApi = {
   listClients: async (status?: ClientStatus): Promise<Client[]> => {
     const { data } = await apiClient.get('/api/clients/', {
@@ -102,5 +113,12 @@ export const clientsApi = {
 
   deleteClient: async (clientId: string): Promise<void> => {
     await apiClient.delete(`/api/clients/${clientId}`)
+  },
+
+  getNotes: async (clientId: string, year?: number): Promise<ClientNoteItem[]> => {
+    const { data } = await apiClient.get(`/api/clients/${clientId}/notes`, {
+      params: year ? { year } : undefined,
+    })
+    return data
   },
 }

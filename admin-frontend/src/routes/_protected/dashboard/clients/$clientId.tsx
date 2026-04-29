@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { clientsApi } from '@/features/clients/api'
@@ -7,6 +7,36 @@ import { Avatar } from '@/shared/components/ui'
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')({
   component: ClientLayout,
 })
+
+const TABS = [
+  { label: 'Visits',      to: '/dashboard/clients/$clientId' },
+  { label: 'Notes',       to: '/dashboard/clients/$clientId/notes' },
+  { label: 'Care Hours',  to: '/dashboard/clients/$clientId/care-hours' },
+] as const
+
+function ClientTabNav({ clientId }: { clientId: string }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  return (
+    <div className="flex border-b border-ink bg-cream px-8">
+      {TABS.map(({ label, to }) => {
+        const href = to.replace('$clientId', clientId)
+        const active = pathname === href || (label === 'Visits' && pathname === href.replace(/\/$/, ''))
+        return (
+          <Link
+            key={label}
+            to={to}
+            params={{ clientId } as never}
+            className={`px-4 py-3 font-mono text-[10px] tracking-[0.08em] uppercase border-b-2 transition-colors ${
+              active ? 'border-ink text-ink' : 'border-transparent text-ink-soft hover:text-ink'
+            }`}
+          >
+            {label}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
 
 function ClientLayout() {
   const { clientId } = Route.useParams()
@@ -100,8 +130,9 @@ function ClientLayout() {
         </Link>
       </div>
 
-      {/* ── Right: Content ── */}
-      <div className="flex-1 min-w-0">
+      {/* ── Right: Tab nav + content ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <ClientTabNav clientId={clientId} />
         <Outlet />
       </div>
     </div>
