@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, getMonth } from 'date-fns'
+import { format, startOfYear, endOfYear, getMonth } from 'date-fns'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/attendance')({
