@@ -36,3 +36,9 @@ class ShiftCompletionStatus(str, enum.Enum):
 class RecurrenceFrequency(str, enum.Enum):
     daily = "daily"
     weekly = "weekly"
+
+class LeaveType(str, enum.Enum):
+    sick = "sick"
+    vacation = "vacation"
+    bereavement = "bereavement"
+    other = "other"
