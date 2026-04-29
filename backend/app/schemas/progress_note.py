@@ -23,3 +23,14 @@ class ProgressNoteResponse(BaseModel):
     updated_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class ClientNoteItemResponse(BaseModel):
+    """One progress note occurrence, enriched with worker identity."""
+    shift_id: UUID
+    occurrence_date: date
+    worker_first_name: str
+    worker_last_name: str
+    entries: list[NoteEntry]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
