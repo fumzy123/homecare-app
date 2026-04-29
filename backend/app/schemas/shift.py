@@ -48,6 +48,7 @@ class ShiftUpdateSchema(BaseModel):
     start_time:           datetime | None = None
     end_time:             datetime | None = None
     recurrence_end_date:  date | None = None
+    recurrence:           RecurrenceSchema | None = None
     location:             str | None = None
     notes:                str | None = None
 
@@ -108,10 +109,15 @@ class CancelFromSchema(BaseModel):
 # POST /shifts/{id}/edit-from — edit this occurrence and all following
 # ─────────────────────────────────────────
 class EditFromSchema(BaseModel):
-    occurrence_date: date
-    new_start_time: datetime | None = None
-    new_end_time: datetime | None = None
-    notes: str | None = None
+    occurrence_date:     date
+    new_start_time:      datetime | None = None
+    new_end_time:        datetime | None = None
+    worker_id:           UUID | None = None
+    client_id:           UUID | None = None
+    location:            str | None = None
+    recurrence_end_date: date | None = None
+    recurrence:          RecurrenceSchema | None = None
+    notes:               str | None = None
 
     @model_validator(mode="after")
     def validate_times(self):
@@ -142,18 +148,21 @@ class ClientSummary(BaseModel):
 
 # Returned by GET /shifts — one item per expanded occurrence
 class ShiftOccurrenceResponse(BaseModel):
-    shift_id:          UUID
-    modification_id:   UUID | None
-    date:              date
-    start_time:        datetime
-    end_time:          datetime
-    completion_status: ShiftCompletionStatus
-    is_modification:   bool
-    is_recurring:      bool
-    worker:            WorkerSummary
-    client:            ClientSummary
-    location:          str | None
-    notes:             str | None
+    shift_id:                UUID
+    modification_id:         UUID | None
+    date:                    date
+    start_time:              datetime
+    end_time:                datetime
+    completion_status:       ShiftCompletionStatus
+    is_modification:         bool
+    is_recurring:            bool
+    worker:                  WorkerSummary
+    client:                  ClientSummary
+    location:                str | None
+    notes:                   str | None
+    recurrence_end_date:     date | None
+    recurrence_frequency:    str | None
+    recurrence_days_of_week: list[str] | None
     model_config = {"from_attributes": True}
 
 

@@ -6,6 +6,7 @@ interface RecurringActionModalProps {
   mode: 'delete' | 'edit'
   onConfirm: (scope: RecurringScope) => void
   onCancel: () => void
+  recurrenceRuleChanged?: boolean
 }
 
 const OPTIONS: { value: RecurringScope; label: string; sub: string }[] = [
@@ -14,8 +15,8 @@ const OPTIONS: { value: RecurringScope; label: string; sub: string }[] = [
   { value: 'all',       label: 'All shifts',                sub: 'Every occurrence in the series' },
 ]
 
-export function RecurringActionModal({ mode, onConfirm, onCancel }: RecurringActionModalProps) {
-  const [selected, setSelected] = useState<RecurringScope>('this')
+export function RecurringActionModal({ mode, onConfirm, onCancel, recurrenceRuleChanged = false }: RecurringActionModalProps) {
+  const [selected, setSelected] = useState<RecurringScope>(recurrenceRuleChanged ? 'all' : 'this')
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40">
@@ -33,25 +34,36 @@ export function RecurringActionModal({ mode, onConfirm, onCancel }: RecurringAct
 
         {/* Options */}
         <div className="px-6 py-5 flex flex-col gap-1">
-          {OPTIONS.map(({ value, label, sub }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setSelected(value)}
-              className={`w-full text-left px-4 py-3 border transition-colors ${
-                selected === value
-                  ? 'border-ink bg-ink text-cream'
-                  : 'border-line-soft bg-paper text-ink hover:bg-cream-2'
-              }`}
-            >
-              <p className={`font-mono text-[11px] tracking-[0.03em] ${selected === value ? 'text-cream' : 'text-ink'}`}>
-                {label}
-              </p>
-              <p className={`font-mono text-[9px] mt-0.5 ${selected === value ? 'text-cream/70' : 'text-ink-soft'}`}>
-                {sub}
-              </p>
-            </button>
-          ))}
+          {recurrenceRuleChanged && (
+            <p className="font-mono text-[9px] text-orange mb-2">
+              Frequency changes apply to all or following shifts — not a single occurrence.
+            </p>
+          )}
+          {OPTIONS.map(({ value, label, sub }) => {
+            const disabled = recurrenceRuleChanged && value === 'this'
+            return (
+              <button
+                key={value}
+                type="button"
+                disabled={disabled}
+                onClick={() => !disabled && setSelected(value)}
+                className={`w-full text-left px-4 py-3 border transition-colors ${
+                  disabled
+                    ? 'border-line-soft bg-paper text-ink-soft/40 cursor-not-allowed'
+                    : selected === value
+                    ? 'border-ink bg-ink text-cream'
+                    : 'border-line-soft bg-paper text-ink hover:bg-cream-2'
+                }`}
+              >
+                <p className={`font-mono text-[11px] tracking-[0.03em] ${selected === value && !disabled ? 'text-cream' : disabled ? 'text-ink-soft/40' : 'text-ink'}`}>
+                  {label}
+                </p>
+                <p className={`font-mono text-[9px] mt-0.5 ${selected === value && !disabled ? 'text-cream/70' : 'text-ink-soft'}`}>
+                  {disabled ? 'Not available when changing frequency' : sub}
+                </p>
+              </button>
+            )
+          })}
         </div>
 
         {/* Footer */}

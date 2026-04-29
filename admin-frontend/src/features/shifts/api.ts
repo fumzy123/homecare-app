@@ -41,6 +41,9 @@ export interface ShiftOccurrence {
   client: ShiftClient
   location: string | null
   notes: string | null
+  recurrence_end_date: string | null
+  recurrence_frequency: RecurrenceFrequency | null
+  recurrence_days_of_week: DayOfWeek[] | null
 }
 
 export interface ShiftCreatePayload {
@@ -60,10 +63,12 @@ export interface ShiftCreatePayload {
 export interface ShiftUpdatePayload {
   worker_id?: string
   client_id?: string
-  start_time?: string  // ISO datetime
-  end_time?: string    // ISO datetime
+  start_time?: string
+  end_time?: string
   location?: string
   notes?: string
+  recurrence_end_date?: string
+  recurrence?: { frequency: RecurrenceFrequency; days_of_week?: DayOfWeek[]; recurrence_end_date?: string }
 }
 
 export interface ShiftModificationPayload {
@@ -104,6 +109,8 @@ export interface ShiftStats {
   in_progress: number
   completed: number
   cancelled: number
+  no_show: number
+  dropped: number
   total: number
 }
 
@@ -207,7 +214,7 @@ export const shiftsApi = {
   editFromDate: async (
     shiftId: string,
     occurrenceDate: string,
-    payload: { new_start_time?: string; new_end_time?: string; notes?: string },
+    payload: { new_start_time?: string; new_end_time?: string; worker_id?: string; client_id?: string; location?: string; recurrence_end_date?: string; recurrence?: { frequency: RecurrenceFrequency; days_of_week?: DayOfWeek[]; recurrence_end_date?: string }; notes?: string },
   ): Promise<void> => {
     await apiClient.post(`/api/shifts/${shiftId}/edit-from`, {
       occurrence_date: occurrenceDate,

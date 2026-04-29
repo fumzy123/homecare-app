@@ -3,7 +3,7 @@ import { getStatusToken, STATUS_TOKENS, ADMIN_SELECTABLE_STATUSES } from '@/shar
 import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { shiftsApi, type ShiftOccurrence, type NoteEntry } from '@/features/shifts/api'
+import { shiftsApi, type ShiftOccurrence, type NoteEntry, type RecurrenceFrequency, type DayOfWeek, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
@@ -58,19 +58,22 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
   const [location, setLocation]               = useState(shift.location ?? '')
   const [notes, setNotes]                     = useState(shift.notes ?? '')
   const [completionStatus, setCompletionStatus] = useState(shift.completion_status)
+  const [recurrenceEndDate, setRecurrenceEndDate]   = useState(shift.recurrence_end_date ?? '')
+  const [recurrenceFreq, setRecurrenceFreq]         = useState<RecurrenceFrequency>(shift.recurrence_frequency ?? 'weekly')
+  const [recurrenceDays, setRecurrenceDays]         = useState<DayOfWeek[]>(shift.recurrence_days_of_week ?? [])
   const [editError, setEditError]             = useState<string | null>(null)
   const [saved, setSaved]                     = useState(false)
 
   const { data: workers = [] } = useQuery({
     queryKey: ['workers'],
     queryFn: workersApi.listWorkers,
-    enabled: isEditing && !shift.is_recurring,
+    enabled: isEditing,
   })
 
   const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
     queryFn: () => clientsApi.listClients(),
-    enabled: isEditing && !shift.is_recurring,
+    enabled: isEditing,
   })
 
   const saveMutation = useMutation({
@@ -124,6 +127,21 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     }
   }
 
+  function buildRecurrencePayload() {
+    return {
+      frequency: recurrenceFreq,
+      ...(recurrenceFreq === 'weekly' ? { days_of_week: recurrenceDays } : {}),
+      ...(recurrenceEndDate ? { recurrence_end_date: recurrenceEndDate } : {}),
+    }
+  }
+
+  function recurrenceChanged() {
+    return (
+      recurrenceFreq !== (shift.recurrence_frequency ?? 'weekly') ||
+      JSON.stringify([...(recurrenceDays)].sort()) !== JSON.stringify([...(shift.recurrence_days_of_week ?? [])].sort())
+    )
+  }
+
   function executeSave(scope: RecurringScope) {
     const startISO = new Date(`${date}T${startTime}`).toISOString()
     const endISO   = new Date(`${endDate}T${endTime}`).toISOString()
@@ -142,11 +160,22 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
       }
     } else if (scope === 'following') {
       saveMutation.mutate(() => shiftsApi.editFromDate(shift.shift_id, shift.date, {
-        new_start_time: startISO, new_end_time: endISO, notes: notes || undefined,
+        new_start_time: startISO, new_end_time: endISO,
+        worker_id: workerId !== shift.worker.id ? workerId : undefined,
+        client_id: clientId !== shift.client.id ? clientId : undefined,
+        location: location || undefined,
+        recurrence_end_date: recurrenceEndDate || undefined,
+        recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
+        notes: notes || undefined,
       }))
     } else {
       saveMutation.mutate(() => shiftsApi.updateShift(shift.shift_id, {
-        start_time: startISO, end_time: endISO, notes: notes || undefined,
+        worker_id: workerId, client_id: clientId,
+        start_time: startISO, end_time: endISO,
+        location: location || undefined,
+        recurrence_end_date: recurrenceEndDate || undefined,
+        recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
+        notes: notes || undefined,
       }))
     }
   }
@@ -163,7 +192,11 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
     setWorkerId(shift.worker.id); setClientId(shift.client.id)
     setDate(format(start, 'yyyy-MM-dd')); setStartTime(format(start, 'HH:mm')); setEndTime(format(end, 'HH:mm'))
     setLocation(shift.location ?? ''); setNotes(shift.notes ?? '')
-    setCompletionStatus(shift.completion_status); setEditError(null); setIsEditing(false)
+    setCompletionStatus(shift.completion_status)
+    setRecurrenceEndDate(shift.recurrence_end_date ?? '')
+    setRecurrenceFreq(shift.recurrence_frequency ?? 'weekly')
+    setRecurrenceDays(shift.recurrence_days_of_week ?? [])
+    setEditError(null); setIsEditing(false)
   }
 
   return (
@@ -200,23 +233,19 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                 </p>
               )}
 
-              {!shift.is_recurring && (
-                <div>
-                  <label className={labelClass}>Worker</label>
-                  <select className={inputClass} value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
-                    {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className={labelClass}>Worker</label>
+                <select className={inputClass} value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
+                  {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
+                </select>
+              </div>
 
-              {!shift.is_recurring && (
-                <div>
-                  <label className={labelClass}>Client</label>
-                  <select className={inputClass} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                    {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className={labelClass}>Client</label>
+                <select className={inputClass} value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                </select>
+              </div>
 
               {/* Date row — end date appears for overnight shifts */}
               <div className="grid grid-cols-2 gap-3">
@@ -256,11 +285,61 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
                 </div>
               </div>
 
-              {!shift.is_recurring && (
-                <div>
-                  <label className={labelClass}>Location</label>
-                  <input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address" />
-                </div>
+              <div>
+                <label className={labelClass}>Location</label>
+                <input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address" />
+              </div>
+
+              {shift.is_recurring && (
+                <>
+                  <div>
+                    <label className={labelClass}>Repeat frequency</label>
+                    <select
+                      className={inputClass}
+                      value={recurrenceFreq}
+                      onChange={(e) => {
+                        setRecurrenceFreq(e.target.value as RecurrenceFrequency)
+                        if (e.target.value === 'daily') setRecurrenceDays([])
+                      }}
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                    </select>
+                  </div>
+
+                  {recurrenceFreq === 'weekly' && (
+                    <div>
+                      <label className={labelClass}>Repeat on</label>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {ORDERED_DAYS.map((day) => {
+                          const active = recurrenceDays.includes(day)
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => setRecurrenceDays(
+                                active
+                                  ? recurrenceDays.filter((d) => d !== day)
+                                  : [...recurrenceDays, day]
+                              )}
+                              className={`px-2.5 py-1 font-mono text-[9px] tracking-wide uppercase border transition-colors ${
+                                active ? 'bg-ink text-cream border-ink' : 'border-ink text-ink-soft hover:text-ink'
+                              }`}
+                            >
+                              {DAY_LABELS[day]}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className={labelClass}>Recurrence ends</label>
+                    <DateInput value={recurrenceEndDate} onChange={setRecurrenceEndDate} className="w-full" />
+                    <p className="mt-1 font-mono text-[9px] text-ink-soft">Leave blank for no end date.</p>
+                  </div>
+                </>
               )}
 
               <div>
@@ -477,7 +556,12 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
       </div>
 
       {showSaveModal && (
-        <RecurringActionModal mode="edit" onConfirm={executeSave} onCancel={() => setShowSaveModal(false)} />
+        <RecurringActionModal
+          mode="edit"
+          recurrenceRuleChanged={recurrenceChanged()}
+          onConfirm={executeSave}
+          onCancel={() => setShowSaveModal(false)}
+        />
       )}
     </>
   )

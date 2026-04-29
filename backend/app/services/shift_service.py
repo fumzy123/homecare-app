@@ -107,6 +107,18 @@ class ShiftService:
         else:
             effective_status = stored_status
 
+        recurrence_frequency    = None
+        recurrence_days_of_week = None
+        if shift.is_recurring and shift.recurrence_rule:
+            rule_upper = shift.recurrence_rule.upper()
+            if "FREQ=DAILY" in rule_upper:
+                recurrence_frequency = "daily"
+            elif "FREQ=WEEKLY" in rule_upper:
+                recurrence_frequency = "weekly"
+                for part in rule_upper.split(";"):
+                    if part.startswith("BYDAY="):
+                        recurrence_days_of_week = part[len("BYDAY="):].split(",")
+
         return ShiftOccurrenceResponse(
             shift_id=shift.id,
             modification_id=mod.id if mod else None,
@@ -120,6 +132,9 @@ class ShiftService:
             client=shift.client,
             location=shift.location,
             notes=mod.notes if mod else shift.notes,
+            recurrence_end_date=shift.recurrence_end_date,
+            recurrence_frequency=recurrence_frequency,
+            recurrence_days_of_week=recurrence_days_of_week,
         )
 
     # ─────────────────────────────────────────
@@ -314,6 +329,21 @@ class ShiftService:
             shift = ShiftService._get_active_shift(shift_id, org_id, db)
 
             updates = payload.model_dump(exclude_unset=True)
+
+            if "recurrence" in updates:
+                recurrence = updates.pop("recurrence")
+                if recurrence and shift.is_recurring:
+                    new_rule = ShiftService._build_rrule_string(payload.recurrence)
+                    shift.recurrence_rule = new_rule
+                    if payload.recurrence.recurrence_end_date:
+                        shift.recurrence_end_date = payload.recurrence.recurrence_end_date
+                    # Delete all future modifications — the rule has changed
+                    today = datetime.now(timezone.utc).date()
+                    db.query(ShiftModification).filter(
+                        ShiftModification.shift_id == shift_id,
+                        ShiftModification.original_date >= today,
+                    ).delete(synchronize_session=False)
+
             for field, value in updates.items():
                 setattr(shift, field, value)
 
@@ -463,6 +493,14 @@ class ShiftService:
                     shift.start_time = payload.new_start_time
                 if payload.new_end_time:
                     shift.end_time = payload.new_end_time
+                if payload.worker_id:
+                    shift.worker_id = payload.worker_id
+                if payload.client_id:
+                    shift.client_id = payload.client_id
+                if payload.location is not None:
+                    shift.location = payload.location
+                if payload.recurrence_end_date is not None:
+                    shift.recurrence_end_date = payload.recurrence_end_date
                 if payload.notes is not None:
                     shift.notes = payload.notes
                 db.commit()
@@ -498,18 +536,24 @@ class ShiftService:
                 delta = shift.end_time - shift.start_time
                 new_end = new_start + delta
 
+            new_rule = ShiftService._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
+            new_end_date = (
+                payload.recurrence.recurrence_end_date if payload.recurrence and payload.recurrence.recurrence_end_date is not None
+                else payload.recurrence_end_date if payload.recurrence_end_date is not None
+                else original_end_date
+            )
             new_shift = Shift(
                 id=uuid.uuid4(),
                 org_id=shift.org_id,
-                worker_id=shift.worker_id,
-                client_id=shift.client_id,
+                worker_id=payload.worker_id or shift.worker_id,
+                client_id=payload.client_id or shift.client_id,
                 created_by=current_user.id,
                 start_time=new_start,
                 end_time=new_end,
                 is_recurring=shift.is_recurring,
-                recurrence_rule=shift.recurrence_rule,
-                recurrence_end_date=original_end_date,
-                location=shift.location,
+                recurrence_rule=new_rule,
+                recurrence_end_date=new_end_date,
+                location=payload.location if payload.location is not None else shift.location,
                 notes=payload.notes if payload.notes is not None else shift.notes,
             )
             db.add(new_shift)
