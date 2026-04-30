@@ -116,7 +116,7 @@ export function LandingPage() {
             <div className="font-mono text-[9px] text-muted mb-12">[MODULE_01]</div>
             <h3 className="font-serif text-[28px] font-medium mb-4 group-hover:text-orange transition-colors">Visual Scheduling</h3>
             <p className="text-ink-soft text-[14px] leading-relaxed">
-              Visualize your entire agency's week in a precision grid. Drag, drop, and deploy care where it's needed most.
+              Visualize your entire agency's week in a precision grid. Drag, drop, and deploy care to the clients who need it most.
             </p>
           </Card>
 
