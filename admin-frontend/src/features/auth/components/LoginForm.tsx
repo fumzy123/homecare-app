@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { authApi } from '@/features/auth/api'
+import { Eye, EyeOff } from 'lucide-react'
+
 
 const schema = z.object({
   email:    z.string().email('Invalid email address'),
@@ -15,6 +17,8 @@ const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text
 export function LoginForm() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
+
 
   const form = useForm({
     defaultValues: { email: '', password: '' },
@@ -57,10 +61,20 @@ export function LoginForm() {
         {(field) => (
           <div>
             <label className={labelClass}>Password</label>
-            <input type="password" className={inputClass} value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-              placeholder="••••••••" />
+            <div className="relative">
+              <input type={showPassword ? "text" : "password"} className={inputClass} value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                placeholder="••••••••" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink transition-colors"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+
             {field.state.meta.errors[0] && (
               <p className="mt-1 font-mono text-[10px] text-orange">{field.state.meta.errors[0]}</p>
             )}

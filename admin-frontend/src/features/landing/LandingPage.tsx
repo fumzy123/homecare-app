@@ -1,10 +1,15 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Btn, Card, Kicker, Tag } from '@/shared/components/ui'
 import heroImage from '@/assets/hero.png'
+import schedulingPreview from '@/assets/scheduling.png'
+import attendancePreview from '@/assets/attendance.png'
+import timesheetsPreview from '@/assets/timesheets.png'
 
 export function LandingPage() {
   const { accessToken } = useAuthStore()
+  const [activeFeature, setActiveFeature] = useState(0)
 
   return (
     <div className="min-h-screen bg-cream selection:bg-orange selection:text-white">
@@ -101,8 +106,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features Grid ────────────────────────────────────────────────── */}
-      <section className="py-24 px-10 max-md:px-6 max-w-7xl mx-auto">
+      {/* ── Features Showcase ──────────────────────────────────────────────── */}
+      <section className="py-24 px-10 max-md:px-6 max-w-7xl mx-auto border-b border-ink">
         <div className="flex flex-col items-center text-center mb-20">
           <Kicker className="mb-4">Standardized Excellence</Kicker>
           <h2 className="font-serif text-[52px] leading-none font-medium mb-6">Designed for scale. Built for speed.</h2>
@@ -111,30 +116,71 @@ export function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 max-md:grid-cols-1 gap-1">
-          <Card brackets lift className="p-8 group">
-            <div className="font-mono text-[9px] text-muted mb-12">[MODULE_01]</div>
-            <h3 className="font-serif text-[28px] font-medium mb-4 group-hover:text-orange transition-colors">Visual Scheduling</h3>
-            <p className="text-ink-soft text-[14px] leading-relaxed">
-              Visualize your entire agency's week in a precision grid. Drag, drop, and deploy care to the clients who need it most.
-            </p>
-          </Card>
+        <div className="grid grid-cols-12 gap-12 items-start">
+          {/* Left: Interactive cards */}
+          <div className="col-span-5 max-md:col-span-12 flex flex-col gap-4">
+            {[
+              { 
+                id: 0, 
+                label: '[MODULE_01]', 
+                title: 'Visual Scheduling', 
+                desc: 'Visualize your entire agency\'s week in a precision grid. Drag, drop, and deploy care to the clients who need it most.',
+                img: schedulingPreview
+              },
+              { 
+                id: 1, 
+                label: '[MODULE_02]', 
+                title: 'Attendance Control', 
+                desc: 'Know exactly who is on-site. Track no-shows and coverage gaps instantly with real-time status updates.',
+                img: attendancePreview
+              },
+              { 
+                id: 2, 
+                label: '[MODULE_03]', 
+                title: 'Automated Timesheets', 
+                desc: 'No more manual calculations. Generate ready-to-bill timesheets directly from scheduled shifts with one click.',
+                img: timesheetsPreview
+              }
+            ].map((f) => (
+              <div 
+                key={f.id}
+                onMouseEnter={() => setActiveFeature(f.id)}
+                className={`transition-all duration-300 ${activeFeature === f.id ? 'opacity-100' : 'opacity-40'}`}
+              >
+                <Card brackets lift={activeFeature === f.id} className={`p-8 cursor-pointer ${activeFeature === f.id ? 'bg-paper border-ink' : 'bg-transparent border-ink/20'}`}>
+                  <div className="font-mono text-[9px] text-muted mb-8">{f.label}</div>
+                  <h3 className="font-serif text-[28px] font-medium mb-3">{f.title}</h3>
+                  <p className="text-ink-soft text-[14px] leading-relaxed">
+                    {f.desc}
+                  </p>
+                </Card>
+              </div>
+            ))}
+          </div>
 
-          <Card brackets lift className="p-8 group">
-            <div className="font-mono text-[9px] text-muted mb-12">[MODULE_02]</div>
-            <h3 className="font-serif text-[28px] font-medium mb-4 group-hover:text-orange transition-colors">Attendance Control</h3>
-            <p className="text-ink-soft text-[14px] leading-relaxed">
-              Know exactly who is on-site. Track no-shows and coverage gaps instantly with real-time status updates.
-            </p>
-          </Card>
-
-          <Card brackets lift className="p-8 group">
-            <div className="font-mono text-[9px] text-muted mb-12">[MODULE_03]</div>
-            <h3 className="font-serif text-[28px] font-medium mb-4 group-hover:text-orange transition-colors">Automated Timesheets</h3>
-            <p className="text-ink-soft text-[14px] leading-relaxed">
-              No more manual calculations. Generate ready-to-bill timesheets directly from scheduled shifts with one click.
-            </p>
-          </Card>
+          {/* Right: Visual preview */}
+          <div className="col-span-7 max-md:hidden sticky top-32">
+            <div className="relative aspect-video">
+              <Card brackets className="w-full h-full p-2 bg-paper overflow-hidden shadow-xl">
+                <div className="relative w-full h-full bg-cream-2 border border-ink/10 flex items-center justify-center">
+                  <img 
+                    src={[schedulingPreview, attendancePreview, timesheetsPreview][activeFeature]} 
+                    alt="Feature Preview" 
+                    className="w-full h-full object-cover transition-opacity duration-500"
+                    key={activeFeature}
+                  />
+                  
+                  {/* Technical Overlay */}
+                  <div className="absolute inset-0 pointer-events-none grid-bg opacity-20" />
+                  <div className="absolute bottom-4 left-4 font-mono text-[9px] text-muted flex gap-4">
+                    <span>POS_X: 104.2</span>
+                    <span>POS_Y: 88.1</span>
+                    <span>REF: LIVE_SYNC</span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </div>
       </section>
 
