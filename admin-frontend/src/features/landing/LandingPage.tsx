@@ -83,24 +83,38 @@ export function LandingPage() {
                 <Tag variant="orange" className="rotate-12 px-4 py-2 text-[12px]">v1.0 Released</Tag>
               </div>
             </Card>
-            {/* Blueprint marks */}
-            <div className="absolute -bottom-10 -left-10 font-mono text-[10px] text-muted opacity-40 select-none">
-              [SYSTEM_SPEC_2026]<br />
-              REF_ID: 8D4985E
-            </div>
           </div>
         </div>
       </header>
 
-      {/* ── Trust Bar ────────────────────────────────────────────────────── */}
+      {/* ── Feature Ticker ───────────────────────────────────────────────── */}
       <section className="border-b border-ink py-10 bg-paper overflow-hidden">
         <div className="ticker-track">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center gap-12 opacity-50">
-              <span className="font-serif text-[24px] font-medium italic">CareFirst Ontario</span>
-              <span className="font-serif text-[24px] font-medium italic">Vancouver Health</span>
-              <span className="font-serif text-[24px] font-medium italic">Montreal Care Group</span>
-              <span className="font-serif text-[24px] font-medium italic">Alberta Seniors</span>
+            <div key={i} className="flex items-center gap-10 shrink-0">
+              {[
+                { dot: true,  text: 'Visual shift scheduling' },
+                { dot: false, text: '—' },
+                { dot: true,  text: 'Real-time attendance tracking' },
+                { dot: false, text: '—' },
+                { dot: true,  text: 'Automated timesheets' },
+                { dot: false, text: '—' },
+                { dot: true,  text: 'Employee leave management' },
+                { dot: false, text: '—' },
+                { dot: true,  text: 'Client care-hour reporting' },
+                { dot: false, text: '—' },
+                { dot: true,  text: 'Progress note capture' },
+                { dot: false, text: '—' },
+              ].map((item, j) =>
+                item.dot ? (
+                  <span key={j} className="flex items-center gap-2.5 font-mono text-[11px] tracking-[0.08em] uppercase text-ink-soft whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange shrink-0" />
+                    {item.text}
+                  </span>
+                ) : (
+                  <span key={j} className="text-line-soft font-mono text-[14px] select-none">—</span>
+                )
+              )}
             </div>
           ))}
         </div>
@@ -172,13 +186,90 @@ export function LandingPage() {
                   
                   {/* Technical Overlay */}
                   <div className="absolute inset-0 pointer-events-none grid-bg opacity-20" />
-                  <div className="absolute bottom-4 left-4 font-mono text-[9px] text-muted flex gap-4">
-                    <span>POS_X: 104.2</span>
-                    <span>POS_Y: 88.1</span>
-                    <span>REF: LIVE_SYNC</span>
-                  </div>
                 </div>
               </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing Section ─────────────────────────────────────────────── */}
+      <section className="py-24 px-10 max-md:px-6 border-b border-ink bg-cream">
+        <div className="max-w-5xl mx-auto">
+
+          {/* Header */}
+          <div className="mb-16 max-w-xl">
+            <Kicker leader className="mb-4">Pricing</Kicker>
+            <h2 className="font-serif text-[52px] max-md:text-[36px] leading-[1.0] font-medium tracking-[-0.02em] mb-5">
+              One price.<br />
+              <span className="italic">Own it forever.</span>
+            </h2>
+            <p className="text-ink-soft text-[16px] leading-relaxed">
+              No subscriptions. No per-seat fees. No surprise invoices. Pay once and run your agency on Homecare OS for life.
+            </p>
+          </div>
+
+          {/* Single Pricing Card */}
+          <div className="grid grid-cols-12 gap-8 items-start">
+            <div className="col-span-7 max-md:col-span-12">
+              <div className="border border-ink bg-ink text-cream p-10 transition-all duration-200 hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.25)]">
+                <div className="flex items-center justify-between mb-8">
+                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">Lifetime Access</p>
+                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1 bg-[#7ECECE] text-[#111]">* One-time</span>
+                </div>
+
+                <div className="mb-8">
+                  <div className="flex items-end gap-2 mb-1">
+                    <span className="font-mono text-[14px] text-muted self-start mt-3">$</span>
+                    <span className="font-serif text-[96px] max-md:text-[72px] leading-none font-medium tracking-[-0.03em]">60</span>
+                  </div>
+                  <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">One-time payment · No renewals</p>
+                </div>
+
+                <div className="border-t border-white/10 pt-8 mb-10">
+                  <div className="grid grid-cols-2 max-md:grid-cols-1 gap-3">
+                    {[
+                      'Visual shift scheduling',
+                      'Attendance tracking',
+                      'Progress notes',
+                      'Client care-hour reports',
+                      'Employee leave management',
+                      'Automated timesheets',
+                      'Unlimited clients & workers',
+                    ].map((item) => (
+                      <div key={item} className="flex items-center gap-2.5">
+                        <span className="font-mono text-[12px]" style={{ color: '#7ECECE' }}>✓</span>
+                        <span className="font-mono text-[11px] tracking-[0.04em] text-cream/80">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Link to="/register">
+                  <Btn variant="orange" className="w-full py-4 text-[13px] tracking-[0.08em] uppercase justify-center">
+                    Get Lifetime Access — $60
+                  </Btn>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: reassurance column */}
+            <div className="col-span-5 max-md:col-span-12 flex flex-col gap-6 pt-2">
+              {[
+                {
+                  label: 'No subscription trap',
+                  body: 'Pay $60 once. Your access never expires — not after a year, not ever.',
+                },
+                {
+                  label: 'Early-adopter pricing',
+                  body: 'This rate is locked in for founding users. Subscription pricing comes later — early access is cheaper.',
+                },
+              ].map(({ label, body }) => (
+                <div key={label} className="border-l-2 border-orange pl-5">
+                  <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink mb-1">{label}</p>
+                  <p className="text-[13px] text-ink-soft leading-relaxed">{body}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
