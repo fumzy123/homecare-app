@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.routes import invitations, org_members, clients, workers, organization, shifts, progress_notes, legal, leave
+from app.api.routes import invitations, org_members, clients, workers, organization, shifts, progress_notes, legal, leave, payments
 
 router = APIRouter(prefix="/api")
 
@@ -11,4 +11,5 @@ router.include_router(workers.router, prefix="/workers", tags=["Workers"])
 router.include_router(shifts.router, prefix="/shifts", tags=["Shifts"])
 router.include_router(progress_notes.router, prefix="/shifts", tags=["Progress Notes"])
 router.include_router(legal.router, prefix="/legal", tags=["Legal"])
-router.include_router(leave.router, prefix="/workers", tags=["Leave"])
+router.include_router(leave.router, prefix="/workers", tags=["Leave"])
+router.include_router(payments.router, prefix="/payments", tags=["Payments"])
