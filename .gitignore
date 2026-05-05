@@ -17,6 +17,31 @@ __pycache__/
 # Claude Code
 .claude/
 
+# AI tool configs added by Stripe skills (irrelevant to this project)
+.agents/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.factory/
+.goose/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.windsurf/
+.zencoder/
+
 # ── Frontend ──────────────────────────────
 node_modules
 dist
