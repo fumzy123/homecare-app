@@ -1,11 +1,13 @@
 import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
+import { paymentsApi } from '@/features/payments/api'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: () => {
@@ -23,8 +25,61 @@ const weekNum  = Math.ceil(
 const wkStart  = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 const wkEnd    = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 
+function PaymentGate() {
+  const [loading, setLoading] = useState(false)
+
+  async function handleCheckout() {
+    setLoading(true)
+    try {
+      const { url } = await paymentsApi.createCheckoutSession()
+      window.location.href = url
+    } catch {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-cream flex items-center justify-center px-6">
+      <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
+        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Access required</p>
+        <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
+          Unlock Homecare OS
+        </h1>
+        <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
+          Get lifetime access for a one-time payment of $80. No subscription, no renewal.
+        </p>
+        <button
+          onClick={handleCheckout}
+          disabled={loading}
+          className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase disabled:opacity-60"
+        >
+          {loading ? 'Redirecting…' : 'Get Lifetime Access — $80'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ProtectedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const { data: paymentStatus, isLoading: paymentLoading } = useQuery({
+    queryKey: ['payment-status'],
+    queryFn: paymentsApi.getStatus,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  if (paymentLoading) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <p className="font-mono text-[10px] tracking-[0.15em] uppercase text-muted">Verifying access…</p>
+      </div>
+    )
+  }
+
+  if (paymentStatus?.has_paid === false) {
+    return <PaymentGate />
+  }
 
   return (
     <div className="flex h-screen bg-cream overflow-hidden">

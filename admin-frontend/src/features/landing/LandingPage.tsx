@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Btn, Card, Kicker, Tag } from '@/shared/components/ui'
+import { paymentsApi } from '@/features/payments/api'
 import heroImage from '@/assets/hero.png'
 import schedulingPreview from '@/assets/scheduling.png'
 import attendancePreview from '@/assets/attendance.png'
@@ -10,6 +11,17 @@ import timesheetsPreview from '@/assets/timesheets.png'
 export function LandingPage() {
   const { accessToken } = useAuthStore()
   const [activeFeature, setActiveFeature] = useState(0)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+
+  async function handleCheckout() {
+    setCheckoutLoading(true)
+    try {
+      const { url } = await paymentsApi.createCheckoutSession()
+      window.location.href = url
+    } catch {
+      setCheckoutLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-cream selection:bg-orange selection:text-white">
@@ -28,9 +40,13 @@ export function LandingPage() {
         </div>
 
         <div className="flex items-center gap-8 max-md:hidden">
-          {['Product', 'Pricing', 'Company'].map((item) => (
-            <a key={item} href="#" className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft hover:text-ink transition-colors">
-              {item}
+          {[
+            { label: 'Home',     href: '#home' },
+            { label: 'Features', href: '#features' },
+            { label: 'Pricing',  href: '#pricing' },
+          ].map(({ label, href }) => (
+            <a key={label} href={href} className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-soft hover:text-ink transition-colors">
+              {label}
             </a>
           ))}
         </div>
@@ -54,7 +70,7 @@ export function LandingPage() {
       </nav>
 
       {/* ── Hero Section ─────────────────────────────────────────────────── */}
-      <header className="relative pt-24 pb-32 px-10 max-md:px-6 grid-bg border-b border-ink overflow-hidden">
+      <header id="home" className="relative pt-24 pb-32 px-10 max-md:px-6 grid-bg border-b border-ink overflow-hidden">
         <div className="max-w-6xl mx-auto grid grid-cols-12 gap-12 items-center">
           <div className="col-span-7 max-md:col-span-12">
             <Kicker leader className="mb-6">The precision OS for care teams</Kicker>
@@ -121,7 +137,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Features Showcase ──────────────────────────────────────────────── */}
-      <section className="py-24 px-10 max-md:px-6 max-w-7xl mx-auto border-b border-ink">
+      <section id="features" className="py-24 px-10 max-md:px-6 max-w-7xl mx-auto border-b border-ink">
         <div className="flex flex-col items-center text-center mb-20">
           <Kicker className="mb-4">Standardized Excellence</Kicker>
           <h2 className="font-serif text-[52px] leading-none font-medium mb-6">Designed for scale. Built for speed.</h2>
@@ -194,7 +210,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Pricing Section ─────────────────────────────────────────────── */}
-      <section className="py-24 px-10 max-md:px-6 border-b border-ink bg-cream">
+      <section id="pricing" className="py-24 px-10 max-md:px-6 border-b border-ink bg-cream">
         <div className="max-w-5xl mx-auto">
 
           {/* Header */}
@@ -221,7 +237,7 @@ export function LandingPage() {
                 <div className="mb-8">
                   <div className="flex items-end gap-2 mb-1">
                     <span className="font-mono text-[14px] text-muted self-start mt-3">$</span>
-                    <span className="font-serif text-[96px] max-md:text-[72px] leading-none font-medium tracking-[-0.03em]">60</span>
+                    <span className="font-serif text-[96px] max-md:text-[72px] leading-none font-medium tracking-[-0.03em]">80</span>
                   </div>
                   <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">One-time payment · No renewals</p>
                 </div>
@@ -245,11 +261,14 @@ export function LandingPage() {
                   </div>
                 </div>
 
-                <Link to="/register">
-                  <Btn variant="orange" className="w-full py-4 text-[13px] tracking-[0.08em] uppercase justify-center">
-                    Get Lifetime Access — $60
-                  </Btn>
-                </Link>
+                <Btn
+                  variant="orange"
+                  className="w-full py-4 text-[13px] tracking-[0.08em] uppercase justify-center"
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading}
+                >
+                  {checkoutLoading ? 'Redirecting…' : 'Get Lifetime Access — $80'}
+                </Btn>
               </div>
             </div>
 
@@ -258,7 +277,7 @@ export function LandingPage() {
               {[
                 {
                   label: 'No subscription trap',
-                  body: 'Pay $60 once. Your access never expires — not after a year, not ever.',
+                  body: 'Pay $80 once. Your access never expires — not after a year, not ever.',
                 },
                 {
                   label: 'Early-adopter pricing',

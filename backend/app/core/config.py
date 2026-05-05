@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_sentry_dsn: str = ""
     app_env: str = "development"
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id: str = ""
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 
