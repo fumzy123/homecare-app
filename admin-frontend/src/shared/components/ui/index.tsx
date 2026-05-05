@@ -83,7 +83,7 @@ export function Btn({ variant = 'primary', size = 'md', className, children, ...
   const sizes = { sm: 'px-3 py-1.5 text-[11px]', md: 'px-4 py-2 text-[12px]' }
   const variants: Record<BtnVariant, string> = {
     primary: 'bg-ink text-cream border-ink hover:bg-orange hover:border-orange',
-    orange:  'bg-orange text-white border-orange hover:bg-ink hover:border-ink',
+    orange:  'bg-orange text-white border-orange',
     ghost:   'bg-transparent text-ink border-ink hover:bg-ink hover:text-cream',
   }
   return (
