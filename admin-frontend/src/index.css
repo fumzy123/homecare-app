@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* ─── Design tokens ── registered as Tailwind utilities via @theme ─────────── */
 @theme {
   /* Colors */
