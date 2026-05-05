@@ -14,6 +14,8 @@ class Organization(Base):
     is_active = Column(Boolean, default=True)
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     terms_accepted_version = Column(String, nullable=True)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    stripe_customer_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
