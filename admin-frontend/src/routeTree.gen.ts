@@ -19,6 +19,7 @@ import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PaymentSuccessRouteImport } from './routes/payment/success'
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
 import { Route as ProtectedAccountIndexRouteImport } from './routes/_protected/account/index'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
@@ -83,6 +84,11 @@ const ProtectedRoute = ProtectedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentSuccessRoute = PaymentSuccessRouteImport.update({
+  id: '/payment/success',
+  path: '/payment/success',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedDashboardIndexRoute = ProtectedDashboardIndexRouteImport.update({
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/payment/success': typeof PaymentSuccessRoute
   '/account/': typeof ProtectedAccountIndexRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/payment/success': typeof PaymentSuccessRoute
   '/account': typeof ProtectedAccountIndexRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/payment/success': typeof PaymentSuccessRoute
   '/_protected/account/': typeof ProtectedAccountIndexRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
   '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
+    | '/payment/success'
     | '/account/'
     | '/dashboard/'
     | '/dashboard/clients/$clientId'
@@ -300,6 +310,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
+    | '/payment/success'
     | '/account'
     | '/dashboard'
     | '/dashboard/clients'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
+    | '/payment/success'
     | '/_protected/account/'
     | '/_protected/dashboard/'
     | '/_protected/dashboard/clients/$clientId'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
+  PaymentSuccessRoute: typeof PaymentSuccessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -427,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment/success': {
+      id: '/payment/success'
+      path: '/payment/success'
+      fullPath: '/payment/success'
+      preLoaderRoute: typeof PaymentSuccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected/dashboard/': {
@@ -631,6 +651,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
+  PaymentSuccessRoute: PaymentSuccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
