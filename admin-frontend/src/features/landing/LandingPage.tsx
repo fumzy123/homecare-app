@@ -7,6 +7,7 @@ import heroImage from '@/assets/hero.png'
 import schedulingPreview from '@/assets/scheduling.png'
 import attendancePreview from '@/assets/attendance.png'
 import timesheetsPreview from '@/assets/timesheets.png'
+import progressNotesPreview from '@/assets/progress notes.png'
 
 export function LandingPage() {
   const { accessToken } = useAuthStore()
@@ -127,7 +128,7 @@ export function LandingPage() {
               spreadsheet.
             </h1>
             <p className="text-[18px] max-md:text-[16px] text-ink-soft leading-relaxed max-w-lg mb-10">
-              The modern operating system for home care agencies. Manage shifts, workers, and clients in one high-performance platform.
+              The modern operating system for home care agencies. Start with a 14-day full-access trial, then pay once to own it for life.
             </p>
             <div className="flex items-center gap-4 max-sm:flex-col max-sm:items-start">
               <Link to="/register">
@@ -217,6 +218,13 @@ export function LandingPage() {
                 title: 'Automated Timesheets',
                 desc: 'No more manual calculations. Generate ready-to-bill timesheets directly from scheduled shifts with one click.',
                 img: timesheetsPreview
+              },
+              {
+                id: 3,
+                label: '[MODULE_04]',
+                title: 'Progress Notes',
+                desc: 'Document care as it happens. Capture clinical notes, observations, and care-plan updates directly from the field.',
+                img: progressNotesPreview
               }
             ].map((f) => (
               <div
@@ -242,7 +250,7 @@ export function LandingPage() {
               <Card brackets className="w-full h-full p-2 bg-paper overflow-hidden shadow-xl">
                 <div className="relative w-full h-full bg-cream-2 border border-ink/10 flex items-center justify-center">
                   <img
-                    src={[schedulingPreview, attendancePreview, timesheetsPreview][activeFeature]}
+                    src={[schedulingPreview, attendancePreview, timesheetsPreview, progressNotesPreview][activeFeature]}
                     alt="Feature Preview"
                     className="w-full h-full object-cover transition-opacity duration-500"
                     key={activeFeature}
@@ -267,7 +275,7 @@ export function LandingPage() {
               <span className="italic">Own it forever.</span>
             </h2>
             <p className="text-ink-soft text-[16px] max-md:text-[14px] leading-relaxed">
-              No subscriptions. No per-seat fees. No surprise invoices. Pay once and run your agency on Homecare OS for life.
+              Start with a 14-day full-access trial. When you're ready, pay a single one-time fee to unlock lifetime access for your entire agency. No subscriptions, ever.
             </p>
           </div>
 
@@ -276,8 +284,8 @@ export function LandingPage() {
             <div className="col-span-7 max-md:col-span-12">
               <div className="border border-ink bg-ink text-cream p-10 max-md:p-6 transition-all duration-200 hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.25)]">
                 <div className="flex items-center justify-between mb-8">
-                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">Lifetime Access</p>
-                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1 bg-[#7ECECE] text-[#111]">* One-time</span>
+                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">Trial + Lifetime Access</p>
+                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1 bg-[#7ECECE] text-[#111]">* Pay once</span>
                 </div>
 
                 <div className="mb-8">
@@ -310,11 +318,13 @@ export function LandingPage() {
                 <Btn
                   variant="orange"
                   className="w-full py-4 text-[13px] tracking-[0.08em] uppercase justify-center"
-                  onClick={handleCheckout}
-                  disabled={checkoutLoading}
+                  onClick={() => window.location.href = '/register'}
                 >
-                  {checkoutLoading ? 'Redirecting…' : 'Get Lifetime Access — $80'}
+                  Start 14-Day Free Trial
                 </Btn>
+                <p className="font-mono text-[8px] text-center text-muted uppercase mt-4 tracking-widest">
+                  Pay $80 later to keep your data forever
+                </p>
               </div>
             </div>
 
@@ -322,12 +332,12 @@ export function LandingPage() {
             <div className="col-span-5 max-md:col-span-12 flex flex-col gap-6 pt-2">
               {[
                 {
-                  label: 'No subscription trap',
-                  body: 'Pay $80 once. Your access never expires — not after a year, not ever.',
+                  label: 'Full trial, no risk',
+                  body: 'Use every single feature for 14 days without paying a cent. After the trial, pay $80 once to unlock your account permanently.',
                 },
                 {
-                  label: 'Early-adopter pricing',
-                  body: 'This rate is locked in for founding users. Subscription pricing comes later — early access is cheaper.',
+                  label: 'Own your data',
+                  body: 'All schedules, workers, and clients you add during the trial stay with you. You just pay once to keep the lights on.',
                 },
               ].map(({ label, body }) => (
                 <div key={label} className="border-l-2 border-orange pl-5">
@@ -381,8 +391,6 @@ export function LandingPage() {
               <p className="font-mono text-[9px] text-muted uppercase tracking-widest mb-4">Platform</p>
               <ul className="flex flex-col gap-2 font-mono text-[11px]">
                 <li><a href="#features" className="hover:text-orange">Features</a></li>
-                <li><a href="#" className="hover:text-orange">Security</a></li>
-                <li><a href="#" className="hover:text-orange">API</a></li>
               </ul>
             </div>
             <div>
