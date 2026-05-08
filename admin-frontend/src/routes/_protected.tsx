@@ -41,12 +41,12 @@ function PaymentGate() {
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center px-6">
       <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
-        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Access required</p>
+        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Trial expired</p>
         <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
-          Unlock Homecare OS
+          Time to own it.
         </h1>
         <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
-          Get lifetime access for a one-time payment of $80. No subscription, no renewal.
+          Your 14-day free trial has ended. Pay a single one-time fee of $80 to unlock your agency and data for life.
         </p>
         <button
           onClick={handleCheckout}
@@ -77,7 +77,7 @@ function ProtectedLayout() {
     )
   }
 
-  if (paymentStatus?.has_paid === false) {
+  if (paymentStatus?.has_paid === false && paymentStatus?.is_trial_active === false) {
     return <PaymentGate />
   }
 
@@ -107,6 +107,11 @@ function ProtectedLayout() {
             </button>
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
+              {paymentStatus?.has_paid === false && paymentStatus?.is_trial_active && (
+                <span className="ml-3 text-orange font-bold">
+                  · Trial: {paymentStatus.trial_days_left} days left
+                </span>
+              )}
             </span>
           </div>
           <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft shrink-0 max-sm:hidden">
