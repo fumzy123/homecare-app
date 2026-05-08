@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
-import { Btn, Card, Kicker, Tag } from '@/shared/components/ui'
-import { paymentsApi } from '@/features/payments/api'
+import { Tag, Btn, Card, Kicker } from '@/shared/components/ui'
 import heroImage from '@/assets/hero.png'
 import schedulingPreview from '@/assets/scheduling.png'
 import attendancePreview from '@/assets/attendance.png'
@@ -12,18 +11,7 @@ import progressNotesPreview from '@/assets/progress notes.png'
 export function LandingPage() {
   const { accessToken } = useAuthStore()
   const [activeFeature, setActiveFeature] = useState(0)
-  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  async function handleCheckout() {
-    setCheckoutLoading(true)
-    try {
-      const { url } = await paymentsApi.createCheckoutSession()
-      window.location.href = url
-    } catch {
-      setCheckoutLoading(false)
-    }
-  }
 
   const navLinks = [
     { label: 'Home',     href: '#home' },
