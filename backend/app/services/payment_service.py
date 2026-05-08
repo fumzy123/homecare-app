@@ -1,6 +1,6 @@
 import stripe
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.core.config import settings
@@ -90,9 +90,25 @@ class PaymentService:
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
 
+            # Trial Calculation (14 days from creation)
+            trial_duration = 14
+            now = datetime.now(timezone.utc)
+            
+            # Ensure org.created_at has timezone info
+            created_at = org.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            
+            trial_ends_at = created_at + timedelta(days=trial_duration)
+            is_trial_active = now < trial_ends_at
+            days_left = max(0, (trial_ends_at - now).days)
+
             return {
                 "has_paid": org.paid_at is not None,
                 "paid_at": org.paid_at,
+                "is_trial_active": is_trial_active,
+                "trial_days_left": days_left,
+                "trial_ends_at": trial_ends_at,
             }
 
         except AppError:

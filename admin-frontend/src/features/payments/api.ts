@@ -3,6 +3,9 @@ import { apiClient } from '@/shared/lib/api-client'
 export interface PaymentStatus {
   has_paid: boolean
   paid_at: string | null
+  is_trial_active: boolean
+  trial_days_left: number
+  trial_ends_at: string
 }
 
 export const paymentsApi = {
