@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
 import { Avatar } from '@/shared/components/ui'
@@ -25,6 +26,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const currentPath = routerState.location.pathname
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const queryClient = useQueryClient()
 
   const initials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
@@ -37,6 +39,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   async function handleSignOut() {
     await authApi.signOut()
+    queryClient.clear()
     clearAuth()
     navigate({ to: '/login' })
   }

@@ -4,16 +4,14 @@ import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
-import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { paymentsApi } from '@/features/payments/api'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: () => {
-    const { accessToken, termsAcceptedVersion } = useAuthStore.getState()
+    const { accessToken } = useAuthStore.getState()
     if (!accessToken) throw redirect({ to: '/login' })
-    if (termsAcceptedVersion !== CURRENT_TERMS_VERSION) throw redirect({ to: '/accept-terms' })
   },
   component: ProtectedLayout,
 })
@@ -62,9 +60,10 @@ function PaymentGate() {
 
 function ProtectedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { user } = useAuthStore()
 
   const { data: paymentStatus, isLoading: paymentLoading } = useQuery({
-    queryKey: ['payment-status'],
+    queryKey: ['payment-status', user?.id],
     queryFn: paymentsApi.getStatus,
     staleTime: 5 * 60 * 1000,
   })
