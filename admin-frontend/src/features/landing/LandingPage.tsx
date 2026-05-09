@@ -109,9 +109,9 @@ export function LandingPage() {
       <header id="home" className="relative pt-20 pb-24 max-md:pt-12 max-md:pb-16 px-10 max-md:px-6 grid-bg border-b border-ink overflow-hidden">
         <div className="max-w-6xl mx-auto grid grid-cols-12 gap-12 max-md:gap-8 items-center">
           <div className="col-span-7 max-md:col-span-12">
-            <Kicker leader className="mb-6">The precision OS for care teams</Kicker>
+            {/* <Kicker leader className="mb-6">The precision OS for care teams</Kicker> */}
             <h1 className="font-serif text-[84px] max-md:text-[48px] max-sm:text-[38px] leading-[0.9] font-medium tracking-[-0.03em] text-ink mb-8">
-              Scheduling care — <br />
+              Scheduling care<br />
               <span className="tape">without</span> the <br />
               spreadsheet.
             </h1>
