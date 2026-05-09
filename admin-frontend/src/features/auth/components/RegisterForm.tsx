@@ -1,10 +1,11 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, Link } from '@tanstack/react-router'
 import { authApi } from '@/features/auth/api'
 import { supabase } from '@/shared/lib/supabase'
 import { useAuthStore } from '@/shared/stores/auth'
+import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
 const schema = z.object({
   organization_name: z.string().min(2, 'Organization name is required'),
@@ -25,7 +26,7 @@ function FieldError({ error }: { error: unknown }) {
 export function RegisterForm() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   const form = useForm({
     defaultValues: { organization_name: '', first_name: '', last_name: '', email: '', password: '' },
@@ -39,8 +40,10 @@ export function RegisterForm() {
           first_name: value.first_name,
           last_name: value.last_name,
         })
+        await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
         useAuthStore.getState().updateUser({ firstName: value.first_name, lastName: value.last_name })
-        setSuccess(true)
+        useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
+        navigate({ to: '/dashboard' })
       } catch (err: unknown) {
         useAuthStore.getState().clearAuth()
         await supabase.auth.signOut()
@@ -48,22 +51,6 @@ export function RegisterForm() {
       }
     },
   })
-
-  if (success) {
-    return (
-      <div className="text-center py-4">
-        <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-mint mb-3">✓ Account created</p>
-        <h2 className="font-serif text-[22px] leading-none mb-3">Check your email</h2>
-        <p className="font-mono text-[11px] text-ink-soft leading-relaxed mb-6">
-          We sent a verification link to your address.<br />Verify then sign in.
-        </p>
-        <button onClick={() => navigate({ to: '/login' })}
-          className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink underline underline-offset-2 transition-colors">
-          Go to sign in →
-        </button>
-      </div>
-    )
-  }
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="flex flex-col gap-5">
@@ -150,13 +137,43 @@ export function RegisterForm() {
         )}
       </form.Field>
 
+      {/* Terms checkbox */}
+      <label className="flex items-start gap-3 cursor-pointer group mt-1">
+        <div className="relative mt-0.5 shrink-0">
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            className="sr-only"
+          />
+          <div className={`w-4 h-4 border flex items-center justify-center transition-colors ${
+            termsAccepted ? 'bg-ink border-ink' : 'bg-cream border-ink group-hover:bg-cream-2'
+          }`}>
+            {termsAccepted && (
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                <path d="M1 4L3.5 6.5L9 1" stroke="#F5F0E8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+        </div>
+        <p className="font-mono text-[10px] text-ink-soft leading-relaxed">
+          I agree to the{' '}
+          <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2 hover:text-orange transition-colors">Terms of Service</Link>
+          {', '}
+          <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2 hover:text-orange transition-colors">Privacy Policy</Link>
+          {', and '}
+          <Link to="/dpa" target="_blank" rel="noopener noreferrer" className="text-ink underline underline-offset-2 hover:text-orange transition-colors">Data Processing Agreement</Link>
+          {' on behalf of my organisation.'}
+        </p>
+      </label>
+
       {serverError && (
         <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
       )}
 
       <form.Subscribe selector={(s) => s.isSubmitting}>
         {(isSubmitting) => (
-          <button type="submit" disabled={isSubmitting}
+          <button type="submit" disabled={isSubmitting || !termsAccepted}
             className="w-full bg-ink text-cream py-3 font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity mt-1">
             {isSubmitting ? 'Creating account…' : 'Create Account'}
           </button>
