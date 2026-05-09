@@ -25,6 +25,13 @@ class InvitationService:
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
 
+            if payload.email.lower() == current_user.email.lower():
+                raise AppError(
+                    status_code=400,
+                    code="CANNOT_INVITE_SELF",
+                    message="You cannot invite yourself",
+                )
+
             org = db.query(Organization).filter(Organization.id == org_id).first()
             org_name = org.name if org else ""
 

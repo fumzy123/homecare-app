@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { useState } from 'react'
 import { invitationsApi, type InvitationRole } from '@/features/invitations/api'
 import { Kicker } from '@/shared/components/ui'
+import { useAuthStore } from '@/shared/stores/auth'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -19,6 +20,7 @@ interface InviteModalProps {
 
 export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const user = useAuthStore(s => s.user)
 
   const form = useForm({
     defaultValues: { email: '', role: 'home_support_worker' as InvitationRole },
@@ -51,7 +53,9 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
         >
           <form.Field name="email" validators={{ onChange: ({ value }) => {
             const r = schema.shape.email.safeParse(value)
-            return r.success ? undefined : r.error.issues[0].message
+             if (!r.success) return r.error.issues[0].message
+              if (value.toLowerCase() === user?.email?.toLowerCase()) return 'You cannot invite yourself'
+              return undefined
           }}}>
             {(field) => (
               <div>
@@ -99,11 +103,11 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
             >
               Cancel
             </button>
-            <form.Subscribe selector={(s) => s.isSubmitting}>
-              {(isSubmitting) => (
+            <form.Subscribe selector={(s) => [s.isSubmitting, s.canSubmit] as const}>
+              {([isSubmitting, canSubmit]) => (
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !canSubmit}
                   className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
                 >
                   {isSubmitting ? 'Sending…' : 'Send invite'}
