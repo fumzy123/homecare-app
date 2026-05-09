@@ -37,12 +37,12 @@ function WorkerAccessDenied() {
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center px-6">
       <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
-        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Access restricted</p>
+        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Admin Console</p>
         <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
-          Wrong app.
+          You're all set.
         </h1>
         <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
-          This is the agency admin console. Your account is set up as a worker — the Homecare worker app will be available on iOS and Android soon.
+          Your account is set up as a Home Support Worker. The Homecare worker app is coming to iOS and Android soon. We'll send you an email the moment it's ready.
         </p>
         <button
           onClick={handleSignOut}
