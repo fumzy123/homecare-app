@@ -1,12 +1,15 @@
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
 import { LegalFooter } from '@/shared/components/LegalFooter'
+import { isAdminRole } from '@/shared/lib/roles'
 import { useAuthStore } from '@/shared/stores/auth'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {
-    const token = useAuthStore.getState().accessToken
-    if (token) throw redirect({ to: '/dashboard' })
+    const { accessToken, user } = useAuthStore.getState()
+    if (accessToken && isAdminRole(user?.role)) {
+      throw redirect({ to: '/dashboard' })
+    }
   },
   component: LoginPage,
 })

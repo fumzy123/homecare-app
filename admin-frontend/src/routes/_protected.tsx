@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
+import { isAdminRole } from '@/shared/lib/roles'
 import { useAuthStore } from '@/shared/stores/auth'
+import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { paymentsApi } from '@/features/payments/api'
 
@@ -22,6 +24,36 @@ const weekNum  = Math.ceil(
 )
 const wkStart  = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 const wkEnd    = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
+
+function WorkerAccessDenied() {
+  const { clearAuth } = useAuthStore()
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    clearAuth()
+    window.location.href = '/login'
+  }
+
+  return (
+    <div className="min-h-screen bg-cream flex items-center justify-center px-6">
+      <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
+        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Access restricted</p>
+        <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
+          Wrong app.
+        </h1>
+        <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
+          This is the agency admin console. Your account is set up as a worker — the Homecare worker app will be available on iOS and Android soon.
+        </p>
+        <button
+          onClick={handleSignOut}
+          className="w-full py-3.5 bg-ink text-cream font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 transition-opacity"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function PaymentGate() {
   const [loading, setLoading] = useState(false)
@@ -67,6 +99,10 @@ function ProtectedLayout() {
     queryFn: paymentsApi.getStatus,
     staleTime: 5 * 60 * 1000,
   })
+
+  if (!isAdminRole(user?.role)) {
+    return <WorkerAccessDenied />
+  }
 
   if (paymentLoading) {
     return (
