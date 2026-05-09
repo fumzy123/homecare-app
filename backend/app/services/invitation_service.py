@@ -70,6 +70,7 @@ class InvitationService:
                         "role": payload.role,
                         "org_id": str(org_id),
                         "org_name": org_name,
+                        "invited_by": f"{current_user.user_metadata.get('first_name', '')} {current_user.user_metadata.get('last_name', '')}".strip(),
                     },
                 }
             )
