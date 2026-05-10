@@ -7,7 +7,7 @@ import { shiftsApi, type ShiftOccurrence, type NoteEntry, type RecurrenceFrequen
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
-import { Avatar, Kicker, DateInput } from '@/shared/components/ui'
+import { Avatar, Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -269,13 +269,12 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Start Time</label>
-                  <input type="time" className={inputClass} value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                  <TimeInput value={startTime} onChange={setStartTime} className="w-full" />
                 </div>
                 <div>
                   <label className={labelClass}>End Time</label>
-                  <input type="time" className={inputClass} value={endTime}
-                    onChange={(e) => {
-                      const newEnd = e.target.value
+                  <TimeInput value={endTime} className="w-full"
+                    onChange={(newEnd) => {
                       setEndTime(newEnd)
                       if (newEnd && startTime && newEnd <= startTime && endDate === date)
                         setEndDate(nextDay(date))
@@ -639,9 +638,7 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
         <div className="mt-3 border border-ink p-3 space-y-3">
           <div className="flex items-center gap-3">
             <label className="font-mono text-[9px] uppercase text-ink-soft w-10 shrink-0">Time</label>
-            <input type="time" min={shiftStart} max={shiftEnd} value={newTime}
-              onChange={(e) => setNewTime(e.target.value)}
-              className="bg-cream border border-ink px-2 py-1.5 font-mono text-[11px] focus:outline-none" />
+            <TimeInput value={newTime} min={shiftStart} max={shiftEnd} onChange={setNewTime} />
           </div>
           <textarea rows={2} value={newContent} onChange={(e) => setNewContent(e.target.value)}
             placeholder="What happened at this time?"

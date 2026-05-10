@@ -6,9 +6,10 @@ import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
-import { Kicker, DateInput } from '@/shared/components/ui'
+import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 
 function nextDay(date: string): string {
+  if (!date) return ''
   const d = new Date(`${date}T00:00`)
   d.setDate(d.getDate() + 1)
   return format(d, 'yyyy-MM-dd')
@@ -204,7 +205,8 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   <DateInput value={field.state.value}
                     onChange={(v) => {
                       field.handleChange(v)
-                      if (endDate === nextDay(field.state.value)) setEndDate(nextDay(v))
+                      if (!field.state.value) setEndDate(v)
+                      else if (endDate === nextDay(field.state.value)) setEndDate(nextDay(v))
                       else if (endDate === field.state.value) setEndDate(v)
                       notifyFormChange(v, form.state.values.start_time, endDate, form.state.values.end_time, form.state.values.worker_id, form.state.values.client_id)
                     }}
@@ -236,22 +238,17 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
               {(field) => (
                 <div>
                   <label className={labelClass}>Start Time</label>
-                  <input type="time" className={inputClass} value={field.state.value}
-                    onChange={(e) => {
-                      const newStart = e.target.value
+                  <TimeInput value={field.state.value} className="w-full"
+                    onChange={(newStart) => {
                       field.handleChange(newStart)
                       const endTime = form.state.values.end_time
                       const date    = form.state.values.date
-                      
-                      // Auto-advance end date when crossing midnight
                       if (newStart && endTime && endTime <= newStart && endDate === date) {
                         setEndDate(nextDay(date))
                       }
-                      // Auto-reset end date when no longer overnight
                       if (newStart && endTime && endTime > newStart && endDate === nextDay(date)) {
                         setEndDate(date)
                       }
-                      
                       notifyFormChange(date, newStart, endDate, endTime, form.state.values.worker_id, form.state.values.client_id)
                     }}
                     onBlur={field.handleBlur} />
@@ -264,17 +261,14 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
               {(field) => (
                 <div>
                   <label className={labelClass}>End Time</label>
-                  <input type="time" className={inputClass} value={field.state.value}
-                    onChange={(e) => {
-                      const newEnd = e.target.value
+                  <TimeInput value={field.state.value} className="w-full"
+                    onChange={(newEnd) => {
                       field.handleChange(newEnd)
                       const startTime = form.state.values.start_time
                       const date      = form.state.values.date
-                      // Auto-advance end date when crossing midnight
                       if (newEnd && startTime && newEnd <= startTime && endDate === date) {
                         setEndDate(nextDay(date))
                       }
-                      // Auto-reset end date when no longer overnight
                       if (newEnd && startTime && newEnd > startTime && endDate === nextDay(date)) {
                         setEndDate(date)
                       }
