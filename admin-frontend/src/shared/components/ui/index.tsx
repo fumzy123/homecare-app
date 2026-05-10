@@ -1,5 +1,5 @@
 import { type ReactNode, type ButtonHTMLAttributes, useState, useRef, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react'
 import {
   format, parse, addDays, addMonths, subMonths,
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -338,11 +338,18 @@ interface DateInputProps {
   className?: string
 }
 
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Select date', className }: DateInputProps) {
-  const [open, setOpen]         = useState(false)
-  const [viewDate, setViewDate] = useState<Date>(() =>
+  const [open, setOpen]               = useState(false)
+  const [view, setView]               = useState<'days' | 'months' | 'years'>('days')
+  const [viewDate, setViewDate]       = useState<Date>(() =>
     value ? parse(value, 'yyyy-MM-dd', new Date()) : new Date()
   )
+  const [yearRangeStart, setYearRangeStart] = useState(() => {
+    const y = value ? parse(value, 'yyyy-MM-dd', new Date()).getFullYear() : new Date().getFullYear()
+    return Math.floor(y / 12) * 12
+  })
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -350,6 +357,7 @@ export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Se
     function onOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
+        setView('days')
         onBlur?.()
       }
     }
@@ -378,21 +386,58 @@ export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Se
     return (minDate != null && day < minDate) || (maxDate != null && day > maxDate)
   }
 
-  function select(day: Date) {
+  function selectDay(day: Date) {
     if (disabled(day)) return
     onChange(format(day, 'yyyy-MM-dd'))
     setOpen(false)
+    setView('days')
     onBlur?.()
+  }
+
+  function selectMonth(monthIndex: number) {
+    setViewDate(new Date(viewDate.getFullYear(), monthIndex, 1))
+    setView('days')
+  }
+
+  function selectYear(year: number) {
+    setViewDate(new Date(year, viewDate.getMonth(), 1))
+    setYearRangeStart(Math.floor(year / 12) * 12)
+    setView('months')
   }
 
   function goToday() {
     const today = new Date()
     setViewDate(today)
-    if (!disabled(today)) { onChange(format(today, 'yyyy-MM-dd')); setOpen(false); onBlur?.() }
+    if (!disabled(today)) { onChange(format(today, 'yyyy-MM-dd')); setOpen(false); setView('days'); onBlur?.() }
   }
 
+  // Clicking the header drills: days → months → years → days
+  function handleHeaderClick() {
+    setView(v => v === 'days' ? 'months' : v === 'months' ? 'years' : 'days')
+  }
+
+  function navPrev() {
+    if (view === 'days')   setViewDate(d => subMonths(d, 1))
+    if (view === 'months') setViewDate(d => new Date(d.getFullYear() - 1, d.getMonth(), 1))
+    if (view === 'years')  setYearRangeStart(y => y - 12)
+  }
+
+  function navNext() {
+    if (view === 'days')   setViewDate(d => addMonths(d, 1))
+    if (view === 'months') setViewDate(d => new Date(d.getFullYear() + 1, d.getMonth(), 1))
+    if (view === 'years')  setYearRangeStart(y => y + 12)
+  }
+
+  const headerLabel = view === 'days'
+    ? format(viewDate, 'MMMM yyyy')
+    : view === 'months'
+    ? format(viewDate, 'yyyy')
+    : `${yearRangeStart} – ${yearRangeStart + 11}`
+
+  const today      = new Date()
   const displayValue = selected ? format(selected, 'MMM d, yyyy') : ''
   const days = buildDays()
+  const years = Array.from({ length: 12 }, (_, i) => yearRangeStart + i)
 
   return (
     <div ref={ref} className={cn('relative', className)}>
@@ -407,72 +452,300 @@ export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Se
 
       {open && (
         <div className="absolute top-full left-0 mt-1 z-50 bg-paper border border-ink p-4 w-64 shadow-sm">
-          {/* Month navigation */}
+
+          {/* Header — clickable to drill up, arrows navigate */}
           <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={() => setViewDate(d => subMonths(d, 1))} className="p-1 hover:bg-cream-2 transition-colors">
+            <button type="button" onClick={navPrev} className="p-1 hover:bg-cream-2 transition-colors">
               <ChevronLeft size={13} />
             </button>
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink">
-              {format(viewDate, 'MMMM yyyy')}
-            </span>
-            <button type="button" onClick={() => setViewDate(d => addMonths(d, 1))} className="p-1 hover:bg-cream-2 transition-colors">
+            <button
+              type="button"
+              onClick={handleHeaderClick}
+              className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink hover:bg-cream-2 px-2 py-1 transition-colors"
+            >
+              {headerLabel}
+            </button>
+            <button type="button" onClick={navNext} className="p-1 hover:bg-cream-2 transition-colors">
               <ChevronRight size={13} />
             </button>
           </div>
 
-          {/* Day-of-week headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {DAY_LABELS.map(d => (
-              <div key={d} className="text-center font-mono text-[9px] uppercase tracking-[0.06em] text-ink-soft py-1">
-                {d}
+          {/* Days view */}
+          {view === 'days' && (
+            <>
+              <div className="grid grid-cols-7 mb-1">
+                {DAY_LABELS.map(d => (
+                  <div key={d} className="text-center font-mono text-[9px] uppercase tracking-[0.06em] text-ink-soft py-1">{d}</div>
+                ))}
               </div>
-            ))}
+              <div className="grid grid-cols-7">
+                {days.map((day, i) => {
+                  const sel      = selected != null && isSameDay(day, selected)
+                  const inMonth  = isSameMonth(day, viewDate)
+                  const todayDay = isToday(day)
+                  const dis      = disabled(day)
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={dis}
+                      onClick={() => selectDay(day)}
+                      className={cn(
+                        'h-8 w-full font-mono text-[11px] transition-colors',
+                        sel      ? 'bg-ink text-cream'
+                        : todayDay ? 'border border-ink text-ink hover:bg-cream-2'
+                        :            'hover:bg-cream-2 text-ink',
+                        !inMonth && 'opacity-30',
+                        dis      && 'opacity-20 cursor-not-allowed',
+                      )}
+                    >
+                      {format(day, 'd')}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex justify-between mt-3 pt-3 border-t border-dashed border-line-soft">
+                <button
+                  type="button"
+                  onClick={() => { onChange(''); setOpen(false); onBlur?.() }}
+                  className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={goToday}
+                  className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink transition-colors"
+                >
+                  Today
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Months view */}
+          {view === 'months' && (
+            <div className="grid grid-cols-3 gap-1">
+              {MONTH_LABELS.map((m, i) => {
+                const isSel     = selected != null && i === selected.getMonth() && viewDate.getFullYear() === selected.getFullYear()
+                const isThisMonth = i === today.getMonth() && viewDate.getFullYear() === today.getFullYear()
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => selectMonth(i)}
+                    className={cn(
+                      'py-2 font-mono text-[10px] uppercase tracking-[0.06em] transition-colors',
+                      isSel        ? 'bg-ink text-cream'
+                      : isThisMonth ? 'border border-ink text-ink hover:bg-cream-2'
+                      :               'hover:bg-cream-2 text-ink',
+                    )}
+                  >
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Years view */}
+          {view === 'years' && (
+            <div className="grid grid-cols-3 gap-1">
+              {years.map(y => {
+                const isSel      = selected != null && y === selected.getFullYear()
+                const isThisYear = y === today.getFullYear()
+                return (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => selectYear(y)}
+                    className={cn(
+                      'py-2 font-mono text-[10px] transition-colors',
+                      isSel       ? 'bg-ink text-cream'
+                      : isThisYear ? 'border border-ink text-ink hover:bg-cream-2'
+                      :              'hover:bg-cream-2 text-ink',
+                    )}
+                  >
+                    {y}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── TimeInput ────────────────────────────────────────────────────────────────
+// Custom time picker matching the design system.
+// value / onChange use 'HH:mm' 24-hour strings — same API as <input type="time">.
+
+const HOURS   = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]
+
+interface TimeInputProps {
+  value: string
+  onChange: (value: string) => void
+  onBlur?: () => void
+  min?: string
+  max?: string
+  className?: string
+}
+
+function parseTime(value: string): { hour: number; minute: number; period: 'AM' | 'PM' } {
+  if (!value) return { hour: 9, minute: 0, period: 'AM' }
+  const [h, m] = value.split(':').map(Number)
+  return { hour: h % 12 || 12, minute: m, period: h >= 12 ? 'PM' : 'AM' }
+}
+
+function to24h(hour: number, minute: number, period: 'AM' | 'PM'): string {
+  let h = hour
+  if (period === 'AM' && hour === 12) h = 0
+  if (period === 'PM' && hour !== 12) h = hour + 12
+  return `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+function toDisplayTime(value: string): string {
+  if (!value) return ''
+  const { hour, minute, period } = parseTime(value)
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${period}`
+}
+
+export function TimeInput({ value, onChange, onBlur, min, max, className }: TimeInputProps) {
+  const [open, setOpen] = useState(false)
+  const ref        = useRef<HTMLDivElement>(null)
+  const hourRef    = useRef<HTMLDivElement>(null)
+  const minuteRef  = useRef<HTMLDivElement>(null)
+  const { hour, minute, period } = parseTime(value)
+
+  // Scroll selected item to top of column when picker opens
+  useEffect(() => {
+    if (!open) return
+    requestAnimationFrame(() => {
+      for (const colRef of [hourRef, minuteRef]) {
+        const el = colRef.current?.querySelector<HTMLElement>('[data-selected]')
+        if (el && colRef.current) colRef.current.scrollTop = el.offsetTop
+      }
+    })
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+        onBlur?.()
+      }
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [open, onBlur])
+
+  function isOutOfRange(h: number, m: number, p: 'AM' | 'PM'): boolean {
+    const t = to24h(h, m, p)
+    return (min != null && t < min) || (max != null && t > max)
+  }
+
+  function select(newHour: number, newMinute: number, newPeriod: 'AM' | 'PM') {
+    if (isOutOfRange(newHour, newMinute, newPeriod)) return
+    onChange(to24h(newHour, newMinute, newPeriod))
+  }
+
+  const displayValue = toDisplayTime(value)
+  const itemClass = 'w-full text-left px-4 py-2.5 font-mono text-[11px] transition-colors cursor-pointer'
+
+  return (
+    <div ref={ref} className={cn('relative', className)}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink w-full text-left flex items-center justify-between gap-2"
+      >
+        <span className={displayValue ? 'text-ink' : 'text-ink-soft'}>{displayValue || 'Select time'}</span>
+        <Clock size={12} className="text-ink-soft shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-paper border border-ink shadow-sm w-52 overflow-hidden">
+
+          {/* Column headers */}
+          <div className="flex border-b border-ink">
+            <div className="flex-1 px-4 py-1.5 font-mono text-[8px] uppercase tracking-[0.14em] text-ink-soft border-r border-ink">HR</div>
+            <div className="flex-1 px-4 py-1.5 font-mono text-[8px] uppercase tracking-[0.14em] text-ink-soft border-r border-ink">MIN</div>
+            <div className="flex-1 px-4 py-1.5 font-mono text-[8px] uppercase tracking-[0.14em] text-ink-soft"></div>
           </div>
 
-          {/* Days grid */}
-          <div className="grid grid-cols-7">
-            {days.map((day, i) => {
-              const sel      = selected != null && isSameDay(day, selected)
-              const inMonth  = isSameMonth(day, viewDate)
-              const todayDay = isToday(day)
-              const dis      = disabled(day)
-              return (
+          {/* Scrollable columns */}
+          <div className="flex" style={{ height: '200px' }}>
+
+            {/* Hours */}
+            <div ref={hourRef} className="flex-1 overflow-y-auto border-r border-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {HOURS.map(h => {
+                const sel = hour === h
+                const dis = isOutOfRange(h, minute, period)
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    disabled={dis}
+                    data-selected={sel || undefined}
+                    onClick={() => select(h, minute, period)}
+                    className={cn(
+                      itemClass,
+                      sel ? 'bg-ink text-cream' : 'text-ink hover:bg-cream-2',
+                      dis && 'opacity-20 cursor-not-allowed',
+                    )}
+                  >
+                    {String(h).padStart(2, '0')}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Minutes */}
+            <div ref={minuteRef} className="flex-1 overflow-y-auto border-r border-ink [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {MINUTES.map(m => {
+                const sel = minute === m
+                const dis = isOutOfRange(hour, m, period)
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    disabled={dis}
+                    data-selected={sel || undefined}
+                    onClick={() => select(hour, m, period)}
+                    className={cn(
+                      itemClass,
+                      sel ? 'bg-ink text-cream' : 'text-ink hover:bg-cream-2',
+                      dis && 'opacity-20 cursor-not-allowed',
+                    )}
+                  >
+                    {String(m).padStart(2, '0')}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* AM / PM */}
+            <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {(['AM', 'PM'] as const).map(p => (
                 <button
-                  key={i}
+                  key={p}
                   type="button"
-                  disabled={dis}
-                  onClick={() => select(day)}
+                  onClick={() => select(hour, minute, p)}
                   className={cn(
-                    'h-8 w-full font-mono text-[11px] transition-colors',
-                    sel      ? 'bg-ink text-cream'
-                    : todayDay ? 'border border-ink text-ink hover:bg-cream-2'
-                    :            'hover:bg-cream-2 text-ink',
-                    !inMonth && 'opacity-30',
-                    dis      && 'opacity-20 cursor-not-allowed',
+                    itemClass,
+                    period === p ? 'bg-ink text-cream' : 'text-ink hover:bg-cream-2',
                   )}
                 >
-                  {format(day, 'd')}
+                  {p}
                 </button>
-              )
-            })}
-          </div>
+              ))}
+            </div>
 
-          {/* Footer */}
-          <div className="flex justify-between mt-3 pt-3 border-t border-dashed border-line-soft">
-            <button
-              type="button"
-              onClick={() => { onChange(''); setOpen(false); onBlur?.() }}
-              className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink transition-colors"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={goToday}
-              className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-soft hover:text-ink transition-colors"
-            >
-              Today
-            </button>
           </div>
         </div>
       )}
