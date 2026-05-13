@@ -31,11 +31,12 @@ function formatDuration(start: Date, end: Date): string {
 interface ShiftDetailDrawerProps {
   shift: ShiftOccurrence
   onClose: () => void
+  hideEdit?: boolean
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
+export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDetailDrawerProps) {
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing]         = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -209,7 +210,7 @@ export function ShiftDetailDrawer({ shift, onClose }: ShiftDetailDrawerProps) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
           <Kicker>{isEditing ? 'Edit Shift' : 'Shift Details'}</Kicker>
           <div className="flex items-center gap-2">
-            {!isEditing && (
+            {!isEditing && !hideEdit && (
               <button
                 onClick={() => setIsEditing(true)}
                 className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink transition-colors"

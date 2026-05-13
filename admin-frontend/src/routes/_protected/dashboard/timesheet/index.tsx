@@ -122,9 +122,12 @@ function TimesheetPage() {
 
   const TIMESHEET_STATUSES = ['completed', 'no_show', 'cancelled']
 
+  const queryFrom = fromDate || '2020-01-01'
+  const queryTo   = toDate   || '2030-12-31'
+
   const { data: shifts = [], isLoading } = useQuery({
-    queryKey: ['shifts', fromDate, toDate, filterWorkerId, filterClientId, TIMESHEET_STATUSES],
-    queryFn: () => shiftsApi.listShifts(fromDate, toDate, filterWorkerId || undefined, filterClientId || undefined, TIMESHEET_STATUSES),
+    queryKey: ['shifts', queryFrom, queryTo, filterWorkerId, filterClientId, TIMESHEET_STATUSES],
+    queryFn: () => shiftsApi.listShifts(queryFrom, queryTo, filterWorkerId || undefined, filterClientId || undefined, TIMESHEET_STATUSES),
   })
 
   const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
@@ -184,11 +187,18 @@ function TimesheetPage() {
         <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
           <div className="flex items-center gap-2">
             <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft shrink-0">From</label>
-            <DateInput value={fromDate} onChange={setFromDate} />
+            <DateInput
+              value={fromDate}
+              max={toDate}
+              onChange={(v) => {
+                setFromDate(v)
+                if (v > toDate) setToDate(v)
+              }}
+            />
           </div>
           <div className="flex items-center gap-2">
             <label className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft shrink-0">To</label>
-            <DateInput value={toDate} onChange={setToDate} />
+            <DateInput value={toDate} min={fromDate} onChange={setToDate} />
           </div>
         </div>
 
@@ -284,7 +294,7 @@ function TimesheetPage() {
       </div>
 
       {selectedShift && (
-        <ShiftDetailDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
+        <ShiftDetailDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} hideEdit />
       )}
     </div>
   )
