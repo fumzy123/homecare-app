@@ -175,7 +175,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
               <div>
                 <label className={labelClass}>Phone</label>
                 <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
+                  onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="604 555 1234" />
                 <FieldError error={field.state.meta.errors[0]} />
               </div>
             )}
@@ -237,7 +237,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
                 <div>
                   <label className={labelClass}>Phone</label>
                   <input className={inputClass} value={field.state.value}
-                    onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
+                    onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="604 555 1234" />
                   <FieldError error={field.state.meta.errors[0]} />
                 </div>
               )}

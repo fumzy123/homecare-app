@@ -137,7 +137,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="phone_number" validators={{ onBlur: ({ value }) => validatePhone(value) }}>
-              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="+1 604 555 1234" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="604 555 1234" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="email" validators={{ onChange: ({ value }) => { if (!value) return undefined; const r = schema.shape.email.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
               {(field) => (<div><label className={labelClass}>Email</label><input type="email" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="jane@example.com" /><FieldError error={field.state.meta.errors[0]} /></div>)}
@@ -201,7 +201,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
 
           <div className="grid grid-cols-2 gap-3">
             <form.Field name="emergency_contact_phone" validators={{ onBlur: ({ value }) => validatePhone(value, true) }}>
-              {(field) => (<div><label className={labelClass}>Phone <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="+1 604 555 1234" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+              {(field) => (<div><label className={labelClass}>Phone <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="604 555 1234" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="emergency_contact_relationship" validators={{ onChange: ({ value }) => { const r = schema.shape.emergency_contact_relationship.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
               {(field) => (<div><label className={labelClass}>Relationship <span className="text-orange">*</span></label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Spouse, Parent…" /><FieldError error={field.state.meta.errors[0]} /></div>)}

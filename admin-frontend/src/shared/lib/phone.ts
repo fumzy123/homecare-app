@@ -2,11 +2,11 @@ import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js'
 
 export function formatPhone(value: string): string {
   if (!value) return value
-  // Strip everything except + and digits, then cap at E.164 max (15 digits)
+  // Auto-prepend +1 if user hasn't typed a country code
   const digits = value.replace(/[^\d+]/g, '')
-  const capped = digits.startsWith('+')
-    ? '+' + digits.slice(1).slice(0, 15)
-    : digits.slice(0, 15)
+  const withCode = digits.startsWith('+') ? digits : '+1' + digits
+  // Cap at E.164 max (15 digits after the +)
+  const capped = '+' + withCode.slice(1).slice(0, 15)
   return new AsYouType().input(capped)
 }
 
