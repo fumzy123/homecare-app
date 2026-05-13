@@ -48,6 +48,10 @@ apiClient.interceptors.response.use(
       }
     }
 
-    return Promise.reject(error)
+    const message =
+      error.response?.data?.error?.message ||
+      error.response?.data?.message ||
+      error.message
+    return Promise.reject(new Error(message))
   },
 )
