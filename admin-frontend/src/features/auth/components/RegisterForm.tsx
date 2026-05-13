@@ -41,7 +41,7 @@ export function RegisterForm() {
           last_name: value.last_name,
         })
         await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
-        useAuthStore.getState().updateUser({ firstName: value.first_name, lastName: value.last_name })
+        useAuthStore.getState().updateUser({ firstName: value.first_name, lastName: value.last_name, role: 'owner' })
         useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
         navigate({ to: '/dashboard' })
       } catch (err: unknown) {
