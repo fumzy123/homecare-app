@@ -10,7 +10,7 @@ import {
   type LeaveType,
   type LeaveRecordCreatePayload,
 } from '@/features/leave/api'
-import { StatCard } from '@/shared/components/ui'
+import { StatCard, DateInput } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/leave')({
   component: WorkerLeave,
@@ -220,25 +220,21 @@ function RecordLeaveModal({ onClose, onSubmit, isPending, error }: ModalProps) {
               <label className="block font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-1.5">
                 Start Date
               </label>
-              <input
-                type="date"
-                required
+              <DateInput
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full border border-ink bg-cream px-3 py-2 font-mono text-[12px] focus:outline-none"
+                onChange={setStartDate}
+                className="w-full"
               />
             </div>
             <div>
               <label className="block font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-1.5">
                 End Date
               </label>
-              <input
-                type="date"
-                required
+              <DateInput
                 value={endDate}
+                onChange={setEndDate}
                 min={startDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full border border-ink bg-cream px-3 py-2 font-mono text-[12px] focus:outline-none"
+                className="w-full"
               />
             </div>
           </div>
