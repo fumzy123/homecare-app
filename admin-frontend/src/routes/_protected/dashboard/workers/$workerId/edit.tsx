@@ -11,7 +11,7 @@ import {
 } from '@/features/workers/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
 import { Kicker, DateInput } from '@/shared/components/ui'
-import { validatePhone } from '@/shared/lib/phone'
+import { validatePhone, formatPhone } from '@/shared/lib/phone'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
   component: WorkerEditPage,
@@ -175,7 +175,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
               <div>
                 <label className={labelClass}>Phone</label>
                 <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
+                  onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
                 <FieldError error={field.state.meta.errors[0]} />
               </div>
             )}
@@ -237,7 +237,7 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
                 <div>
                   <label className={labelClass}>Phone</label>
                   <input className={inputClass} value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
+                    onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
                   <FieldError error={field.state.meta.errors[0]} />
                 </div>
               )}
