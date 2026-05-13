@@ -11,6 +11,7 @@ import {
 } from '@/features/workers/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
 import { Kicker, DateInput } from '@/shared/components/ui'
+import { validatePhone } from '@/shared/lib/phone'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
   component: WorkerEditPage,
@@ -169,12 +170,13 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <form.Field name="phone_number">
+          <form.Field name="phone_number" validators={{ onBlur: ({ value }) => validatePhone(value) }}>
             {(field) => (
               <div>
                 <label className={labelClass}>Phone</label>
                 <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (555) 000-0000" />
+                  onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
+                <FieldError error={field.state.meta.errors[0]} />
               </div>
             )}
           </form.Field>
@@ -230,12 +232,13 @@ function PersonalInfoForm({ worker }: { worker: Worker }) {
           </form.Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <form.Field name="emergency_contact_phone">
+            <form.Field name="emergency_contact_phone" validators={{ onBlur: ({ value }) => validatePhone(value) }}>
               {(field) => (
                 <div>
                   <label className={labelClass}>Phone</label>
                   <input className={inputClass} value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (555) 000-0000" />
+                    onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 604 555 1234" />
+                  <FieldError error={field.state.meta.errors[0]} />
                 </div>
               )}
             </form.Field>

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { clientsApi, type ClientStatus, type ServiceType } from '@/features/clients/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
 import { Kicker, DateInput } from '@/shared/components/ui'
+import { validatePhone } from '@/shared/lib/phone'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/edit')({
   component: ClientEditPage,
@@ -184,8 +185,8 @@ function ClientEditForm({ clientId, client }: { clientId: string; client: Client
             </form.Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <form.Field name="phone_number">
-              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (555) 000-0000" /></div>)}
+            <form.Field name="phone_number" validators={{ onBlur: ({ value }) => validatePhone(value) }}>
+              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 604 555 1234" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="email" validators={{ onChange: ({ value }) => validate(schema.shape.email, value) }}>
               {(field) => (<div><label className={labelClass}>Email</label><input type="email" className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /><FieldError error={field.state.meta.errors[0]} /></div>)}
@@ -266,8 +267,8 @@ function ClientEditForm({ clientId, client }: { clientId: string; client: Client
             {(field) => (<div><label className={labelClass}>Name</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Full name" /><FieldError error={field.state.meta.errors[0]} /></div>)}
           </form.Field>
           <div className="grid grid-cols-2 gap-4">
-            <form.Field name="emergency_contact_phone" validators={{ onChange: ({ value }) => validate(schema.shape.emergency_contact_phone, value) }}>
-              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 (555) 000-0000" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+            <form.Field name="emergency_contact_phone" validators={{ onBlur: ({ value }) => validatePhone(value, true) }}>
+              {(field) => (<div><label className={labelClass}>Phone</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="+1 604 555 1234" /><FieldError error={field.state.meta.errors[0]} /></div>)}
             </form.Field>
             <form.Field name="emergency_contact_relationship" validators={{ onChange: ({ value }) => validate(schema.shape.emergency_contact_relationship, value) }}>
               {(field) => (<div><label className={labelClass}>Relationship</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} placeholder="Spouse, Parent…" /><FieldError error={field.state.meta.errors[0]} /></div>)}
