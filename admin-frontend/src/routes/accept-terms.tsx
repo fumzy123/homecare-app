@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import type { AxiosError } from 'axios'
 import { useAuthStore } from '@/shared/stores/auth'
 import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 import { Btn } from '@/shared/components/ui'
@@ -110,9 +111,9 @@ function AcceptTermsPage() {
           {/* Error */}
           {accept.isError && (
             <p className="font-mono text-[11px] text-orange mb-4">
-              {(accept.error as any)?.code === 'ECONNABORTED'
+              {(accept.error as AxiosError<{ error: { message: string } }>)?.code === 'ECONNABORTED'
                 ? 'Request timed out — make sure the backend server is running.'
-                : (accept.error as any)?.response?.data?.error?.message
+                : (accept.error as AxiosError<{ error: { message: string } }>)?.response?.data?.error?.message
                   ?? 'Something went wrong. Check the browser console for details.'}
             </p>
           )}

@@ -350,7 +350,13 @@ export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Se
     const y = value ? parse(value, 'yyyy-MM-dd', new Date()).getFullYear() : new Date().getFullYear()
     return Math.floor(y / 12) * 12
   })
+  const [prevValue, setPrevValue] = useState(value)
   const ref = useRef<HTMLDivElement>(null)
+
+  if (prevValue !== value) {
+    setPrevValue(value)
+    if (value) setViewDate(parse(value, 'yyyy-MM-dd', new Date()))
+  }
 
   useEffect(() => {
     if (!open) return
@@ -364,10 +370,6 @@ export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Se
     document.addEventListener('mousedown', onOutside)
     return () => document.removeEventListener('mousedown', onOutside)
   }, [open, onBlur])
-
-  useEffect(() => {
-    if (value) setViewDate(parse(value, 'yyyy-MM-dd', new Date()))
-  }, [value])
 
   const selected = value ? parse(value, 'yyyy-MM-dd', new Date()) : null
   const minDate  = min ? parse(min, 'yyyy-MM-dd', new Date()) : null
