@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from app.db.session import SessionLocal
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
