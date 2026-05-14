@@ -5,7 +5,7 @@ import { Trash2 } from 'lucide-react'
 import { workersApi } from '@/features/workers/api'
 import { invitationsApi } from '@/features/invitations/api'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
-import { ROLE_LABELS } from '@/features/invitations/components/StatusBadge'
+import { ROLE_LABELS } from '@/features/invitations/constants'
 import { Avatar, Card, Kicker, StatusDot, Tag, Btn } from '@/shared/components/ui'
 import type { Worker } from '@/features/workers/api'
 
