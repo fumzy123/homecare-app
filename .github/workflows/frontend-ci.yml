@@ -1,10 +1,12 @@
-name: CI
+name: Frontend CI
 
 on:
   push:
     branches: [main]
+    paths: ['admin-frontend/**']
   pull_request:
     branches: [main]
+    paths: ['admin-frontend/**']
 
 jobs:
   admin-frontend-ci:
