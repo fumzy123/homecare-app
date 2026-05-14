@@ -23,7 +23,7 @@ function shiftHours(shift: ShiftOccurrence): number {
 function buildMonthlyHours(shifts: ShiftOccurrence[]): MonthHours[] {
   const months: MonthHours[] = Array.from({ length: 12 }, () => ({ hours: 0, visits: 0 }))
   for (const shift of shifts) {
-    if (['cancelled', 'dropped'].includes(shift.completion_status)) continue
+    if (shift.completion_status !== 'completed') continue
     const m = months[getMonth(new Date(shift.date))]
     m.hours  += shiftHours(shift)
     m.visits += 1
@@ -34,7 +34,7 @@ function buildMonthlyHours(shifts: ShiftOccurrence[]): MonthHours[] {
 function buildWorkerBreakdown(shifts: ShiftOccurrence[]): { id: string; name: string; hours: number; visits: number }[] {
   const map: Record<string, { id: string; name: string; hours: number; visits: number }> = {}
   for (const shift of shifts) {
-    if (['cancelled', 'dropped'].includes(shift.completion_status)) continue
+    if (shift.completion_status !== 'completed') continue
     const id = shift.worker.id
     if (!map[id]) map[id] = { id, name: `${shift.worker.first_name} ${shift.worker.last_name}`, hours: 0, visits: 0 }
     map[id].hours  += shiftHours(shift)
@@ -60,8 +60,13 @@ function ClientCareHours() {
   const monthly  = buildMonthlyHours(shifts)
   const workers  = buildWorkerBreakdown(shifts)
 
-  const totalHours  = monthly.reduce((s, m) => s + m.hours, 0)
-  const totalVisits = monthly.reduce((s, m) => s + m.visits, 0)
+  const totalHours     = shifts
+    .filter(s => !['cancelled', 'dropped'].includes(s.completion_status))
+    .reduce((sum, s) => sum + shiftHours(s), 0)
+  const totalVisits    = monthly.reduce((s, m) => s + m.visits, 0)
+  const deliveredHours = shifts
+    .filter(s => s.completion_status === 'completed')
+    .reduce((sum, s) => sum + shiftHours(s), 0)
   const weeksInYear = year === currentYear ? Math.ceil((new Date().getTime() - new Date(year, 0, 1).getTime()) / (7 * 86_400_000)) : 52
   const avgPerWeek  = weeksInYear > 0 ? totalHours / weeksInYear : 0
 
@@ -86,26 +91,33 @@ function ClientCareHours() {
       </div>
 
       {/* ── Annual summary ── */}
-      <div className="grid grid-cols-3 border border-ink bg-paper">
+      <div className="grid grid-cols-4 border border-ink bg-paper">
         <StatCard
-          label="Total Hours"
+          label="Total Hours Expected"
           value={`${totalHours.toFixed(1)}h`}
+          sub="scheduled + completed"
+          size="md"
+          className="border-r border-ink px-7 py-6"
+        />
+        <StatCard
+          label="Total Hours Delivered"
+          value={`${deliveredHours.toFixed(1)}h`}
           sub="care delivered"
-          size="lg"
+          size="md"
           className="border-r border-ink px-7 py-6"
         />
         <StatCard
           label="Avg per Week"
           value={`${avgPerWeek.toFixed(1)}h`}
           sub="hours / week"
-          size="lg"
+          size="md"
           className="border-r border-ink px-7 py-6"
         />
         <StatCard
           label="Total Visits"
           value={totalVisits}
           sub="completed visits"
-          size="lg"
+          size="md"
           className="px-7 py-6"
         />
       </div>
