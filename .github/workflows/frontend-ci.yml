@@ -6,7 +6,6 @@ on:
     paths: ['admin-frontend/**']
   pull_request:
     branches: [main]
-    paths: ['admin-frontend/**']
 
 jobs:
   admin-frontend-ci:
