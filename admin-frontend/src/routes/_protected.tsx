@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
+import { createFileRoute, redirect, Outlet, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
@@ -8,7 +8,7 @@ import { isAdminRole } from '@/shared/lib/roles'
 import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
-import { paymentsApi } from '@/features/payments/api'
+import { billingApi } from '@/features/billing/api'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: () => {
@@ -61,7 +61,7 @@ function PaymentGate() {
   async function handleCheckout() {
     setLoading(true)
     try {
-      const { url } = await paymentsApi.createCheckoutSession()
+      const { url } = await billingApi.createCheckoutSession()
       window.location.href = url
     } catch {
       setLoading(false)
@@ -73,17 +73,17 @@ function PaymentGate() {
       <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
         <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Trial expired</p>
         <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
-          Time to own it.
+          Ready to continue?
         </h1>
         <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
-          Your 14-day free trial has ended. Pay a single one-time fee of $80 to unlock your agency and data for life.
+          Your 14-day free trial has ended. Subscribe for $700/month to keep your agency running.
         </p>
         <button
           onClick={handleCheckout}
           disabled={loading}
           className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase disabled:opacity-60"
         >
-          {loading ? 'Redirecting…' : 'Get Lifetime Access — $80'}
+          {loading ? 'Redirecting…' : 'Subscribe — $700/month'}
         </button>
       </div>
     </div>
@@ -94,9 +94,9 @@ function ProtectedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user } = useAuthStore()
 
-  const { data: paymentStatus, isLoading: paymentLoading } = useQuery({
-    queryKey: ['payment-status', user?.id],
-    queryFn: paymentsApi.getStatus,
+  const { data: billingStatus, isLoading: billingLoading } = useQuery({
+    queryKey: ['billing-status', user?.id],
+    queryFn: billingApi.getStatus,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -104,7 +104,7 @@ function ProtectedLayout() {
     return <WorkerAccessDenied />
   }
 
-  if (paymentLoading) {
+  if (billingLoading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <p className="font-mono text-[10px] tracking-[0.15em] uppercase text-muted">Verifying access…</p>
@@ -112,7 +112,7 @@ function ProtectedLayout() {
     )
   }
 
-  if (paymentStatus?.has_paid === false && paymentStatus?.is_trial_active === false) {
+  if (billingStatus?.has_access === false) {
     return <PaymentGate />
   }
 
@@ -142,10 +142,10 @@ function ProtectedLayout() {
             </button>
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
-              {paymentStatus?.has_paid === false && paymentStatus?.is_trial_active && (
-                <span className="ml-3 text-orange font-bold">
-                  · Trial: {paymentStatus.trial_days_left} days left
-                </span>
+              {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
+                <Link to="/account" className="ml-3 text-orange font-bold hover:underline">
+                  · Trial: {billingStatus.trial_days_left} days left · Subscribe
+                </Link>
               )}
             </span>
           </div>

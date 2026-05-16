@@ -2,21 +2,20 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
-from app.services.payment_service import PaymentService
+from app.services.billing_service import BillingService
 
 router = APIRouter()
 
 
 # ─────────────────────────────────────────
 # 1. Create checkout session
-# Frontend calls this, then redirects to the returned URL
 # ─────────────────────────────────────────
 @router.post("/checkout")
 async def create_checkout_session(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return await PaymentService.create_checkout_session(current_user, db)
+    return await BillingService.create_checkout_session(current_user, db)
 
 
 # ─────────────────────────────────────────
@@ -30,16 +29,26 @@ async def stripe_webhook(
 ):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
-    return await PaymentService.handle_webhook(payload, sig_header, db)
+    return await BillingService.handle_webhook(payload, sig_header, db)
 
 
 # ─────────────────────────────────────────
-# 3. Payment status
-# Frontend uses this to check if the org has paid
+# 3. Customer portal — manage subscription, cancel, update card
 # ─────────────────────────────────────────
-@router.get("/status")
-async def get_payment_status(
+@router.post("/portal")
+async def create_portal_session(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return await PaymentService.get_payment_status(current_user, db)
+    return await BillingService.create_portal_session(current_user, db)
+
+
+# ─────────────────────────────────────────
+# 4. Billing status
+# ─────────────────────────────────────────
+@router.get("/status")
+async def get_billing_status(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await BillingService.get_billing_status(current_user, db)
