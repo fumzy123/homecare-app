@@ -19,4 +19,9 @@ export const billingApi = {
     const { data } = await apiClient.post('/api/billing/checkout', {})
     return data
   },
+
+  createPortalSession: async (): Promise<{ url: string }> => {
+    const { data } = await apiClient.post('/api/billing/portal', {})
+    return data
+  },
 }

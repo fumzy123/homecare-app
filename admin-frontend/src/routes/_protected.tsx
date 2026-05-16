@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Outlet } from '@tanstack/react-router'
+import { createFileRoute, redirect, Outlet, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
@@ -143,9 +143,9 @@ function ProtectedLayout() {
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
               {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
-                <span className="ml-3 text-orange font-bold">
-                  · Trial: {billingStatus.trial_days_left} days left
-                </span>
+                <Link to="/account" className="ml-3 text-orange font-bold hover:underline">
+                  · Trial: {billingStatus.trial_days_left} days left · Subscribe
+                </Link>
               )}
             </span>
           </div>
