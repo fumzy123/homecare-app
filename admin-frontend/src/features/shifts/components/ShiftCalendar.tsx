@@ -10,7 +10,6 @@ import { workersApi } from '@/features/workers/api'
 import { clientsApi } from '@/features/clients/api'
 import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { Btn } from '@/shared/components/ui'
 import { STATUS_TOKENS, getStatusToken } from '@/shared/lib/shiftStatus'
 
 // ─── Localizer ────────────────────────────────────────────────────────────────
@@ -95,7 +94,12 @@ function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps<Calendar
 
 // ─── ShiftCalendar ────────────────────────────────────────────────────────────
 
-export function ShiftCalendar() {
+interface ShiftCalendarProps {
+  showNewShiftDrawer?: boolean
+  onNewShiftDrawerClose?: () => void
+}
+
+export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClose }: ShiftCalendarProps) {
   const queryClient = useQueryClient()
   const [currentDate, setCurrentDate]     = useState(new Date())
   const [view, setView]                   = useState<View>('week')
@@ -104,6 +108,16 @@ export function ShiftCalendar() {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
   const [filterWorkerId, setFilterWorkerId] = useState('')
   const [filterClientId, setFilterClientId] = useState('')
+
+  const [prevShowNewShift, setPrevShowNewShift] = useState(showNewShiftDrawer)
+  if (showNewShiftDrawer && prevShowNewShift !== showNewShiftDrawer) {
+    setPrevShowNewShift(true)
+    setPendingShift(null)
+    setShowDrawer(true)
+  }
+  if (!showNewShiftDrawer && prevShowNewShift) {
+    setPrevShowNewShift(false)
+  }
 
   const { from, to } = rangeForView(currentDate, view)
 
@@ -141,11 +155,8 @@ export function ShiftCalendar() {
 
   return (
     <>
-      {/* Filters + new shift */}
+      {/* Filters */}
       <div className="px-10 max-md:px-4 mb-4 flex flex-wrap items-center gap-3">
-        <Btn variant="ghost" onClick={() => { setPendingShift(null); setShowDrawer(true) }} className="max-sm:w-full max-sm:justify-center">
-          ＊ New shift
-        </Btn>
         <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
           <option value="">All workers</option>
           {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
@@ -213,7 +224,7 @@ export function ShiftCalendar() {
           initialDate={pendingShift?.start ?? null}
           initialEndDate={pendingShift?.end ?? null}
           onFormChange={(info) => setPendingShift(info)}
-          onClose={() => { setShowDrawer(false); setPendingShift(null) }}
+          onClose={() => { setShowDrawer(false); setPendingShift(null); onNewShiftDrawerClose?.() }}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['shifts'] })}
         />
       )}
