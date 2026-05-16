@@ -259,11 +259,11 @@ export function LandingPage() {
           <div className="mb-16 max-md:mb-10 max-w-xl">
             <Kicker leader className="mb-4">Pricing</Kicker>
             <h2 className="font-serif text-[52px] max-md:text-[36px] leading-[1.0] font-medium tracking-[-0.02em] mb-5">
-              One price.<br />
-              <span className="italic">Own it forever.</span>
+              Simple pricing.<br />
+              <span className="italic">Cancel anytime.</span>
             </h2>
             <p className="text-ink-soft text-[16px] max-md:text-[14px] leading-relaxed">
-              Start with a 14-day full-access trial. When you're ready, pay a single one-time fee to unlock lifetime access for your entire agency. No subscriptions, ever.
+              Start with a 14-day full-access trial — no credit card required. When you're ready, subscribe monthly and keep your agency running.
             </p>
           </div>
 
@@ -272,16 +272,16 @@ export function LandingPage() {
             <div className="col-span-7 max-md:col-span-12">
               <div className="border border-ink bg-ink text-cream p-10 max-md:p-6 transition-all duration-200 hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.25)]">
                 <div className="flex items-center justify-between mb-8">
-                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">Trial + Lifetime Access</p>
-                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1 bg-[#7ECECE] text-[#111]">* Pay once</span>
+                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">Trial + Monthly Subscription</p>
+                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1 bg-[#7ECECE] text-[#111]">* Monthly</span>
                 </div>
 
                 <div className="mb-8">
                   <div className="flex items-end gap-2 mb-1">
                     <span className="font-mono text-[14px] text-muted self-start mt-3">$</span>
-                    <span className="font-serif text-[96px] max-md:text-[72px] leading-none font-medium tracking-[-0.03em]">80</span>
+                    <span className="font-serif text-[96px] max-md:text-[72px] leading-none font-medium tracking-[-0.03em]">700</span>
                   </div>
-                  <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">One-time payment · No renewals</p>
+                  <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">Per month · Cancel anytime</p>
                 </div>
 
                 <div className="border-t border-white/10 pt-8 mb-10">
@@ -311,7 +311,7 @@ export function LandingPage() {
                   Start 14-Day Free Trial
                 </Btn>
                 <p className="font-mono text-[8px] text-center text-muted uppercase mt-4 tracking-widest">
-                  Pay $80 later to keep your data forever
+                  14-day free trial · Then $700/month
                 </p>
               </div>
             </div>
@@ -321,11 +321,11 @@ export function LandingPage() {
               {[
                 {
                   label: 'Full trial, no risk',
-                  body: 'Use every single feature for 14 days without paying a cent. After the trial, pay $80 once to unlock your account permanently.',
+                  body: 'Use every single feature for 14 days without entering a credit card. Subscribe only when you\'re confident it works for your agency.',
                 },
                 {
-                  label: 'Own your data',
-                  body: 'All schedules, workers, and clients you add during the trial stay with you. You just pay once to keep the lights on.',
+                  label: 'Your data, always',
+                  body: 'All schedules, workers, and clients you add during the trial stay with you. Cancel anytime — no lock-in, no penalties.',
                 },
               ].map(({ label, body }) => (
                 <div key={label} className="border-l-2 border-orange pl-5">
