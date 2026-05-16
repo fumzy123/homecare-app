@@ -26,3 +26,25 @@ export function getDateRange(period: Period): { from: string; to: string } {
     case 'all_time':   return { from: '2020-01-01', to: '2030-12-31' }
   }
 }
+
+export function getDateRangeLabel(period: Period): string {
+  switch (period) {
+    case 'this_week': {
+      const ws = startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON })
+      const we = endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON })
+      if (format(ws, 'MMM yyyy') === format(we, 'MMM yyyy'))
+        return `${format(ws, 'MMM d')} – ${format(we, 'd, yyyy')}`
+      return `${format(ws, 'MMM d')} – ${format(we, 'MMM d, yyyy')}`
+    }
+    case 'this_month':
+      return format(now, 'MMMM yyyy')
+    case 'last_90': {
+      const from = subDays(now, 90)
+      if (format(from, 'yyyy') === format(now, 'yyyy'))
+        return `${format(from, 'MMM d')} – ${format(now, 'MMM d, yyyy')}`
+      return `${format(from, 'MMM d, yyyy')} – ${format(now, 'MMM d, yyyy')}`
+    }
+    case 'all_time':
+      return 'All time'
+  }
+}
