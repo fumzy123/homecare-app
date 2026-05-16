@@ -33,7 +33,18 @@ async def stripe_webhook(
 
 
 # ─────────────────────────────────────────
-# 3. Billing status
+# 3. Customer portal — manage subscription, cancel, update card
+# ─────────────────────────────────────────
+@router.post("/portal")
+async def create_portal_session(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await BillingService.create_portal_session(current_user, db)
+
+
+# ─────────────────────────────────────────
+# 4. Billing status
 # ─────────────────────────────────────────
 @router.get("/status")
 async def get_billing_status(

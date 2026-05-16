@@ -137,7 +137,32 @@ class BillingService:
             db.rollback()
 
     # ─────────────────────────────────────────
-    # 3. Get billing status for the current org
+    # 3. Create Stripe Customer Portal Session
+    # Lets the customer manage their subscription, cancel, update card
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def create_portal_session(current_user: SupabaseUser, db: Session) -> dict:
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            if not org:
+                raise AppError(404, "NOT_FOUND", "Organization not found")
+            if not org.stripe_customer_id:
+                raise AppError(400, "NO_CUSTOMER", "No billing account found — subscribe first")
+
+            session = stripe.billing_portal.Session.create(
+                customer=org.stripe_customer_id,
+                return_url=f"{settings.frontend_url}/account",
+            )
+            return {"url": session.url}
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 4. Get billing status for the current org
     # ─────────────────────────────────────────
     @staticmethod
     async def get_billing_status(current_user: SupabaseUser, db: Session) -> dict:
