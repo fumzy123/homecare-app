@@ -55,9 +55,6 @@ export function WorkerShiftHistory({ workerId, period }: WorkerShiftHistoryProps
               <option value="cancelled">Cancelled</option>
               <option value="dropped">Dropped</option>
             </select>
-            <span className="font-mono text-[11px] text-ink-soft shrink-0">
-              <span className="text-ink font-bold">{periodHrs}</span>h total
-            </span>
           </div>
         </div>
 
