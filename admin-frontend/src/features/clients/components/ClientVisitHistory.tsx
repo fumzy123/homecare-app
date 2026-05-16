@@ -5,8 +5,7 @@ import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftStatusBadge } from '@/shared/components/ui'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { sumHours } from '@/features/shifts/utils/aggregations'
-import type { Period } from './ClientStatsSection'
-import { getDateRange } from './ClientStatsSection'
+import { type Period, getDateRange } from '@/features/shifts/utils/period'
 
 const PERIOD_TITLE: Record<Period, string> = {
   this_week:  'this week',

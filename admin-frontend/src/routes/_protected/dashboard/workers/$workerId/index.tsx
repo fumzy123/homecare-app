@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { WorkerStatsSection, type Period, PERIODS } from '@/features/workers/components/WorkerStatsSection'
+import { WorkerStatsSection } from '@/features/workers/components/WorkerStatsSection'
+import { type Period } from '@/features/shifts/utils/period'
 import { WorkerShiftHistory } from '@/features/workers/components/WorkerShiftHistory'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/')({

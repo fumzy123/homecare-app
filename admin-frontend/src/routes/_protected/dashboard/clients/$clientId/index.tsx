@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { ClientStatsSection, type Period, PERIODS } from '@/features/clients/components/ClientStatsSection'
+import { ClientStatsSection } from '@/features/clients/components/ClientStatsSection'
+import { type Period } from '@/features/shifts/utils/period'
 import { ClientVisitHistory } from '@/features/clients/components/ClientVisitHistory'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/')({

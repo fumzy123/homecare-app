@@ -225,6 +225,3 @@ export function ShiftCalendar() {
   )
 }
 
-export function useShiftCalendarDate(currentDate: Date) {
-  return format(currentDate, 'MMMM yyyy')
-}
