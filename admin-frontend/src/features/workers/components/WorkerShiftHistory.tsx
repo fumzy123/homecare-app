@@ -4,7 +4,6 @@ import { format } from 'date-fns'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { ShiftStatusBadge } from '@/shared/components/ui'
-import { sumHours } from '@/features/shifts/utils/aggregations'
 import { type Period, getDateRange } from '@/features/shifts/utils/period'
 
 const PERIOD_TITLE: Record<Period, string> = {
@@ -31,8 +30,7 @@ export function WorkerShiftHistory({ workerId, period }: WorkerShiftHistoryProps
   })
 
   const filtered = shifts.filter(s => !filterStatus || s.completion_status === filterStatus)
-  const periodHrs = Math.round(sumHours(filtered))
-  const sorted    = [...filtered].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+  const sorted   = [...filtered].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
 
   return (
     <>
