@@ -616,6 +616,9 @@ function toDisplayTime(value: string): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${period}`
 }
 
+export { YearSelector } from './YearSelector'
+export { PeriodToggle } from './PeriodToggle'
+
 export function TimeInput({ value, onChange, onBlur, min, max, className }: TimeInputProps) {
   const [open, setOpen] = useState(false)
   const ref        = useRef<HTMLDivElement>(null)
