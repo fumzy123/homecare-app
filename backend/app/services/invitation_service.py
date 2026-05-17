@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.models.invitation import Invitation
+from app.models.org_member import OrgMember
 from app.core.exceptions import AppError
 from app.schemas.invitation import CreateInvitationSchema, InvitationResponse, INVITE_EXPIRY_SECONDS
 from app.services.org_service import OrgService
@@ -46,6 +47,30 @@ class InvitationService:
 
             org = db.query(Organization).filter(Organization.id == org_id).first()
             org_name = org.name if org else ""
+
+            # Check if email is already a member of this org
+            same_org_member = db.query(OrgMember).filter(
+                OrgMember.email == payload.email,
+                OrgMember.org_id == org_id,
+            ).first()
+            if same_org_member:
+                raise AppError(
+                    status_code=409,
+                    code="ALREADY_A_MEMBER",
+                    message="This person is already a member of your organization",
+                )
+
+            # Check if email is registered with a different org
+            other_org_member = db.query(OrgMember).filter(
+                OrgMember.email == payload.email,
+                OrgMember.org_id != org_id,
+            ).first()
+            if other_org_member:
+                raise AppError(
+                    status_code=409,
+                    code="REGISTERED_WITH_OTHER_ORG",
+                    message="This person is already registered with another organization",
+                )
 
             existing = db.query(Invitation).filter(
                 Invitation.org_id == org_id,
