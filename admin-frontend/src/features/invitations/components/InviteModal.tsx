@@ -50,7 +50,7 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
           onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}
           className="px-6 py-6 flex flex-col gap-5"
         >
-          <form.Field name="email" validators={{ onChange: ({ value }) => {
+          <form.Field name="email" validators={{ onBlur: ({ value }) => {
             const r = schema.shape.email.safeParse(value)
             if (!r.success) return r.error.issues[0].message
             if (value.toLowerCase() === user?.email?.toLowerCase()) return 'You cannot invite yourself'
