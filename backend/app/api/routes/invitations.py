@@ -38,7 +38,22 @@ async def list_invitations(
 
 
 # ─────────────────────────────────────────
-# 3. Revoke an invitation
+# 3. Resend an invitation
+# Refreshes invited_at and resends the email
+# ─────────────────────────────────────────
+@router.post("/{invitation_id}/resend")
+@limiter.limit("20/hour")
+async def resend_invitation(
+    request: Request,  # noqa: ARG001 — required by slowapi rate limiter
+    invitation_id: str,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await InvitationService.resend_invitation(invitation_id, current_user, db)
+
+
+# ─────────────────────────────────────────
+# 4. Revoke an invitation
 # ─────────────────────────────────────────
 @router.delete("/{invitation_id}")
 async def revoke_invitation(

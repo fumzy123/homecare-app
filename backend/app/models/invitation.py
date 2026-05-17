@@ -23,5 +23,4 @@ class Invitation(Base):
 
     # Lifecycle timestamps
     invited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
     accepted_at = Column(DateTime(timezone=True), nullable=True)
