@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, RotateCcw } from 'lucide-react'
 import { workersApi } from '@/features/workers/api'
 import { invitationsApi } from '@/features/invitations/api'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
@@ -34,6 +34,11 @@ function WorkersPage() {
 
   const revoke = useMutation({
     mutationFn: invitationsApi.revokeInvitation,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
+  })
+
+  const resend = useMutation({
+    mutationFn: invitationsApi.resendInvitation,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
   })
 
@@ -114,40 +119,55 @@ function WorkersPage() {
               <div className="overflow-x-auto">
                 <Card className="p-0 min-w-[560px]">
                   {/* Table header */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_40px] bg-cream-2 border-b border-ink">
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_72px] bg-cream-2 border-b border-ink">
                     {['Email', 'Role', 'Status', 'Invited', 'Expires', ''].map((h, i) => (
                       <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
                         {h}
                       </div>
                     ))}
                   </div>
-                  {invitations.map((inv, i) => (
-                    <div
-                      key={inv.id}
-                      className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_40px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
-                    >
-                      <div className="px-4 py-3 text-[13px]">{inv.email}</div>
-                      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{ROLE_LABELS[inv.role] ?? inv.role}</div>
-                      <div className="px-4 py-3">
-                        <Tag variant={inv.accepted_at ? 'mint' : 'default'}>
-                          {inv.accepted_at ? 'Accepted' : 'Pending'}
-                        </Tag>
+                  {invitations.map((inv, i) => {
+                    const isExpired = !inv.accepted_at && new Date(inv.expires_at) < new Date()
+                    return (
+                      <div
+                        key={inv.id}
+                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_72px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                      >
+                        <div className="px-4 py-3 text-[13px]">{inv.email}</div>
+                        <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{ROLE_LABELS[inv.role] ?? inv.role}</div>
+                        <div className="px-4 py-3">
+                          {inv.accepted_at
+                            ? <Tag variant="mint">Accepted</Tag>
+                            : isExpired
+                            ? <Tag variant="default" className="opacity-50">Expired</Tag>
+                            : <Tag variant="default">Pending</Tag>
+                          }
+                        </div>
+                        <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.invited_at).toLocaleDateString()}</div>
+                        <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.expires_at).toLocaleDateString()}</div>
+                        <div className="px-4 py-3 flex items-center gap-2">
+                          {!inv.accepted_at && (
+                            <>
+                              <button
+                                onClick={() => resend.mutate(inv.id)}
+                                className="text-muted hover:text-ink transition-colors"
+                                title="Resend invite"
+                              >
+                                <RotateCcw size={14} />
+                              </button>
+                              <button
+                                onClick={() => revoke.mutate(inv.id)}
+                                className="text-muted hover:text-orange transition-colors"
+                                title="Revoke"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.invited_at).toLocaleDateString()}</div>
-                      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.expires_at).toLocaleDateString()}</div>
-                      <div className="px-4 py-3">
-                        {!inv.accepted_at && (
-                          <button
-                            onClick={() => revoke.mutate(inv.id)}
-                            className="text-muted hover:text-orange transition-colors"
-                            title="Revoke"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </Card>
               </div>
             )}
