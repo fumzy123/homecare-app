@@ -9,7 +9,7 @@ export interface Invitation {
   org_id: string
   invited_by: string
   invited_at: string
-  expires_at: string
+  expires_at: string  // computed server-side, not stored
   accepted_at: string | null
 }
 
@@ -21,6 +21,11 @@ export const invitationsApi = {
 
   listInvitations: async (): Promise<Invitation[]> => {
     const { data } = await apiClient.get('/api/invitations/')
+    return data
+  },
+
+  resendInvitation: async (id: string) => {
+    const { data } = await apiClient.post(`/api/invitations/${id}/resend`)
     return data
   },
 
