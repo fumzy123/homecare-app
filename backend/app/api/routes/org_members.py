@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from typing import List
 from app.db.session import get_db
 from app.schemas.invitation import AcceptInvitationSchema
-from app.schemas.account import AccountUpdateSchema
+from app.schemas.org_member import OrgMemberResponse, OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
 from app.services.org_member_service import OrgMemberService
 from app.core.security import require_admin, get_current_user
 from app.core.enums import OrgMemberRole
@@ -12,10 +13,8 @@ router = APIRouter()
 
 # ─────────────────────────────────────────
 # 1. Accept an invite — create org member
-# Called by the invited user after they click
-# the invite link and set their password.
 # ─────────────────────────────────────────
-@router.post("/")
+@router.post("/", response_model=OrgMemberResponse)
 async def create_member(
     payload: AcceptInvitationSchema,
     current_user=Depends(get_current_user),
@@ -25,10 +24,9 @@ async def create_member(
 
 
 # ─────────────────────────────────────────
-# 2. List all members in the admin's org
-# Optional filter: ?role=home_support_worker
+# 2. List all members — optional ?role= filter
 # ─────────────────────────────────────────
-@router.get("/")
+@router.get("/", response_model=List[OrgMemberResponse])
 async def get_all_members(
     role: OrgMemberRole | None = Query(default=None, description="Filter by role"),
     current_user=Depends(require_admin),
@@ -38,10 +36,9 @@ async def get_all_members(
 
 
 # ─────────────────────────────────────────
-# 2. Get a single member's full profile
-# Enforces tenant isolation (same org only)
+# 3. Get a single member
 # ─────────────────────────────────────────
-@router.get("/{member_id}")
+@router.get("/{member_id}", response_model=OrgMemberResponse)
 async def get_member(
     member_id: str,
     current_user=Depends(require_admin),
@@ -51,13 +48,38 @@ async def get_member(
 
 
 # ─────────────────────────────────────────
-# 4. Update own account (self-edit only)
+# 4. Admin updates any member in their org
 # ─────────────────────────────────────────
-@router.patch("/{member_id}")
+@router.patch("/{member_id}", response_model=OrgMemberResponse)
 async def update_member(
     member_id: str,
-    payload: AccountUpdateSchema,
+    payload: OrgMemberUpdateSchema,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await OrgMemberService.update_member(member_id, payload, current_user, db)
+
+
+# ─────────────────────────────────────────
+# 5. Member updates their own profile
+# ─────────────────────────────────────────
+@router.patch("/{member_id}/self", response_model=OrgMemberResponse)
+async def update_self(
+    member_id: str,
+    payload: OrgMemberSelfUpdateSchema,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return await OrgMemberService.update_self(member_id, payload, current_user, db)
+
+
+# ─────────────────────────────────────────
+# 6. Soft delete a member (admin only)
+# ─────────────────────────────────────────
+@router.delete("/{member_id}", status_code=204)
+async def delete_member(
+    member_id: str,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await OrgMemberService.delete_member(member_id, current_user, db)
