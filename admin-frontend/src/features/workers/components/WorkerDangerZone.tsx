@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { workersApi, type Worker } from '@/features/workers/api'
+import { orgMembersApi, type OrgMember } from '@/features/org-members/api'
 
-export function WorkerDangerZone({ worker }: { worker: Worker }) {
+export function WorkerDangerZone({ worker }: { worker: OrgMember }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [deleteError, setDeleteError]     = useState<string | null>(null)
 
   const deleteMutation = useMutation({
-    mutationFn: () => workersApi.deleteWorker(worker.id),
+    mutationFn: () => orgMembersApi.deleteOrgMember(worker.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workers'] })
       navigate({ to: '/dashboard/workers' })

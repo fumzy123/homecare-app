@@ -2,7 +2,7 @@ import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { z } from 'zod'
-import { workersApi, type Worker } from '@/features/workers/api'
+import { orgMembersApi, type OrgMember } from '@/features/org-members/api'
 import { Kicker, DateInput } from '@/shared/components/ui'
 import { validatePhone, formatPhone } from '@/shared/lib/phone'
 
@@ -24,7 +24,7 @@ function FieldError({ error }: { error: unknown }) {
   return <p className="mt-1 font-mono text-[10px] text-orange">{error as string}</p>
 }
 
-export function WorkerPersonalInfoForm({ worker }: { worker: Worker }) {
+export function WorkerPersonalInfoForm({ worker }: { worker: OrgMember }) {
   const queryClient = useQueryClient()
   const [saved, setSaved]             = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -46,7 +46,7 @@ export function WorkerPersonalInfoForm({ worker }: { worker: Worker }) {
       setServerError(null)
       setSaved(false)
       try {
-        await workersApi.updateWorker(worker.id, {
+        await orgMembersApi.updateOrgMember(worker.id, {
           first_name:                     value.first_name,
           last_name:                      value.last_name,
           phone_number:                   value.phone_number || undefined,

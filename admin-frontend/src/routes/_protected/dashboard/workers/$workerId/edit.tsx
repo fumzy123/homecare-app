@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { WorkerPersonalInfoForm } from '@/features/workers/components/WorkerPersonalInfoForm'
 import { WorkerProfileForm } from '@/features/workers/components/WorkerProfileForm'
 import { WorkerDangerZone } from '@/features/workers/components/WorkerDangerZone'
@@ -14,7 +14,7 @@ function WorkerEditPage() {
 
   const { data: worker, isLoading, isError } = useQuery({
     queryKey: ['worker', workerId],
-    queryFn: () => workersApi.getWorker(workerId),
+    queryFn: () => orgMembersApi.getOrgMember(workerId),
   })
 
   if (isLoading) return <div className="p-10 font-mono text-[11px] text-muted">Loading…</div>

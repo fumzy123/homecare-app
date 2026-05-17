@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-table'
 import { format } from 'date-fns'
 import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { clientsApi } from '@/features/clients/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { Card, ShiftStatusBadge, DateInput } from '@/shared/components/ui'
@@ -86,7 +86,7 @@ export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: T
     queryFn:  () => shiftsApi.listShifts(queryFrom, queryTo, filterWorkerId || undefined, filterClientId || undefined, TIMESHEET_STATUSES),
   })
 
-  const { data: workers = [] } = useQuery({ queryKey: ['workers'],  queryFn: workersApi.listWorkers })
+  const { data: workers = [] } = useQuery({ queryKey: ['workers'],  queryFn: () => orgMembersApi.listByRole('home_support_worker') })
   const { data: clients = [] } = useQuery({ queryKey: ['clients'],  queryFn: () => clientsApi.listClients() })
 
   const filteredShifts = useMemo(() => {

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { Avatar } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId')({
@@ -45,7 +45,7 @@ function WorkerLayout() {
 
   const { data: worker, isLoading, isError } = useQuery({
     queryKey: ['worker', workerId],
-    queryFn: () => workersApi.getWorker(workerId),
+    queryFn: () => orgMembersApi.getOrgMember(workerId),
   })
 
   if (isLoading) return (
@@ -57,7 +57,6 @@ function WorkerLayout() {
   )
 
   const initials = `${worker.first_name[0] ?? ''}${worker.last_name[0] ?? ''}`.toUpperCase()
-  const profile  = worker.worker_profile
 
   return (
     <div className="flex min-h-full bg-cream">
@@ -97,7 +96,7 @@ function WorkerLayout() {
               <p className="text-[13px]">{format(new Date(worker.hire_date), 'yyyy-MM-dd')}</p>
             </div>
           )}
-          {profile?.employment_type && (
+          {worker.employment_type && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Employment</p>
               <p className="text-[13px] capitalize">{profile.employment_type.replace(/_/g, ' ')}</p>
@@ -113,13 +112,13 @@ function WorkerLayout() {
             <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Email</p>
             <p className="text-[12px] break-all">{worker.email}</p>
           </div>
-          {profile?.max_hours_per_week != null && (
+          {worker.max_hours_per_week != null && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Max hrs / wk</p>
               <p className="text-[13px]">{profile.max_hours_per_week}h</p>
             </div>
           )}
-          {profile?.has_vehicle != null && (
+          {worker.has_vehicle != null && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Vehicle</p>
               <p className="text-[13px]">{profile.has_vehicle ? 'Yes' : 'No'}</p>

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { shiftsApi } from '@/features/shifts/api'
 import { Card, Kicker, Avatar, ProgressBar } from '@/shared/components/ui'
 
@@ -10,7 +10,7 @@ const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON 
 const TARGET_HOURS = 40
 
 export function WorkerUtilizationCard() {
-  const { data: workers    = [] } = useQuery({ queryKey: ['workers'],  queryFn: workersApi.listWorkers })
+  const { data: workers    = [] } = useQuery({ queryKey: ['workers'],  queryFn: () => orgMembersApi.listByRole('home_support_worker') })
   const { data: weekShifts = [] } = useQuery({ queryKey: ['shifts', weekStart, weekEnd], queryFn: () => shiftsApi.listShifts(weekStart, weekEnd) })
 
   const activeWorkers = workers.filter((w) => w.is_active)

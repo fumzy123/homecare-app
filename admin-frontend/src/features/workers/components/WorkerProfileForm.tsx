@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { workersApi, type Worker, type EmploymentType, EMPLOYMENT_TYPE_LABELS } from '@/features/workers/api'
+import { orgMembersApi, type OrgMember, type EmploymentType, EMPLOYMENT_TYPE_LABELS } from '@/features/org-members/api'
 import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
 import { Kicker } from '@/shared/components/ui'
 
@@ -9,38 +9,36 @@ const labelClass  = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-
 const inputClass  = 'w-full bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 const selectClass = `${inputClass} appearance-none`
 
-export function WorkerProfileForm({ worker }: { worker: Worker }) {
+export function WorkerProfileForm({ worker }: { worker: OrgMember }) {
   const queryClient = useQueryClient()
   const [saved, setSaved]             = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const profile = worker.worker_profile
-
   const form = useForm({
     defaultValues: {
-      street:              profile?.street ?? '',
-      city:                profile?.city ?? '',
-      province:            profile?.province ?? '',
-      postal_code:         profile?.postal_code ?? '',
-      employment_type:     (profile?.employment_type ?? '') as EmploymentType | '',
-      has_vehicle:         profile?.has_vehicle ?? false,
-      max_hours_per_week:  profile?.max_hours_per_week?.toString() ?? '',
-      availability:        (profile?.availability ?? {}) as ScheduleMap,
+      street:             worker.street ?? '',
+      city:               worker.city ?? '',
+      province:           worker.province ?? '',
+      postal_code:        worker.postal_code ?? '',
+      employment_type:    (worker.employment_type ?? '') as EmploymentType | '',
+      has_vehicle:        worker.has_vehicle ?? false,
+      max_hours_per_week: worker.max_hours_per_week?.toString() ?? '',
+      availability:       (worker.availability ?? {}) as ScheduleMap,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
       setSaved(false)
       try {
         const maxHours = value.max_hours_per_week ? parseInt(value.max_hours_per_week, 10) : undefined
-        await workersApi.updateWorkerProfile(worker.id, {
-          street:              value.street || undefined,
-          city:                value.city || undefined,
-          province:            value.province || undefined,
-          postal_code:         value.postal_code || undefined,
-          employment_type:     (value.employment_type as EmploymentType) || undefined,
-          has_vehicle:         value.has_vehicle,
-          max_hours_per_week:  isNaN(maxHours as number) ? undefined : maxHours,
-          availability:        Object.keys(value.availability).length > 0 ? value.availability : undefined,
+        await orgMembersApi.updateOrgMember(worker.id, {
+          street:             value.street || undefined,
+          city:               value.city || undefined,
+          province:           value.province || undefined,
+          postal_code:        value.postal_code || undefined,
+          employment_type:    (value.employment_type as EmploymentType) || undefined,
+          has_vehicle:        value.has_vehicle,
+          max_hours_per_week: isNaN(maxHours as number) ? undefined : maxHours,
+          availability:       Object.keys(value.availability).length > 0 ? value.availability : undefined,
         })
         queryClient.invalidateQueries({ queryKey: ['worker', worker.id] })
         setSaved(true)

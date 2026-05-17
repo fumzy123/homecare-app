@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { clientsApi } from '@/features/clients/api'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { shiftsApi } from '@/features/shifts/api'
 import { addDays, subDays } from 'date-fns'
 import { StatCard } from '@/shared/components/ui'
@@ -17,7 +17,7 @@ const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
 
 export function DashboardStatsStrip() {
   const { data: clients     = [] } = useQuery({ queryKey: ['clients'],  queryFn: () => clientsApi.listClients() })
-  const { data: workers     = [] } = useQuery({ queryKey: ['workers'],  queryFn: workersApi.listWorkers })
+  const { data: workers     = [] } = useQuery({ queryKey: ['workers'],  queryFn: () => orgMembersApi.listByRole('home_support_worker') })
   const { data: todayShifts = [] } = useQuery({ queryKey: ['shifts', today, today], queryFn: () => shiftsApi.listShifts(today, today) })
   const { data: weekShifts  = [] } = useQuery({ queryKey: ['shifts', weekStart, weekEnd], queryFn: () => shiftsApi.listShifts(weekStart, weekEnd) })
   const { data: droppedShifts = [] } = useQuery({ queryKey: ['shifts', droppedFrom, droppedTo, 'dropped'], queryFn: () => shiftsApi.listShifts(droppedFrom, droppedTo, undefined, undefined, ['dropped']) })

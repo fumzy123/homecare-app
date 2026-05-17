@@ -4,7 +4,7 @@ import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { shiftsApi, type ShiftOccurrence, type NoteEntry, type RecurrenceFrequency, type DayOfWeek, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { clientsApi } from '@/features/clients/api'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
 import { Avatar, Kicker, DateInput, TimeInput } from '@/shared/components/ui'
@@ -67,7 +67,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
   const { data: workers = [] } = useQuery({
     queryKey: ['workers'],
-    queryFn: workersApi.listWorkers,
+    queryFn: () => orgMembersApi.listByRole('home_support_worker'),
     enabled: isEditing,
   })
 

@@ -31,7 +31,7 @@ export function ProfileForm() {
       if (!user) return
       setServerError(null)
       try {
-        const updated = await orgMembersApi.updateOrgMember(user.id, {
+        const updated = await orgMembersApi.updateSelf(user.id, {
           first_name:    value.first_name   || undefined,
           last_name:     value.last_name    || undefined,
           email:         value.email        || undefined,
