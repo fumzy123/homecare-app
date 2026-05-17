@@ -130,8 +130,8 @@ function WorkersPage() {
               <div className="overflow-x-auto">
                 <Card className="p-0 min-w-[560px]">
                   {/* Table header */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_72px] bg-cream-2 border-b border-ink">
-                    {['Email', 'Role', 'Status', 'Invited', 'Expires', ''].map((h, i) => (
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_72px] bg-cream-2 border-b border-ink">
+                    {['Email', 'Role', 'Status', 'Invited', 'Expires', 'Accepted On', ''].map((h, i) => (
                       <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
                         {h}
                       </div>
@@ -142,7 +142,7 @@ function WorkersPage() {
                     return (
                       <div
                         key={inv.id}
-                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_72px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_72px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
                       >
                         <div className="px-4 py-3 text-[13px]">{inv.email}</div>
                         <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{ROLE_LABELS[inv.role] ?? inv.role}</div>
@@ -156,6 +156,9 @@ function WorkersPage() {
                         </div>
                         <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.invited_at).toLocaleDateString()}</div>
                         <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.expires_at).toLocaleDateString()}</div>
+                        <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">
+                          {inv.accepted_at ? new Date(inv.accepted_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
+                        </div>
                         <div className="px-4 py-3 flex items-center gap-2">
                           {!inv.accepted_at && (
                             <>
