@@ -111,7 +111,7 @@ export function TeamSection() {
             ))}
 
             {/* Pending invitation rows */}
-            {adminInvitations.map((inv, i) => {
+            {adminInvitations.map((inv) => {
               const isExpired = !inv.accepted_at && new Date(inv.expires_at) < new Date()
               return (
                 <div key={inv.id} className={`grid grid-cols-[2fr_2fr_1fr_60px] items-center px-6 py-3 border-t border-dashed border-line-soft`}>
