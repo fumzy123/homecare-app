@@ -18,6 +18,8 @@ class OrganizationResponseSchema(BaseModel):
     name: str
     owner_id: UUID
     is_active: bool
+    terms_accepted_at: datetime | None = None
+    terms_accepted_version: str | None = None
     created_at: datetime
     updated_at: datetime | None = None
 

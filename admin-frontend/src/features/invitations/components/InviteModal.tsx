@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { invitationsApi } from '@/features/invitations/api'
+import { invitationsApi, type InvitationRole } from '@/features/invitations/api'
 import { Kicker } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/stores/auth'
 
@@ -15,9 +15,10 @@ const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text
 interface InviteModalProps {
   onClose: () => void
   onSuccess: () => void
+  role?: InvitationRole
 }
 
-export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
+export function InviteModal({ onClose, onSuccess, role = 'home_support_worker' }: InviteModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const user = useAuthStore(s => s.user)
 
@@ -26,7 +27,7 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await invitationsApi.sendInvitation({ email: value.email, role: 'home_support_worker' })
+        await invitationsApi.sendInvitation({ email: value.email, role })
         onSuccess()
         onClose()
       } catch (err: unknown) {
@@ -41,7 +42,7 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>Invite new worker</Kicker>
+          <Kicker>{role === 'agency_admin' ? 'Invite admin' : 'Invite new worker'}</Kicker>
           <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
