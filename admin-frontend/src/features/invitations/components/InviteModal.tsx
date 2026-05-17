@@ -1,13 +1,12 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { invitationsApi, type InvitationRole } from '@/features/invitations/api'
+import { invitationsApi } from '@/features/invitations/api'
 import { Kicker } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/stores/auth'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
-  role:  z.enum(['agency_admin', 'home_support_worker']),
 })
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
@@ -23,11 +22,11 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
   const user = useAuthStore(s => s.user)
 
   const form = useForm({
-    defaultValues: { email: '', role: 'home_support_worker' as InvitationRole },
+    defaultValues: { email: '' },
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await invitationsApi.sendInvitation(value)
+        await invitationsApi.sendInvitation({ email: value.email, role: 'home_support_worker' })
         onSuccess()
         onClose()
       } catch (err: unknown) {
@@ -42,7 +41,7 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>Invite member</Kicker>
+          <Kicker>Invite new worker</Kicker>
           <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
@@ -53,9 +52,9 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
         >
           <form.Field name="email" validators={{ onChange: ({ value }) => {
             const r = schema.shape.email.safeParse(value)
-             if (!r.success) return r.error.issues[0].message
-              if (value.toLowerCase() === user?.email?.toLowerCase()) return 'You cannot invite yourself'
-              return undefined
+            if (!r.success) return r.error.issues[0].message
+            if (value.toLowerCase() === user?.email?.toLowerCase()) return 'You cannot invite yourself'
+            return undefined
           }}}>
             {(field) => (
               <div>
@@ -71,22 +70,6 @@ export function InviteModal({ onClose, onSuccess }: InviteModalProps) {
                 {field.state.meta.errors[0] && (
                   <p className="mt-1 font-mono text-[10px] text-orange">{field.state.meta.errors[0]}</p>
                 )}
-              </div>
-            )}
-          </form.Field>
-
-          <form.Field name="role">
-            {(field) => (
-              <div>
-                <label className={labelClass}>Role</label>
-                <select
-                  className={`${inputClass} appearance-none`}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value as InvitationRole)}
-                >
-                  <option value="home_support_worker">Worker</option>
-                  <option value="agency_admin">Admin</option>
-                </select>
               </div>
             )}
           </form.Field>

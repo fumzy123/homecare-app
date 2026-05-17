@@ -37,10 +37,21 @@ function WorkersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
   })
 
+  const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({})
+  const RESEND_COOLDOWN_MS = 5 * 60 * 1000
+
   const resend = useMutation({
     mutationFn: invitationsApi.resendInvitation,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['invitations'] })
+      setResendCooldowns(prev => ({ ...prev, [id]: Date.now() }))
+    },
   })
+
+  function isResendOnCooldown(id: string) {
+    const last = resendCooldowns[id]
+    return !!last && Date.now() - last < RESEND_COOLDOWN_MS
+  }
 
   return (
     <div className="min-h-full bg-cream">
@@ -59,7 +70,7 @@ function WorkersPage() {
             </span>
           </h1>
         </div>
-        <Btn variant="ghost" onClick={() => setShowModal(true)}>＊ Invite member</Btn>
+        <Btn variant="ghost" onClick={() => setShowModal(true)}>＊ Invite new worker</Btn>
       </div>
 
       {/* Tabs */}
@@ -148,13 +159,16 @@ function WorkersPage() {
                         <div className="px-4 py-3 flex items-center gap-2">
                           {!inv.accepted_at && (
                             <>
-                              <button
-                                onClick={() => resend.mutate(inv.id)}
-                                className="text-muted hover:text-ink transition-colors"
-                                title="Resend invite"
-                              >
-                                <RotateCcw size={14} />
-                              </button>
+                              {isExpired && (
+                                <button
+                                  onClick={() => resend.mutate(inv.id)}
+                                  disabled={isResendOnCooldown(inv.id)}
+                                  className="text-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title={isResendOnCooldown(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              )}
                               <button
                                 onClick={() => revoke.mutate(inv.id)}
                                 className="text-muted hover:text-orange transition-colors"
