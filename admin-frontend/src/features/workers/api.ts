@@ -67,20 +67,6 @@ export interface WorkerProfileUpdatePayload {
   availability?: ScheduleMap
 }
 
-export interface OrgMember {
-  id: string
-  first_name: string
-  last_name: string
-  email: string
-  role: string
-}
-
-export interface MemberProfileUpdatePayload {
-  first_name?: string
-  last_name?: string
-  email?: string
-}
-
 export const workersApi = {
   listWorkers: async (): Promise<Worker[]> => {
     const { data } = await apiClient.get('/api/workers/')
@@ -104,10 +90,5 @@ export const workersApi = {
 
   deleteWorker: async (workerId: string): Promise<void> => {
     await apiClient.delete(`/api/workers/${workerId}`)
-  },
-
-  updateMember: async (memberId: string, payload: MemberProfileUpdatePayload): Promise<OrgMember> => {
-    const { data } = await apiClient.patch(`/api/org-members/${memberId}`, payload)
-    return data
   },
 }

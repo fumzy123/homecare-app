@@ -139,6 +139,12 @@ class OrgMemberService:
                 member.last_name = payload.last_name
             if payload.email is not None and payload.email != member.email:
                 member.email = payload.email
+            if payload.phone_number is not None:
+                member.phone_number = payload.phone_number
+            if payload.gender is not None:
+                member.gender = payload.gender
+            if payload.date_of_birth is not None:
+                member.date_of_birth = payload.date_of_birth
 
             # Keep Supabase Auth metadata in sync so the JWT always
             # reflects the latest name and email after token refresh
