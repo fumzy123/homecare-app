@@ -99,7 +99,7 @@ function WorkerLayout() {
           {worker.employment_type && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Employment</p>
-              <p className="text-[13px] capitalize">{profile.employment_type.replace(/_/g, ' ')}</p>
+              <p className="text-[13px] capitalize">{worker.employment_type!.replace(/_/g, ' ')}</p>
             </div>
           )}
           {worker.phone_number && (
@@ -115,13 +115,13 @@ function WorkerLayout() {
           {worker.max_hours_per_week != null && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Max hrs / wk</p>
-              <p className="text-[13px]">{profile.max_hours_per_week}h</p>
+              <p className="text-[13px]">{worker.max_hours_per_week}h</p>
             </div>
           )}
           {worker.has_vehicle != null && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Vehicle</p>
-              <p className="text-[13px]">{profile.has_vehicle ? 'Yes' : 'No'}</p>
+              <p className="text-[13px]">{worker.has_vehicle ? 'Yes' : 'No'}</p>
             </div>
           )}
         </div>

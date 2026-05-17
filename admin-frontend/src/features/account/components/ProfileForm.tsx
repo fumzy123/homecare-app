@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { orgMembersApi } from '@/features/org-members/api'
 import { useAuthStore } from '@/shared/stores/auth'
+import { DateInput } from '@/shared/components/ui'
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
@@ -129,8 +130,7 @@ export function ProfileForm() {
             {(field) => (
               <div>
                 <label className={labelClass}>Date of birth</label>
-                <input type="date" className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} />
+                <DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" />
               </div>
             )}
           </form.Field>
