@@ -37,21 +37,23 @@ function WorkersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
   })
 
-  const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({})
+  const [resendCooldowns, setResendCooldowns] = useState<Set<string>>(new Set())
   const RESEND_COOLDOWN_MS = 5 * 60 * 1000
 
   const resend = useMutation({
     mutationFn: invitationsApi.resendInvitation,
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['invitations'] })
-      setResendCooldowns(prev => ({ ...prev, [id]: Date.now() }))
+      setResendCooldowns(prev => new Set([...prev, id]))
+      setTimeout(() => {
+        setResendCooldowns(prev => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      }, RESEND_COOLDOWN_MS)
     },
   })
-
-  function isResendOnCooldown(id: string) {
-    const last = resendCooldowns[id]
-    return !!last && Date.now() - last < RESEND_COOLDOWN_MS
-  }
 
   return (
     <div className="min-h-full bg-cream">
@@ -165,9 +167,9 @@ function WorkersPage() {
                               {isExpired && (
                                 <button
                                   onClick={() => resend.mutate(inv.id)}
-                                  disabled={isResendOnCooldown(inv.id)}
+                                  disabled={resendCooldowns.has(inv.id)}
                                   className="text-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title={isResendOnCooldown(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
+                                  title={resendCooldowns.has(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
                                 >
                                   <RotateCcw size={14} />
                                 </button>
