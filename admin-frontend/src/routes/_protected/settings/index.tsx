@@ -6,7 +6,7 @@ import { BillingSection } from '@/features/account/components/BillingSection'
 import { AgencySection }  from '@/features/account/components/AgencySection'
 import { TeamSection }    from '@/features/account/components/TeamSection'
 
-export const Route = createFileRoute('/_protected/account/')({
+export const Route = createFileRoute('/_protected/settings/')({
   component: AccountPage,
 })
 

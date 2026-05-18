@@ -274,7 +274,7 @@ class BillingService:
 
             session = stripe.billing_portal.Session.create(
                 customer=org.stripe_customer_id,
-                return_url=f"{settings.frontend_url}/account",
+                return_url=f"{settings.frontend_url}/settings",
             )
             return {"url": session.url}
 

@@ -105,7 +105,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {menuOpen && (
           <div className="border-b border-ink bg-paper">
             <Link
-              to="/account"
+              to="/settings"
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-2 px-4 py-3 font-mono text-[11px] text-ink-soft hover:text-ink hover:bg-cream-2 transition-colors border-b border-line-faint"
             >

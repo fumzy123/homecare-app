@@ -144,7 +144,7 @@ function ProtectedLayout() {
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
               {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
-                <Link to="/account" className="ml-3 text-orange font-bold hover:underline">
+                <Link to="/settings" className="ml-3 text-orange font-bold hover:underline">
                   · Trial: {billingStatus.trial_days_left} days left · Subscribe
                 </Link>
               )}

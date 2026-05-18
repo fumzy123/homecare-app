@@ -116,7 +116,7 @@ export function Topbar() {
           {menuOpen && (
             <div className="absolute top-full right-0 mt-2 w-48 bg-paper border border-ink shadow-none z-50">
               <Link
-                to="/account"
+                to="/settings"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-ink hover:bg-cream-2 transition-colors border-b border-line-faint"
               >
