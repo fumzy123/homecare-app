@@ -107,6 +107,15 @@ function ProtectedLayout() {
     return <PaymentGate />
   }
 
+  // Fullscreen routes — no sidebar or topbar
+  if (pathname === '/upgrade') {
+    return (
+      <div className="min-h-screen bg-cream overflow-y-auto">
+        <Outlet />
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-cream overflow-hidden">
       {sidebarOpen && (
