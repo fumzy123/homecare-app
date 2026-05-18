@@ -308,6 +308,46 @@ orgMembersApi.deleteOrgMember(workerId)
 
 ---
 
+## Frontend Component Architecture — 4-Layer Mental Model
+
+Every UI component belongs to one of four layers. Always identify the layer
+before writing a component, and never mix concerns across layers.
+
+### Layer 1 — Primitive / Foundational
+- **Purpose**: Styling and interaction at the atomic level. No business logic.
+- **Examples**: `<Button>`, `<Input>`, `<Avatar>`, `<Tag>`, `<StatusDot>`, `<DateInput>`, `<Kicker>`
+- **Rules**: Accept props for style/value/onClick. Highly reusable across the entire app.
+- **Lives in**: `shared/components/ui/`
+- Analogy: *Lego bricks.*
+
+### Layer 2 — Compound / Composite
+- **Purpose**: Combine primitives into richer UI patterns with minimal business logic.
+- **Examples**: `<Modal>`, `<FormField>`, `<AvailabilityGrid>`, `<PeriodToggle>`, `<ShiftStatusBadge>`
+- **Rules**: Encapsulate common interactions (open/close, toggle). Reuse Layer 1. No data fetching.
+- **Lives in**: `shared/components/` or `features/*/components/` if domain-specific
+- Analogy: *Small Lego assemblies — wheels, windows, doors.*
+
+### Layer 3 — Domain / Business Logic
+- **Purpose**: Bridge between UI and business logic. Data fetching, state, orchestration.
+- **Examples**: `<WorkerPersonalInfoForm>`, `<ShiftCalendar>`, `<BillingSection>`, `<InviteModal>`
+- **Rules**: Domain-specific. Decides which Layer 1/2 components to use and what props to pass.
+- **Lives in**: `features/*/components/`
+- Analogy: *A full Lego car — specific purpose.*
+
+### Layer 4 — Application Shell / Pages
+- **Purpose**: Routes, layouts, global structure. Compose multiple domain components.
+- **Examples**: `WorkersPage`, `WorkerEditPage`, `AccountPage`, `ShiftsPage`
+- **Rules**: Handle routing and layout. No fine-grained UI logic.
+- **Lives in**: `routes/_protected/dashboard/*/`
+- Analogy: *The completed Lego city.*
+
+### Why this matters
+- **Where does this component go?** — answer the layer question first.
+- **Style lives in Layer 1**, logic lives in Layer 3, composition in Layer 4.
+- **Never fetch data in Layer 1 or 2.** Never put raw HTML styling in Layer 3 or 4.
+
+---
+
 ## Key Principles
 
 ### Backend
