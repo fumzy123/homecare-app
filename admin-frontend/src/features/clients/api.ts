@@ -90,14 +90,14 @@ export interface ClientNoteItem {
 
 export const clientsApi = {
   listClients: async (status?: ClientStatus): Promise<Client[]> => {
-    const { data } = await apiClient.get('/api/clients/', {
+    const { data } = await apiClient.get('/api/clients', {
       params: status ? { status } : undefined,
     })
     return data
   },
 
   createClient: async (payload: ClientCreatePayload): Promise<Client> => {
-    const { data } = await apiClient.post('/api/clients/', payload)
+    const { data } = await apiClient.post('/api/clients', payload)
     return data
   },
 

@@ -6,7 +6,7 @@ from app.core.security import require_admin
 from app.schemas.progress_note import ProgressNoteUpsertSchema, ProgressNoteResponse
 from app.services.progress_note_service import ProgressNoteService
 
-router = APIRouter()
+router = APIRouter(prefix="/shifts", tags=["Progress Notes"])
 
 
 # ─────────────────────────────────────────

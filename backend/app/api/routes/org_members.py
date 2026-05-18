@@ -8,13 +8,13 @@ from app.services.org_member_service import OrgMemberService
 from app.core.security import require_admin, get_current_user
 from app.core.enums import OrgMemberRole
 
-router = APIRouter()
+router = APIRouter(prefix="/org-members", tags=["Org Members"])
 
 
 # ─────────────────────────────────────────
 # 1. Accept an invite — create org member
 # ─────────────────────────────────────────
-@router.post("/", response_model=OrgMemberResponse)
+@router.post("", response_model=OrgMemberResponse)
 async def create_member(
     payload: AcceptInvitationSchema,
     current_user=Depends(get_current_user),
@@ -26,7 +26,7 @@ async def create_member(
 # ─────────────────────────────────────────
 # 2. List all members — optional ?role= filter
 # ─────────────────────────────────────────
-@router.get("/", response_model=List[OrgMemberResponse])
+@router.get("", response_model=List[OrgMemberResponse])
 async def get_all_members(
     role: OrgMemberRole | None = Query(default=None, description="Filter by role"),
     current_user=Depends(require_admin),

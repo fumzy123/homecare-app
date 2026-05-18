@@ -8,7 +8,7 @@ from app.core.exceptions import AppError
 from app.models.org_member import OrgMember
 from app.models.organization import Organization
 
-router = APIRouter()
+router = APIRouter(prefix="/legal", tags=["Legal"])
 
 CURRENT_TERMS_VERSION = "0.0"
 

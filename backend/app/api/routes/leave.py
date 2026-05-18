@@ -7,7 +7,7 @@ from app.core.security import require_admin
 from app.schemas.leave_record import LeaveRecordCreateSchema, LeaveRecordResponse
 from app.services.leave_service import LeaveService
 
-router = APIRouter()
+router = APIRouter(prefix="/org-members", tags=["Leave"])
 
 
 @router.get("/{worker_id}/leave", response_model=List[LeaveRecordResponse])

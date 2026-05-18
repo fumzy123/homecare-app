@@ -9,13 +9,13 @@ from app.core.enums import ClientStatus
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema, ClientResponse
 from app.schemas.progress_note import ClientNoteItemResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/clients", tags=["Clients"])
 
 
 # ─────────────────────────────────────────
 # 1. Create a client
 # ─────────────────────────────────────────
-@router.post("/", response_model=ClientResponse)
+@router.post("", response_model=ClientResponse)
 async def create_client(
     payload: ClientCreateSchema,
     current_user=Depends(require_admin),
@@ -28,7 +28,7 @@ async def create_client(
 # 2. List all clients in the admin's org
 # Optional filter: ?status=active
 # ─────────────────────────────────────────
-@router.get("/", response_model=List[ClientResponse])
+@router.get("", response_model=List[ClientResponse])
 async def get_all_clients(
     status: ClientStatus | None = Query(default=None, description="Filter by status"),
     current_user=Depends(require_admin),

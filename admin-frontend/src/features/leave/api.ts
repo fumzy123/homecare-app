@@ -30,13 +30,13 @@ export interface LeaveRecordCreatePayload {
 
 export const leaveApi = {
   list: (workerId: string, year: number): Promise<LeaveRecord[]> =>
-    apiClient.get(`/api/workers/${workerId}/leave`, { params: { year } }).then((r) => r.data),
+    apiClient.get(`/api/org-members/${workerId}/leave`, { params: { year } }).then((r) => r.data),
 
   create: (workerId: string, payload: LeaveRecordCreatePayload): Promise<LeaveRecord> =>
-    apiClient.post(`/api/workers/${workerId}/leave`, payload).then((r) => r.data),
+    apiClient.post(`/api/org-members/${workerId}/leave`, payload).then((r) => r.data),
 
   delete: (workerId: string, leaveId: string): Promise<void> =>
-    apiClient.delete(`/api/workers/${workerId}/leave/${leaveId}`).then(() => undefined),
+    apiClient.delete(`/api/org-members/${workerId}/leave/${leaveId}`).then(() => undefined),
 }
 
 export function countDays(record: LeaveRecord): number {

@@ -5,7 +5,7 @@ from app.db.session import get_db
 from app.core.security import require_admin
 from app.services.billing_service import BillingService
 
-router = APIRouter()
+router = APIRouter(prefix="/billing", tags=["Billing"])
 
 
 @router.post("/subscribe")

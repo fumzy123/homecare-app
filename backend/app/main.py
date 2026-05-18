@@ -75,7 +75,7 @@ async def rate_limit_exceeded_handler(_request: Request, exc: RateLimitExceeded)
     )
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
