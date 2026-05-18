@@ -13,7 +13,7 @@ export interface Organization {
 
 export const organizationApi = {
   getOrganization: async (): Promise<Organization> => {
-    const { data } = await apiClient.get('/api/organization/')
+    const { data } = await apiClient.get('/api/organization')
     return data
   },
 }

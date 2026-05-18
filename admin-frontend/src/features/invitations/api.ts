@@ -15,12 +15,12 @@ export interface Invitation {
 
 export const invitationsApi = {
   sendInvitation: async (payload: { email: string; role: InvitationRole }) => {
-    const { data } = await apiClient.post('/api/invitations/', payload)
+    const { data } = await apiClient.post('/api/invitations', payload)
     return data
   },
 
   listInvitations: async (): Promise<Invitation[]> => {
-    const { data } = await apiClient.get('/api/invitations/')
+    const { data } = await apiClient.get('/api/invitations')
     return data
   },
 

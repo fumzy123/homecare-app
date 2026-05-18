@@ -25,7 +25,7 @@ export const authApi = {
     first_name: string
     last_name: string
   }) => {
-    const { data } = await apiClient.post('/api/organization/', payload)
+    const { data } = await apiClient.post('/api/organization', payload)
     return data
   },
 
@@ -35,7 +35,7 @@ export const authApi = {
     if (error) throw new Error(error.message)
 
     // Step 2: create OrgMember + WorkerProfile on our backend
-    const { data } = await apiClient.post('/api/org-members/', {
+    const { data } = await apiClient.post('/api/org-members', {
       first_name: payload.first_name,
       last_name: payload.last_name,
     })

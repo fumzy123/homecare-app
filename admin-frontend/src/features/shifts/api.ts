@@ -158,7 +158,7 @@ export const shiftsApi = {
     clientId?: string,
     completionStatuses?: string[],
   ): Promise<ShiftOccurrence[]> => {
-    const { data } = await apiClient.get('/api/shifts/', {
+    const { data } = await apiClient.get('/api/shifts', {
       params: {
         from_date: fromDate,
         to_date: toDate,
@@ -171,7 +171,7 @@ export const shiftsApi = {
   },
 
   createShift: async (payload: ShiftCreatePayload): Promise<void> => {
-    await apiClient.post('/api/shifts/', payload)
+    await apiClient.post('/api/shifts', payload)
   },
 
   updateShift: async (shiftId: string, payload: ShiftUpdatePayload): Promise<void> => {
