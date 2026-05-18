@@ -6,7 +6,7 @@ from app.services.invitation_service import InvitationService
 from app.core.security import require_admin
 from app.core.limiter import limiter
 
-router = APIRouter()
+router = APIRouter(prefix="/invitations", tags=["Invitations"])
 
 
 # ─────────────────────────────────────────
@@ -14,7 +14,7 @@ router = APIRouter()
 # Writes to invitations table + sends email
 # Only owners and admins can do this
 # ─────────────────────────────────────────
-@router.post("/")
+@router.post("")
 @limiter.limit("20/hour")
 async def create_invitation(
     request: Request,
@@ -29,7 +29,7 @@ async def create_invitation(
 # 2. List all invitations for the org
 # Returns pending and accepted
 # ─────────────────────────────────────────
-@router.get("/")
+@router.get("")
 async def list_invitations(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),

@@ -7,7 +7,7 @@ from app.core.security import require_admin, require_owner, get_current_user
 from app.core.limiter import limiter
 from app.db.session import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/organization", tags=["Organization"])
 
 
 # ─────────────────────────────────────────
@@ -15,7 +15,7 @@ router = APIRouter()
 # Authenticated — frontend creates the Supabase user first,
 # then calls this endpoint with the JWT to set up the org
 # ─────────────────────────────────────────
-@router.post("/", response_model=None)
+@router.post("", response_model=None)
 @limiter.limit("5/minute", key_func=get_remote_address)
 async def register_organization(
     request: Request,
@@ -30,7 +30,7 @@ async def register_organization(
 # 2. Get current user's organization
 # Any admin in the org can view it
 # ─────────────────────────────────────────
-@router.get("/", response_model=OrganizationResponseSchema)
+@router.get("", response_model=OrganizationResponseSchema)
 async def get_organization(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
@@ -41,7 +41,7 @@ async def get_organization(
 # ─────────────────────────────────────────
 # 3. Update organization (owner only)
 # ─────────────────────────────────────────
-@router.patch("/", response_model=OrganizationResponseSchema)
+@router.patch("", response_model=OrganizationResponseSchema)
 async def update_organization(
     payload: OrganizationUpdateSchema,
     current_user=Depends(require_owner),
@@ -54,7 +54,7 @@ async def update_organization(
 # 4. Deactivate organization (owner only)
 # Sets is_active = False — not a hard delete
 # ─────────────────────────────────────────
-@router.delete("/")
+@router.delete("")
 async def delete_organization(
     current_user=Depends(require_owner),
     db: Session = Depends(get_db),

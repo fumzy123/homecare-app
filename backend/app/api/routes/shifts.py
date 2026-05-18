@@ -17,13 +17,13 @@ from app.schemas.shift import (
 )
 from app.services.shift_service import ShiftService
 
-router = APIRouter()
+router = APIRouter(prefix="/shifts", tags=["Shifts"])
 
 
 # ─────────────────────────────────────────
 # 1. Create a single or recurring shift
 # ─────────────────────────────────────────
-@router.post("/", response_model=ShiftMasterResponse)
+@router.post("", response_model=ShiftMasterResponse)
 async def create_shift(
     payload: ShiftCreateSchema,
     current_user=Depends(require_admin),
@@ -50,7 +50,7 @@ async def get_shift_stats(
 # ─────────────────────────────────────────
 # 3. Get expanded occurrences for a date range
 # ─────────────────────────────────────────
-@router.get("/", response_model=list[ShiftOccurrenceResponse])
+@router.get("", response_model=list[ShiftOccurrenceResponse])
 async def get_shifts(
     from_date: date = Query(..., description="Start of date range (YYYY-MM-DD)"),
     to_date: date = Query(..., description="End of date range (YYYY-MM-DD)"),
