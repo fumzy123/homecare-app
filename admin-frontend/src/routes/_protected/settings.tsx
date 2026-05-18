@@ -8,7 +8,7 @@ export const Route = createFileRoute('/_protected/settings')({
 const SECTIONS = [
   { path: '/settings/profile', label: 'My Profile'          },
   { path: '/settings/agency',  label: 'Agency Settings'     },
-  { path: '/settings/billing', label: 'Billing & Licensing' },
+  { path: '/settings/billing', label: 'Billing' },
   { path: '/settings/team',    label: 'Team & Invitations'  },
 ] as const
 
