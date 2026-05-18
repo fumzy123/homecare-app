@@ -1,15 +1,14 @@
 from fastapi import APIRouter
-from app.api.routes import invitations, org_members, clients, workers, organization, shifts, progress_notes, legal, leave, billing
+from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing
 
 router = APIRouter(prefix="/api")
 
-router.include_router(invitations.router, prefix="/invitations", tags=["Invitations"])
-router.include_router(organization.router, prefix="/organization", tags=["Organization"])
-router.include_router(org_members.router, prefix="/org-members", tags=["Org Members"])
-router.include_router(clients.router, prefix="/clients", tags=["Clients"])
-router.include_router(workers.router, prefix="/workers", tags=["Workers"])
-router.include_router(shifts.router, prefix="/shifts", tags=["Shifts"])
-router.include_router(progress_notes.router, prefix="/shifts", tags=["Progress Notes"])
-router.include_router(legal.router, prefix="/legal", tags=["Legal"])
-router.include_router(leave.router, prefix="/workers", tags=["Leave"])
-router.include_router(billing.router, prefix="/billing", tags=["Billing"])
+router.include_router(invitations.router,     prefix="/invitations",  tags=["Invitations"])
+router.include_router(organization.router,    prefix="/organization", tags=["Organization"])
+router.include_router(org_members.router,     prefix="/org-members",  tags=["Org Members"])
+router.include_router(clients.router,         prefix="/clients",      tags=["Clients"])
+router.include_router(shifts.router,          prefix="/shifts",       tags=["Shifts"])
+router.include_router(progress_notes.router,  prefix="/shifts",       tags=["Progress Notes"])
+router.include_router(leave.router,           prefix="/org-members",  tags=["Leave"])
+router.include_router(legal.router,           prefix="/legal",        tags=["Legal"])
+router.include_router(billing.router,         prefix="/billing",      tags=["Billing"])

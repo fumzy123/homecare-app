@@ -2,10 +2,9 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
-from app.models.worker_profile import WorkerProfile
 from app.models.invitation import Invitation
 from app.schemas.invitation import AcceptInvitationSchema
-from app.schemas.account import AccountUpdateSchema
+from app.schemas.org_member import OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
@@ -14,10 +13,21 @@ from app.services.org_service import OrgService
 class OrgMemberService:
 
     # ─────────────────────────────────────────
-    # 1. Create org member on invite acceptance
-    # Called by the invited user after they accept
-    # the email invite and set their password.
-    # role + org_id are read from their JWT metadata.
+    # Internal helper
+    # ─────────────────────────────────────────
+    @staticmethod
+    def _get_active_member(member_id: str, org_id, db: Session) -> OrgMember:
+        member = db.query(OrgMember).filter(
+            OrgMember.id == member_id,
+            OrgMember.org_id == org_id,
+            OrgMember.deleted_at == None,  # noqa: E711
+        ).first()
+        if not member:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
+        return member
+
+    # ─────────────────────────────────────────
+    # 1. Accept invite — create org member
     # ─────────────────────────────────────────
     @staticmethod
     async def create_member(payload: AcceptInvitationSchema, current_user: SupabaseUser, db: Session):
@@ -33,7 +43,6 @@ class OrgMemberService:
                     message="Invite metadata missing role or org_id — invalid invite token",
                 )
 
-            # Guard against duplicate acceptance
             existing = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
             if existing:
                 raise AppError(
@@ -42,7 +51,6 @@ class OrgMemberService:
                     message="This invite has already been accepted",
                 )
 
-            # Find the matching invitation and check it hasn't expired
             invitation = db.query(Invitation).filter(
                 Invitation.email == current_user.email,
                 Invitation.org_id == org_id,
@@ -72,12 +80,6 @@ class OrgMemberService:
                 org_id=org_id,
             )
             db.add(member)
-
-            # Create an empty worker profile if the role is a home support worker
-            if role == OrgMemberRole.home_support_worker:
-                db.add(WorkerProfile(org_member_id=current_user.id))
-
-            # Mark invitation as accepted
             invitation.accepted_at = datetime.now(timezone.utc)
 
             db.commit()
@@ -91,9 +93,8 @@ class OrgMemberService:
             db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
-
     # ─────────────────────────────────────────
-    # 1. List all members in the admin's org
+    # 2. List all members in the admin's org
     # Optional filter: ?role=home_support_worker
     # ─────────────────────────────────────────
     @staticmethod
@@ -117,10 +118,49 @@ class OrgMemberService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 3. Update own account (self-edit only)
+    # 3. Get a single member (admin or self)
     # ─────────────────────────────────────────
     @staticmethod
-    async def update_self(member_id: str, payload: AccountUpdateSchema, current_user: SupabaseUser, db: Session):
+    async def get_member(current_user: SupabaseUser, member_id: str, db: Session):
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            return OrgMemberService._get_active_member(member_id, org_id, db)
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 4. Admin updates any member in their org
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def update_member(member_id: str, payload: OrgMemberUpdateSchema, current_user: SupabaseUser, db: Session):
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            member = OrgMemberService._get_active_member(member_id, org_id, db)
+
+            updates = payload.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                setattr(member, field, value)
+
+            db.commit()
+            db.refresh(member)
+            return member
+
+        except AppError:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 5. Member updates their own profile
+    # Syncs name/email to Supabase Auth metadata
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def update_self(member_id: str, payload: OrgMemberSelfUpdateSchema, current_user: SupabaseUser, db: Session):
         try:
             if str(current_user.id) != member_id:
                 raise AppError(status_code=403, code="FORBIDDEN", message="You can only edit your own account")
@@ -133,15 +173,11 @@ class OrgMemberService:
             if not member:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
 
-            if payload.first_name is not None:
-                member.first_name = payload.first_name
-            if payload.last_name is not None:
-                member.last_name = payload.last_name
-            if payload.email is not None and payload.email != member.email:
-                member.email = payload.email
+            updates = payload.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                setattr(member, field, value)
 
-            # Keep Supabase Auth metadata in sync so the JWT always
-            # reflects the latest name and email after token refresh
+            # Sync name/email to Supabase Auth so JWT stays fresh
             from app.db.supabase import get_supabase_client
             supabase = get_supabase_client()
             auth_update: dict = {}
@@ -169,26 +205,22 @@ class OrgMemberService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 4. Get a single member
-    # Enforces tenant isolation (same org only)
+    # 6. Soft delete a member (admin only)
     # ─────────────────────────────────────────
     @staticmethod
-    async def get_member(current_user: SupabaseUser, member_id: str, db: Session):
+    async def delete_member(member_id: str, current_user: SupabaseUser, db: Session):
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
+            member = OrgMemberService._get_active_member(member_id, org_id, db)
 
-            member = db.query(OrgMember).filter(
-                OrgMember.id == member_id,
-                OrgMember.org_id == org_id,
-                OrgMember.deleted_at == None,  # noqa: E711
-            ).first()
+            member.deleted_at = datetime.now(timezone.utc)
+            db.commit()
 
-            if not member:
-                raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
-
-            return member
+            return {"message": "Member deleted successfully"}
 
         except AppError:
+            db.rollback()
             raise
         except Exception as e:
+            db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

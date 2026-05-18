@@ -6,7 +6,7 @@ import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { shiftsApi, toCalendarEvents, type ShiftOccurrence, type CalendarEvent } from '@/features/shifts/api'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { clientsApi } from '@/features/clients/api'
 import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
@@ -125,7 +125,7 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
     queryKey: ['shifts', from, to, filterWorkerId, filterClientId],
     queryFn:  () => shiftsApi.listShifts(from, to, filterWorkerId || undefined, filterClientId || undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped']),
   })
-  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
+  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: () => orgMembersApi.listByRole('home_support_worker') })
   const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
 
   const baseEvents   = toCalendarEvents(occurrences)

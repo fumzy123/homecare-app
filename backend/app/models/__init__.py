@@ -2,7 +2,6 @@ from app.models.base import Base as Base
 from app.models.organization import Organization as Organization
 from app.models.org_member import OrgMember as OrgMember
 from app.models.client import Client as Client
-from app.models.worker_profile import WorkerProfile as WorkerProfile
 from app.models.shift import Shift as Shift
 from app.models.shift_modification import ShiftModification as ShiftModification
 from app.models.invitation import Invitation as Invitation

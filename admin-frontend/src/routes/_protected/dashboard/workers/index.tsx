@@ -2,12 +2,11 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Trash2, RotateCcw } from 'lucide-react'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi, type OrgMember } from '@/features/org-members/api'
 import { invitationsApi } from '@/features/invitations/api'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
 import { ROLE_LABELS } from '@/features/invitations/constants'
 import { Avatar, Card, Kicker, StatusDot, Tag, Btn } from '@/shared/components/ui'
-import type { Worker } from '@/features/workers/api'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/')({
   component: WorkersPage,
@@ -24,7 +23,7 @@ function WorkersPage() {
 
   const { data: workers = [], isLoading, isError } = useQuery({
     queryKey: ['workers'],
-    queryFn: workersApi.listWorkers,
+    queryFn: () => orgMembersApi.listByRole('home_support_worker'),
   })
 
   const { data: invitations = [], isLoading: invLoading } = useQuery({
@@ -207,7 +206,7 @@ function WorkersPage() {
   )
 }
 
-function WorkerRow({ worker, index }: { worker: Worker; index: number }) {
+function WorkerRow({ worker, index }: { worker: OrgMember; index: number }) {
   const color = AVATAR_COLORS[index % AVATAR_COLORS.length]
   const initials = `${worker.first_name[0]}${worker.last_name[0]}`
 

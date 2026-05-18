@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Enum, Boolean, DateTime, Date, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Enum, Boolean, DateTime, Date, Integer, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
@@ -23,6 +23,18 @@ class OrgMember(Base):
     role = Column(Enum(OrgMemberRole), nullable=False)
     hire_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
+    employment_type = Column(String, nullable=True)
+    has_vehicle = Column(Boolean, nullable=True)
+    max_hours_per_week = Column(Integer, nullable=True)
+
+    # Address
+    street = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    province = Column(String, nullable=True)
+    postal_code = Column(String, nullable=True)
+
+    # Scheduling
+    availability = Column(JSONB, nullable=True)
 
     # Emergency Contact
     emergency_contact_name = Column(String, nullable=True)
@@ -39,4 +51,3 @@ class OrgMember(Base):
 
     # Relationships
     organization = relationship("Organization", back_populates="members")
-    worker_profile = relationship("WorkerProfile", back_populates="org_member", uselist=False)

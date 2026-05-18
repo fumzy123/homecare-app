@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { type Worker } from '@/features/workers/api'
+import { type OrgMember } from '@/features/org-members/api'
 import { Avatar } from '@/shared/components/ui'
 
-export function WorkerCard({ worker, index = 0 }: { worker: Worker; index?: number }) {
+export function WorkerCard({ worker, index = 0 }: { worker: OrgMember; index?: number }) {
   const initials = `${worker.first_name[0] ?? ''}${worker.last_name[0] ?? ''}`.toUpperCase()
   const color = (['c1','c2','c3','c4','c5','c6'] as const)[index % 6]
 

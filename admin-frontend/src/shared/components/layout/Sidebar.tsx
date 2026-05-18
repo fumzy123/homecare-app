@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, Settings } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
@@ -109,7 +109,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-2 px-4 py-3 font-mono text-[11px] text-ink-soft hover:text-ink hover:bg-cream-2 transition-colors border-b border-line-faint"
             >
-              Account settings
+              <Settings size={13} />
+              Settings
             </Link>
             <button
               onClick={handleSignOut}

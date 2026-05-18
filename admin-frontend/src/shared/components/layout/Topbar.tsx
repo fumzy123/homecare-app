@@ -1,6 +1,7 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { Settings } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
@@ -119,7 +120,8 @@ export function Topbar() {
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2 px-4 py-2.5 text-[13px] text-ink hover:bg-cream-2 transition-colors border-b border-line-faint"
               >
-                Account Settings
+                <Settings size={13} />
+                Settings
               </Link>
               <button
                 onClick={handleSignOut}

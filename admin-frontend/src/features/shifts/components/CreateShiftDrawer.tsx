@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
-import { workersApi } from '@/features/workers/api'
+import { orgMembersApi } from '@/features/org-members/api'
 import { clientsApi } from '@/features/clients/api'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 
@@ -65,7 +65,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
   const [daysOfWeek, setDaysOfWeek]         = useState<DayOfWeek[]>([])
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
 
-  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: workersApi.listWorkers })
+  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: () => orgMembersApi.listByRole('home_support_worker') })
   const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
 
   function notifyFormChange(startDate: string, startTime: string, endD: string, endTime: string, workerId: string, clientId: string) {
