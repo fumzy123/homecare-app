@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
-import { Settings } from 'lucide-react'
+import { Settings, LogOut } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
@@ -127,6 +127,7 @@ export function Topbar() {
                 onClick={handleSignOut}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-ink hover:bg-cream-2 transition-colors"
               >
+                <LogOut size={13} />
                 Sign out
               </button>
             </div>

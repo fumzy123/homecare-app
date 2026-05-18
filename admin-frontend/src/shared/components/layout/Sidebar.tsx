@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { X, Settings } from 'lucide-react'
+import { X, Settings, LogOut } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
@@ -116,6 +116,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               onClick={handleSignOut}
               className="flex w-full items-center gap-2 px-4 py-3 font-mono text-[11px] text-ink-soft hover:text-ink hover:bg-cream-2 transition-colors"
             >
+                <LogOut size={13} />
               Sign out
             </button>
           </div>
