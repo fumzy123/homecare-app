@@ -10,7 +10,6 @@ function AgencyPage() {
   return (
     <>
       <SettingsPaneHeader
-        num="02"
         title="Agency settings"
         sub="Organization record — affects how the agency is identified."
       />

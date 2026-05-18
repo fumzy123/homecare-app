@@ -10,7 +10,6 @@ function ProfilePage() {
   return (
     <>
       <SettingsPaneHeader
-        num="01"
         title="My profile"
         sub="Your name and email across the entire console."
       />

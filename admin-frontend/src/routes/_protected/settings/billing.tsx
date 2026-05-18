@@ -10,7 +10,6 @@ function BillingPage() {
   return (
     <>
       <SettingsPaneHeader
-        num="03"
         title="Billing &amp; licensing"
         sub="Subscription status and payment management via Stripe."
       />
