@@ -12,6 +12,17 @@ class Organization(Base):
     name = Column(String, nullable=False)
     owner_id = Column(UUID(as_uuid=True), nullable=False)
     is_active = Column(Boolean, default=True)
+
+    # Legal identity
+    legal_name      = Column(String, nullable=True)
+    business_number = Column(String, nullable=True)
+
+    # Business address
+    street      = Column(String, nullable=True)
+    city        = Column(String, nullable=True)
+    province    = Column(String, nullable=True)
+    postal_code = Column(String, nullable=True)
+
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     terms_accepted_version = Column(String, nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True)
