@@ -10,7 +10,6 @@ function TeamPage() {
   return (
     <>
       <SettingsPaneHeader
-        num="04"
         title="Team &amp; invitations"
         sub="Everyone with access and pending invite status."
       />

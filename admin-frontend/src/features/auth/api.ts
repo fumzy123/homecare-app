@@ -29,6 +29,18 @@ export const authApi = {
     return data
   },
 
+  sendPasswordResetEmail: async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) throw error
+  },
+
+  setNewPassword: async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  },
+
   acceptInvite: async (payload: { first_name: string; last_name: string; password: string }) => {
     // Step 1: set password directly with Supabase (never sent to our backend)
     const { error } = await supabase.auth.updateUser({ password: payload.password })

@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DpaRouteImport } from './routes/dpa'
 import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
@@ -25,6 +27,7 @@ import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
 import { Route as ProtectedSettingsTeamRouteImport } from './routes/_protected/settings/team'
 import { Route as ProtectedSettingsProfileRouteImport } from './routes/_protected/settings/profile'
+import { Route as ProtectedSettingsLegalRouteImport } from './routes/_protected/settings/legal'
 import { Route as ProtectedSettingsBillingRouteImport } from './routes/_protected/settings/billing'
 import { Route as ProtectedSettingsAgencyRouteImport } from './routes/_protected/settings/agency'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
@@ -52,6 +55,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -65,6 +73,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DpaRoute = DpaRouteImport.update({
@@ -122,6 +135,11 @@ const ProtectedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
+const ProtectedSettingsLegalRoute = ProtectedSettingsLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
+  getParentRoute: () => ProtectedSettingsRoute,
+} as any)
 const ProtectedSettingsBillingRoute =
   ProtectedSettingsBillingRouteImport.update({
     id: '/billing',
@@ -223,15 +241,18 @@ export interface FileRoutesByFullPath {
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
   '/dpa': typeof DpaRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/settings': typeof ProtectedSettingsRouteWithChildren
   '/upgrade': typeof ProtectedUpgradeRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/settings/legal': typeof ProtectedSettingsLegalRoute
   '/settings/profile': typeof ProtectedSettingsProfileRoute
   '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
@@ -256,14 +277,17 @@ export interface FileRoutesByTo {
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
   '/dpa': typeof DpaRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/upgrade': typeof ProtectedUpgradeRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/settings/legal': typeof ProtectedSettingsLegalRoute
   '/settings/profile': typeof ProtectedSettingsProfileRoute
   '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
@@ -288,15 +312,18 @@ export interface FileRoutesById {
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
   '/dpa': typeof DpaRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
   '/_protected/upgrade': typeof ProtectedUpgradeRoute
   '/_protected/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/_protected/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/_protected/settings/legal': typeof ProtectedSettingsLegalRoute
   '/_protected/settings/profile': typeof ProtectedSettingsProfileRoute
   '/_protected/settings/team': typeof ProtectedSettingsTeamRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
@@ -323,15 +350,18 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/accept-terms'
     | '/dpa'
+    | '/forgot-password'
     | '/login'
     | '/privacy'
     | '/register'
+    | '/reset-password'
     | '/terms'
     | '/welcome'
     | '/settings'
     | '/upgrade'
     | '/settings/agency'
     | '/settings/billing'
+    | '/settings/legal'
     | '/settings/profile'
     | '/settings/team'
     | '/dashboard/'
@@ -356,14 +386,17 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/accept-terms'
     | '/dpa'
+    | '/forgot-password'
     | '/login'
     | '/privacy'
     | '/register'
+    | '/reset-password'
     | '/terms'
     | '/welcome'
     | '/upgrade'
     | '/settings/agency'
     | '/settings/billing'
+    | '/settings/legal'
     | '/settings/profile'
     | '/settings/team'
     | '/dashboard'
@@ -387,15 +420,18 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/accept-terms'
     | '/dpa'
+    | '/forgot-password'
     | '/login'
     | '/privacy'
     | '/register'
+    | '/reset-password'
     | '/terms'
     | '/welcome'
     | '/_protected/settings'
     | '/_protected/upgrade'
     | '/_protected/settings/agency'
     | '/_protected/settings/billing'
+    | '/_protected/settings/legal'
     | '/_protected/settings/profile'
     | '/_protected/settings/team'
     | '/_protected/dashboard/'
@@ -422,9 +458,11 @@ export interface RootRouteChildren {
   AcceptInviteRoute: typeof AcceptInviteRoute
   AcceptTermsRoute: typeof AcceptTermsRoute
   DpaRoute: typeof DpaRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
 }
@@ -443,6 +481,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -464,6 +509,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dpa': {
@@ -541,6 +593,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/settings/profile'
       preLoaderRoute: typeof ProtectedSettingsProfileRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/legal': {
+      id: '/_protected/settings/legal'
+      path: '/legal'
+      fullPath: '/settings/legal'
+      preLoaderRoute: typeof ProtectedSettingsLegalRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/settings/billing': {
@@ -661,6 +720,7 @@ declare module '@tanstack/react-router' {
 interface ProtectedSettingsRouteChildren {
   ProtectedSettingsAgencyRoute: typeof ProtectedSettingsAgencyRoute
   ProtectedSettingsBillingRoute: typeof ProtectedSettingsBillingRoute
+  ProtectedSettingsLegalRoute: typeof ProtectedSettingsLegalRoute
   ProtectedSettingsProfileRoute: typeof ProtectedSettingsProfileRoute
   ProtectedSettingsTeamRoute: typeof ProtectedSettingsTeamRoute
   ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
@@ -669,6 +729,7 @@ interface ProtectedSettingsRouteChildren {
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
   ProtectedSettingsAgencyRoute: ProtectedSettingsAgencyRoute,
   ProtectedSettingsBillingRoute: ProtectedSettingsBillingRoute,
+  ProtectedSettingsLegalRoute: ProtectedSettingsLegalRoute,
   ProtectedSettingsProfileRoute: ProtectedSettingsProfileRoute,
   ProtectedSettingsTeamRoute: ProtectedSettingsTeamRoute,
   ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
@@ -761,9 +822,11 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptInviteRoute: AcceptInviteRoute,
   AcceptTermsRoute: AcceptTermsRoute,
   DpaRoute: DpaRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
 }
