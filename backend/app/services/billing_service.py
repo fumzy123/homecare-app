@@ -1,5 +1,4 @@
 import stripe
-import uuid
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -14,29 +13,50 @@ stripe.api_key = settings.stripe_secret_key
 class BillingService:
 
     # ─────────────────────────────────────────
-    # 1. Create Stripe Checkout Session
+    # Internal helper — get or create Stripe customer
     # ─────────────────────────────────────────
     @staticmethod
-    async def create_checkout_session(current_user: SupabaseUser, db: Session) -> dict:
+    def _get_or_create_customer(org: Organization, email: str, db: Session) -> str:
+        if org.stripe_customer_id:
+            return org.stripe_customer_id
+        customer = stripe.Customer.create(
+            email=email,
+            metadata={"org_id": str(org.id)},
+        )
+        org.stripe_customer_id = customer.id
+        db.commit()
+        return customer.id
+
+    # ─────────────────────────────────────────
+    # 1. Create subscription + return PaymentIntent client_secret
+    #    Frontend uses this with Stripe Elements to collect card details
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def create_subscription_intent(current_user: SupabaseUser, db: Session) -> dict:
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
             org = db.query(Organization).filter(Organization.id == org_id).first()
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
-
             if org.subscription_status == "active":
                 raise AppError(400, "ALREADY_SUBSCRIBED", "This organization already has an active subscription")
 
-            session = stripe.checkout.Session.create(
-                mode="subscription",
-                line_items=[{"price": settings.stripe_price_id, "quantity": 1}],
-                success_url=f"{settings.frontend_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=f"{settings.frontend_url}/#pricing",
-                customer_email=current_user.email,
-                metadata={"org_id": str(org_id)},
+            customer_id = BillingService._get_or_create_customer(org, current_user.email, db)
+
+            subscription = stripe.Subscription.create(
+                customer=customer_id,
+                items=[{"price": settings.stripe_price_id}],
+                payment_behavior="default_incomplete",
+                payment_settings={"save_default_payment_method": "on_subscription"},
+                expand=["latest_invoice.confirmation_secret"],
             )
 
-            return {"url": session.url}
+            org.subscription_id = subscription.id
+            db.commit()
+
+            # Stripe Basil API (2025-03-31+): confirmation_secret is an object
+            # on Invoice with its own client_secret field, replacing invoice.payment_intent.client_secret
+            return {"client_secret": subscription.latest_invoice.confirmation_secret.client_secret}
 
         except AppError:
             raise
@@ -44,7 +64,120 @@ class BillingService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 2. Handle Stripe Webhook
+    # 2. Create SetupIntent for updating the card on an existing subscription
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def create_setup_intent(current_user: SupabaseUser, db: Session) -> dict:
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            if not org:
+                raise AppError(404, "NOT_FOUND", "Organization not found")
+            if not org.stripe_customer_id:
+                raise AppError(400, "NO_CUSTOMER", "No billing account found — subscribe first")
+
+            setup_intent = stripe.SetupIntent.create(
+                customer=org.stripe_customer_id,
+                payment_method_types=["card"],
+                usage="off_session",
+            )
+
+            return {"client_secret": setup_intent.client_secret}
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 3. Set a confirmed payment method as the subscription default
+    #    Called by frontend after stripe.confirmSetup() succeeds
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def set_default_payment_method(
+        current_user: SupabaseUser, payment_method_id: str, db: Session
+    ) -> dict:
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            if not org:
+                raise AppError(404, "NOT_FOUND", "Organization not found")
+            if not org.stripe_customer_id:
+                raise AppError(400, "NO_CUSTOMER", "No billing account found")
+
+            stripe.Customer.modify(
+                org.stripe_customer_id,
+                invoice_settings={"default_payment_method": payment_method_id},
+            )
+
+            if org.subscription_id:
+                stripe.Subscription.modify(
+                    org.subscription_id,
+                    default_payment_method=payment_method_id,
+                )
+
+            return {"ok": True}
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 4. Fetch card + invoice data from Stripe for in-app display
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def get_billing_details(current_user: SupabaseUser, db: Session) -> dict:
+        try:
+            org_id = OrgService.get_admin_org_id(current_user, db)
+            org = db.query(Organization).filter(Organization.id == org_id).first()
+            if not org:
+                raise AppError(404, "NOT_FOUND", "Organization not found")
+            if not org.stripe_customer_id:
+                return {"card": None, "invoices": []}
+
+            customer = stripe.Customer.retrieve(
+                org.stripe_customer_id,
+                expand=["invoice_settings.default_payment_method"],
+            )
+
+            card = None
+            pm = customer.invoice_settings.default_payment_method
+            if pm and hasattr(pm, "card"):
+                addr = pm.billing_details.address if pm.billing_details else None
+                card = {
+                    "brand": pm.card.brand,
+                    "last4": pm.card.last4,
+                    "exp_month": pm.card.exp_month,
+                    "exp_year": pm.card.exp_year,
+                    "postal_code": addr.postal_code if addr else None,
+                }
+
+            invoices_resp = stripe.Invoice.list(customer=org.stripe_customer_id, limit=20)
+            invoices = []
+            for inv in invoices_resp.data:
+                description = "Subscription"
+                if inv.lines and inv.lines.data:
+                    description = inv.lines.data[0].description or "Subscription"
+                invoices.append({
+                    "id": inv.id,
+                    "created": inv.created,
+                    "description": description,
+                    "amount_paid": inv.amount_paid,
+                    "currency": inv.currency,
+                    "status": inv.status,
+                    "hosted_invoice_url": inv.hosted_invoice_url,
+                })
+
+            return {"card": card, "invoices": invoices}
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 5. Stripe webhook handler
     # ─────────────────────────────────────────
     @staticmethod
     async def handle_webhook(payload: bytes, sig_header: str, db: Session) -> dict:
@@ -60,38 +193,16 @@ class BillingService:
         event_type = event["type"]
         data = event["data"]["object"]
 
-        if event_type == "checkout.session.completed":
-            BillingService._handle_checkout_completed(data, db)
-        elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
+        if event_type in ("customer.subscription.created", "customer.subscription.updated"):
             BillingService._handle_subscription_updated(data, db)
         elif event_type == "customer.subscription.deleted":
             BillingService._handle_subscription_deleted(data, db)
         elif event_type == "invoice.payment_failed":
             BillingService._handle_payment_failed(data, db)
+        elif event_type == "invoice.payment_succeeded":
+            BillingService._handle_payment_succeeded(data, db)
 
         return {"received": True}
-
-    # ─────────────────────────────────────────
-    # Webhook event handlers
-    # ─────────────────────────────────────────
-    @staticmethod
-    def _handle_checkout_completed(session, db: Session) -> None:
-        org_id_str = session.metadata.get("org_id") if session.metadata else None
-        if not org_id_str:
-            return
-        try:
-            org = db.query(Organization).filter(
-                Organization.id == uuid.UUID(org_id_str)
-            ).first()
-            if org:
-                org.stripe_customer_id = session.customer
-                org.subscription_id = session.subscription
-                org.subscription_status = "active"
-                if not org.paid_at:
-                    org.paid_at = datetime.now(timezone.utc)
-                db.commit()
-        except Exception:
-            db.rollback()
 
     @staticmethod
     def _handle_subscription_updated(subscription, db: Session) -> None:
@@ -136,9 +247,20 @@ class BillingService:
         except Exception:
             db.rollback()
 
+    @staticmethod
+    def _handle_payment_succeeded(invoice, db: Session) -> None:
+        try:
+            org = db.query(Organization).filter(
+                Organization.stripe_customer_id == invoice.customer
+            ).first()
+            if org and not org.paid_at:
+                org.paid_at = datetime.now(timezone.utc)
+                db.commit()
+        except Exception:
+            db.rollback()
+
     # ─────────────────────────────────────────
-    # 3. Create Stripe Customer Portal Session
-    # Lets the customer manage their subscription, cancel, update card
+    # 6. Customer portal — cancel, update tax info, etc.
     # ─────────────────────────────────────────
     @staticmethod
     async def create_portal_session(current_user: SupabaseUser, db: Session) -> dict:
@@ -152,7 +274,7 @@ class BillingService:
 
             session = stripe.billing_portal.Session.create(
                 customer=org.stripe_customer_id,
-                return_url=f"{settings.frontend_url}/account",
+                return_url=f"{settings.frontend_url}/settings",
             )
             return {"url": session.url}
 
@@ -162,7 +284,7 @@ class BillingService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 4. Get billing status for the current org
+    # 7. Billing status for the plan card
     # ─────────────────────────────────────────
     @staticmethod
     async def get_billing_status(current_user: SupabaseUser, db: Session) -> dict:

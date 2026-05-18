@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
@@ -7,21 +8,14 @@ from app.services.billing_service import BillingService
 router = APIRouter()
 
 
-# ─────────────────────────────────────────
-# 1. Create checkout session
-# ─────────────────────────────────────────
-@router.post("/checkout")
-async def create_checkout_session(
+@router.post("/subscribe")
+async def create_subscription_intent(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return await BillingService.create_checkout_session(current_user, db)
+    return await BillingService.create_subscription_intent(current_user, db)
 
 
-# ─────────────────────────────────────────
-# 2. Stripe webhook
-# Called by Stripe directly — no JWT auth, verified by signature instead
-# ─────────────────────────────────────────
 @router.post("/webhook")
 async def stripe_webhook(
     request: Request,
@@ -32,9 +26,6 @@ async def stripe_webhook(
     return await BillingService.handle_webhook(payload, sig_header, db)
 
 
-# ─────────────────────────────────────────
-# 3. Customer portal — manage subscription, cancel, update card
-# ─────────────────────────────────────────
 @router.post("/portal")
 async def create_portal_session(
     current_user=Depends(require_admin),
@@ -43,12 +34,38 @@ async def create_portal_session(
     return await BillingService.create_portal_session(current_user, db)
 
 
-# ─────────────────────────────────────────
-# 4. Billing status
-# ─────────────────────────────────────────
 @router.get("/status")
 async def get_billing_status(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     return await BillingService.get_billing_status(current_user, db)
+
+
+@router.post("/setup-intent")
+async def create_setup_intent(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await BillingService.create_setup_intent(current_user, db)
+
+
+class SetDefaultCardPayload(BaseModel):
+    payment_method_id: str
+
+
+@router.post("/set-default-card")
+async def set_default_card(
+    payload: SetDefaultCardPayload,
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await BillingService.set_default_payment_method(current_user, payload.payment_method_id, db)
+
+
+@router.get("/details")
+async def get_billing_details(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return await BillingService.get_billing_details(current_user, db)

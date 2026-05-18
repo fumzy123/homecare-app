@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Outlet, Link } from '@tanstack/react-router'
+import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
@@ -18,12 +18,12 @@ export const Route = createFileRoute('/_protected')({
   component: ProtectedLayout,
 })
 
-const now      = new Date()
-const weekNum  = Math.ceil(
+const now     = new Date()
+const weekNum = Math.ceil(
   ((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
 )
-const wkStart  = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
-const wkEnd    = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
+const wkStart = format(startOfWeek(now, { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
+const wkEnd   = format(endOfWeek(now,   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 
 function WorkerAccessDenied() {
   const { clearAuth } = useAuthStore()
@@ -56,17 +56,7 @@ function WorkerAccessDenied() {
 }
 
 function PaymentGate() {
-  const [loading, setLoading] = useState(false)
-
-  async function handleCheckout() {
-    setLoading(true)
-    try {
-      const { url } = await billingApi.createCheckoutSession()
-      window.location.href = url
-    } catch {
-      setLoading(false)
-    }
-  }
+  const navigate = useNavigate()
 
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center px-6">
@@ -79,11 +69,10 @@ function PaymentGate() {
           Your 14-day free trial has ended. Subscribe for $700/month to keep your agency running.
         </p>
         <button
-          onClick={handleCheckout}
-          disabled={loading}
-          className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase disabled:opacity-60"
+          onClick={() => navigate({ to: '/upgrade' })}
+          className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 transition-opacity"
         >
-          {loading ? 'Redirecting…' : 'Subscribe — $700/month'}
+          Subscribe — $700 / month
         </button>
       </div>
     </div>
@@ -93,10 +82,11 @@ function PaymentGate() {
 function ProtectedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user } = useAuthStore()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
 
   const { data: billingStatus, isLoading: billingLoading } = useQuery({
     queryKey: ['billing-status', user?.id],
-    queryFn: billingApi.getStatus,
+    queryFn:  billingApi.getStatus,
     staleTime: 5 * 60 * 1000,
   })
 
@@ -112,13 +102,22 @@ function ProtectedLayout() {
     )
   }
 
-  if (billingStatus?.has_access === false) {
+  // Let expired-trial users through to /upgrade so they can subscribe
+  if (billingStatus?.has_access === false && pathname !== '/upgrade') {
     return <PaymentGate />
+  }
+
+  // Fullscreen routes — no sidebar or topbar
+  if (pathname === '/upgrade') {
+    return (
+      <div className="min-h-screen bg-cream overflow-y-auto">
+        <Outlet />
+      </div>
+    )
   }
 
   return (
     <div className="flex h-screen bg-cream overflow-hidden">
-      {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-ink/30 max-lg:block hidden"
@@ -129,10 +128,8 @@ function ProtectedLayout() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        {/* Topbar */}
         <div className="flex items-center justify-between border-b border-ink px-6 max-lg:px-4 py-1.5 shrink-0 bg-cream gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Hamburger — mobile only */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="hidden max-lg:flex p-1 -ml-1 text-ink-soft hover:text-ink transition-colors shrink-0"
@@ -143,7 +140,7 @@ function ProtectedLayout() {
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
               {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
-                <Link to="/account" className="ml-3 text-orange font-bold hover:underline">
+                <Link to="/upgrade" className="ml-3 text-orange font-bold hover:underline">
                   · Trial: {billingStatus.trial_days_left} days left · Subscribe
                 </Link>
               )}
@@ -152,7 +149,6 @@ function ProtectedLayout() {
           <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft shrink-0 max-sm:hidden">
             WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}
           </span>
-
         </div>
 
         <main className="flex-1 overflow-y-auto">

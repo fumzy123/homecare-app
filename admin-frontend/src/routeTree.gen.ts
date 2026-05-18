@@ -19,9 +19,14 @@ import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PaymentSuccessRouteImport } from './routes/payment/success'
+import { Route as ProtectedUpgradeRouteImport } from './routes/_protected/upgrade'
+import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
+import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/settings/index'
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
-import { Route as ProtectedAccountIndexRouteImport } from './routes/_protected/account/index'
+import { Route as ProtectedSettingsTeamRouteImport } from './routes/_protected/settings/team'
+import { Route as ProtectedSettingsProfileRouteImport } from './routes/_protected/settings/profile'
+import { Route as ProtectedSettingsBillingRouteImport } from './routes/_protected/settings/billing'
+import { Route as ProtectedSettingsAgencyRouteImport } from './routes/_protected/settings/agency'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
 import { Route as ProtectedDashboardTimesheetIndexRouteImport } from './routes/_protected/dashboard/timesheet/index'
 import { Route as ProtectedDashboardShiftsIndexRouteImport } from './routes/_protected/dashboard/shifts/index'
@@ -86,20 +91,47 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PaymentSuccessRoute = PaymentSuccessRouteImport.update({
-  id: '/payment/success',
-  path: '/payment/success',
-  getParentRoute: () => rootRouteImport,
+const ProtectedUpgradeRoute = ProtectedUpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedSettingsRoute = ProtectedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ProtectedRoute,
+} as any)
+const ProtectedSettingsIndexRoute = ProtectedSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProtectedSettingsRoute,
 } as any)
 const ProtectedDashboardIndexRoute = ProtectedDashboardIndexRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
   getParentRoute: () => ProtectedRoute,
 } as any)
-const ProtectedAccountIndexRoute = ProtectedAccountIndexRouteImport.update({
-  id: '/account/',
-  path: '/account/',
-  getParentRoute: () => ProtectedRoute,
+const ProtectedSettingsTeamRoute = ProtectedSettingsTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => ProtectedSettingsRoute,
+} as any)
+const ProtectedSettingsProfileRoute =
+  ProtectedSettingsProfileRouteImport.update({
+    id: '/profile',
+    path: '/profile',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsBillingRoute =
+  ProtectedSettingsBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsAgencyRoute = ProtectedSettingsAgencyRouteImport.update({
+  id: '/agency',
+  path: '/agency',
+  getParentRoute: () => ProtectedSettingsRoute,
 } as any)
 const ProtectedDashboardWorkersIndexRoute =
   ProtectedDashboardWorkersIndexRouteImport.update({
@@ -196,9 +228,14 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
-  '/payment/success': typeof PaymentSuccessRoute
-  '/account/': typeof ProtectedAccountIndexRoute
+  '/settings': typeof ProtectedSettingsRouteWithChildren
+  '/upgrade': typeof ProtectedUpgradeRoute
+  '/settings/agency': typeof ProtectedSettingsAgencyRoute
+  '/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/settings/profile': typeof ProtectedSettingsProfileRoute
+  '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
+  '/settings/': typeof ProtectedSettingsIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
@@ -224,9 +261,13 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
-  '/payment/success': typeof PaymentSuccessRoute
-  '/account': typeof ProtectedAccountIndexRoute
+  '/upgrade': typeof ProtectedUpgradeRoute
+  '/settings/agency': typeof ProtectedSettingsAgencyRoute
+  '/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/settings/profile': typeof ProtectedSettingsProfileRoute
+  '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
+  '/settings': typeof ProtectedSettingsIndexRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
   '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet': typeof ProtectedDashboardTimesheetIndexRoute
@@ -252,9 +293,14 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
-  '/payment/success': typeof PaymentSuccessRoute
-  '/_protected/account/': typeof ProtectedAccountIndexRoute
+  '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
+  '/_protected/upgrade': typeof ProtectedUpgradeRoute
+  '/_protected/settings/agency': typeof ProtectedSettingsAgencyRoute
+  '/_protected/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/_protected/settings/profile': typeof ProtectedSettingsProfileRoute
+  '/_protected/settings/team': typeof ProtectedSettingsTeamRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
+  '/_protected/settings/': typeof ProtectedSettingsIndexRoute
   '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
   '/_protected/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/_protected/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
@@ -282,9 +328,14 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
-    | '/payment/success'
-    | '/account/'
+    | '/settings'
+    | '/upgrade'
+    | '/settings/agency'
+    | '/settings/billing'
+    | '/settings/profile'
+    | '/settings/team'
     | '/dashboard/'
+    | '/settings/'
     | '/dashboard/clients/$clientId'
     | '/dashboard/workers/$workerId'
     | '/dashboard/clients/'
@@ -310,9 +361,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
-    | '/payment/success'
-    | '/account'
+    | '/upgrade'
+    | '/settings/agency'
+    | '/settings/billing'
+    | '/settings/profile'
+    | '/settings/team'
     | '/dashboard'
+    | '/settings'
     | '/dashboard/clients'
     | '/dashboard/shifts'
     | '/dashboard/timesheet'
@@ -337,9 +392,14 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
-    | '/payment/success'
-    | '/_protected/account/'
+    | '/_protected/settings'
+    | '/_protected/upgrade'
+    | '/_protected/settings/agency'
+    | '/_protected/settings/billing'
+    | '/_protected/settings/profile'
+    | '/_protected/settings/team'
     | '/_protected/dashboard/'
+    | '/_protected/settings/'
     | '/_protected/dashboard/clients/$clientId'
     | '/_protected/dashboard/workers/$workerId'
     | '/_protected/dashboard/clients/'
@@ -367,7 +427,6 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
-  PaymentSuccessRoute: typeof PaymentSuccessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -442,12 +501,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/payment/success': {
-      id: '/payment/success'
-      path: '/payment/success'
-      fullPath: '/payment/success'
-      preLoaderRoute: typeof PaymentSuccessRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_protected/upgrade': {
+      id: '/_protected/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof ProtectedUpgradeRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/settings': {
+      id: '/_protected/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ProtectedSettingsRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/settings/': {
+      id: '/_protected/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof ProtectedSettingsIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/dashboard/': {
       id: '/_protected/dashboard/'
@@ -456,12 +529,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
-    '/_protected/account/': {
-      id: '/_protected/account/'
-      path: '/account'
-      fullPath: '/account/'
-      preLoaderRoute: typeof ProtectedAccountIndexRouteImport
-      parentRoute: typeof ProtectedRoute
+    '/_protected/settings/team': {
+      id: '/_protected/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof ProtectedSettingsTeamRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/profile': {
+      id: '/_protected/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof ProtectedSettingsProfileRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/billing': {
+      id: '/_protected/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof ProtectedSettingsBillingRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/agency': {
+      id: '/_protected/settings/agency'
+      path: '/agency'
+      fullPath: '/settings/agency'
+      preLoaderRoute: typeof ProtectedSettingsAgencyRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/dashboard/workers/': {
       id: '/_protected/dashboard/workers/'
@@ -564,6 +658,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProtectedSettingsRouteChildren {
+  ProtectedSettingsAgencyRoute: typeof ProtectedSettingsAgencyRoute
+  ProtectedSettingsBillingRoute: typeof ProtectedSettingsBillingRoute
+  ProtectedSettingsProfileRoute: typeof ProtectedSettingsProfileRoute
+  ProtectedSettingsTeamRoute: typeof ProtectedSettingsTeamRoute
+  ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
+}
+
+const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
+  ProtectedSettingsAgencyRoute: ProtectedSettingsAgencyRoute,
+  ProtectedSettingsBillingRoute: ProtectedSettingsBillingRoute,
+  ProtectedSettingsProfileRoute: ProtectedSettingsProfileRoute,
+  ProtectedSettingsTeamRoute: ProtectedSettingsTeamRoute,
+  ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
+}
+
+const ProtectedSettingsRouteWithChildren =
+  ProtectedSettingsRoute._addFileChildren(ProtectedSettingsRouteChildren)
+
 interface ProtectedDashboardClientsClientIdRouteChildren {
   ProtectedDashboardClientsClientIdCareHoursRoute: typeof ProtectedDashboardClientsClientIdCareHoursRoute
   ProtectedDashboardClientsClientIdEditRoute: typeof ProtectedDashboardClientsClientIdEditRoute
@@ -613,7 +726,8 @@ const ProtectedDashboardWorkersWorkerIdRouteWithChildren =
   )
 
 interface ProtectedRouteChildren {
-  ProtectedAccountIndexRoute: typeof ProtectedAccountIndexRoute
+  ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
+  ProtectedUpgradeRoute: typeof ProtectedUpgradeRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRouteWithChildren
   ProtectedDashboardWorkersWorkerIdRoute: typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
@@ -624,7 +738,8 @@ interface ProtectedRouteChildren {
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
-  ProtectedAccountIndexRoute: ProtectedAccountIndexRoute,
+  ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
+  ProtectedUpgradeRoute: ProtectedUpgradeRoute,
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedDashboardClientsClientIdRoute:
     ProtectedDashboardClientsClientIdRouteWithChildren,
@@ -651,7 +766,6 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
-  PaymentSuccessRoute: PaymentSuccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
