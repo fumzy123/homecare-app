@@ -36,7 +36,7 @@ export function ClientRosterCard() {
           const age = c.date_of_birth ? new Date().getFullYear() - new Date(c.date_of_birth).getFullYear() : null
           const hrs = Math.round(clientHours[c.id] ?? 0)
           return (
-            <div key={c.id} className="flex items-center gap-5 px-6 py-4 border-t border-dashed border-line-soft hover:border hover:border-solid hover:border-ink transition-colors">
+            <div key={c.id} className="flex items-center gap-5 px-6 py-4 border-t border-dashed border-line-soft border-l-2 border-l-transparent hover:border-l-ink transition-colors">
               <span className="font-mono text-[10px] text-muted w-6 shrink-0">{String(i + 1).padStart(2, '0')}</span>
               <Avatar initials={`${c.first_name[0]}${c.last_name[0]}`} color={(['c1','c2','c3','c4','c5','c6'] as const)[i % 6]} />
               <div className="min-w-0" style={{ width: 180 }}>
