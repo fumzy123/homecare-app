@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { billingApi, type CardInfo, type Invoice } from '@/features/billing/api'
-import { CheckoutModal } from '@/features/billing/components/CheckoutModal'
 import { UpdateCardModal } from '@/features/billing/components/UpdateCardModal'
 
 function CardBrand({ brand }: { brand: string }) {
@@ -97,10 +97,10 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
 
 export function BillingSection() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [showCheckout, setShowCheckout]         = useState(false)
-  const [showUpdateCard, setShowUpdateCard]     = useState(false)
-  const [portalLoading, setPortalLoading]       = useState(false)
+  const [showUpdateCard, setShowUpdateCard] = useState(false)
+  const [portalLoading, setPortalLoading]   = useState(false)
 
   const { data: b } = useQuery({
     queryKey:  ['billing-status', user?.id],
@@ -127,12 +127,6 @@ export function BillingSection() {
     } catch {
       setPortalLoading(false)
     }
-  }
-
-  function handleSubscribeSuccess() {
-    setShowCheckout(false)
-    queryClient.invalidateQueries({ queryKey: ['billing-status'] })
-    queryClient.invalidateQueries({ queryKey: ['billing-details'] })
   }
 
   function handleUpdateCardSuccess() {
@@ -192,7 +186,7 @@ export function BillingSection() {
                     Free <span className="font-serif italic text-orange">Trial.</span>
                   </h3>
                   <p className="font-mono text-[11px] text-cream/60 mt-3 max-w-sm leading-relaxed">
-                    {b?.trial_days_left} days remaining — trial ends {trialEndDate}. Subscribe to keep your data and access.
+                    {b?.trial_days_left} days remaining — trial ends {trialEndDate}. Upgrade to keep your data and access.
                   </p>
                 </>
               )}
@@ -203,7 +197,7 @@ export function BillingSection() {
                     Access <span className="font-serif italic text-orange">Expired.</span>
                   </h3>
                   <p className="font-mono text-[11px] text-cream/60 mt-3 max-w-sm leading-relaxed">
-                    Your trial has ended. Subscribe to restore full access.
+                    Your trial has ended. Upgrade to restore full access.
                   </p>
                 </>
               )}
@@ -240,7 +234,7 @@ export function BillingSection() {
               </button>
             ) : (
               <button
-                onClick={() => setShowCheckout(true)}
+                onClick={() => navigate({ to: '/upgrade' })}
                 className="bg-orange border border-orange px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-white hover:opacity-80 transition-opacity rounded-full"
               >
                 ＊ Subscribe — $700 / mo →
@@ -297,12 +291,6 @@ export function BillingSection() {
 
       </div>
 
-      {showCheckout && (
-        <CheckoutModal
-          onClose={() => setShowCheckout(false)}
-          onSuccess={handleSubscribeSuccess}
-        />
-      )}
       {showUpdateCard && (
         <UpdateCardModal
           onClose={() => setShowUpdateCard(false)}

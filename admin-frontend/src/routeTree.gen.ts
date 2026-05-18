@@ -19,6 +19,7 @@ import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedUpgradeRouteImport } from './routes/_protected/upgrade'
 import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/settings/index'
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
@@ -84,6 +85,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedUpgradeRoute = ProtectedUpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 const ProtectedSettingsIndexRoute = ProtectedSettingsIndexRouteImport.update({
   id: '/settings/',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/upgrade': typeof ProtectedUpgradeRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
   '/settings/': typeof ProtectedSettingsIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/upgrade': typeof ProtectedUpgradeRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
   '/settings': typeof ProtectedSettingsIndexRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/_protected/upgrade': typeof ProtectedUpgradeRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
   '/_protected/settings/': typeof ProtectedSettingsIndexRoute
   '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
+    | '/upgrade'
     | '/dashboard/'
     | '/settings/'
     | '/dashboard/clients/$clientId'
@@ -300,6 +310,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
+    | '/upgrade'
     | '/dashboard'
     | '/settings'
     | '/dashboard/clients'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/terms'
     | '/welcome'
+    | '/_protected/upgrade'
     | '/_protected/dashboard/'
     | '/_protected/settings/'
     | '/_protected/dashboard/clients/$clientId'
@@ -428,6 +440,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_protected/upgrade': {
+      id: '/_protected/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof ProtectedUpgradeRouteImport
+      parentRoute: typeof ProtectedRoute
     }
     '/_protected/settings/': {
       id: '/_protected/settings/'
@@ -593,6 +612,7 @@ const ProtectedDashboardWorkersWorkerIdRouteWithChildren =
   )
 
 interface ProtectedRouteChildren {
+  ProtectedUpgradeRoute: typeof ProtectedUpgradeRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
   ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRouteWithChildren
@@ -604,6 +624,7 @@ interface ProtectedRouteChildren {
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedUpgradeRoute: ProtectedUpgradeRoute,
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
   ProtectedDashboardClientsClientIdRoute:
