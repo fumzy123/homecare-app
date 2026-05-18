@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import { PlanCard }            from '@/features/billing/components/PlanCard'
 import { UpgradeCheckoutForm } from '@/features/billing/components/UpgradeCheckoutForm'
 
@@ -22,13 +23,16 @@ function UpgradePage() {
   return (
     <div className="min-h-screen bg-cream px-6 py-8 flex flex-col">
 
-      {/* Back button — top left */}
-      <button
-        onClick={() => navigate({ to: '/settings/billing' })}
-        className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors self-start"
-      >
-        ← Back
-      </button>
+      {/* Close button — top right */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => navigate({ to: '/settings/billing' })}
+          className="flex items-center justify-center w-10 h-10 border border-ink bg-paper hover:bg-cream-2 transition-colors"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
       {/* Centered content */}
       <div className="flex-1 flex flex-col items-center justify-start pt-14 pb-16">
