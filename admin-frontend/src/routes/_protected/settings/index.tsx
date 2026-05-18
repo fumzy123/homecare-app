@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Kicker } from '@/shared/components/ui'
-import { ProfileForm }    from '@/features/account/components/ProfileForm'
-import { BillingSection } from '@/features/account/components/BillingSection'
-import { AgencySection }  from '@/features/account/components/AgencySection'
-import { TeamSection }    from '@/features/account/components/TeamSection'
+import { ProfileForm }    from '@/features/settings/components/ProfileForm'
+import { BillingSection } from '@/features/settings/components/BillingSection'
+import { AgencySection }  from '@/features/settings/components/AgencySection'
+import { TeamSection }    from '@/features/settings/components/TeamSection'
 
 export const Route = createFileRoute('/_protected/settings/')({
   component: AccountPage,
