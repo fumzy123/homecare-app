@@ -48,15 +48,15 @@ class BillingService:
                 items=[{"price": settings.stripe_price_id}],
                 payment_behavior="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
-                expand=["latest_invoice"],
+                expand=["latest_invoice.confirmation_secret"],
             )
 
             org.subscription_id = subscription.id
             db.commit()
 
-            # Stripe Basil API (2025-03-31): confirmation_secret replaces
-            # invoice.payment_intent.client_secret for use with Stripe Elements
-            return {"client_secret": subscription.latest_invoice.confirmation_secret}
+            # Stripe Basil API (2025-03-31+): confirmation_secret is an object
+            # on Invoice with its own client_secret field, replacing invoice.payment_intent.client_secret
+            return {"client_secret": subscription.latest_invoice.confirmation_secret.client_secret}
 
         except AppError:
             raise
