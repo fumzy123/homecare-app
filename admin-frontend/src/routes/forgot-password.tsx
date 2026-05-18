@@ -1,27 +1,18 @@
-import { createFileRoute, redirect, Link } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { LegalFooter } from '@/shared/components/LegalFooter'
-import { isAdminRole } from '@/shared/lib/roles'
-import { useAuthStore } from '@/shared/stores/auth'
-import { LoginForm } from '@/features/auth/components/LoginForm'
+import { ForgotPasswordForm } from '@/features/auth/components/ForgotPasswordForm'
 
-export const Route = createFileRoute('/login')({
-  beforeLoad: () => {
-    const { accessToken, user } = useAuthStore.getState()
-    if (accessToken && isAdminRole(user?.role)) {
-      throw redirect({ to: '/dashboard' })
-    }
-  },
-  component: LoginPage,
+export const Route = createFileRoute('/forgot-password')({
+  component: ForgotPasswordPage,
 })
 
-function LoginPage() {
+function ForgotPasswordPage() {
   return (
     <div className="flex h-screen bg-cream">
 
       {/* ── Left: Editorial panel ── */}
       <div className="flex-1 flex flex-col justify-between px-16 py-14 border-r border-ink max-md:hidden">
 
-        {/* Logo */}
         <div className="flex items-center gap-3">
           <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
             <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
@@ -34,22 +25,20 @@ function LoginPage() {
           </div>
         </div>
 
-        {/* Headline */}
         <div className="max-w-lg">
           <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-6">
-            For home care agencies
+            Account access
           </p>
           <h1 className="font-serif text-[56px] leading-[1.0] font-medium tracking-[-0.02em]">
-            Scheduling care —{' '}
-            <span className="tape">without</span>{' '}
-            the spreadsheet.
+            Locked out?{' '}
+            <span className="italic text-muted">We'll get you back in.</span>
           </h1>
           <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
-            Shifts, workers, clients, and timesheets — all in one place built for home care agencies.
+            Enter your email and we'll send a secure link to reset your password.
+            The link expires after 60 minutes.
           </p>
         </div>
 
-        {/* Footer */}
         <p className="font-mono text-[9px] text-muted tracking-[0.08em] uppercase">
           Admin Console · {new Date().getFullYear()}
         </p>
@@ -59,25 +48,11 @@ function LoginPage() {
       <div className="w-[480px] max-md:w-full shrink-0 flex flex-col justify-center px-14 max-md:px-8 py-14 bg-paper border-l border-ink">
 
         <div className="mb-8">
-          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-2">Sign in</p>
-          <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em] font-medium">Welcome back</h2>
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-2">Password reset</p>
+          <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em] font-medium">Reset your password</h2>
         </div>
 
-        <LoginForm />
-
-        <p className="mt-8 font-mono text-[10px] text-ink-soft">
-          New agency?{' '}
-          <Link to="/register" className="text-ink underline underline-offset-2 hover:text-orange transition-colors">
-            Create an account
-          </Link>
-        </p>
-
-        <p className="mt-3 font-mono text-[10px] text-ink-soft">
-          Forgot your password?{' '}
-          <Link to="/forgot-password" className="text-ink underline underline-offset-2 hover:text-orange transition-colors">
-            Reset it
-          </Link>
-        </p>
+        <ForgotPasswordForm />
 
         <LegalFooter />
       </div>
