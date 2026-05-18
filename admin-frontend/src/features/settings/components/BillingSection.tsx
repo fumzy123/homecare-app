@@ -237,14 +237,14 @@ export function BillingSection() {
                 onClick={() => navigate({ to: '/upgrade' })}
                 className="bg-orange border border-orange px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-white hover:opacity-80 transition-opacity rounded-full"
               >
-                ＊ Subscribe — $700 / mo →
+                Upgrade →
               </button>
             )}
           </div>
         </div>
 
         {/* ── A · Payment method ─────────────────────────────────────── */}
-        <div className="border border-ink bg-paper">
+        <div className={`border border-ink bg-paper transition-opacity ${!isActive && !isPastDue ? 'opacity-40 pointer-events-none select-none' : ''}`}>
           <div className="flex items-start justify-between px-6 py-5 border-b border-ink">
             <div>
               <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">A · Payment method</p>
@@ -273,7 +273,7 @@ export function BillingSection() {
         </div>
 
         {/* ── B · Invoice history ────────────────────────────────────── */}
-        <div className="border border-ink bg-paper">
+        <div className={`border border-ink bg-paper transition-opacity ${!isActive && !isPastDue ? 'opacity-40 pointer-events-none select-none' : ''}`}>
           <div className="px-6 py-5 border-b border-ink">
             <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">B · Invoice history</p>
             <h3 className="font-serif text-[22px] leading-none font-medium mt-1">Past invoices</h3>
