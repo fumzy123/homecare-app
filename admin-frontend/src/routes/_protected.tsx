@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, Outlet, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { billingApi } from '@/features/billing/api'
+import { CheckoutModal } from '@/features/billing/components/CheckoutModal'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: () => {
@@ -56,37 +57,37 @@ function WorkerAccessDenied() {
 }
 
 function PaymentGate() {
-  const [loading, setLoading] = useState(false)
+  const queryClient        = useQueryClient()
+  const [showModal, setShowModal] = useState(false)
 
-  async function handleCheckout() {
-    setLoading(true)
-    try {
-      const { url } = await billingApi.createCheckoutSession()
-      window.location.href = url
-    } catch {
-      setLoading(false)
-    }
+  function handleSuccess() {
+    setShowModal(false)
+    queryClient.invalidateQueries({ queryKey: ['billing-status'] })
   }
 
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center px-6">
-      <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
-        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Trial expired</p>
-        <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
-          Ready to continue?
-        </h1>
-        <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
-          Your 14-day free trial has ended. Subscribe for $700/month to keep your agency running.
-        </p>
-        <button
-          onClick={handleCheckout}
-          disabled={loading}
-          className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase disabled:opacity-60"
-        >
-          {loading ? 'Redirecting…' : 'Subscribe — $700/month'}
-        </button>
+    <>
+      <div className="min-h-screen bg-cream flex items-center justify-center px-6">
+        <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
+          <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Trial expired</p>
+          <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
+            Ready to continue?
+          </h1>
+          <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
+            Your 14-day free trial has ended. Subscribe for $700/month to keep your agency running.
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 transition-opacity"
+          >
+            Subscribe — $700/month
+          </button>
+        </div>
       </div>
-    </div>
+      {showModal && (
+        <CheckoutModal onClose={() => setShowModal(false)} onSuccess={handleSuccess} />
+      )}
+    </>
   )
 }
 
