@@ -32,7 +32,7 @@ export function WorkerUtilizationCard() {
         {activeWorkers.slice(0, 5).map((w, i) => {
           const hrs = Math.round(workerHours[w.id] ?? 0)
           return (
-            <div key={w.id}>
+            <div key={w.id} className="px-2 py-2 -mx-2 rounded-sm hover:bg-cream-2 transition-colors">
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <Avatar initials={`${w.first_name[0]}${w.last_name[0]}`} color={(['c1','c2','c3','c4','c5'] as const)[i % 5]} size="sm" />
