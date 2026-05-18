@@ -2,7 +2,6 @@ import sentry_sdk
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -77,9 +76,6 @@ async def rate_limit_exceeded_handler(_request: Request, exc: RateLimitExceeded)
 
 
 app = FastAPI(lifespan=lifespan, redirect_slashes=False)
-
-# Trust Railway's X-Forwarded-Proto header so redirects use https:// not http://
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
