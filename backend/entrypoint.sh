@@ -16,4 +16,4 @@ echo "Starting server..."
 # Without exec, bash would be PID 1 and uvicorn would never get the signal.
 #
 # PORT is injected by Railway at runtime. We default to 8000 for local use.
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'
