@@ -48,13 +48,17 @@ class BillingService:
                 items=[{"price": settings.stripe_price_id}],
                 payment_behavior="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
-                expand=["latest_invoice.payment_intent"],
+                expand=["latest_invoice.payments.data.payment_intent"],
             )
 
             org.subscription_id = subscription.id
             db.commit()
 
-            return {"client_secret": subscription.latest_invoice.payment_intent.client_secret}
+            payments = subscription.latest_invoice.payments.data
+            if not payments:
+                raise AppError(400, "NO_PAYMENT_INTENT", "No payment intent found on invoice")
+            payment_intent = payments[0].payment_intent
+            return {"client_secret": payment_intent.client_secret}
 
         except AppError:
             raise

@@ -70,7 +70,10 @@ export function CheckoutModal({ onClose, onSuccess }: CheckoutModalProps) {
   useEffect(() => {
     billingApi.createSubscriptionIntent()
       .then(({ client_secret }) => setClientSecret(client_secret))
-      .catch(() => setLoadError('Could not initialize payment. Please try again.'))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        setLoadError(msg || 'Could not initialize payment. Please try again.')
+      })
   }, [])
 
   return (
