@@ -27,6 +27,7 @@ import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/
 import { Route as ProtectedDashboardIndexRouteImport } from './routes/_protected/dashboard/index'
 import { Route as ProtectedSettingsTeamRouteImport } from './routes/_protected/settings/team'
 import { Route as ProtectedSettingsProfileRouteImport } from './routes/_protected/settings/profile'
+import { Route as ProtectedSettingsLegalRouteImport } from './routes/_protected/settings/legal'
 import { Route as ProtectedSettingsBillingRouteImport } from './routes/_protected/settings/billing'
 import { Route as ProtectedSettingsAgencyRouteImport } from './routes/_protected/settings/agency'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
@@ -134,6 +135,11 @@ const ProtectedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
+const ProtectedSettingsLegalRoute = ProtectedSettingsLegalRouteImport.update({
+  id: '/legal',
+  path: '/legal',
+  getParentRoute: () => ProtectedSettingsRoute,
+} as any)
 const ProtectedSettingsBillingRoute =
   ProtectedSettingsBillingRouteImport.update({
     id: '/billing',
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/upgrade': typeof ProtectedUpgradeRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/settings/legal': typeof ProtectedSettingsLegalRoute
   '/settings/profile': typeof ProtectedSettingsProfileRoute
   '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard/': typeof ProtectedDashboardIndexRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/upgrade': typeof ProtectedUpgradeRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/settings/legal': typeof ProtectedSettingsLegalRoute
   '/settings/profile': typeof ProtectedSettingsProfileRoute
   '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/_protected/upgrade': typeof ProtectedUpgradeRoute
   '/_protected/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/_protected/settings/billing': typeof ProtectedSettingsBillingRoute
+  '/_protected/settings/legal': typeof ProtectedSettingsLegalRoute
   '/_protected/settings/profile': typeof ProtectedSettingsProfileRoute
   '/_protected/settings/team': typeof ProtectedSettingsTeamRoute
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
@@ -352,6 +361,7 @@ export interface FileRouteTypes {
     | '/upgrade'
     | '/settings/agency'
     | '/settings/billing'
+    | '/settings/legal'
     | '/settings/profile'
     | '/settings/team'
     | '/dashboard/'
@@ -386,6 +396,7 @@ export interface FileRouteTypes {
     | '/upgrade'
     | '/settings/agency'
     | '/settings/billing'
+    | '/settings/legal'
     | '/settings/profile'
     | '/settings/team'
     | '/dashboard'
@@ -420,6 +431,7 @@ export interface FileRouteTypes {
     | '/_protected/upgrade'
     | '/_protected/settings/agency'
     | '/_protected/settings/billing'
+    | '/_protected/settings/legal'
     | '/_protected/settings/profile'
     | '/_protected/settings/team'
     | '/_protected/dashboard/'
@@ -583,6 +595,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedSettingsProfileRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
+    '/_protected/settings/legal': {
+      id: '/_protected/settings/legal'
+      path: '/legal'
+      fullPath: '/settings/legal'
+      preLoaderRoute: typeof ProtectedSettingsLegalRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
     '/_protected/settings/billing': {
       id: '/_protected/settings/billing'
       path: '/billing'
@@ -701,6 +720,7 @@ declare module '@tanstack/react-router' {
 interface ProtectedSettingsRouteChildren {
   ProtectedSettingsAgencyRoute: typeof ProtectedSettingsAgencyRoute
   ProtectedSettingsBillingRoute: typeof ProtectedSettingsBillingRoute
+  ProtectedSettingsLegalRoute: typeof ProtectedSettingsLegalRoute
   ProtectedSettingsProfileRoute: typeof ProtectedSettingsProfileRoute
   ProtectedSettingsTeamRoute: typeof ProtectedSettingsTeamRoute
   ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
@@ -709,6 +729,7 @@ interface ProtectedSettingsRouteChildren {
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
   ProtectedSettingsAgencyRoute: ProtectedSettingsAgencyRoute,
   ProtectedSettingsBillingRoute: ProtectedSettingsBillingRoute,
+  ProtectedSettingsLegalRoute: ProtectedSettingsLegalRoute,
   ProtectedSettingsProfileRoute: ProtectedSettingsProfileRoute,
   ProtectedSettingsTeamRoute: ProtectedSettingsTeamRoute,
   ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,

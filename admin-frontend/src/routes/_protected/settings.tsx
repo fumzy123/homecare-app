@@ -6,10 +6,11 @@ export const Route = createFileRoute('/_protected/settings')({
 })
 
 const SECTIONS = [
-  { path: '/settings/profile', label: 'My Profile'          },
-  { path: '/settings/agency',  label: 'Agency'     },
-  { path: '/settings/billing', label: 'Billing' },
-  { path: '/settings/team',    label: 'Team & Invitations'  },
+  { path: '/settings/profile', label: 'My Profile'         },
+  { path: '/settings/agency',  label: 'Agency'            },
+  { path: '/settings/team',    label: 'Team & Invitations' },
+  { path: '/settings/billing', label: 'Billing'           },
+  { path: '/settings/legal',   label: 'Legal & Data Privacy' },
 ] as const
 
 function SettingsLayout() {
