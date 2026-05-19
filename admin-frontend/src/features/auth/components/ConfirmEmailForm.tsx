@@ -17,14 +17,15 @@ interface PendingRegistration {
 export function ConfirmEmailForm() {
   const navigate    = useNavigate()
   const completing  = useRef(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    return hash.get('error')
+      ? (hash.get('error_description') ?? 'Confirmation link is invalid or has expired.')
+      : null
+  })
 
   useEffect(() => {
-    const hash = new URLSearchParams(window.location.hash.slice(1))
-    if (hash.get('error')) {
-      setError(hash.get('error_description') ?? 'Confirmation link is invalid or has expired.')
-      return
-    }
+    if (error) return
 
     const complete = async () => {
       if (completing.current) return

@@ -9,17 +9,18 @@ export const Route = createFileRoute('/accept-invite')({
 
 function AcceptInvitePage() {
   const navigate = useNavigate()
-  const [ready, setReady]   = useState(false)
-  const [error, setError]   = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
+  // Supabase returns error params in the URL hash when the invite link is
+  // invalid or expired, e.g. #error=access_denied&error_description=...
+  const [error] = useState<string | null>(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    return hash.get('error')
+      ? (hash.get('error_description') ?? 'Your invite link is invalid or has expired.')
+      : null
+  })
 
   useEffect(() => {
-    // Supabase returns error params in the URL hash when the invite link is
-    // invalid or expired, e.g. #error=access_denied&error_description=...
-    const hash = new URLSearchParams(window.location.hash.slice(1))
-    if (hash.get('error')) {
-      setError(hash.get('error_description') ?? 'Your invite link is invalid or has expired.')
-      return
-    }
+    if (error) return
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) setReady(true)
