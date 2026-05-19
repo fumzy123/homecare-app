@@ -1,11 +1,9 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { useNavigate, Link } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
+import { Eye, EyeOff } from 'lucide-react'
 import { authApi } from '@/features/auth/api'
-import { supabase } from '@/shared/lib/supabase'
-import { useAuthStore } from '@/shared/stores/auth'
-import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
 const schema = z.object({
   organization_name: z.string().min(2, 'Organization name is required'),
@@ -13,10 +11,12 @@ const schema = z.object({
   last_name:         z.string().min(1, 'Last name is required'),
   email:             z.string().email('Invalid email address'),
   password:          z.string().min(8, 'Password must be at least 8 characters'),
+  confirm_password:  z.string().min(1, 'Please confirm your password'),
 })
 
-const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
-const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+const labelClass     = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
+const inputClass     = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+const passwordInputClass = `${inputClass} [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden`
 
 function FieldError({ error }: { error: unknown }) {
   if (!error) return null
@@ -24,33 +24,67 @@ function FieldError({ error }: { error: unknown }) {
 }
 
 export function RegisterForm() {
-  const navigate = useNavigate()
-  const [serverError, setServerError] = useState<string | null>(null)
+  const [serverError, setServerError]     = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [pendingEmail, setPendingEmail]   = useState<string | null>(null)
+  const [resent, setResent]               = useState(false)
+  const [resending, setResending]         = useState(false)
+  const [showPassword, setShowPassword]   = useState(false)
+  const [showConfirm, setShowConfirm]     = useState(false)
+
+  const handleResend = async () => {
+    if (!pendingEmail) return
+    setResending(true)
+    try {
+      await authApi.resendConfirmationEmail(pendingEmail)
+      setResent(true)
+      setTimeout(() => setResent(false), 4000)
+    } finally {
+      setResending(false)
+    }
+  }
 
   const form = useForm({
-    defaultValues: { organization_name: '', first_name: '', last_name: '', email: '', password: '' },
+    defaultValues: { organization_name: '', first_name: '', last_name: '', email: '', password: '', confirm_password: '' },
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
         await authApi.signUp(value.email, value.password)
-        await authApi.signIn(value.email, value.password)
-        await authApi.registerOrganization({
-          organization_name: value.organization_name,
+        localStorage.setItem('pending_registration', JSON.stringify({
+          org_name:   value.organization_name,
           first_name: value.first_name,
-          last_name: value.last_name,
-        })
-        await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
-        useAuthStore.getState().updateUser({ firstName: value.first_name, lastName: value.last_name, role: 'owner' })
-        useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
-        navigate({ to: '/dashboard' })
+          last_name:  value.last_name,
+          email:      value.email,
+        }))
+        setPendingEmail(value.email)
       } catch (err: unknown) {
-        useAuthStore.getState().clearAuth()
-        await supabase.auth.signOut()
         setServerError(err instanceof Error ? err.message : 'Something went wrong')
       }
     },
   })
+
+  if (pendingEmail) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="border-l-2 border-mint px-4 py-3 bg-cream-2">
+          <p className="font-mono text-[10px] text-ink leading-relaxed">
+            We sent a confirmation link to <strong>{pendingEmail}</strong>.
+            Click it to finish setting up your account.
+          </p>
+        </div>
+        <p className="font-mono text-[10px] text-ink-soft leading-relaxed">
+          Didn't get it? Check your spam folder, or resend below.
+        </p>
+        <button
+          onClick={handleResend}
+          disabled={resending}
+          className="w-full border border-ink bg-paper text-ink py-3 font-mono text-[11px] tracking-[0.1em] uppercase hover:bg-cream-2 disabled:opacity-40 transition-colors"
+        >
+          {resending ? 'Resending…' : resent ? 'Sent ✓' : 'Resend confirmation email'}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="flex flex-col gap-5">
@@ -128,10 +162,51 @@ export function RegisterForm() {
         {(field) => (
           <div>
             <label className={labelClass}>Password</label>
-            <input type="password" className={inputClass} value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur} placeholder="••••••••" />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className={passwordInputClass}
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                autoComplete="new-password"
+                placeholder="••••••••"
+              />
+              <button type="button" onClick={() => setShowPassword((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink transition-colors">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <p className="mt-1 font-mono text-[9px] text-muted">Minimum 8 characters</p>
+            <FieldError error={field.state.meta.errors[0]} />
+          </div>
+        )}
+      </form.Field>
+
+      {/* Confirm password */}
+      <form.Field name="confirm_password" validators={{ onChange: ({ value, fieldApi }) => {
+        if (!value) return 'Please confirm your password'
+        if (value !== fieldApi.form.getFieldValue('password')) return 'Passwords do not match'
+        return undefined
+      }}}>
+        {(field) => (
+          <div>
+            <label className={labelClass}>Confirm Password</label>
+            <div className="relative">
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                className={passwordInputClass}
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                autoComplete="new-password"
+                placeholder="••••••••"
+              />
+              <button type="button" onClick={() => setShowConfirm((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink transition-colors">
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <FieldError error={field.state.meta.errors[0]} />
           </div>
         )}
