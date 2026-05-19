@@ -41,12 +41,12 @@ export function ConfirmEmailForm() {
           first_name:        pending.first_name,
           last_name:         pending.last_name,
         })
+        // Refresh the session so the new JWT embeds the role the backend just
+        // wrote into user_metadata. Without this, the stored token has no role
+        // and any future auth state event (tab focus, auto-refresh) overwrites
+        // Zustand back to role='' and triggers the worker-access screen.
+        await supabase.auth.refreshSession()
         await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
-        useAuthStore.getState().updateUser({
-          firstName: pending.first_name,
-          lastName:  pending.last_name,
-          role:      'owner',
-        })
         useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
         localStorage.removeItem(STORAGE_KEY)
         navigate({ to: '/dashboard' })
