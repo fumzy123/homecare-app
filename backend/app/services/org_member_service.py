@@ -1,9 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.invitation import Invitation
-from app.schemas.invitation import AcceptInvitationSchema
+from app.schemas.invitation import AcceptInvitationSchema, INVITE_EXPIRY_SECONDS
 from app.schemas.org_member import OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
@@ -64,7 +64,7 @@ class OrgMemberService:
                     message="No pending invitation found for this email",
                 )
 
-            if datetime.now(timezone.utc) > invitation.expires_at.replace(tzinfo=timezone.utc):
+            if datetime.now(timezone.utc) > invitation.invited_at + timedelta(seconds=INVITE_EXPIRY_SECONDS):
                 raise AppError(
                     status_code=410,
                     code="INVITATION_EXPIRED",

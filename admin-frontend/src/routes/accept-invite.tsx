@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 import { AcceptInviteForm } from '@/features/auth/components/AcceptInviteForm'
@@ -9,9 +9,18 @@ export const Route = createFileRoute('/accept-invite')({
 
 function AcceptInvitePage() {
   const navigate = useNavigate()
-  const [ready, setReady] = useState(false)
+  const [ready, setReady]   = useState(false)
+  const [error, setError]   = useState<string | null>(null)
 
   useEffect(() => {
+    // Supabase returns error params in the URL hash when the invite link is
+    // invalid or expired, e.g. #error=access_denied&error_description=...
+    const hash = new URLSearchParams(window.location.hash.slice(1))
+    if (hash.get('error')) {
+      setError(hash.get('error_description') ?? 'Your invite link is invalid or has expired.')
+      return
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) setReady(true)
       else if (event === 'SIGNED_OUT') navigate({ to: '/login' })
@@ -21,6 +30,29 @@ function AcceptInvitePage() {
     })
     return () => subscription.unsubscribe()
   }, [navigate])
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-cream px-6">
+        <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
+          <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Invite Error</p>
+          <h1 className="font-serif text-[32px] leading-tight font-medium tracking-[-0.02em] mb-4">
+            This invite link has expired.
+          </h1>
+          <p className="font-mono text-[11px] text-ink-soft leading-relaxed mb-8">
+            Ask your agency admin to resend your invitation from the{' '}
+            <span className="text-ink">Team &amp; Invitations</span> section in Settings.
+          </p>
+          <Link
+            to="/login"
+            className="font-mono text-[10px] text-ink underline underline-offset-2 hover:text-orange transition-colors"
+          >
+            ← Back to sign in
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (!ready) {
     return (
