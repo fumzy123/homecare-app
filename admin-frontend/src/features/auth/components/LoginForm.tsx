@@ -62,9 +62,10 @@ export function LoginForm() {
           <div>
             <label className={labelClass}>Password</label>
             <div className="relative">
-              <input type={showPassword ? "text" : "password"} className={inputClass} value={field.state.value}
+              <input type={showPassword ? "text" : "password"} className={`${inputClass} [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden`} value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
+                autoComplete="current-password"
                 placeholder="••••••••" />
               <button
                 type="button"
