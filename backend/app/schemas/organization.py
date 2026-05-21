@@ -9,6 +9,14 @@ class RegisterOrganizationSchema(BaseModel):
     last_name: str
 
 
+class RegisterDirectSchema(BaseModel):
+    email: str
+    password: str
+    organization_name: str
+    first_name: str
+    last_name: str
+
+
 class OrganizationUpdateSchema(BaseModel):
     name:            str | None = None
     legal_name:      str | None = None

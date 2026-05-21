@@ -38,6 +38,17 @@ export const authApi = {
     return data
   },
 
+  registerDirect: async (payload: {
+    email: string
+    password: string
+    organization_name: string
+    first_name: string
+    last_name: string
+  }) => {
+    const { data } = await apiClient.post('/api/organization/register-direct', payload)
+    return data
+  },
+
   sendPasswordResetEmail: async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
