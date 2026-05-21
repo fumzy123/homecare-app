@@ -1,9 +1,12 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { Eye, EyeOff } from 'lucide-react'
 import { authApi } from '@/features/auth/api'
+import { supabase } from '@/shared/lib/supabase'
+import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
+import { useAuthStore } from '@/shared/stores/auth'
 
 const schema = z.object({
   organization_name: z.string().min(2, 'Organization name is required'),
@@ -24,67 +27,35 @@ function FieldError({ error }: { error: unknown }) {
 }
 
 export function RegisterForm() {
+  const navigate = useNavigate()
   const [serverError, setServerError]     = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
-  const [pendingEmail, setPendingEmail]   = useState<string | null>(null)
-  const [resent, setResent]               = useState(false)
-  const [resending, setResending]         = useState(false)
   const [showPassword, setShowPassword]   = useState(false)
   const [showConfirm, setShowConfirm]     = useState(false)
-
-  const handleResend = async () => {
-    if (!pendingEmail) return
-    setResending(true)
-    try {
-      await authApi.resendConfirmationEmail(pendingEmail)
-      setResent(true)
-      setTimeout(() => setResent(false), 4000)
-    } finally {
-      setResending(false)
-    }
-  }
 
   const form = useForm({
     defaultValues: { organization_name: '', first_name: '', last_name: '', email: '', password: '', confirm_password: '' },
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await authApi.signUp(value.email, value.password)
-        localStorage.setItem('pending_registration', JSON.stringify({
-          org_name:   value.organization_name,
-          first_name: value.first_name,
-          last_name:  value.last_name,
-          email:      value.email,
-        }))
-        setPendingEmail(value.email)
+        await authApi.registerDirect({
+          email:             value.email,
+          password:          value.password,
+          organization_name: value.organization_name,
+          first_name:        value.first_name,
+          last_name:         value.last_name,
+        })
+        const { error } = await supabase.auth.signInWithPassword({ email: value.email, password: value.password })
+        if (error) throw error
+        await supabase.auth.refreshSession()
+        await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
+        useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
+        navigate({ to: '/dashboard' })
       } catch (err: unknown) {
         setServerError(err instanceof Error ? err.message : 'Something went wrong')
       }
     },
   })
-
-  if (pendingEmail) {
-    return (
-      <div className="flex flex-col gap-5">
-        <div className="border-l-2 border-mint px-4 py-3 bg-cream-2">
-          <p className="font-mono text-[10px] text-ink leading-relaxed">
-            We sent a confirmation link to <strong>{pendingEmail}</strong>.
-            Click it to finish setting up your account.
-          </p>
-        </div>
-        <p className="font-mono text-[10px] text-ink-soft leading-relaxed">
-          Didn't get it? Check your spam folder, or resend below.
-        </p>
-        <button
-          onClick={handleResend}
-          disabled={resending}
-          className="w-full border border-ink bg-paper text-ink py-3 font-mono text-[11px] tracking-[0.1em] uppercase hover:bg-cream-2 disabled:opacity-40 transition-colors"
-        >
-          {resending ? 'Resending…' : resent ? 'Sent ✓' : 'Resend confirmation email'}
-        </button>
-      </div>
-    )
-  }
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="flex flex-col gap-5">

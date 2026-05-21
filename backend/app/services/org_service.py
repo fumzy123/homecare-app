@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
 from app.models.organization import Organization
-from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema
+from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, RegisterDirectSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.db.supabase import get_supabase_client
@@ -79,6 +79,69 @@ class OrgService:
             if org_id is None:
                 try:
                     supabase.auth.admin.delete_user(str(current_user.id))
+                except Exception:
+                    pass
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 1b. Register org without email confirmation (demo / dev bypass)
+    # Uses Supabase admin to create user pre-confirmed, no email sent
+    # ─────────────────────────────────────────
+    @staticmethod
+    async def register_organization_direct(payload: RegisterDirectSchema, db: Session):
+        supabase = get_supabase_client()
+        user_id = None
+        org_id = None
+        try:
+            # Create user with email pre-confirmed — no confirmation email sent
+            result = supabase.auth.admin.create_user({
+                "email": payload.email,
+                "password": payload.password,
+                "email_confirm": True,
+            })
+            user = result.user
+            user_id = str(user.id)
+
+            new_org = Organization(
+                id=uuid.uuid4(),
+                name=payload.organization_name,
+                owner_id=user.id,
+            )
+            db.add(new_org)
+            db.flush()
+            org_id = new_org.id
+
+            new_member = OrgMember(
+                id=user.id,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                email=payload.email,
+                role=OrgMemberRole.owner,
+                org_id=org_id,
+            )
+            db.add(new_member)
+            db.commit()
+
+            supabase.auth.admin.update_user_by_id(
+                user_id,
+                {"user_metadata": {
+                    "first_name": payload.first_name,
+                    "last_name": payload.last_name,
+                    "role": OrgMemberRole.owner.value,
+                    "org_id": str(org_id),
+                }},
+            )
+
+            return {"message": "Organization registered successfully", "org_id": str(org_id), "user_id": user_id}
+
+        except AppError:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            if user_id and org_id is None:
+                try:
+                    supabase.auth.admin.delete_user(user_id)
                 except Exception:
                     pass
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

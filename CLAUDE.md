@@ -10,6 +10,24 @@ A web application for Home Care Agencies to manage clients, Home Support Workers
 
 ---
 
+## Temporary: Email Confirmation Bypass (REMOVE AFTER DEMO)
+
+Email confirmation is currently **bypassed** for the demo (added 2026-05-21). Registration goes directly to the dashboard with no email sent.
+
+**What was changed — revert all of this after the demo:**
+
+| File | Change |
+|---|---|
+| `backend/app/schemas/organization.py` | Added `RegisterDirectSchema` (email + password + org fields) |
+| `backend/app/services/org_service.py` | Added `OrgService.register_organization_direct()` — uses Supabase admin `create_user` with `email_confirm: True` |
+| `backend/app/api/routes/organization.py` | Added `POST /api/organization/register-direct` (public, no auth required) |
+| `admin-frontend/src/features/auth/api.ts` | Added `authApi.registerDirect()` |
+| `admin-frontend/src/features/auth/components/RegisterForm.tsx` | `onSubmit` calls `registerDirect` → `signInWithPassword` → dashboard. Removed the "check your email" UI state. |
+
+The original email confirmation flow (`ConfirmEmailForm`, `resendConfirmationEmail`, `POST /api/organization`, etc.) is still fully intact — nothing was deleted.
+
+---
+
 ## Monorepo Structure
 
 ```
