@@ -4,6 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Future Refactor: Repository Pattern
+
+All services currently mix business logic with raw SQLAlchemy queries (`db.query`, `db.add`, `db.commit`, etc.). This should be refactored into a dedicated **repository layer** that sits between services and the database:
+
+```
+Route → Service → Repository → Database
+```
+
+- **Repository** — only knows about the database. Methods like `shift_repo.get_active_shifts_for_worker(worker_id)` or `shift_repo.save(shift)`. No business logic.
+- **Service** — only knows about business rules. Calls the repository. Never writes `db.query()` directly.
+
+This affects every service file (`shift_service.py`, `client_service.py`, `org_member_service.py`, etc.). Do this as a dedicated refactor branch, not mixed into feature work.
+
+---
+
 ## What This App Is
 
 A web application for Home Care Agencies to manage clients, Home Support Workers, scheduling, and compliance. The MVP targets Agency Admins on desktop; a Home Support Worker mobile app is post-MVP.
@@ -240,3 +255,25 @@ VITE_APP_ENV=development
 ## Testing
 
 No automated tests yet. Current approach: manual via FastAPI `/docs` (Swagger UI). CI checks only: `ruff`, `pip-audit`, Python import check (backend); `tsc`, ESLint, Vite build (frontend).
+
+---
+
+## Scheduling — Current State (branch: feat/scheduling-improvements)
+
+### Double-booking prevention (done — 2026-05-22)
+
+`ShiftService` in `backend/app/services/shift_service.py` has four private helpers that enforce no worker can be scheduled in two places at once:
+
+- `_shift_has_occurrence_on(shift, date)` — checks if an existing shift (single or recurring via RRULE) runs on a given date
+- `_get_timeblock_for_shift_occurrence_on_date(shift, date, shift_mod_map)` — resolves the actual `(start, end)` for that occurrence, applying any `ShiftModification` overrides or skipping cancelled ones
+- `_times_overlap(start_a, end_a, start_b, end_b)` — standard interval overlap: `start_a < end_b AND end_a > start_b`
+- `_find_scheduling_conflicts(worker_id, org_id, proposed_time_blocks, db, exclude_shift_id)` — one DB query, loops the helpers, returns a list of conflict dicts with ISO datetime strings
+
+Conflict checks are wired into `create_shift`, `edit_from_date`, `create_modification`, and `update_modification`. All raise **409 `WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK`**.
+
+Frontend (`api-client.ts`) now throws `ApiError` (extends `Error` with `code` + `details`) instead of plain `Error`, so `CreateShiftDrawer` and `ShiftDetailDrawer` can detect the conflict code and format times in the user's local timezone via `toLocaleTimeString()`.
+
+### Still to build on this branch
+
+- Overtime prevention (max hours/week, approval by owner/manager)
+- Push notification to workers when a new client is dispatched

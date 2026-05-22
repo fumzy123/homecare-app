@@ -7,6 +7,7 @@ import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_
 import { orgMembersApi } from '@/features/org-members/api'
 import { clientsApi } from '@/features/clients/api'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
+import { ApiError } from '@/shared/lib/api-client'
 
 function nextDay(date: string): string {
   if (!date) return ''
@@ -120,7 +121,14 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
         onSuccess()
         onClose()
       } catch (err: unknown) {
-        setServerError(err instanceof Error ? err.message : 'Something went wrong')
+        if (err instanceof ApiError && err.code === 'WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK' && Array.isArray(err.details) && err.details.length > 0) {
+          const first = err.details[0] as { date: string; start: string; end: string; client_name: string }
+          const start = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          const end   = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          setServerError(`Worker already scheduled on ${first.date} (${start}–${end}) for ${first.client_name}.`)
+        } else {
+          setServerError(err instanceof Error ? err.message : 'Something went wrong')
+        }
       }
     },
   })

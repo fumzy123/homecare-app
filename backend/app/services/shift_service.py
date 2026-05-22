@@ -79,6 +79,104 @@ class ShiftService:
         return [dt.date() for dt in occurrences]
 
     @staticmethod
+    def _shift_has_occurrence_on(shift: Shift, target_date: date) -> bool:
+        """Does this shift have an occurrence on target_date?"""
+        if not shift.is_recurring:
+            return shift.start_time.date() == target_date
+
+        end_bound = shift.recurrence_end_date
+        if end_bound and target_date > end_bound:
+            return False
+
+        rule = rrulestr(shift.recurrence_rule, dtstart=shift.start_time)
+        matches = rule.between(
+            datetime.combine(target_date, time.min, tzinfo=timezone.utc),
+            datetime.combine(target_date, time.max, tzinfo=timezone.utc),
+            inc=True,
+        )
+        return len(matches) > 0
+
+    @staticmethod
+    def _get_timeblock_for_shift_occurrence_on_date(
+        shift: Shift,
+        target_date: date,
+        shift_mod_map: dict,
+    ) -> tuple[datetime, datetime] | None:
+        """Return the (start, end) time block for an occurrence on target_date, or None if cancelled."""
+        mod = shift_mod_map.get(target_date)
+
+        if mod and mod.completion_status == ShiftCompletionStatus.cancelled:
+            return None
+
+        if mod and mod.new_start_time and mod.new_end_time:
+            return (mod.new_start_time, mod.new_end_time)
+
+        duration = shift.end_time - shift.start_time
+        start = datetime.combine(target_date, shift.start_time.timetz())
+        end = start + duration
+        return (start, end)
+
+    @staticmethod
+    def _times_overlap(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
+        """Do two time windows overlap?"""
+        return start_a < end_b and end_a > start_b
+
+    @staticmethod
+    def _find_scheduling_conflicts(
+        worker_id,
+        org_id,
+        proposed_time_blocks: list[tuple[date, datetime, datetime]],
+        db: Session,
+        exclude_shift_id=None,
+    ) -> list[dict]:
+        """Check proposed_time_blocks against all existing shifts for the worker. Returns conflicts."""
+        if not proposed_time_blocks:
+            return []
+
+        existing_shifts = (
+            db.query(Shift)
+            .options(joinedload(Shift.modifications), joinedload(Shift.client))
+            .filter(
+                Shift.worker_id == worker_id,
+                Shift.org_id == org_id,
+                Shift.status == ShiftStatus.active,
+                Shift.deleted_at == None,  # noqa: E711
+            )
+            .all()
+        )
+
+        if exclude_shift_id:
+            existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
+
+        conflicts = []
+        for existing_shift in existing_shifts:
+            shift_mod_map = {m.original_date: m for m in existing_shift.modifications}
+
+            for target_date, proposed_start, proposed_end in proposed_time_blocks:
+                if not ShiftService._shift_has_occurrence_on(existing_shift, target_date):
+                    continue
+
+                timeblock = ShiftService._get_timeblock_for_shift_occurrence_on_date(
+                    existing_shift, target_date, shift_mod_map
+                )
+                if timeblock is None:
+                    continue
+
+                existing_start, existing_end = timeblock
+                if ShiftService._times_overlap(proposed_start, proposed_end, existing_start, existing_end):
+                    client = existing_shift.client
+                    client_name = f"{client.first_name} {client.last_name}" if client else "Unknown Client"
+                    conflicts.append({
+                        "date": target_date.isoformat(),
+                        "start": existing_start.isoformat(),
+                        "end": existing_end.isoformat(),
+                        "client_name": client_name,
+                        "shift_id": str(existing_shift.id),
+                    })
+
+        return conflicts
+
+    @staticmethod
     def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
         """Merge master shift data with an optional modification for one occurrence."""
         # Time: use override if present, otherwise reconstruct from master using the occurrence date
@@ -152,6 +250,35 @@ class ShiftService:
             if is_recurring:
                 recurrence_rule = ShiftService._build_rrule_string(payload.recurrence)
                 recurrence_end_date = payload.recurrence.recurrence_end_date
+
+            # Build proposed time blocks for conflict check
+            if not is_recurring:
+                proposed_time_blocks = [(payload.start_time.date(), payload.start_time, payload.end_time)]
+            else:
+                cap_date = recurrence_end_date or (payload.start_time.date() + timedelta(days=365))
+                rule = rrulestr(recurrence_rule, dtstart=payload.start_time)
+                occurrences = rule.between(
+                    datetime.combine(payload.start_time.date(), time.min, tzinfo=timezone.utc),
+                    datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                    inc=True,
+                )
+                duration = payload.end_time - payload.start_time
+                proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
+
+            conflicts = ShiftService._find_scheduling_conflicts(
+                worker_id=payload.worker_id,
+                org_id=org_id,
+                proposed_time_blocks=proposed_time_blocks,
+                db=db,
+            )
+            if conflicts:
+                first = conflicts[0]
+                raise AppError(
+                    status_code=409,
+                    code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
+                    message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
+                    details=conflicts,
+                )
 
             if payload.location:
                 location = payload.location
@@ -391,7 +518,30 @@ class ShiftService:
     ):
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
-            ShiftService._get_active_shift(shift_id, org_id, db)
+            master = ShiftService._get_active_shift(shift_id, org_id, db)
+
+            # Conflict check only when rescheduling the occurrence to new times
+            if payload.new_start_time or payload.new_end_time:
+                duration = master.end_time - master.start_time
+                new_start = payload.new_start_time or datetime.combine(
+                    payload.original_date, master.start_time.timetz()
+                )
+                new_end = payload.new_end_time or (new_start + duration)
+                conflicts = ShiftService._find_scheduling_conflicts(
+                    worker_id=master.worker_id,
+                    org_id=org_id,
+                    proposed_time_blocks=[(payload.original_date, new_start, new_end)],
+                    db=db,
+                    exclude_shift_id=shift_id,
+                )
+                if conflicts:
+                    first = conflicts[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
+                        message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
+                        details=conflicts,
+                    )
 
             # Upsert — update if already exists for this date
             existing = (
@@ -488,7 +638,43 @@ class ShiftService:
             occurrence_date = payload.occurrence_date
 
             if occurrence_date <= shift.start_time.date():
-                # Editing from the very first occurrence — just update the master
+                # Editing from the very first occurrence — just update the master in place.
+                # Compute what the new times/worker will be, check conflicts first, then apply.
+                new_worker_id = payload.worker_id or shift.worker_id
+                new_start_time = payload.new_start_time or shift.start_time
+                new_end_time = payload.new_end_time or shift.end_time
+                new_end_date = payload.recurrence_end_date or shift.recurrence_end_date
+
+                cap_date = new_end_date or (new_start_time.date() + timedelta(days=365))
+                if shift.is_recurring:
+                    new_rule = ShiftService._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
+                    rule = rrulestr(new_rule, dtstart=new_start_time)
+                    occurrences = rule.between(
+                        datetime.combine(new_start_time.date(), time.min, tzinfo=timezone.utc),
+                        datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                        inc=True,
+                    )
+                    duration = new_end_time - new_start_time
+                    proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
+                else:
+                    proposed_time_blocks = [(new_start_time.date(), new_start_time, new_end_time)]
+
+                conflicts = ShiftService._find_scheduling_conflicts(
+                    worker_id=new_worker_id,
+                    org_id=org_id,
+                    proposed_time_blocks=proposed_time_blocks,
+                    db=db,
+                    exclude_shift_id=shift_id,
+                )
+                if conflicts:
+                    first = conflicts[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
+                        message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
+                        details=conflicts,
+                    )
+
                 if payload.new_start_time:
                     shift.start_time = payload.new_start_time
                 if payload.new_end_time:
@@ -508,15 +694,6 @@ class ShiftService:
 
             # Save original end date before we truncate
             original_end_date = shift.recurrence_end_date
-
-            # Truncate old series to end the day before this occurrence
-            shift.recurrence_end_date = occurrence_date - timedelta(days=1)
-
-            # Drop forward modifications from old series
-            db.query(ShiftModification).filter(
-                ShiftModification.shift_id == shift_id,
-                ShiftModification.original_date >= occurrence_date,
-            ).delete(synchronize_session=False)
 
             # Build new start/end datetimes for the new series anchor
             if payload.new_start_time:
@@ -542,10 +719,51 @@ class ShiftService:
                 else payload.recurrence_end_date if payload.recurrence_end_date is not None
                 else original_end_date
             )
+
+            # Check conflicts for the new series before making any DB changes
+            new_worker_id = payload.worker_id or shift.worker_id
+            cap_date = new_end_date or (new_start.date() + timedelta(days=365))
+            if shift.is_recurring:
+                rule = rrulestr(new_rule, dtstart=new_start)
+                occurrences = rule.between(
+                    datetime.combine(new_start.date(), time.min, tzinfo=timezone.utc),
+                    datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                    inc=True,
+                )
+                duration = new_end - new_start
+                proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
+            else:
+                proposed_time_blocks = [(new_start.date(), new_start, new_end)]
+
+            conflicts = ShiftService._find_scheduling_conflicts(
+                worker_id=new_worker_id,
+                org_id=org_id,
+                proposed_time_blocks=proposed_time_blocks,
+                db=db,
+                exclude_shift_id=shift_id,
+            )
+            if conflicts:
+                first = conflicts[0]
+                raise AppError(
+                    status_code=409,
+                    code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
+                    message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
+                    details=conflicts,
+                )
+
+            # Truncate old series to end the day before this occurrence
+            shift.recurrence_end_date = occurrence_date - timedelta(days=1)
+
+            # Drop forward modifications from old series
+            db.query(ShiftModification).filter(
+                ShiftModification.shift_id == shift_id,
+                ShiftModification.original_date >= occurrence_date,
+            ).delete(synchronize_session=False)
+
             new_shift = Shift(
                 id=uuid.uuid4(),
                 org_id=shift.org_id,
-                worker_id=payload.worker_id or shift.worker_id,
+                worker_id=new_worker_id,
                 client_id=payload.client_id or shift.client_id,
                 created_by=current_user.id,
                 start_time=new_start,
@@ -580,7 +798,7 @@ class ShiftService:
     ):
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
-            ShiftService._get_active_shift(shift_id, org_id, db)
+            master = ShiftService._get_active_shift(shift_id, org_id, db)
 
             mod = (
                 db.query(ShiftModification)
@@ -592,6 +810,29 @@ class ShiftService:
             )
             if not mod:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Modification not found")
+
+            # Conflict check only when rescheduling to new times
+            if payload.new_start_time or payload.new_end_time:
+                duration = master.end_time - master.start_time
+                new_start = payload.new_start_time or mod.new_start_time or datetime.combine(
+                    original_date, master.start_time.timetz()
+                )
+                new_end = payload.new_end_time or mod.new_end_time or (new_start + duration)
+                conflicts = ShiftService._find_scheduling_conflicts(
+                    worker_id=master.worker_id,
+                    org_id=org_id,
+                    proposed_time_blocks=[(original_date, new_start, new_end)],
+                    db=db,
+                    exclude_shift_id=shift_id,
+                )
+                if conflicts:
+                    first = conflicts[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
+                        message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
+                        details=conflicts,
+                    )
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
