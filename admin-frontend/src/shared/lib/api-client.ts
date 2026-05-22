@@ -2,6 +2,16 @@ import axios from 'axios'
 import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 
+export class ApiError extends Error {
+  code: string | undefined
+  details: unknown
+  constructor(message: string, code?: string, details?: unknown) {
+    super(message)
+    this.code = code
+    this.details = details
+  }
+}
+
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_API_URL ?? 'http://127.0.0.1:8000',
   timeout: 15000,
@@ -48,10 +58,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    const message =
-      error.response?.data?.error?.message ||
-      error.response?.data?.message ||
-      error.message
-    return Promise.reject(new Error(message))
+    const errorData = error.response?.data?.error
+    const message = errorData?.message || error.response?.data?.message || error.message
+    return Promise.reject(new ApiError(message, errorData?.code, errorData?.details))
   },
 )

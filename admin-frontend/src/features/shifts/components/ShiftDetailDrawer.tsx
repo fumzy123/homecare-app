@@ -8,6 +8,7 @@ import { orgMembersApi } from '@/features/org-members/api'
 import { clientsApi } from '@/features/clients/api'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
 import { Avatar, Kicker, DateInput, TimeInput } from '@/shared/components/ui'
+import { ApiError } from '@/shared/lib/api-client'
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -87,7 +88,14 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
       setTimeout(() => setSaved(false), 2500)
     },
     onError: (err) => {
-      setEditError(err instanceof Error ? err.message : 'Something went wrong')
+      if (err instanceof ApiError && err.code === 'WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK' && Array.isArray(err.details) && err.details.length > 0) {
+        const first = err.details[0] as { date: string; start: string; end: string; client_name: string }
+        const start = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const end   = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        setEditError(`Worker already scheduled on ${first.date} (${start}–${end}) for ${first.client_name}.`)
+      } else {
+        setEditError(err instanceof Error ? err.message : 'Something went wrong')
+      }
       setShowSaveModal(false)
     },
   })
