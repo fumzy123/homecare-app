@@ -1,11 +1,10 @@
 from datetime import date, datetime, time, timedelta, timezone
 import uuid
 from dateutil.rrule import rrulestr
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.models.client import Client
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
 from app.core.exceptions import AppError
 from app.schemas.shift import (
@@ -19,6 +18,7 @@ from app.schemas.shift import (
     ShiftUpdateSchema,
 )
 from app.services.org_service import OrgService
+from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
 
 
 class ShiftService:
@@ -29,23 +29,7 @@ class ShiftService:
 
     @staticmethod
     def _get_active_shift(shift_id: str, org_id, db: Session) -> Shift:
-        shift = (
-            db.query(Shift)
-            .options(
-                joinedload(Shift.worker),
-                joinedload(Shift.client),
-                joinedload(Shift.modifications),
-            )
-            .filter(
-                Shift.id == shift_id,
-                Shift.org_id == org_id,
-                Shift.deleted_at == None,  # noqa: E711
-            )
-            .first()
-        )
-        if not shift:
-            raise AppError(status_code=404, code="NOT_FOUND", message="Shift not found")
-        return shift
+        return ShiftRepository(db).get_active_shift(shift_id, org_id)
 
     @staticmethod
     def _build_rrule_string(recurrence) -> str:
@@ -133,17 +117,7 @@ class ShiftService:
         if not proposed_time_blocks:
             return []
 
-        existing_shifts = (
-            db.query(Shift)
-            .options(joinedload(Shift.modifications), joinedload(Shift.client))
-            .filter(
-                Shift.worker_id == worker_id,
-                Shift.org_id == org_id,
-                Shift.status == ShiftStatus.active,
-                Shift.deleted_at == None,  # noqa: E711
-            )
-            .all()
-        )
+        existing_shifts = ShiftRepository(db).get_active_shifts_for_conflict_check(worker_id, org_id)
 
         if exclude_shift_id:
             existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
@@ -280,10 +254,11 @@ class ShiftService:
                     details=conflicts,
                 )
 
+            repo = ShiftRepository(db)
             if payload.location:
                 location = payload.location
             else:
-                client = db.query(Client).filter(Client.id == payload.client_id).first()
+                client = repo.get_client_by_id(payload.client_id)
                 if client:
                     location = f"{client.street}, {client.city}, {client.province} {client.postal_code}"
                 else:
@@ -302,7 +277,7 @@ class ShiftService:
                 location=location,
                 notes=payload.notes,
             )
-            db.add(shift)
+            repo.add(shift)
             db.commit()
             db.refresh(shift)
             return shift
@@ -327,23 +302,7 @@ class ShiftService:
     ) -> dict:
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
-
-            query = (
-                db.query(Shift)
-                .options(joinedload(Shift.modifications))
-                .filter(
-                    Shift.org_id == org_id,
-                    Shift.status == ShiftStatus.active,
-                    Shift.deleted_at == None,  # noqa: E711
-                    Shift.start_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc),
-                )
-            )
-            if worker_id:
-                query = query.filter(Shift.worker_id == worker_id)
-            if client_id:
-                query = query.filter(Shift.client_id == client_id)
-
-            shifts = query.all()
+            shifts = ShiftRepository(db).get_shifts_in_range(org_id, to_date, worker_id, client_id)
 
             counts: dict[str, int] = {"scheduled": 0, "in_progress": 0, "completed": 0, "cancelled": 0}
 
@@ -379,28 +338,7 @@ class ShiftService:
     ) -> list[ShiftOccurrenceResponse]:
         try:
             org_id = OrgService.get_admin_org_id(current_user, db)
-
-            query = (
-                db.query(Shift)
-                .options(
-                    joinedload(Shift.worker),
-                    joinedload(Shift.client),
-                    joinedload(Shift.modifications),
-                )
-                .filter(
-                    Shift.org_id == org_id,
-                    Shift.status == ShiftStatus.active,
-                    Shift.deleted_at == None,  # noqa: E711
-                    Shift.start_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc),
-                )
-            )
-
-            if worker_id:
-                query = query.filter(Shift.worker_id == worker_id)
-            if client_id:
-                query = query.filter(Shift.client_id == client_id)
-
-            shifts = query.all()
+            shifts = ShiftRepository(db).get_shifts_in_range(org_id, to_date, worker_id, client_id)
 
             results = []
             for shift in shifts:
@@ -466,10 +404,7 @@ class ShiftService:
                         shift.recurrence_end_date = payload.recurrence.recurrence_end_date
                     # Delete all future modifications — the rule has changed
                     today = datetime.now(timezone.utc).date()
-                    db.query(ShiftModification).filter(
-                        ShiftModification.shift_id == shift_id,
-                        ShiftModification.original_date >= today,
-                    ).delete(synchronize_session=False)
+                    ShiftRepository(db).delete_modifications_from_date(shift_id, today)
 
             for field, value in updates.items():
                 setattr(shift, field, value)
@@ -544,14 +479,8 @@ class ShiftService:
                     )
 
             # Upsert — update if already exists for this date
-            existing = (
-                db.query(ShiftModification)
-                .filter(
-                    ShiftModification.shift_id == shift_id,
-                    ShiftModification.original_date == payload.original_date,
-                )
-                .first()
-            )
+            mod_repo = ShiftModificationRepository(db)
+            existing = mod_repo.get_by_shift_and_date(shift_id, payload.original_date)
 
             if existing:
                 updates = payload.model_dump(exclude_unset=True, exclude={"original_date"})
@@ -566,7 +495,7 @@ class ShiftService:
                 )
                 if payload.completion_status == ShiftCompletionStatus.cancelled:
                     existing.cancelled_at = datetime.now(timezone.utc)
-                db.add(existing)
+                mod_repo.add(existing)
 
             db.commit()
             db.refresh(existing)
@@ -605,10 +534,7 @@ class ShiftService:
                 shift.recurrence_end_date = occurrence_date - timedelta(days=1)
                 shift.cancellation_reason = payload.cancellation_reason
                 # Drop any modifications on or after this date
-                db.query(ShiftModification).filter(
-                    ShiftModification.shift_id == shift_id,
-                    ShiftModification.original_date >= occurrence_date,
-                ).delete(synchronize_session=False)
+                ShiftRepository(db).delete_modifications_from_date(shift_id, occurrence_date)
 
             db.commit()
             return {"message": "Occurrences cancelled successfully"}
@@ -755,10 +681,8 @@ class ShiftService:
             shift.recurrence_end_date = occurrence_date - timedelta(days=1)
 
             # Drop forward modifications from old series
-            db.query(ShiftModification).filter(
-                ShiftModification.shift_id == shift_id,
-                ShiftModification.original_date >= occurrence_date,
-            ).delete(synchronize_session=False)
+            shift_repo = ShiftRepository(db)
+            shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
             new_shift = Shift(
                 id=uuid.uuid4(),
@@ -774,7 +698,7 @@ class ShiftService:
                 location=payload.location if payload.location is not None else shift.location,
                 notes=payload.notes if payload.notes is not None else shift.notes,
             )
-            db.add(new_shift)
+            shift_repo.add(new_shift)
             db.commit()
             return {"message": "Shift updated from this occurrence"}
 
@@ -800,16 +724,7 @@ class ShiftService:
             org_id = OrgService.get_admin_org_id(current_user, db)
             master = ShiftService._get_active_shift(shift_id, org_id, db)
 
-            mod = (
-                db.query(ShiftModification)
-                .filter(
-                    ShiftModification.shift_id == shift_id,
-                    ShiftModification.original_date == original_date,
-                )
-                .first()
-            )
-            if not mod:
-                raise AppError(status_code=404, code="NOT_FOUND", message="Modification not found")
+            mod = ShiftModificationRepository(db).get_modification_by_shift_and_date_required(shift_id, original_date)
 
             # Conflict check only when rescheduling to new times
             if payload.new_start_time or payload.new_end_time:

@@ -6,6 +6,7 @@ from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpd
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.db.supabase import get_supabase_client
+from app.repositories.organization_repository import OrganizationRepository
 import uuid
 
 
@@ -14,32 +15,31 @@ class OrgService:
     @staticmethod
     def get_admin_org_id(current_user: SupabaseUser, db: Session) -> uuid.UUID:
         """Resolve the org_id for the currently authenticated user. Used by all services."""
-        member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
+        repo = OrganizationRepository(db)
+        member = repo.get_member_by_id(current_user.id)
         if not member:
             raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
         return member.org_id
 
     # ─────────────────────────────────────────
     # 1. Register a new organization + owner
-    # Called from POST /api/organization (public)
-    # Uses Supabase client — no db needed
     # ─────────────────────────────────────────
     @staticmethod
     async def register_organization(payload: RegisterOrganizationSchema, current_user: SupabaseUser, db: Session):
         supabase = get_supabase_client()
         org_id = None
         try:
-            # 1. Create the organization record
+            repo = OrganizationRepository(db)
+
             new_org = Organization(
                 id=uuid.uuid4(),
                 name=payload.organization_name,
                 owner_id=current_user.id,
             )
-            db.add(new_org)
-            db.flush()  # get the org id without committing yet
+            repo.add(new_org)
+            repo.flush()
             org_id = new_org.id
 
-            # 2. Link the owner as an org_member
             new_member = OrgMember(
                 id=current_user.id,
                 first_name=payload.first_name,
@@ -48,11 +48,9 @@ class OrgService:
                 role=OrgMemberRole.owner,
                 org_id=org_id,
             )
-            db.add(new_member)
+            repo.add_member(new_member)
             db.commit()
 
-            # Write identity fields into Supabase user_metadata so the JWT
-            # carries first_name, last_name, role, and org_id on every login.
             supabase.auth.admin.update_user_by_id(
                 str(current_user.id),
                 {"user_metadata": {
@@ -74,8 +72,6 @@ class OrgService:
             raise
         except Exception as e:
             db.rollback()
-            # Compensating transaction — delete the Supabase user if DB setup failed
-            # so we don't leave an orphaned auth user with no org
             if org_id is None:
                 try:
                     supabase.auth.admin.delete_user(str(current_user.id))
@@ -84,8 +80,7 @@ class OrgService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 1b. Register org without email confirmation (demo / dev bypass)
-    # Uses Supabase admin to create user pre-confirmed, no email sent
+    # 1b. Register org without email confirmation (demo bypass)
     # ─────────────────────────────────────────
     @staticmethod
     async def register_organization_direct(payload: RegisterDirectSchema, db: Session):
@@ -93,7 +88,8 @@ class OrgService:
         user_id = None
         org_id = None
         try:
-            # Create user with email pre-confirmed — no confirmation email sent
+            repo = OrganizationRepository(db)
+
             result = supabase.auth.admin.create_user({
                 "email": payload.email,
                 "password": payload.password,
@@ -107,8 +103,8 @@ class OrgService:
                 name=payload.organization_name,
                 owner_id=user.id,
             )
-            db.add(new_org)
-            db.flush()
+            repo.add(new_org)
+            repo.flush()
             org_id = new_org.id
 
             new_member = OrgMember(
@@ -119,7 +115,7 @@ class OrgService:
                 role=OrgMemberRole.owner,
                 org_id=org_id,
             )
-            db.add(new_member)
+            repo.add_member(new_member)
             db.commit()
 
             supabase.auth.admin.update_user_by_id(
@@ -152,8 +148,9 @@ class OrgService:
     @staticmethod
     async def get_organization(current_user: SupabaseUser, db: Session):
         try:
+            repo = OrganizationRepository(db)
             org_id = OrgService.get_admin_org_id(current_user, db)
-            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org = repo.get_by_id(org_id)
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
             return org
@@ -169,8 +166,9 @@ class OrgService:
     @staticmethod
     async def update_organization(payload: OrganizationUpdateSchema, current_user: SupabaseUser, db: Session):
         try:
+            repo = OrganizationRepository(db)
             org_id = OrgService.get_admin_org_id(current_user, db)
-            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org = repo.get_by_id(org_id)
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
@@ -190,13 +188,13 @@ class OrgService:
 
     # ─────────────────────────────────────────
     # 4. Deactivate organization (owner only)
-    # Sets is_active = False — does not hard delete
     # ─────────────────────────────────────────
     @staticmethod
     async def delete_organization(current_user: SupabaseUser, db: Session):
         try:
+            repo = OrganizationRepository(db)
             org_id = OrgService.get_admin_org_id(current_user, db)
-            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org = repo.get_by_id(org_id)
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
