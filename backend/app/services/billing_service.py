@@ -5,7 +5,6 @@ from supabase_auth.types import User as SupabaseUser
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.models.organization import Organization
-from app.services.org_service import OrgService
 from app.repositories.organization_repository import OrganizationRepository
 
 stripe.api_key = settings.stripe_secret_key
@@ -13,36 +12,44 @@ stripe.api_key = settings.stripe_secret_key
 
 class BillingService:
 
+    def __init__(
+        self,
+        db: Session,
+        current_user: SupabaseUser | None = None,
+        org_id=None,
+    ):
+        self.db = db
+        self.current_user = current_user
+        self.org_repo = OrganizationRepository(db)
+        # org_id is None for the webhook route (no auth — Stripe signature used instead)
+        self.org_id = org_id
+
     # ─────────────────────────────────────────
     # Internal helper — get or create Stripe customer
     # ─────────────────────────────────────────
-    @staticmethod
-    def _get_or_create_customer(org: Organization, email: str, db: Session) -> str:
+    def _get_or_create_customer(self, org: Organization) -> str:
         if org.stripe_customer_id:
             return org.stripe_customer_id
         customer = stripe.Customer.create(
-            email=email,
+            email=self.current_user.email,
             metadata={"org_id": str(org.id)},
         )
         org.stripe_customer_id = customer.id
-        db.commit()
+        self.db.commit()
         return customer.id
 
     # ─────────────────────────────────────────
     # 1. Create subscription + return PaymentIntent client_secret
     # ─────────────────────────────────────────
-    @staticmethod
-    async def create_subscription_intent(current_user: SupabaseUser, db: Session) -> dict:
+    async def create_subscription_intent(self) -> dict:
         try:
-            repo = OrganizationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = repo.get_by_id(org_id)
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
             if org.subscription_status == "active":
                 raise AppError(400, "ALREADY_SUBSCRIBED", "This organization already has an active subscription")
 
-            customer_id = BillingService._get_or_create_customer(org, current_user.email, db)
+            customer_id = self._get_or_create_customer(org)
 
             subscription = stripe.Subscription.create(
                 customer=customer_id,
@@ -53,7 +60,7 @@ class BillingService:
             )
 
             org.subscription_id = subscription.id
-            db.commit()
+            self.db.commit()
 
             return {"client_secret": subscription.latest_invoice.confirmation_secret.client_secret}
 
@@ -65,12 +72,9 @@ class BillingService:
     # ─────────────────────────────────────────
     # 2. Create SetupIntent for updating the card
     # ─────────────────────────────────────────
-    @staticmethod
-    async def create_setup_intent(current_user: SupabaseUser, db: Session) -> dict:
+    async def create_setup_intent(self) -> dict:
         try:
-            repo = OrganizationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = repo.get_by_id(org_id)
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
             if not org.stripe_customer_id:
@@ -91,14 +95,9 @@ class BillingService:
     # ─────────────────────────────────────────
     # 3. Set a confirmed payment method as the subscription default
     # ─────────────────────────────────────────
-    @staticmethod
-    async def set_default_payment_method(
-        current_user: SupabaseUser, payment_method_id: str, db: Session
-    ) -> dict:
+    async def set_default_payment_method(self, payment_method_id: str) -> dict:
         try:
-            repo = OrganizationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = repo.get_by_id(org_id)
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
             if not org.stripe_customer_id:
@@ -123,12 +122,9 @@ class BillingService:
     # ─────────────────────────────────────────
     # 4. Fetch card + invoice data from Stripe
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_billing_details(current_user: SupabaseUser, db: Session) -> dict:
+    async def get_billing_details(self) -> dict:
         try:
-            repo = OrganizationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = repo.get_by_id(org_id)
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
             if not org.stripe_customer_id:
@@ -177,8 +173,7 @@ class BillingService:
     # ─────────────────────────────────────────
     # 5. Stripe webhook handler
     # ─────────────────────────────────────────
-    @staticmethod
-    async def handle_webhook(payload: bytes, sig_header: str, db: Session) -> dict:
+    async def handle_webhook(self, payload: bytes, sig_header: str) -> dict:
         try:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, settings.stripe_webhook_secret
@@ -192,76 +187,65 @@ class BillingService:
         data = event["data"]["object"]
 
         if event_type in ("customer.subscription.created", "customer.subscription.updated"):
-            BillingService._handle_subscription_updated(data, db)
+            self._handle_subscription_updated(data)
         elif event_type == "customer.subscription.deleted":
-            BillingService._handle_subscription_deleted(data, db)
+            self._handle_subscription_deleted(data)
         elif event_type == "invoice.payment_failed":
-            BillingService._handle_payment_failed(data, db)
+            self._handle_payment_failed(data)
         elif event_type == "invoice.payment_succeeded":
-            BillingService._handle_payment_succeeded(data, db)
+            self._handle_payment_succeeded(data)
 
         return {"received": True}
 
-    @staticmethod
-    def _handle_subscription_updated(subscription, db: Session) -> None:
+    def _handle_subscription_updated(self, subscription) -> None:
         try:
-            repo = OrganizationRepository(db)
-            org = repo.get_by_stripe_customer_id(subscription.customer)
+            org = self.org_repo.get_by_stripe_customer_id(subscription.customer)
             if org:
                 org.subscription_id = subscription.id
                 org.subscription_status = subscription.status
                 org.subscription_current_period_end = datetime.fromtimestamp(
                     subscription.current_period_end, tz=timezone.utc
                 )
-                db.commit()
+                self.db.commit()
         except Exception:
-            db.rollback()
+            self.db.rollback()
 
-    @staticmethod
-    def _handle_subscription_deleted(subscription, db: Session) -> None:
+    def _handle_subscription_deleted(self, subscription) -> None:
         try:
-            repo = OrganizationRepository(db)
-            org = repo.get_by_stripe_customer_id(subscription.customer)
+            org = self.org_repo.get_by_stripe_customer_id(subscription.customer)
             if org:
                 org.subscription_status = "canceled"
                 org.subscription_current_period_end = datetime.fromtimestamp(
                     subscription.current_period_end, tz=timezone.utc
                 )
-                db.commit()
+                self.db.commit()
         except Exception:
-            db.rollback()
+            self.db.rollback()
 
-    @staticmethod
-    def _handle_payment_failed(invoice, db: Session) -> None:
+    def _handle_payment_failed(self, invoice) -> None:
         try:
-            repo = OrganizationRepository(db)
-            org = repo.get_by_stripe_customer_id(invoice.customer)
+            org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
             if org:
                 org.subscription_status = "past_due"
-                db.commit()
+                self.db.commit()
         except Exception:
-            db.rollback()
+            self.db.rollback()
 
-    @staticmethod
-    def _handle_payment_succeeded(invoice, db: Session) -> None:
+    def _handle_payment_succeeded(self, invoice) -> None:
         try:
-            repo = OrganizationRepository(db)
-            org = repo.get_by_stripe_customer_id(invoice.customer)
+            org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
             if org and not org.paid_at:
                 org.paid_at = datetime.now(timezone.utc)
-                db.commit()
+                self.db.commit()
         except Exception:
-            db.rollback()
+            self.db.rollback()
 
     # ─────────────────────────────────────────
     # 6. Customer portal
     # ─────────────────────────────────────────
-    @staticmethod
-    async def create_portal_session(current_user: SupabaseUser, db: Session) -> dict:
+    async def create_portal_session(self) -> dict:
         try:
-            repo = OrganizationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = repo.get_by_id(org_id)
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
             if not org.stripe_customer_id:
@@ -281,12 +265,9 @@ class BillingService:
     # ─────────────────────────────────────────
     # 7. Billing status for the plan card
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_billing_status(current_user: SupabaseUser, db: Session) -> dict:
+    async def get_billing_status(self) -> dict:
         try:
-            repo = OrganizationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = repo.get_by_id(org_id)
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
 

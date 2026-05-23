@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.client import Client
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
@@ -12,40 +12,39 @@ import uuid
 
 class ClientService:
 
+    def __init__(self, db: Session, current_user: SupabaseUser):
+        self.db = db
+        self.current_user = current_user
+        self.client_repo = ClientRepository(db)
+        self.org_id = OrgService.get_admin_org_id(current_user, db)
+
     # ─────────────────────────────────────────
     # 1. Create a client
     # ─────────────────────────────────────────
-    @staticmethod
-    async def create_client(payload: ClientCreateSchema, current_user: SupabaseUser, db: Session):
+    async def create_client(self, payload: ClientCreateSchema):
         try:
-            repo = ClientRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-
             client = Client(
                 id=uuid.uuid4(),
-                org_id=org_id,
+                org_id=self.org_id,
                 **payload.model_dump(),
             )
-            repo.add(client)
-            db.commit()
-            db.refresh(client)
-            return repo.get_with_worker_by_id(client.id)
+            self.client_repo.add(client)
+            self.db.commit()
+            self.db.refresh(client)
+            return self.client_repo.get_with_worker_by_id(client.id)
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2. List all clients in the admin's org
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_all_clients(current_user: SupabaseUser, db: Session, status: ClientStatus | None = None):
+    async def get_all_clients(self, status: ClientStatus | None = None):
         try:
-            repo = ClientRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            return repo.get_all(org_id, status)
+            return self.client_repo.get_all(self.org_id, status)
 
         except AppError:
             raise
@@ -55,12 +54,9 @@ class ClientService:
     # ─────────────────────────────────────────
     # 3. Get a single client
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_client(client_id: str, current_user: SupabaseUser, db: Session):
+    async def get_client(self, client_id: str):
         try:
-            repo = ClientRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            return repo.get_active_client(client_id, org_id)
+            return self.client_repo.get_active_client(client_id, self.org_id)
 
         except AppError:
             raise
@@ -70,43 +66,37 @@ class ClientService:
     # ─────────────────────────────────────────
     # 4. Update a client (partial)
     # ─────────────────────────────────────────
-    @staticmethod
-    async def update_client(client_id: str, payload: ClientUpdateSchema, current_user: SupabaseUser, db: Session):
+    async def update_client(self, client_id: str, payload: ClientUpdateSchema):
         try:
-            repo = ClientRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            client = repo.get_active_client(client_id, org_id)
+            client = self.client_repo.get_active_client(client_id, self.org_id)
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
                 setattr(client, field, value)
 
-            db.commit()
-            db.refresh(client)
-            return repo.get_with_worker_by_id(client.id)
+            self.db.commit()
+            self.db.refresh(client)
+            return self.client_repo.get_with_worker_by_id(client.id)
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 5. Soft delete a client
     # ─────────────────────────────────────────
-    @staticmethod
-    async def delete_client(client_id: str, current_user: SupabaseUser, db: Session):
+    async def delete_client(self, client_id: str):
         try:
-            repo = ClientRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            client = repo.get_active_client(client_id, org_id)
+            client = self.client_repo.get_active_client(client_id, self.org_id)
 
             client.deleted_at = datetime.now(timezone.utc)
-            db.commit()
+            self.db.commit()
             return {"message": "Client deleted successfully"}
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

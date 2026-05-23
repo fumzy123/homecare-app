@@ -10,16 +10,18 @@ from app.repositories.progress_note_repository import ProgressNoteRepository
 
 class ProgressNoteService:
 
+    def __init__(self, db: Session, current_user: SupabaseUser):
+        self.db = db
+        self.note_repo = ProgressNoteRepository(db)
+        self.org_id = OrgService.get_admin_org_id(current_user, db)
+
     # ─────────────────────────────────────────
     # 1. Get progress note for an occurrence
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_note(shift_id: str, occurrence_date: date, current_user: SupabaseUser, db: Session):
+    async def get_note(self, shift_id: str, occurrence_date: date):
         try:
-            repo = ProgressNoteRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            repo.get_shift(shift_id, org_id)
-            return repo.get_by_shift_and_date(shift_id, occurrence_date)
+            self.note_repo.get_shift(shift_id, self.org_id)
+            return self.note_repo.get_by_shift_and_date(shift_id, occurrence_date)
 
         except AppError:
             raise
@@ -29,19 +31,14 @@ class ProgressNoteService:
     # ─────────────────────────────────────────
     # 2. List all notes for a client
     # ─────────────────────────────────────────
-    @staticmethod
     async def get_client_notes(
+        self,
         client_id: str,
         year: int | None,
-        current_user: SupabaseUser,
-        db: Session,
     ) -> list[ClientNoteItemResponse]:
         try:
-            repo = ProgressNoteRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            repo.get_client(client_id, org_id)
-
-            rows = repo.get_client_notes_joined(client_id, org_id, year)
+            self.note_repo.get_client(client_id, self.org_id)
+            rows = self.note_repo.get_client_notes_joined(client_id, self.org_id, year)
 
             return [
                 ClientNoteItemResponse(
@@ -64,14 +61,11 @@ class ProgressNoteService:
     # ─────────────────────────────────────────
     # 3. Upsert — create or replace entries
     # ─────────────────────────────────────────
-    @staticmethod
-    async def upsert_note(shift_id: str, payload: ProgressNoteUpsertSchema, current_user: SupabaseUser, db: Session):
+    async def upsert_note(self, shift_id: str, payload: ProgressNoteUpsertSchema):
         try:
-            repo = ProgressNoteRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            repo.get_shift(shift_id, org_id)
+            self.note_repo.get_shift(shift_id, self.org_id)
 
-            note = repo.get_by_shift_and_date(shift_id, payload.occurrence_date)
+            note = self.note_repo.get_by_shift_and_date(shift_id, payload.occurrence_date)
             entries = [e.model_dump() for e in payload.entries]
 
             if note:
@@ -82,15 +76,15 @@ class ProgressNoteService:
                     occurrence_date=payload.occurrence_date,
                     entries=entries,
                 )
-                repo.add(note)
+                self.note_repo.add(note)
 
-            db.commit()
-            db.refresh(note)
+            self.db.commit()
+            self.db.refresh(note)
             return note
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

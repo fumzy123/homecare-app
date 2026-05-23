@@ -8,53 +8,39 @@ from app.repositories.leave_repository import LeaveRepository
 
 class LeaveService:
 
-    @staticmethod
-    def list_leave_records(
-        worker_id: str,
-        year: int,
-        current_user: SupabaseUser,
-        db: Session,
-    ) -> list[LeaveRecord]:
-        repo = LeaveRepository(db)
-        org_id = OrgService.get_admin_org_id(current_user, db)
-        repo.get_worker(worker_id, org_id)
-        return repo.list_by_worker_and_year(worker_id, org_id, year)
+    def __init__(self, db: Session, current_user: SupabaseUser):
+        self.db = db
+        self.current_user = current_user
+        self.leave_repo = LeaveRepository(db)
+        self.org_id = OrgService.get_admin_org_id(current_user, db)
 
-    @staticmethod
+    def list_leave_records(self, worker_id: str, year: int) -> list[LeaveRecord]:
+        self.leave_repo.get_worker(worker_id, self.org_id)
+        return self.leave_repo.list_by_worker_and_year(worker_id, self.org_id, year)
+
     def create_leave_record(
+        self,
         worker_id: str,
         payload: LeaveRecordCreateSchema,
-        current_user: SupabaseUser,
-        db: Session,
     ) -> LeaveRecord:
-        repo = LeaveRepository(db)
-        org_id = OrgService.get_admin_org_id(current_user, db)
-        repo.get_worker(worker_id, org_id)
+        self.leave_repo.get_worker(worker_id, self.org_id)
 
         record = LeaveRecord(
-            org_id=org_id,
+            org_id=self.org_id,
             worker_id=worker_id,
             leave_type=payload.leave_type,
             start_date=payload.start_date,
             end_date=payload.end_date,
             notes=payload.notes,
-            recorded_by=current_user.id,
+            recorded_by=self.current_user.id,
         )
-        repo.add(record)
-        db.commit()
-        db.refresh(record)
+        self.leave_repo.add(record)
+        self.db.commit()
+        self.db.refresh(record)
         return record
 
-    @staticmethod
-    def delete_leave_record(
-        worker_id: str,
-        leave_id: str,
-        current_user: SupabaseUser,
-        db: Session,
-    ) -> None:
-        repo = LeaveRepository(db)
-        org_id = OrgService.get_admin_org_id(current_user, db)
-        repo.get_worker(worker_id, org_id)
-        record = repo.get_by_id_worker_org(leave_id, worker_id, org_id)
-        repo.delete(record)
-        db.commit()
+    def delete_leave_record(self, worker_id: str, leave_id: str) -> None:
+        self.leave_repo.get_worker(worker_id, self.org_id)
+        record = self.leave_repo.get_by_id_worker_org(leave_id, worker_id, self.org_id)
+        self.leave_repo.delete(record)
+        self.db.commit()

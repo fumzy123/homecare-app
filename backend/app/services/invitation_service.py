@@ -31,38 +31,40 @@ def _is_expired(inv: Invitation) -> bool:
 
 class InvitationService:
 
-    @staticmethod
-    async def create_invitation(payload: CreateInvitationSchema, current_user: SupabaseUser, db: Session):
-        supabase = get_supabase_client()
-        try:
-            repo = InvitationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
+    def __init__(self, db: Session, current_user: SupabaseUser):
+        self.db = db
+        self.current_user = current_user
+        self.invitation_repo = InvitationRepository(db)
+        self.org_id = OrgService.get_admin_org_id(current_user, db)
+        self.supabase = get_supabase_client()
 
-            if payload.email.lower() == current_user.email.lower():
+    async def create_invitation(self, payload: CreateInvitationSchema):
+        try:
+            if payload.email.lower() == self.current_user.email.lower():
                 raise AppError(
                     status_code=400,
                     code="CANNOT_INVITE_SELF",
                     message="You cannot invite yourself",
                 )
 
-            org = repo.get_org_by_id(org_id)
+            org = self.invitation_repo.get_org_by_id(self.org_id)
             org_name = org.name if org else ""
 
-            if repo.get_member_by_email_and_org(payload.email, org_id):
+            if self.invitation_repo.get_member_by_email_and_org(payload.email, self.org_id):
                 raise AppError(
                     status_code=409,
                     code="ALREADY_A_MEMBER",
                     message="This person is already a member of your organization",
                 )
 
-            if repo.get_member_by_email_other_org(payload.email, org_id):
+            if self.invitation_repo.get_member_by_email_other_org(payload.email, self.org_id):
                 raise AppError(
                     status_code=409,
                     code="REGISTERED_WITH_OTHER_ORG",
                     message="This person is already registered with another organization",
                 )
 
-            existing = repo.get_pending_by_email_and_org(payload.email, org_id)
+            existing = self.invitation_repo.get_pending_by_email_and_org(payload.email, self.org_id)
             if existing:
                 if not _is_expired(existing):
                     raise AppError(
@@ -70,29 +72,27 @@ class InvitationService:
                         code="INVITE_ALREADY_SENT",
                         message=f"A pending invite already exists for {payload.email}",
                     )
-                return await InvitationService._send_and_refresh(
-                    existing, org_name, current_user, supabase, db
-                )
+                return await self._send_and_refresh(existing, org_name)
 
             invitation = Invitation(
                 id=uuid.uuid4(),
                 email=payload.email,
                 role=payload.role,
-                org_id=org_id,
-                invited_by=current_user.id,
+                org_id=self.org_id,
+                invited_by=self.current_user.id,
             )
-            repo.add(invitation)
-            repo.flush()  # get the invitation id before the Supabase API call
+            self.invitation_repo.add(invitation)
+            self.invitation_repo.flush()
 
-            invite_response = supabase.auth.admin.invite_user_by_email(
+            invite_response = self.supabase.auth.admin.invite_user_by_email(
                 payload.email,
                 options={
                     "redirect_to": f"{settings.frontend_url}/accept-invite",
                     "data": {
                         "role": payload.role,
-                        "org_id": str(org_id),
+                        "org_id": str(self.org_id),
                         "org_name": org_name,
-                        "invited_by": f"{current_user.user_metadata.get('first_name', '')} {current_user.user_metadata.get('last_name', '')}".strip(),
+                        "invited_by": f"{self.current_user.user_metadata.get('first_name', '')} {self.current_user.user_metadata.get('last_name', '')}".strip(),
                     },
                 }
             )
@@ -100,34 +100,27 @@ class InvitationService:
             if invite_response and invite_response.user:
                 invitation.supabase_user_id = invite_response.user.id
 
-            db.commit()
+            self.db.commit()
             return {"message": f"Invite sent to {payload.email}"}
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
-    @staticmethod
-    async def list_invitations(current_user: SupabaseUser, db: Session):
+    async def list_invitations(self):
         try:
-            repo = InvitationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            return [_to_response(inv) for inv in repo.list_by_org(org_id)]
+            return [_to_response(inv) for inv in self.invitation_repo.list_by_org(self.org_id)]
         except AppError:
             raise
         except Exception as e:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
-    @staticmethod
-    async def resend_invitation(invitation_id: str, current_user: SupabaseUser, db: Session):
-        supabase = get_supabase_client()
+    async def resend_invitation(self, invitation_id: str):
         try:
-            repo = InvitationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            invitation = repo.get_by_id_and_org(invitation_id, org_id)
+            invitation = self.invitation_repo.get_by_id_and_org(invitation_id, self.org_id)
 
             if invitation.accepted_at:
                 raise AppError(
@@ -136,57 +129,50 @@ class InvitationService:
                     message="This invitation has already been accepted",
                 )
 
-            org = repo.get_org_by_id(org_id)
+            org = self.invitation_repo.get_org_by_id(self.org_id)
             org_name = org.name if org else ""
-            return await InvitationService._send_and_refresh(
-                invitation, org_name, current_user, supabase, db
-            )
+            return await self._send_and_refresh(invitation, org_name)
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
-    @staticmethod
-    async def revoke_invitation(invitation_id: str, current_user: SupabaseUser, db: Session):
-        supabase = get_supabase_client()
+    async def revoke_invitation(self, invitation_id: str):
         try:
-            repo = InvitationRepository(db)
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            invitation = repo.get_by_id_and_org(invitation_id, org_id)
+            invitation = self.invitation_repo.get_by_id_and_org(invitation_id, self.org_id)
             supabase_user_id = invitation.supabase_user_id
 
-            repo.delete(invitation)
-            db.commit()
+            self.invitation_repo.delete(invitation)
+            self.db.commit()
 
             if supabase_user_id:
                 try:
-                    supabase.auth.admin.delete_user(str(supabase_user_id))
+                    self.supabase.auth.admin.delete_user(str(supabase_user_id))
                 except Exception:
                     pass
 
             return {"message": "Invitation revoked"}
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ── internal helper ───────────────────────────────────────────────────────
 
-    @staticmethod
-    async def _send_and_refresh(invitation: Invitation, org_name: str, current_user: SupabaseUser, supabase, db: Session):
+    async def _send_and_refresh(self, invitation: Invitation, org_name: str):
         if invitation.supabase_user_id:
             try:
-                supabase.auth.admin.delete_user(str(invitation.supabase_user_id))
+                self.supabase.auth.admin.delete_user(str(invitation.supabase_user_id))
             except Exception:
                 pass
 
-        invite_response = supabase.auth.admin.invite_user_by_email(
+        invite_response = self.supabase.auth.admin.invite_user_by_email(
             invitation.email,
             options={
                 "redirect_to": f"{settings.frontend_url}/accept-invite",
@@ -194,14 +180,14 @@ class InvitationService:
                     "role": invitation.role,
                     "org_id": str(invitation.org_id),
                     "org_name": org_name,
-                    "invited_by": f"{current_user.user_metadata.get('first_name', '')} {current_user.user_metadata.get('last_name', '')}".strip(),
+                    "invited_by": f"{self.current_user.user_metadata.get('first_name', '')} {self.current_user.user_metadata.get('last_name', '')}".strip(),
                 },
             }
         )
 
         invitation.invited_at = datetime.now(timezone.utc)
-        invitation.invited_by = current_user.id
+        invitation.invited_by = self.current_user.id
         invitation.supabase_user_id = invite_response.user.id if invite_response and invite_response.user else None
 
-        db.commit()
+        self.db.commit()
         return {"message": f"Invite resent to {invitation.email}"}
