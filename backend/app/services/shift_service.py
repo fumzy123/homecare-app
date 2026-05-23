@@ -1,11 +1,10 @@
 from datetime import date, datetime, time, timedelta, timezone
 import uuid
 from dateutil.rrule import rrulestr
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.models.client import Client
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
 from app.core.exceptions import AppError
 from app.schemas.shift import (
@@ -19,33 +18,24 @@ from app.schemas.shift import (
     ShiftUpdateSchema,
 )
 from app.services.org_service import OrgService
+from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
 
 
 class ShiftService:
+
+    def __init__(self, db: Session, current_user: SupabaseUser):
+        self.db = db
+        self.current_user = current_user
+        self.shift_repo = ShiftRepository(db)
+        self.modification_repo = ShiftModificationRepository(db)
+        self.org_id = OrgService.get_admin_org_id(current_user, db)
 
     # ─────────────────────────────────────────
     # Internal helpers
     # ─────────────────────────────────────────
 
-    @staticmethod
-    def _get_active_shift(shift_id: str, org_id, db: Session) -> Shift:
-        shift = (
-            db.query(Shift)
-            .options(
-                joinedload(Shift.worker),
-                joinedload(Shift.client),
-                joinedload(Shift.modifications),
-            )
-            .filter(
-                Shift.id == shift_id,
-                Shift.org_id == org_id,
-                Shift.deleted_at == None,  # noqa: E711
-            )
-            .first()
-        )
-        if not shift:
-            raise AppError(status_code=404, code="NOT_FOUND", message="Shift not found")
-        return shift
+    def _get_active_shift(self, shift_id: str) -> Shift:
+        return self.shift_repo.get_active_shift(shift_id, self.org_id)
 
     @staticmethod
     def _build_rrule_string(recurrence) -> str:
@@ -67,7 +57,6 @@ class ShiftService:
 
         rule_str = shift.recurrence_rule
         effective_end = shift.recurrence_end_date or to_date
-        # Cap expansion at the earlier of to_date and recurrence_end_date
         cap = min(to_date, effective_end)
 
         rule = rrulestr(rule_str, dtstart=shift.start_time)
@@ -121,29 +110,17 @@ class ShiftService:
         """Do two time windows overlap?"""
         return start_a < end_b and end_a > start_b
 
-    @staticmethod
     def _find_scheduling_conflicts(
+        self,
         worker_id,
-        org_id,
         proposed_time_blocks: list[tuple[date, datetime, datetime]],
-        db: Session,
         exclude_shift_id=None,
     ) -> list[dict]:
         """Check proposed_time_blocks against all existing shifts for the worker. Returns conflicts."""
         if not proposed_time_blocks:
             return []
 
-        existing_shifts = (
-            db.query(Shift)
-            .options(joinedload(Shift.modifications), joinedload(Shift.client))
-            .filter(
-                Shift.worker_id == worker_id,
-                Shift.org_id == org_id,
-                Shift.status == ShiftStatus.active,
-                Shift.deleted_at == None,  # noqa: E711
-            )
-            .all()
-        )
+        existing_shifts = self.shift_repo.get_active_shifts_for_conflict_check(worker_id, self.org_id)
 
         if exclude_shift_id:
             existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
@@ -153,17 +130,17 @@ class ShiftService:
             shift_mod_map = {m.original_date: m for m in existing_shift.modifications}
 
             for target_date, proposed_start, proposed_end in proposed_time_blocks:
-                if not ShiftService._shift_has_occurrence_on(existing_shift, target_date):
+                if not self._shift_has_occurrence_on(existing_shift, target_date):
                     continue
 
-                timeblock = ShiftService._get_timeblock_for_shift_occurrence_on_date(
+                timeblock = self._get_timeblock_for_shift_occurrence_on_date(
                     existing_shift, target_date, shift_mod_map
                 )
                 if timeblock is None:
                     continue
 
                 existing_start, existing_end = timeblock
-                if ShiftService._times_overlap(proposed_start, proposed_end, existing_start, existing_end):
+                if self._times_overlap(proposed_start, proposed_end, existing_start, existing_end):
                     client = existing_shift.client
                     client_name = f"{client.first_name} {client.last_name}" if client else "Unknown Client"
                     conflicts.append({
@@ -179,7 +156,6 @@ class ShiftService:
     @staticmethod
     def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
         """Merge master shift data with an optional modification for one occurrence."""
-        # Time: use override if present, otherwise reconstruct from master using the occurrence date
         if mod and mod.new_start_time:
             start_time = mod.new_start_time
         else:
@@ -192,9 +168,6 @@ class ShiftService:
             delta = shift.end_time - shift.start_time
             end_time = start_time + delta
 
-        # Dynamically compute effective status based on current time.
-        # Only override when the stored status is still 'scheduled' — never
-        # overwrite a status the admin has explicitly set (completed, cancelled, etc.).
         stored_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
         now = datetime.now(timezone.utc)
         if stored_status == ShiftCompletionStatus.scheduled:
@@ -238,20 +211,16 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 1. Create a single or recurring shift
     # ─────────────────────────────────────────
-    @staticmethod
-    async def create_shift(payload: ShiftCreateSchema, current_user: SupabaseUser, db: Session):
+    async def create_shift(self, payload: ShiftCreateSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-
             is_recurring = payload.recurrence is not None
             recurrence_rule = None
             recurrence_end_date = None
 
             if is_recurring:
-                recurrence_rule = ShiftService._build_rrule_string(payload.recurrence)
+                recurrence_rule = self._build_rrule_string(payload.recurrence)
                 recurrence_end_date = payload.recurrence.recurrence_end_date
 
-            # Build proposed time blocks for conflict check
             if not is_recurring:
                 proposed_time_blocks = [(payload.start_time.date(), payload.start_time, payload.end_time)]
             else:
@@ -265,11 +234,9 @@ class ShiftService:
                 duration = payload.end_time - payload.start_time
                 proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
 
-            conflicts = ShiftService._find_scheduling_conflicts(
+            conflicts = self._find_scheduling_conflicts(
                 worker_id=payload.worker_id,
-                org_id=org_id,
                 proposed_time_blocks=proposed_time_blocks,
-                db=db,
             )
             if conflicts:
                 first = conflicts[0]
@@ -283,17 +250,17 @@ class ShiftService:
             if payload.location:
                 location = payload.location
             else:
-                client = db.query(Client).filter(Client.id == payload.client_id).first()
+                client = self.shift_repo.get_client_by_id(payload.client_id)
                 if client:
                     location = f"{client.street}, {client.city}, {client.province} {client.postal_code}"
                 else:
                     location = None
 
             shift = Shift(
-                org_id=org_id,
+                org_id=self.org_id,
                 worker_id=payload.worker_id,
                 client_id=payload.client_id,
-                created_by=current_user.id,
+                created_by=self.current_user.id,
                 start_time=payload.start_time,
                 end_time=payload.end_time,
                 is_recurring=is_recurring,
@@ -302,54 +269,35 @@ class ShiftService:
                 location=location,
                 notes=payload.notes,
             )
-            db.add(shift)
-            db.commit()
-            db.refresh(shift)
+            self.shift_repo.add(shift)
+            self.db.commit()
+            self.db.refresh(shift)
             return shift
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 2a. Get occurrence counts by status (includes cancelled)
     # ─────────────────────────────────────────
-    @staticmethod
     async def get_stats(
+        self,
         from_date: date,
         to_date: date,
-        current_user: SupabaseUser,
-        db: Session,
         worker_id: str | None = None,
         client_id: str | None = None,
     ) -> dict:
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-
-            query = (
-                db.query(Shift)
-                .options(joinedload(Shift.modifications))
-                .filter(
-                    Shift.org_id == org_id,
-                    Shift.status == ShiftStatus.active,
-                    Shift.deleted_at == None,  # noqa: E711
-                    Shift.start_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc),
-                )
-            )
-            if worker_id:
-                query = query.filter(Shift.worker_id == worker_id)
-            if client_id:
-                query = query.filter(Shift.client_id == client_id)
-
-            shifts = query.all()
+            shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id, client_id)
 
             counts: dict[str, int] = {"scheduled": 0, "in_progress": 0, "completed": 0, "cancelled": 0}
 
             for shift in shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
-                occurrences = ShiftService._expand_occurrences(shift, from_date, to_date)
+                occurrences = self._expand_occurrences(shift, from_date, to_date)
 
                 for occ_date in occurrences:
                     mod = mod_map.get(occ_date)
@@ -367,47 +315,21 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
     # ─────────────────────────────────────────
-    @staticmethod
     async def get_shifts(
+        self,
         from_date: date,
         to_date: date,
-        current_user: SupabaseUser,
-        db: Session,
         worker_id: str | None = None,
         client_id: str | None = None,
         completion_statuses: list[str] | None = None,
     ) -> list[ShiftOccurrenceResponse]:
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-
-            query = (
-                db.query(Shift)
-                .options(
-                    joinedload(Shift.worker),
-                    joinedload(Shift.client),
-                    joinedload(Shift.modifications),
-                )
-                .filter(
-                    Shift.org_id == org_id,
-                    Shift.status == ShiftStatus.active,
-                    Shift.deleted_at == None,  # noqa: E711
-                    Shift.start_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc),
-                )
-            )
-
-            if worker_id:
-                query = query.filter(Shift.worker_id == worker_id)
-            if client_id:
-                query = query.filter(Shift.client_id == client_id)
-
-            shifts = query.all()
+            shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id, client_id)
 
             results = []
             for shift in shifts:
-                # Build a lookup map: original_date → ShiftModification
                 mod_map = {m.original_date: m for m in shift.modifications}
-
-                occurrences = ShiftService._expand_occurrences(shift, from_date, to_date)
+                occurrences = self._expand_occurrences(shift, from_date, to_date)
 
                 for occurrence_date in occurrences:
                     mod = mod_map.get(occurrence_date)
@@ -417,12 +339,11 @@ class ShiftService:
                         if effective_status.value not in completion_statuses:
                             continue
                     else:
-                        # Default behaviour: skip individually-cancelled occurrences
                         if effective_status == ShiftCompletionStatus.cancelled:
                             continue
 
                     results.append(
-                        ShiftService._build_occurrence_response(shift, occurrence_date, mod)
+                        self._build_occurrence_response(shift, occurrence_date, mod)
                     )
 
             results.sort(key=lambda o: o.start_time)
@@ -436,11 +357,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 3. Get master shift record
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_shift(shift_id: str, current_user: SupabaseUser, db: Session):
+    async def get_shift(self, shift_id: str):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            return ShiftService._get_active_shift(shift_id, org_id, db)
+            return self._get_active_shift(shift_id)
         except AppError:
             raise
         except Exception as e:
@@ -449,89 +368,71 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 4. Update master shift (affects all future occurrences)
     # ─────────────────────────────────────────
-    @staticmethod
-    async def update_shift(shift_id: str, payload: ShiftUpdateSchema, current_user: SupabaseUser, db: Session):
+    async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            shift = ShiftService._get_active_shift(shift_id, org_id, db)
+            shift = self._get_active_shift(shift_id)
 
             updates = payload.model_dump(exclude_unset=True)
 
             if "recurrence" in updates:
                 recurrence = updates.pop("recurrence")
                 if recurrence and shift.is_recurring:
-                    new_rule = ShiftService._build_rrule_string(payload.recurrence)
+                    new_rule = self._build_rrule_string(payload.recurrence)
                     shift.recurrence_rule = new_rule
                     if payload.recurrence.recurrence_end_date:
                         shift.recurrence_end_date = payload.recurrence.recurrence_end_date
-                    # Delete all future modifications — the rule has changed
                     today = datetime.now(timezone.utc).date()
-                    db.query(ShiftModification).filter(
-                        ShiftModification.shift_id == shift_id,
-                        ShiftModification.original_date >= today,
-                    ).delete(synchronize_session=False)
+                    self.shift_repo.delete_modifications_from_date(shift_id, today)
 
             for field, value in updates.items():
                 setattr(shift, field, value)
 
-            db.commit()
-            db.refresh(shift)
+            self.db.commit()
+            self.db.refresh(shift)
             return shift
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 5. Cancel entire shift schedule (soft delete)
     # ─────────────────────────────────────────
-    @staticmethod
-    async def cancel_shift(shift_id: str, payload: "CancelShiftSchema", current_user: SupabaseUser, db: Session):
+    async def cancel_shift(self, shift_id: str, payload: CancelShiftSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            shift = ShiftService._get_active_shift(shift_id, org_id, db)
+            shift = self._get_active_shift(shift_id)
 
             shift.status = ShiftStatus.cancelled
             shift.deleted_at = datetime.now(timezone.utc)
             shift.cancellation_reason = payload.cancellation_reason
-            db.commit()
+            self.db.commit()
 
             return {"message": "Shift cancelled successfully"}
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 6. Create a modification for a specific occurrence
     # ─────────────────────────────────────────
-    @staticmethod
-    async def create_modification(
-        shift_id: str,
-        payload: ShiftModificationCreateSchema,
-        current_user: SupabaseUser,
-        db: Session,
-    ):
+    async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            master = ShiftService._get_active_shift(shift_id, org_id, db)
+            master = self._get_active_shift(shift_id)
 
-            # Conflict check only when rescheduling the occurrence to new times
             if payload.new_start_time or payload.new_end_time:
                 duration = master.end_time - master.start_time
                 new_start = payload.new_start_time or datetime.combine(
                     payload.original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or (new_start + duration)
-                conflicts = ShiftService._find_scheduling_conflicts(
+                conflicts = self._find_scheduling_conflicts(
                     worker_id=master.worker_id,
-                    org_id=org_id,
                     proposed_time_blocks=[(payload.original_date, new_start, new_end)],
-                    db=db,
                     exclude_shift_id=shift_id,
                 )
                 if conflicts:
@@ -543,15 +444,7 @@ class ShiftService:
                         details=conflicts,
                     )
 
-            # Upsert — update if already exists for this date
-            existing = (
-                db.query(ShiftModification)
-                .filter(
-                    ShiftModification.shift_id == shift_id,
-                    ShiftModification.original_date == payload.original_date,
-                )
-                .first()
-            )
+            existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
 
             if existing:
                 updates = payload.model_dump(exclude_unset=True, exclude={"original_date"})
@@ -566,80 +459,102 @@ class ShiftService:
                 )
                 if payload.completion_status == ShiftCompletionStatus.cancelled:
                     existing.cancelled_at = datetime.now(timezone.utc)
-                db.add(existing)
+                self.modification_repo.add(existing)
 
-            db.commit()
-            db.refresh(existing)
+            self.db.commit()
+            self.db.refresh(existing)
             return existing
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
+    # 7. Update an existing modification
+    # ─────────────────────────────────────────
+    async def update_modification(
+        self,
+        shift_id: str,
+        original_date: date,
+        payload: ShiftModificationUpdateSchema,
+    ):
+        try:
+            master = self._get_active_shift(shift_id)
+            mod = self.modification_repo.get_modification_by_shift_and_date_required(shift_id, original_date)
+
+            if payload.new_start_time or payload.new_end_time:
+                duration = master.end_time - master.start_time
+                new_start = payload.new_start_time or mod.new_start_time or datetime.combine(
+                    original_date, master.start_time.timetz()
+                )
+                new_end = payload.new_end_time or mod.new_end_time or (new_start + duration)
+                conflicts = self._find_scheduling_conflicts(
+                    worker_id=master.worker_id,
+                    proposed_time_blocks=[(original_date, new_start, new_end)],
+                    exclude_shift_id=shift_id,
+                )
+                if conflicts:
+                    first = conflicts[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
+                        message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
+                        details=conflicts,
+                    )
+
+            updates = payload.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                setattr(mod, field, value)
+
+            self.db.commit()
+            self.db.refresh(mod)
+            return mod
+
+        except AppError:
+            raise
+        except Exception as e:
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 8. Cancel this occurrence and all following
     # Truncates recurrence_end_date; cancels all if first occurrence
     # ─────────────────────────────────────────
-    @staticmethod
-    async def cancel_from_date(
-        shift_id: str,
-        payload: CancelFromSchema,
-        current_user: SupabaseUser,
-        db: Session,
-    ):
+    async def cancel_from_date(self, shift_id: str, payload: CancelFromSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            shift = ShiftService._get_active_shift(shift_id, org_id, db)
-
+            shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date
 
             if occurrence_date <= shift.start_time.date():
-                # Cancelling from the very first occurrence — cancel the whole series
                 shift.status = ShiftStatus.cancelled
                 shift.deleted_at = datetime.now(timezone.utc)
                 shift.cancellation_reason = payload.cancellation_reason
             else:
-                # Truncate: stop the series the day before this occurrence
                 shift.recurrence_end_date = occurrence_date - timedelta(days=1)
                 shift.cancellation_reason = payload.cancellation_reason
-                # Drop any modifications on or after this date
-                db.query(ShiftModification).filter(
-                    ShiftModification.shift_id == shift_id,
-                    ShiftModification.original_date >= occurrence_date,
-                ).delete(synchronize_session=False)
+                self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
-            db.commit()
+            self.db.commit()
             return {"message": "Occurrences cancelled successfully"}
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 9. Edit this occurrence and all following
-    # Splits the series: truncates old, creates new master from occurrence_date
+    # 9. Edit this occurrence and all following (splits the series)
     # ─────────────────────────────────────────
-    @staticmethod
-    async def edit_from_date(
-        shift_id: str,
-        payload: EditFromSchema,
-        current_user: SupabaseUser,
-        db: Session,
-    ):
+    async def edit_from_date(self, shift_id: str, payload: EditFromSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            shift = ShiftService._get_active_shift(shift_id, org_id, db)
-
+            shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date
 
             if occurrence_date <= shift.start_time.date():
-                # Editing from the very first occurrence — just update the master in place.
-                # Compute what the new times/worker will be, check conflicts first, then apply.
                 new_worker_id = payload.worker_id or shift.worker_id
                 new_start_time = payload.new_start_time or shift.start_time
                 new_end_time = payload.new_end_time or shift.end_time
@@ -647,7 +562,7 @@ class ShiftService:
 
                 cap_date = new_end_date or (new_start_time.date() + timedelta(days=365))
                 if shift.is_recurring:
-                    new_rule = ShiftService._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
+                    new_rule = self._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
                     rule = rrulestr(new_rule, dtstart=new_start_time)
                     occurrences = rule.between(
                         datetime.combine(new_start_time.date(), time.min, tzinfo=timezone.utc),
@@ -659,11 +574,9 @@ class ShiftService:
                 else:
                     proposed_time_blocks = [(new_start_time.date(), new_start_time, new_end_time)]
 
-                conflicts = ShiftService._find_scheduling_conflicts(
+                conflicts = self._find_scheduling_conflicts(
                     worker_id=new_worker_id,
-                    org_id=org_id,
                     proposed_time_blocks=proposed_time_blocks,
-                    db=db,
                     exclude_shift_id=shift_id,
                 )
                 if conflicts:
@@ -689,38 +602,29 @@ class ShiftService:
                     shift.recurrence_end_date = payload.recurrence_end_date
                 if payload.notes is not None:
                     shift.notes = payload.notes
-                db.commit()
+                self.db.commit()
                 return {"message": "Shift updated"}
 
-            # Save original end date before we truncate
             original_end_date = shift.recurrence_end_date
 
-            # Build new start/end datetimes for the new series anchor
             if payload.new_start_time:
-                new_start = datetime.combine(
-                    occurrence_date, payload.new_start_time.timetz()
-                )
+                new_start = datetime.combine(occurrence_date, payload.new_start_time.timetz())
             else:
-                new_start = datetime.combine(
-                    occurrence_date, shift.start_time.timetz()
-                )
+                new_start = datetime.combine(occurrence_date, shift.start_time.timetz())
 
             if payload.new_end_time:
-                new_end = datetime.combine(
-                    occurrence_date, payload.new_end_time.timetz()
-                )
+                new_end = datetime.combine(occurrence_date, payload.new_end_time.timetz())
             else:
                 delta = shift.end_time - shift.start_time
                 new_end = new_start + delta
 
-            new_rule = ShiftService._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
+            new_rule = self._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
             new_end_date = (
                 payload.recurrence.recurrence_end_date if payload.recurrence and payload.recurrence.recurrence_end_date is not None
                 else payload.recurrence_end_date if payload.recurrence_end_date is not None
                 else original_end_date
             )
 
-            # Check conflicts for the new series before making any DB changes
             new_worker_id = payload.worker_id or shift.worker_id
             cap_date = new_end_date or (new_start.date() + timedelta(days=365))
             if shift.is_recurring:
@@ -735,11 +639,9 @@ class ShiftService:
             else:
                 proposed_time_blocks = [(new_start.date(), new_start, new_end)]
 
-            conflicts = ShiftService._find_scheduling_conflicts(
+            conflicts = self._find_scheduling_conflicts(
                 worker_id=new_worker_id,
-                org_id=org_id,
                 proposed_time_blocks=proposed_time_blocks,
-                db=db,
                 exclude_shift_id=shift_id,
             )
             if conflicts:
@@ -751,21 +653,15 @@ class ShiftService:
                     details=conflicts,
                 )
 
-            # Truncate old series to end the day before this occurrence
             shift.recurrence_end_date = occurrence_date - timedelta(days=1)
-
-            # Drop forward modifications from old series
-            db.query(ShiftModification).filter(
-                ShiftModification.shift_id == shift_id,
-                ShiftModification.original_date >= occurrence_date,
-            ).delete(synchronize_session=False)
+            self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
             new_shift = Shift(
                 id=uuid.uuid4(),
                 org_id=shift.org_id,
                 worker_id=new_worker_id,
                 client_id=payload.client_id or shift.client_id,
-                created_by=current_user.id,
+                created_by=self.current_user.id,
                 start_time=new_start,
                 end_time=new_end,
                 is_recurring=shift.is_recurring,
@@ -774,76 +670,13 @@ class ShiftService:
                 location=payload.location if payload.location is not None else shift.location,
                 notes=payload.notes if payload.notes is not None else shift.notes,
             )
-            db.add(new_shift)
-            db.commit()
+            self.shift_repo.add(new_shift)
+            self.db.commit()
             return {"message": "Shift updated from this occurrence"}
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
-            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
-
-    # ─────────────────────────────────────────
-    # 7. Update an existing modification
-    # ─────────────────────────────────────────
-    @staticmethod
-    async def update_modification(
-        shift_id: str,
-        original_date: date,
-        payload: ShiftModificationUpdateSchema,
-        current_user: SupabaseUser,
-        db: Session,
-    ):
-        try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            master = ShiftService._get_active_shift(shift_id, org_id, db)
-
-            mod = (
-                db.query(ShiftModification)
-                .filter(
-                    ShiftModification.shift_id == shift_id,
-                    ShiftModification.original_date == original_date,
-                )
-                .first()
-            )
-            if not mod:
-                raise AppError(status_code=404, code="NOT_FOUND", message="Modification not found")
-
-            # Conflict check only when rescheduling to new times
-            if payload.new_start_time or payload.new_end_time:
-                duration = master.end_time - master.start_time
-                new_start = payload.new_start_time or mod.new_start_time or datetime.combine(
-                    original_date, master.start_time.timetz()
-                )
-                new_end = payload.new_end_time or mod.new_end_time or (new_start + duration)
-                conflicts = ShiftService._find_scheduling_conflicts(
-                    worker_id=master.worker_id,
-                    org_id=org_id,
-                    proposed_time_blocks=[(original_date, new_start, new_end)],
-                    db=db,
-                    exclude_shift_id=shift_id,
-                )
-                if conflicts:
-                    first = conflicts[0]
-                    raise AppError(
-                        status_code=409,
-                        code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
-                        message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
-                        details=conflicts,
-                    )
-
-            updates = payload.model_dump(exclude_unset=True)
-            for field, value in updates.items():
-                setattr(mod, field, value)
-
-            db.commit()
-            db.refresh(mod)
-            return mod
-
-        except AppError:
-            raise
-        except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

@@ -6,55 +6,58 @@ from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpd
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.db.supabase import get_supabase_client
+from app.repositories.organization_repository import OrganizationRepository
 import uuid
 
 
 class OrgService:
 
+    def __init__(self, db: Session, current_user: SupabaseUser | None = None, org_id=None):
+        self.db = db
+        self.current_user = current_user
+        self.org_repo = OrganizationRepository(db)
+        # org_id is None for register routes (user has no org yet).
+        # Admin/owner factory functions resolve it and pass it in.
+        self.org_id = org_id
+
     @staticmethod
     def get_admin_org_id(current_user: SupabaseUser, db: Session) -> uuid.UUID:
         """Resolve the org_id for the currently authenticated user. Used by all services."""
-        member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
+        repo = OrganizationRepository(db)
+        member = repo.get_member_by_id(current_user.id)
         if not member:
             raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
         return member.org_id
 
     # ─────────────────────────────────────────
     # 1. Register a new organization + owner
-    # Called from POST /api/organization (public)
-    # Uses Supabase client — no db needed
     # ─────────────────────────────────────────
-    @staticmethod
-    async def register_organization(payload: RegisterOrganizationSchema, current_user: SupabaseUser, db: Session):
+    async def register_organization(self, payload: RegisterOrganizationSchema):
         supabase = get_supabase_client()
         org_id = None
         try:
-            # 1. Create the organization record
             new_org = Organization(
                 id=uuid.uuid4(),
                 name=payload.organization_name,
-                owner_id=current_user.id,
+                owner_id=self.current_user.id,
             )
-            db.add(new_org)
-            db.flush()  # get the org id without committing yet
+            self.org_repo.add(new_org)
+            self.org_repo.flush()
             org_id = new_org.id
 
-            # 2. Link the owner as an org_member
             new_member = OrgMember(
-                id=current_user.id,
+                id=self.current_user.id,
                 first_name=payload.first_name,
                 last_name=payload.last_name,
-                email=current_user.email,
+                email=self.current_user.email,
                 role=OrgMemberRole.owner,
                 org_id=org_id,
             )
-            db.add(new_member)
-            db.commit()
+            self.org_repo.add_member(new_member)
+            self.db.commit()
 
-            # Write identity fields into Supabase user_metadata so the JWT
-            # carries first_name, last_name, role, and org_id on every login.
             supabase.auth.admin.update_user_by_id(
-                str(current_user.id),
+                str(self.current_user.id),
                 {"user_metadata": {
                     "first_name": payload.first_name,
                     "last_name": payload.last_name,
@@ -66,34 +69,29 @@ class OrgService:
             return {
                 "message": "Organization registered successfully",
                 "org_id": str(org_id),
-                "user_id": str(current_user.id),
+                "user_id": str(self.current_user.id),
             }
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
-            # Compensating transaction — delete the Supabase user if DB setup failed
-            # so we don't leave an orphaned auth user with no org
+            self.db.rollback()
             if org_id is None:
                 try:
-                    supabase.auth.admin.delete_user(str(current_user.id))
+                    supabase.auth.admin.delete_user(str(self.current_user.id))
                 except Exception:
                     pass
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 1b. Register org without email confirmation (demo / dev bypass)
-    # Uses Supabase admin to create user pre-confirmed, no email sent
+    # 1b. Register org without email confirmation (demo bypass)
     # ─────────────────────────────────────────
-    @staticmethod
-    async def register_organization_direct(payload: RegisterDirectSchema, db: Session):
+    async def register_organization_direct(self, payload: RegisterDirectSchema):
         supabase = get_supabase_client()
         user_id = None
         org_id = None
         try:
-            # Create user with email pre-confirmed — no confirmation email sent
             result = supabase.auth.admin.create_user({
                 "email": payload.email,
                 "password": payload.password,
@@ -107,8 +105,8 @@ class OrgService:
                 name=payload.organization_name,
                 owner_id=user.id,
             )
-            db.add(new_org)
-            db.flush()
+            self.org_repo.add(new_org)
+            self.org_repo.flush()
             org_id = new_org.id
 
             new_member = OrgMember(
@@ -119,8 +117,8 @@ class OrgService:
                 role=OrgMemberRole.owner,
                 org_id=org_id,
             )
-            db.add(new_member)
-            db.commit()
+            self.org_repo.add_member(new_member)
+            self.db.commit()
 
             supabase.auth.admin.update_user_by_id(
                 user_id,
@@ -135,10 +133,10 @@ class OrgService:
             return {"message": "Organization registered successfully", "org_id": str(org_id), "user_id": user_id}
 
         except AppError:
-            db.rollback()
+            self.db.rollback()
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             if user_id and org_id is None:
                 try:
                     supabase.auth.admin.delete_user(user_id)
@@ -149,11 +147,9 @@ class OrgService:
     # ─────────────────────────────────────────
     # 2. Get the current user's organization
     # ─────────────────────────────────────────
-    @staticmethod
-    async def get_organization(current_user: SupabaseUser, db: Session):
+    async def get_organization(self):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
             return org
@@ -166,11 +162,9 @@ class OrgService:
     # ─────────────────────────────────────────
     # 3. Update organization (owner only)
     # ─────────────────────────────────────────
-    @staticmethod
-    async def update_organization(payload: OrganizationUpdateSchema, current_user: SupabaseUser, db: Session):
+    async def update_organization(self, payload: OrganizationUpdateSchema):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
@@ -178,34 +172,31 @@ class OrgService:
             for field, value in updates.items():
                 setattr(org, field, value)
 
-            db.commit()
-            db.refresh(org)
+            self.db.commit()
+            self.db.refresh(org)
             return org
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
     # 4. Deactivate organization (owner only)
-    # Sets is_active = False — does not hard delete
     # ─────────────────────────────────────────
-    @staticmethod
-    async def delete_organization(current_user: SupabaseUser, db: Session):
+    async def delete_organization(self):
         try:
-            org_id = OrgService.get_admin_org_id(current_user, db)
-            org = db.query(Organization).filter(Organization.id == org_id).first()
+            org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
             org.is_active = False
-            db.commit()
+            self.db.commit()
             return {"message": "Organization deactivated successfully"}
 
         except AppError:
             raise
         except Exception as e:
-            db.rollback()
+            self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))

@@ -12,16 +12,29 @@ from app.schemas.progress_note import ClientNoteItemResponse
 router = APIRouter(prefix="/clients", tags=["Clients"])
 
 
+def get_client_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ClientService:
+    return ClientService(db, current_user)
+
+
+def get_progress_note_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ProgressNoteService:
+    return ProgressNoteService(db, current_user)
+
+
 # ─────────────────────────────────────────
 # 1. Create a client
 # ─────────────────────────────────────────
 @router.post("", response_model=ClientResponse)
 async def create_client(
     payload: ClientCreateSchema,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    client_service: ClientService = Depends(get_client_service),
 ):
-    return await ClientService.create_client(payload, current_user, db)
+    return await client_service.create_client(payload)
 
 
 # ─────────────────────────────────────────
@@ -31,10 +44,9 @@ async def create_client(
 @router.get("", response_model=List[ClientResponse])
 async def get_all_clients(
     status: ClientStatus | None = Query(default=None, description="Filter by status"),
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    client_service: ClientService = Depends(get_client_service),
 ):
-    return await ClientService.get_all_clients(current_user, db, status)
+    return await client_service.get_all_clients(status)
 
 
 # ─────────────────────────────────────────
@@ -43,10 +55,9 @@ async def get_all_clients(
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client(
     client_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    client_service: ClientService = Depends(get_client_service),
 ):
-    return await ClientService.get_client(client_id, current_user, db)
+    return await client_service.get_client(client_id)
 
 
 # ─────────────────────────────────────────
@@ -56,10 +67,9 @@ async def get_client(
 async def update_client(
     client_id: str,
     payload: ClientUpdateSchema,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    client_service: ClientService = Depends(get_client_service),
 ):
-    return await ClientService.update_client(client_id, payload, current_user, db)
+    return await client_service.update_client(client_id, payload)
 
 
 # ─────────────────────────────────────────
@@ -69,10 +79,9 @@ async def update_client(
 @router.delete("/{client_id}")
 async def delete_client(
     client_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    client_service: ClientService = Depends(get_client_service),
 ):
-    return await ClientService.delete_client(client_id, current_user, db)
+    return await client_service.delete_client(client_id)
 
 
 # ─────────────────────────────────────────
@@ -84,7 +93,6 @@ async def delete_client(
 async def get_client_notes(
     client_id: str,
     year: int = Query(default=None),
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    note_service: ProgressNoteService = Depends(get_progress_note_service),
 ):
-    return await ProgressNoteService.get_client_notes(client_id, year, current_user, db)
+    return await note_service.get_client_notes(client_id, year)

@@ -9,18 +9,24 @@ from app.services.progress_note_service import ProgressNoteService
 router = APIRouter(prefix="/shifts", tags=["Progress Notes"])
 
 
+def get_progress_note_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ProgressNoteService:
+    return ProgressNoteService(db, current_user)
+
+
 # ─────────────────────────────────────────
 # 1. Get progress note for an occurrence
-# Returns 404 if none exists yet
+# Returns None if none exists yet
 # ─────────────────────────────────────────
 @router.get("/{shift_id}/notes", response_model=ProgressNoteResponse | None)
 async def get_progress_note(
     shift_id: str,
     date: date = Query(..., description="Occurrence date (YYYY-MM-DD)"),
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    note_service: ProgressNoteService = Depends(get_progress_note_service),
 ):
-    return await ProgressNoteService.get_note(shift_id, date, current_user, db)
+    return await note_service.get_note(shift_id, date)
 
 
 # ─────────────────────────────────────────
@@ -31,7 +37,6 @@ async def get_progress_note(
 async def upsert_progress_note(
     shift_id: str,
     payload: ProgressNoteUpsertSchema,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    note_service: ProgressNoteService = Depends(get_progress_note_service),
 ):
-    return await ProgressNoteService.upsert_note(shift_id, payload, current_user, db)
+    return await note_service.upsert_note(shift_id, payload)
