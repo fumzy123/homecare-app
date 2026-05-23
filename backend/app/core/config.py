@@ -12,7 +12,7 @@ env_path = _env_local if os.path.exists(_env_local) else _env_fallback
 
 class Settings(BaseSettings):
     supabase_url: str
-    supabase_key: str
+    supabase_secret_key: str
     database_url: str
     frontend_url: str = "http://localhost:5173"
     backend_sentry_dsn: str = ""
