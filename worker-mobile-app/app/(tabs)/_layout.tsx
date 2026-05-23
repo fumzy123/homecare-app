@@ -1,5 +1,7 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '@/shared/lib/auth-store';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -8,6 +10,15 @@ function TabIcon({ name, color }: { name: IconName; color: string }) {
 }
 
 export default function TabsLayout() {
+  const { session, isLoading } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !session) {
+      router.replace('/auth/login');
+    }
+  }, [session, isLoading, router]);
+
   return (
     <Tabs
       screenOptions={{
