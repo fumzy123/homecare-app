@@ -21,6 +21,7 @@ class OrgMemberResponse(BaseModel):
     has_vehicle: Optional[bool]
     max_hours_per_week: int
     pay_rate: Optional[Decimal]
+    max_hours_per_week: int
     street: Optional[str]
     city: Optional[str]
     province: Optional[str]
