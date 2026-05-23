@@ -19,6 +19,7 @@ from app.schemas.shift import (
 )
 from app.services.org_service import OrgService
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
+from app.repositories.org_member_repository import OrgMemberRepository
 
 
 class ShiftService:
@@ -28,6 +29,7 @@ class ShiftService:
         self.current_user = current_user
         self.shift_repo = ShiftRepository(db)
         self.modification_repo = ShiftModificationRepository(db)
+        self.org_member_repo = OrgMemberRepository(db)
         self.org_id = OrgService.get_admin_org_id(current_user, db)
 
     # ─────────────────────────────────────────
@@ -154,6 +156,75 @@ class ShiftService:
         return conflicts
 
     @staticmethod
+    def _iso_week_range(d: date) -> tuple[date, date]:
+        """Return the (Monday, Sunday) date range for the ISO week containing d."""
+        monday = d - timedelta(days=d.isoweekday() - 1)
+        sunday = monday + timedelta(days=6)
+        return (monday, sunday)
+
+    def _find_max_hours_violations(
+        self,
+        worker_id,
+        proposed_time_blocks: list[tuple[date, datetime, datetime]],
+        exclude_shift_id=None,
+    ) -> list[dict]:
+        """Check whether proposed_time_blocks would push the worker over their
+        max_hours_per_week cap in any ISO week (Mon–Sun).
+
+        Returns one violation dict per affected week that would exceed the cap.
+        Returns an empty list when:
+        - proposed_time_blocks is empty
+        - worker has no max_hours_per_week set (NULL or <= 0)
+        - no week would exceed the cap
+
+        Each occurrence's full duration is attributed to the ISO week of its
+        date, even for shifts that cross midnight into the next week.
+        """
+        if not proposed_time_blocks:
+            return []
+
+        worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
+        cap = worker.max_hours_per_week
+        if cap is None or cap <= 0:
+            return []
+
+        proposed_hours_by_week: dict[tuple[date, date], float] = {}
+        for occ_date, start, end in proposed_time_blocks:
+            week = self._iso_week_range(occ_date)
+            duration_hours = (end - start).total_seconds() / 3600.0
+            proposed_hours_by_week[week] = proposed_hours_by_week.get(week, 0.0) + duration_hours
+
+        existing_shifts = self.shift_repo.get_active_shifts_for_conflict_check(worker_id, self.org_id)
+        if exclude_shift_id:
+            existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
+
+        violations = []
+        for (monday, sunday), proposed_hours in proposed_hours_by_week.items():
+            existing_hours = 0.0
+            for shift in existing_shifts:
+                mod_map = {m.original_date: m for m in shift.modifications}
+                for occ_date in self._expand_occurrences(shift, monday, sunday):
+                    timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
+                    if timeblock is None:
+                        continue
+                    existing_start, existing_end = timeblock
+                    existing_hours += (existing_end - existing_start).total_seconds() / 3600.0
+
+            total = existing_hours + proposed_hours
+            if total > cap:
+                violations.append({
+                    "week_start":     monday.isoformat(),
+                    "week_end":       sunday.isoformat(),
+                    "worker_name":    f"{worker.first_name} {worker.last_name}",
+                    "max_hours":      cap,
+                    "current_hours":  round(existing_hours, 2),
+                    "proposed_hours": round(proposed_hours, 2),
+                    "total_hours":    round(total, 2),
+                })
+
+        return violations
+
+    @staticmethod
     def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
         """Merge master shift data with an optional modification for one occurrence."""
         if mod and mod.new_start_time:
@@ -245,6 +316,19 @@ class ShiftService:
                     code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
                     message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
                     details=conflicts,
+                )
+
+            max_hours_violations = self._find_max_hours_violations(
+                worker_id=payload.worker_id,
+                proposed_time_blocks=proposed_time_blocks,
+            )
+            if max_hours_violations:
+                first = max_hours_violations[0]
+                raise AppError(
+                    status_code=409,
+                    code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
+                    message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                    details=max_hours_violations,
                 )
 
             if payload.location:
@@ -444,6 +528,20 @@ class ShiftService:
                         details=conflicts,
                     )
 
+                max_hours_violations = self._find_max_hours_violations(
+                    worker_id=master.worker_id,
+                    proposed_time_blocks=[(payload.original_date, new_start, new_end)],
+                    exclude_shift_id=shift_id,
+                )
+                if max_hours_violations:
+                    first = max_hours_violations[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
+                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                        details=max_hours_violations,
+                    )
+
             existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
 
             if existing:
@@ -502,6 +600,20 @@ class ShiftService:
                         code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
                         message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
                         details=conflicts,
+                    )
+
+                max_hours_violations = self._find_max_hours_violations(
+                    worker_id=master.worker_id,
+                    proposed_time_blocks=[(original_date, new_start, new_end)],
+                    exclude_shift_id=shift_id,
+                )
+                if max_hours_violations:
+                    first = max_hours_violations[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
+                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                        details=max_hours_violations,
                     )
 
             updates = payload.model_dump(exclude_unset=True)
@@ -588,6 +700,20 @@ class ShiftService:
                         details=conflicts,
                     )
 
+                max_hours_violations = self._find_max_hours_violations(
+                    worker_id=new_worker_id,
+                    proposed_time_blocks=proposed_time_blocks,
+                    exclude_shift_id=shift_id,
+                )
+                if max_hours_violations:
+                    first = max_hours_violations[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
+                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                        details=max_hours_violations,
+                    )
+
                 if payload.new_start_time:
                     shift.start_time = payload.new_start_time
                 if payload.new_end_time:
@@ -651,6 +777,20 @@ class ShiftService:
                     code="WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK",
                     message=f"Worker already scheduled on {first['date']} ({first['start']}–{first['end']}) for {first['client_name']}.",
                     details=conflicts,
+                )
+
+            max_hours_violations = self._find_max_hours_violations(
+                worker_id=new_worker_id,
+                proposed_time_blocks=proposed_time_blocks,
+                exclude_shift_id=shift_id,
+            )
+            if max_hours_violations:
+                first = max_hours_violations[0]
+                raise AppError(
+                    status_code=409,
+                    code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
+                    message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                    details=max_hours_violations,
                 )
 
             shift.recurrence_end_date = occurrence_date - timedelta(days=1)
