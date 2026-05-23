@@ -1,6 +1,5 @@
 export const ADMIN_ROLES = [
   'owner',
-  'agency_admin',
   'manager',
   'supervisor',
   'financial_officer',

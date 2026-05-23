@@ -1,7 +1,6 @@
 import { apiClient } from '@/shared/lib/api-client'
 
 export type InvitationRole =
-  | 'agency_admin'
   | 'manager'
   | 'supervisor'
   | 'financial_officer'

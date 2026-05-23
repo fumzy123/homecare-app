@@ -2,7 +2,6 @@ import enum
 
 class OrgMemberRole(str, enum.Enum):
     owner = "owner"
-    agency_admin = "agency_admin"
     manager = "manager"
     supervisor = "supervisor"
     financial_officer = "financial_officer"

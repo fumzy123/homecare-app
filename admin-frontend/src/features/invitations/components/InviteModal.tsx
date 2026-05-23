@@ -32,7 +32,7 @@ export function InviteModal({
   const form = useForm({
     defaultValues: {
       email: '',
-      role: showRoleSelector ? ('agency_admin' as InvitationRole) : role,
+      role: showRoleSelector ? ('manager' as InvitationRole) : role,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -46,11 +46,7 @@ export function InviteModal({
     },
   })
 
-  const title = showRoleSelector
-    ? 'Invite staff member'
-    : role === 'agency_admin'
-    ? 'Invite admin'
-    : 'Invite new worker'
+  const title = showRoleSelector ? 'Invite staff member' : 'Invite new worker'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30">

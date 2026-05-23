@@ -12,7 +12,6 @@ security = HTTPBearer()
 
 ADMIN_ROLES = [
     OrgMemberRole.owner,
-    OrgMemberRole.agency_admin,
     OrgMemberRole.manager,
     OrgMemberRole.supervisor,
     OrgMemberRole.financial_officer,
