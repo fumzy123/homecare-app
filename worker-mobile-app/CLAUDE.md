@@ -50,7 +50,7 @@ npm run ios             # iOS simulator (Mac only)
 ## Feature Roadmap
 
 - [x] **Phase 0**: Project scaffold, design system, NativeWind, shared components, Expo Router setup
-- [ ] **Phase 1**: Authentication — sign in, JWT storage, Zustand auth store, protected routes
+- [x] **Phase 1**: Authentication — sign in, JWT storage, Zustand auth store, protected routes
 - [ ] **Phase 2**: Onboarding flow — 3-screen intro, stored "seen" flag, deep-link from invite email
 - [ ] **Phase 3**: Home screen — today's shifts summary, next shift card, quick actions
 - [ ] **Phase 4**: Schedule / shifts — calendar view, shift detail screen, ShiftCard component

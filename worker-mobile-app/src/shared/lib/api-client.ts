@@ -6,7 +6,22 @@ const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_API_URL ?? 'http://localhost
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Persists the Supabase session (JWT + refresh token) in the device's secure enclave
+// so sign-in survives app restarts without requiring re-authentication.
+const ExpoSecureStoreAdapter = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+};
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: ExpoSecureStoreAdapter,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
 
 export const apiClient = axios.create({
   baseURL: `${BACKEND_URL}/api`,
@@ -14,12 +29,14 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`;
+  }
   return config;
 });
 
-// On 401: refresh session and retry once
+// On 401: let Supabase refresh the session and retry once
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -28,7 +45,6 @@ apiClient.interceptors.response.use(
       original._retry = true;
       const { data, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !data.session) return Promise.reject(error);
-      await SecureStore.setItemAsync('access_token', data.session.access_token);
       original.headers.Authorization = `Bearer ${data.session.access_token}`;
       return apiClient(original);
     }

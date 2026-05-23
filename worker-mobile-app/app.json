@@ -36,7 +36,8 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#F2EEE5"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",
