@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from app.core.enums import OrgMemberRole
 
 # Must match Supabase Authentication → Email OTP expiration setting.
@@ -11,6 +11,13 @@ INVITE_EXPIRY_SECONDS = 86_400  # 24 hours
 class CreateInvitationSchema(BaseModel):
     email: EmailStr
     role: OrgMemberRole
+
+    @field_validator("role")
+    @classmethod
+    def role_cannot_be_owner(cls, v: OrgMemberRole) -> OrgMemberRole:
+        if v == OrgMemberRole.owner:
+            raise ValueError("Cannot invite someone as owner")
+        return v
 
 
 class AcceptInvitationSchema(BaseModel):
