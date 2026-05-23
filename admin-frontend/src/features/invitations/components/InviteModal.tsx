@@ -2,6 +2,7 @@ import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
 import { invitationsApi, type InvitationRole } from '@/features/invitations/api'
+import { STAFF_ROLES, ROLE_LABELS } from '@/features/invitations/constants'
 import { Kicker } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/stores/auth'
 
@@ -16,18 +17,27 @@ interface InviteModalProps {
   onClose: () => void
   onSuccess: () => void
   role?: InvitationRole
+  showRoleSelector?: boolean
 }
 
-export function InviteModal({ onClose, onSuccess, role = 'home_support_worker' }: InviteModalProps) {
+export function InviteModal({
+  onClose,
+  onSuccess,
+  role = 'home_support_worker',
+  showRoleSelector = false,
+}: InviteModalProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const user = useAuthStore(s => s.user)
 
   const form = useForm({
-    defaultValues: { email: '' },
+    defaultValues: {
+      email: '',
+      role: showRoleSelector ? ('manager' as InvitationRole) : role,
+    },
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await invitationsApi.sendInvitation({ email: value.email, role })
+        await invitationsApi.sendInvitation({ email: value.email, role: value.role })
         onSuccess()
         onClose()
       } catch (err: unknown) {
@@ -36,13 +46,15 @@ export function InviteModal({ onClose, onSuccess, role = 'home_support_worker' }
     },
   })
 
+  const title = showRoleSelector ? 'Invite staff member' : 'Invite new worker'
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30">
       <div className="w-full max-w-sm bg-paper border border-ink">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>{role === 'agency_admin' ? 'Invite admin' : 'Invite new worker'}</Kicker>
+          <Kicker>{title}</Kicker>
           <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
@@ -51,6 +63,26 @@ export function InviteModal({ onClose, onSuccess, role = 'home_support_worker' }
           onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}
           className="px-6 py-6 flex flex-col gap-5"
         >
+          {/* Role selector — only shown in team/staff context */}
+          {showRoleSelector && (
+            <form.Field name="role">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Role</label>
+                  <select
+                    className={inputClass}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value as InvitationRole)}
+                  >
+                    {STAFF_ROLES.map((r) => (
+                      <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </form.Field>
+          )}
+
           <form.Field name="email" validators={{ onBlur: ({ value }) => {
             const r = schema.shape.email.safeParse(value)
             if (!r.success) return r.error.issues[0].message

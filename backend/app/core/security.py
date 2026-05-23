@@ -10,6 +10,14 @@ from app.core.exceptions import AppError
 
 security = HTTPBearer()
 
+ADMIN_ROLES = [
+    OrgMemberRole.owner,
+    OrgMemberRole.manager,
+    OrgMemberRole.supervisor,
+    OrgMemberRole.financial_officer,
+    OrgMemberRole.nurse,
+]
+
 
 async def get_current_user(token=Depends(security)) -> SupabaseUser:
     supabase = get_supabase_client()
@@ -29,7 +37,7 @@ async def require_admin(
     db: Session = Depends(get_db),
 ) -> SupabaseUser:
     member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-    if not member or member.role not in [OrgMemberRole.owner, OrgMemberRole.agency_admin]:
+    if not member or member.role not in ADMIN_ROLES:
         raise AppError(status_code=403, code="FORBIDDEN", message="Admins only")
     return current_user
 

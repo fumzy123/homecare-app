@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, RotateCcw } from 'lucide-react'
 import { orgMembersApi } from '@/features/org-members/api'
 import { invitationsApi } from '@/features/invitations/api'
+import { ROLE_LABELS, STAFF_ROLES } from '@/features/invitations/constants'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
 import { Tag, Btn, StatusDot } from '@/shared/components/ui'
 
@@ -19,17 +20,12 @@ export function TeamSection() {
     queryFn:  () => orgMembersApi.listByRole('owner'),
   })
 
-  const { data: admins = [] } = useQuery({
-    queryKey: ['org-members', 'agency_admin'],
-    queryFn:  () => orgMembersApi.listByRole('agency_admin'),
-  })
-
   const { data: allInvitations = [] } = useQuery({
     queryKey: ['invitations'],
     queryFn:  invitationsApi.listInvitations,
   })
 
-  const adminInvitations = allInvitations.filter(inv => inv.role === 'agency_admin')
+  const adminInvitations = allInvitations.filter(inv => STAFF_ROLES.includes(inv.role as typeof STAFF_ROLES[number]))
 
   const revoke = useMutation({
     mutationFn: invitationsApi.revokeInvitation,
@@ -78,44 +74,34 @@ export function TeamSection() {
         )}
       </div>
 
-      {/* ── Admins + pending invitations ───────────────────────────── */}
+      {/* ── Staff + pending invitations ────────────────────────────── */}
       <div className="border border-ink bg-paper">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
           <div>
-            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">B · Admins</p>
+            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">B · Staff</p>
             <h3 className="font-serif text-[22px] leading-none font-medium mt-1">
-              Agency <span className="font-serif italic text-muted">administrators</span>
+              Agency <span className="font-serif italic text-muted">staff</span>
             </h3>
           </div>
-          <Btn variant="ghost" onClick={() => setShowModal(true)}>＊ Invite admin</Btn>
+          <Btn variant="ghost" onClick={() => setShowModal(true)}>＊ Invite staff</Btn>
         </div>
 
-        {admins.length === 0 && adminInvitations.length === 0 ? (
-          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO ADMINS YET</p>
+        {adminInvitations.length === 0 ? (
+          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO PENDING INVITATIONS</p>
         ) : (
           <>
             <div className="grid grid-cols-[2fr_2fr_1fr_60px] px-6 py-3 border-b border-ink bg-cream-2">
-              {['Name', 'Email', 'Status', ''].map(h => (
+              {['Role', 'Email', 'Status', ''].map(h => (
                 <p key={h} className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">{h}</p>
               ))}
             </div>
-
-            {/* Active admin rows */}
-            {admins.map((m, i) => (
-              <div key={m.id} className={`grid grid-cols-[2fr_2fr_1fr_60px] items-center px-6 py-3 ${i > 0 || adminInvitations.length > 0 ? 'border-t border-dashed border-line-soft' : ''}`}>
-                <p className="text-[13px] font-medium">{m.first_name} {m.last_name}</p>
-                <p className="font-mono text-[11px] text-ink-soft">{m.email}</p>
-                <StatusDot status={m.is_active ? 'active' : 'inactive'} />
-                <div />
-              </div>
-            ))}
 
             {/* Pending invitation rows */}
             {adminInvitations.map((inv) => {
               const isExpired = !inv.accepted_at && new Date(inv.expires_at) < new Date()
               return (
                 <div key={inv.id} className={`grid grid-cols-[2fr_2fr_1fr_60px] items-center px-6 py-3 border-t border-dashed border-line-soft`}>
-                  <p className="text-[13px] text-ink-soft italic">Pending invite</p>
+                  <p className="text-[13px] text-ink-soft italic">{ROLE_LABELS[inv.role] ?? inv.role} invite</p>
                   <p className="font-mono text-[11px] text-ink-soft">{inv.email}</p>
                   <div>
                     {inv.accepted_at
@@ -157,7 +143,7 @@ export function TeamSection() {
 
       {showModal && (
         <InviteModal
-          role="agency_admin"
+          showRoleSelector={true}
           onClose={() => setShowModal(false)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['invitations'] })}
         />
