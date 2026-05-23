@@ -126,6 +126,9 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
           const start = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           const end   = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           setServerError(`Worker already scheduled on ${first.date} (${start}–${end}) for ${first.client_name}.`)
+        } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK' && Array.isArray(err.details) && err.details.length > 0) {
+          const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; max_hours: number; current_hours: number; proposed_hours: number; total_hours: number }
+          setServerError(`${first.worker_name} would be scheduled for ${first.total_hours}h the week of ${first.week_start} — over their ${first.max_hours}h/week cap (currently ${first.current_hours}h, this adds ${first.proposed_hours}h).`)
         } else {
           setServerError(err instanceof Error ? err.message : 'Something went wrong')
         }
