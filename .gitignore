@@ -17,6 +17,10 @@ __pycache__/
 # Claude Code
 .claude/
 
+# Claude Code plans (local working files, not for version control)
+docs/plans/*
+!docs/plans/.gitkeep
+
 # AI tool configs added by Stripe skills (irrelevant to this project)
 .agents/
 .codebuddy/
