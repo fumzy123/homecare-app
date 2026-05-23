@@ -25,7 +25,7 @@ class OrgMember(Base):
     is_active = Column(Boolean, default=True)
     employment_type = Column(String, nullable=True)
     has_vehicle = Column(Boolean, nullable=True)
-    max_hours_per_week = Column(Integer, nullable=True)
+    max_hours_per_week = Column(Integer, nullable=False, default=40, server_default="40")
 
     # Address
     street = Column(String, nullable=True)

@@ -18,7 +18,7 @@ class OrgMemberResponse(BaseModel):
     is_active: bool
     employment_type: Optional[EmploymentType]
     has_vehicle: Optional[bool]
-    max_hours_per_week: Optional[int]
+    max_hours_per_week: int
     street: Optional[str]
     city: Optional[str]
     province: Optional[str]

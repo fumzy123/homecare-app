@@ -22,7 +22,7 @@ export interface OrgMember {
   is_active: boolean
   employment_type: EmploymentType | null
   has_vehicle: boolean | null
-  max_hours_per_week: number | null
+  max_hours_per_week: number
   street: string | null
   city: string | null
   province: string | null

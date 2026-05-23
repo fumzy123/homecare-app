@@ -112,12 +112,10 @@ function WorkerLayout() {
             <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Email</p>
             <p className="text-[12px] break-all">{worker.email}</p>
           </div>
-          {worker.max_hours_per_week != null && (
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Max hrs / wk</p>
-              <p className="text-[13px]">{worker.max_hours_per_week}h</p>
-            </div>
-          )}
+          <div>
+            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Max hrs / wk</p>
+            <p className="text-[13px]">{worker.max_hours_per_week}h</p>
+          </div>
           {worker.has_vehicle != null && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Vehicle</p>
