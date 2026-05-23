@@ -1,6 +1,12 @@
 import { apiClient } from '@/shared/lib/api-client'
 
-export type InvitationRole = 'agency_admin' | 'home_support_worker'
+export type InvitationRole =
+  | 'agency_admin'
+  | 'manager'
+  | 'supervisor'
+  | 'financial_officer'
+  | 'nurse'
+  | 'home_support_worker'
 
 export interface Invitation {
   id: string

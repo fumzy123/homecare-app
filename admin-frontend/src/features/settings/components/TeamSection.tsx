@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, RotateCcw } from 'lucide-react'
 import { orgMembersApi } from '@/features/org-members/api'
 import { invitationsApi } from '@/features/invitations/api'
+import { ROLE_LABELS, STAFF_ROLES } from '@/features/invitations/constants'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
 import { Tag, Btn, StatusDot } from '@/shared/components/ui'
 
@@ -29,7 +30,7 @@ export function TeamSection() {
     queryFn:  invitationsApi.listInvitations,
   })
 
-  const adminInvitations = allInvitations.filter(inv => inv.role === 'agency_admin')
+  const adminInvitations = allInvitations.filter(inv => STAFF_ROLES.includes(inv.role as typeof STAFF_ROLES[number]))
 
   const revoke = useMutation({
     mutationFn: invitationsApi.revokeInvitation,
@@ -115,7 +116,7 @@ export function TeamSection() {
               const isExpired = !inv.accepted_at && new Date(inv.expires_at) < new Date()
               return (
                 <div key={inv.id} className={`grid grid-cols-[2fr_2fr_1fr_60px] items-center px-6 py-3 border-t border-dashed border-line-soft`}>
-                  <p className="text-[13px] text-ink-soft italic">Pending invite</p>
+                  <p className="text-[13px] text-ink-soft italic">{ROLE_LABELS[inv.role] ?? inv.role} invite</p>
                   <p className="font-mono text-[11px] text-ink-soft">{inv.email}</p>
                   <div>
                     {inv.accepted_at
@@ -157,7 +158,7 @@ export function TeamSection() {
 
       {showModal && (
         <InviteModal
-          role="agency_admin"
+          showRoleSelector={true}
           onClose={() => setShowModal(false)}
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['invitations'] })}
         />
