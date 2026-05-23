@@ -4,18 +4,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## Future Refactor: Repository Pattern
+## Architecture — Three-Layer Pattern (Complete)
 
-All services currently mix business logic with raw SQLAlchemy queries (`db.query`, `db.add`, `db.commit`, etc.). This should be refactored into a dedicated **repository layer** that sits between services and the database:
+The backend follows a strict three-layer architecture across all 8 service groups:
 
 ```
-Route → Service → Repository → Database
+Router → Service → Repository → Database
 ```
 
-- **Repository** — only knows about the database. Methods like `shift_repo.get_active_shifts_for_worker(worker_id)` or `shift_repo.save(shift)`. No business logic.
-- **Service** — only knows about business rules. Calls the repository. Never writes `db.query()` directly.
+- **Router** — HTTP only. Declares a factory function (`get_X_service`) that wires `db` and `current_user` via FastAPI `Depends`, then calls one service method and returns the result.
+- **Service** — Business logic and transaction ownership. Class-based with `__init__(self, db, current_user)` that instantiates the repo and resolves shared context (e.g. `self.org_id`) once. Owns `db.commit()` and `db.rollback()`.
+- **Repository** — Data access only. Takes `db: Session` in `__init__`. Named methods replace all raw `db.query()` calls. Never commits.
 
-This affects every service file (`shift_service.py`, `client_service.py`, `org_member_service.py`, etc.). Do this as a dedicated refactor branch, not mixed into feature work.
+### Service naming conventions
+
+Each service class names its repo attribute after its domain:
+- `self.client_repo`, `self.leave_repo`, `self.note_repo`, `self.invitation_repo`
+- `self.org_member_repo`, `self.org_repo` (used by both OrgService and BillingService)
+- `self.shift_repo` + `self.modification_repo` (ShiftService has two)
+
+Each route parameter is named after the service type:
+- `client_service`, `leave_service`, `note_service`, `invitation_service`
+- `org_member_service`, `org_service`, `billing_service`, `shift_service`
+
+### Services with mixed auth requirements
+
+Three services have routes with different auth levels and handle `org_id` differently:
+
+- **OrgMemberService** — `create_member` and `update_self` use `get_current_user`; admin methods use `require_admin`. Two factory functions: `get_org_member_admin_service` (resolves `org_id`) and `get_org_member_service` (does not). Constructor signature: `__init__(self, db, current_user, org_id=None)`.
+- **OrgService** — Register routes have no org yet; `register_organization_direct` has no auth. Four factories for four auth levels. `get_admin_org_id` stays `@staticmethod` — it's a utility called by every other service's factory function.
+- **BillingService** — Webhook has no auth (Stripe signature used instead). Two factories: `get_billing_service` (admin, resolves `org_id`) and `get_billing_webhook_service` (no auth, no `org_id`). Constructor signature: `__init__(self, db, current_user=None, org_id=None)`.
+
+### Testing gap to be aware of
+
+`OrgService.get_admin_org_id` is called directly inside the factory functions for the three mixed-auth services above. That means those factory functions make a real DB call before the service is even instantiated. In tests, you would need to override the whole factory function (not just `get_admin_org_id`) to avoid that query. Use FastAPI's `app.dependency_overrides` to swap the factory at the test level.
 
 ---
 
@@ -117,15 +139,16 @@ npm run preview      # Preview production build
 
 ## Backend Architecture
 
-### Layered structure: routes → services → models
+### Layered structure: routes → services → repositories → database
 
 ```
 app/
   main.py               ← App entry, registers middleware, mounts /api
   api/
     api.py              ← Aggregates all routers under /api prefix
-    routes/             ← Thin HTTP handlers (validate input, call service, return)
-  services/             ← All business logic (Supabase + SQLAlchemy calls)
+    routes/             ← Thin HTTP handlers + factory functions (get_X_service)
+  services/             ← Business logic. Class-based, __init__ resolves shared context.
+  repositories/         ← Data access only. Named query methods. No commits.
   models/               ← SQLAlchemy ORM models
   schemas/              ← Pydantic request/response schemas
   core/
@@ -140,7 +163,8 @@ app/
 **Key invariants:**
 - Auth routes use `supabase_client` only — no `db: Session`
 - Data routes always use `db: Session = Depends(get_db)`
-- `except HTTPException: raise` must appear before broad `except Exception` catches
+- Services own `db.commit()` and `db.rollback()` — repositories never commit
+- `except AppError: raise` must appear before broad `except Exception` catches
 - All models must be imported in `alembic/env.py` for autogenerate to detect them
 
 ### Two-layer database access
@@ -267,7 +291,7 @@ No automated tests yet. Current approach: manual via FastAPI `/docs` (Swagger UI
 - `_shift_has_occurrence_on(shift, date)` — checks if an existing shift (single or recurring via RRULE) runs on a given date
 - `_get_timeblock_for_shift_occurrence_on_date(shift, date, shift_mod_map)` — resolves the actual `(start, end)` for that occurrence, applying any `ShiftModification` overrides or skipping cancelled ones
 - `_times_overlap(start_a, end_a, start_b, end_b)` — standard interval overlap: `start_a < end_b AND end_a > start_b`
-- `_find_scheduling_conflicts(worker_id, org_id, proposed_time_blocks, db, exclude_shift_id)` — one DB query, loops the helpers, returns a list of conflict dicts with ISO datetime strings
+- `_find_scheduling_conflicts(worker_id, proposed_time_blocks, exclude_shift_id)` — instance method, uses `self.shift_repo` and `self.org_id`, returns a list of conflict dicts with ISO datetime strings
 
 Conflict checks are wired into `create_shift`, `edit_from_date`, `create_modification`, and `update_modification`. All raise **409 `WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK`**.
 
