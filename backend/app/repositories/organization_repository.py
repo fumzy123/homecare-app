@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.organization import Organization
 from app.models.org_member import OrgMember
-from app.core.exceptions import AppError
 
 
 class OrganizationRepository:
