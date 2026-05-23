@@ -5,10 +5,25 @@ from app.db.session import get_db
 from app.schemas.invitation import AcceptInvitationSchema
 from app.schemas.org_member import OrgMemberResponse, OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
 from app.services.org_member_service import OrgMemberService
+from app.services.org_service import OrgService
 from app.core.security import require_admin, get_current_user
 from app.core.enums import OrgMemberRole
 
 router = APIRouter(prefix="/org-members", tags=["Org Members"])
+
+
+def get_org_member_admin_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> OrgMemberService:
+    return OrgMemberService(db, current_user, org_id=OrgService.get_admin_org_id(current_user, db))
+
+
+def get_org_org_member_service(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OrgMemberService:
+    return OrgMemberService(db, current_user)
 
 
 # ─────────────────────────────────────────
@@ -17,10 +32,9 @@ router = APIRouter(prefix="/org-members", tags=["Org Members"])
 @router.post("", response_model=OrgMemberResponse)
 async def create_member(
     payload: AcceptInvitationSchema,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
+    org_member_service: OrgMemberService = Depends(get_org_org_member_service),
 ):
-    return await OrgMemberService.create_member(payload, current_user, db)
+    return await org_member_service.create_member(payload)
 
 
 # ─────────────────────────────────────────
@@ -29,10 +43,9 @@ async def create_member(
 @router.get("", response_model=List[OrgMemberResponse])
 async def get_all_members(
     role: OrgMemberRole | None = Query(default=None, description="Filter by role"),
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    org_member_service: OrgMemberService = Depends(get_org_member_admin_service),
 ):
-    return await OrgMemberService.get_all_members(current_user, db, role)
+    return await org_member_service.get_all_members(role)
 
 
 # ─────────────────────────────────────────
@@ -41,10 +54,9 @@ async def get_all_members(
 @router.get("/{member_id}", response_model=OrgMemberResponse)
 async def get_member(
     member_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    org_member_service: OrgMemberService = Depends(get_org_member_admin_service),
 ):
-    return await OrgMemberService.get_member(current_user, member_id, db)
+    return await org_member_service.get_member(member_id)
 
 
 # ─────────────────────────────────────────
@@ -54,10 +66,9 @@ async def get_member(
 async def update_member(
     member_id: str,
     payload: OrgMemberUpdateSchema,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    org_member_service: OrgMemberService = Depends(get_org_member_admin_service),
 ):
-    return await OrgMemberService.update_member(member_id, payload, current_user, db)
+    return await org_member_service.update_member(member_id, payload)
 
 
 # ─────────────────────────────────────────
@@ -67,10 +78,9 @@ async def update_member(
 async def update_self(
     member_id: str,
     payload: OrgMemberSelfUpdateSchema,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
+    org_member_service: OrgMemberService = Depends(get_org_org_member_service),
 ):
-    return await OrgMemberService.update_self(member_id, payload, current_user, db)
+    return await org_member_service.update_self(member_id, payload)
 
 
 # ─────────────────────────────────────────
@@ -79,7 +89,6 @@ async def update_self(
 @router.delete("/{member_id}", status_code=204)
 async def delete_member(
     member_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    org_member_service: OrgMemberService = Depends(get_org_member_admin_service),
 ):
-    return await OrgMemberService.delete_member(member_id, current_user, db)
+    return await org_member_service.delete_member(member_id)

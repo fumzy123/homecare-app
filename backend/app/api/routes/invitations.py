@@ -9,6 +9,13 @@ from app.core.limiter import limiter
 router = APIRouter(prefix="/invitations", tags=["Invitations"])
 
 
+def get_invitation_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> InvitationService:
+    return InvitationService(db, current_user)
+
+
 # ─────────────────────────────────────────
 # 1. Send an invitation
 # Writes to invitations table + sends email
@@ -19,10 +26,9 @@ router = APIRouter(prefix="/invitations", tags=["Invitations"])
 async def create_invitation(
     request: Request,
     payload: CreateInvitationSchema,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    invitation_service: InvitationService = Depends(get_invitation_service),
 ):
-    return await InvitationService.create_invitation(payload, current_user, db)
+    return await invitation_service.create_invitation(payload)
 
 
 # ─────────────────────────────────────────
@@ -31,10 +37,9 @@ async def create_invitation(
 # ─────────────────────────────────────────
 @router.get("")
 async def list_invitations(
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    invitation_service: InvitationService = Depends(get_invitation_service),
 ):
-    return await InvitationService.list_invitations(current_user, db)
+    return await invitation_service.list_invitations()
 
 
 # ─────────────────────────────────────────
@@ -46,10 +51,9 @@ async def list_invitations(
 async def resend_invitation(
     request: Request,  # noqa: ARG001 — required by slowapi rate limiter
     invitation_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    invitation_service: InvitationService = Depends(get_invitation_service),
 ):
-    return await InvitationService.resend_invitation(invitation_id, current_user, db)
+    return await invitation_service.resend_invitation(invitation_id)
 
 
 # ─────────────────────────────────────────
@@ -58,7 +62,6 @@ async def resend_invitation(
 @router.delete("/{invitation_id}")
 async def revoke_invitation(
     invitation_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    invitation_service: InvitationService = Depends(get_invitation_service),
 ):
-    return await InvitationService.revoke_invitation(invitation_id, current_user, db)
+    return await invitation_service.revoke_invitation(invitation_id)

@@ -10,6 +10,35 @@ from app.db.session import get_db
 router = APIRouter(prefix="/organization", tags=["Organization"])
 
 
+def get_org_user_service(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> OrgService:
+    # User is authenticated but not yet an org member — no org_id to resolve
+    return OrgService(db, current_user)
+
+
+def get_org_public_service(
+    db: Session = Depends(get_db),
+) -> OrgService:
+    # No auth — demo/direct registration bypass
+    return OrgService(db)
+
+
+def get_org_admin_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> OrgService:
+    return OrgService(db, current_user, org_id=OrgService.get_admin_org_id(current_user, db))
+
+
+def get_org_owner_service(
+    current_user=Depends(require_owner),
+    db: Session = Depends(get_db),
+) -> OrgService:
+    return OrgService(db, current_user, org_id=OrgService.get_admin_org_id(current_user, db))
+
+
 # ─────────────────────────────────────────
 # 1. Register a new organization + owner
 # Authenticated — frontend creates the Supabase user first,
@@ -20,10 +49,9 @@ router = APIRouter(prefix="/organization", tags=["Organization"])
 async def register_organization(
     request: Request,
     payload: RegisterOrganizationSchema,
-    current_user=Depends(get_current_user),
-    db: Session = Depends(get_db),
+    org_service: OrgService = Depends(get_org_user_service),
 ):
-    return await OrgService.register_organization(payload, current_user, db)
+    return await org_service.register_organization(payload)
 
 
 # ─────────────────────────────────────────
@@ -34,9 +62,9 @@ async def register_organization(
 async def register_organization_direct(
     request: Request,
     payload: RegisterDirectSchema,
-    db: Session = Depends(get_db),
+    org_service: OrgService = Depends(get_org_public_service),
 ):
-    return await OrgService.register_organization_direct(payload, db)
+    return await org_service.register_organization_direct(payload)
 
 
 # ─────────────────────────────────────────
@@ -45,10 +73,9 @@ async def register_organization_direct(
 # ─────────────────────────────────────────
 @router.get("", response_model=OrganizationResponseSchema)
 async def get_organization(
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    org_service: OrgService = Depends(get_org_admin_service),
 ):
-    return await OrgService.get_organization(current_user, db)
+    return await org_service.get_organization()
 
 
 # ─────────────────────────────────────────
@@ -57,10 +84,9 @@ async def get_organization(
 @router.patch("", response_model=OrganizationResponseSchema)
 async def update_organization(
     payload: OrganizationUpdateSchema,
-    current_user=Depends(require_owner),
-    db: Session = Depends(get_db),
+    org_service: OrgService = Depends(get_org_owner_service),
 ):
-    return await OrgService.update_organization(payload, current_user, db)
+    return await org_service.update_organization(payload)
 
 
 # ─────────────────────────────────────────
@@ -69,7 +95,6 @@ async def update_organization(
 # ─────────────────────────────────────────
 @router.delete("")
 async def delete_organization(
-    current_user=Depends(require_owner),
-    db: Session = Depends(get_db),
+    org_service: OrgService = Depends(get_org_owner_service),
 ):
-    return await OrgService.delete_organization(current_user, db)
+    return await org_service.delete_organization()

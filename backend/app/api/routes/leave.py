@@ -10,32 +10,36 @@ from app.services.leave_service import LeaveService
 router = APIRouter(prefix="/org-members", tags=["Leave"])
 
 
+def get_leave_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> LeaveService:
+    return LeaveService(db, current_user)
+
+
 @router.get("/{worker_id}/leave", response_model=List[LeaveRecordResponse])
 def list_leave_records(
     worker_id: str,
     year: int = Query(default=None),
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    leave_service: LeaveService = Depends(get_leave_service),
 ):
     resolved_year = year or date.today().year
-    return LeaveService.list_leave_records(worker_id, resolved_year, current_user, db)
+    return leave_service.list_leave_records(worker_id, resolved_year)
 
 
 @router.post("/{worker_id}/leave", response_model=LeaveRecordResponse, status_code=201)
 def create_leave_record(
     worker_id: str,
     payload: LeaveRecordCreateSchema,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    leave_service: LeaveService = Depends(get_leave_service),
 ):
-    return LeaveService.create_leave_record(worker_id, payload, current_user, db)
+    return leave_service.create_leave_record(worker_id, payload)
 
 
 @router.delete("/{worker_id}/leave/{leave_id}", status_code=204)
 def delete_leave_record(
     worker_id: str,
     leave_id: str,
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
+    leave_service: LeaveService = Depends(get_leave_service),
 ):
-    LeaveService.delete_leave_record(worker_id, leave_id, current_user, db)
+    leave_service.delete_leave_record(worker_id, leave_id)
