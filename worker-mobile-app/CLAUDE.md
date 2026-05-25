@@ -51,20 +51,21 @@ npm run ios             # iOS simulator (Mac only)
 
 - [x] **Phase 0**: Project scaffold, design system, NativeWind, shared components, Expo Router setup
 - [x] **Phase 1**: Authentication — sign in, JWT storage, Zustand auth store, protected routes
-- [ ] **Phase 2**: Onboarding flow — 3-screen intro, stored "seen" flag, deep-link from invite email
-- [ ] **Phase 3**: Home screen — today's shifts summary, next shift card, quick actions
-- [ ] **Phase 4**: Schedule / shifts — calendar view, shift detail screen, ShiftCard component
-- [ ] **Phase 5**: Profile overview — read own profile (`GET /api/me/profile`), credentials view
-- [ ] **Phase 6**: Availability — weekly availability picker, `PATCH /api/me/availability`
-- [ ] **Phase 7**: Visit verification — GPS check-in, distance check against client address
-- [ ] **Phase 8**: Progress notes — note editor per shift occurrence, voice-to-text
-- [ ] **Phase 9**: Digital flowsheet — per-client task checklist during shift
-- [ ] **Phase 10**: Notifications — push notification setup, notification centre screen
-- [ ] **Phase 11**: Compliance documents — upload docs to profile, view uploaded docs
-- [ ] **Phase 12**: Leaderboard — attendance ranking among org workers
-- [ ] **Phase 13**: Polish pass — animations, loading skeletons, empty states, error states
-- [ ] **Phase 14**: EAS Build setup, TestFlight beta, internal testers
-- [ ] **Phase 15**: App Store submission (iOS) + Play Store submission (Android)
+- [ ] **Phase 2**: Onboarding flow — pre-login 3-page intro, permissions screen, profile completion bar
+- [ ] **Phase 3**: Invite acceptance — deep link handling, token verification, profile setup form, `POST /api/me/complete-profile` (requires EAS build)
+- [ ] **Phase 4**: Home screen — today's shifts summary, next shift card, warm empty state
+- [ ] **Phase 5**: Schedule / shifts — calendar view, shift detail screen, ShiftCard component
+- [ ] **Phase 6**: Profile overview — read own profile (`GET /api/me/profile`), credentials view
+- [ ] **Phase 7**: Availability — weekly availability picker, `PATCH /api/me/availability`
+- [ ] **Phase 8**: Visit verification — GPS check-in, distance check against client address
+- [ ] **Phase 9**: Progress notes — note editor per shift occurrence, voice-to-text
+- [ ] **Phase 10**: Digital flowsheet — per-client task checklist during shift
+- [ ] **Phase 11**: Notifications — push notification setup, notification centre screen
+- [ ] **Phase 12**: Compliance documents — upload docs to profile, view uploaded docs
+- [ ] **Phase 13**: Leaderboard — attendance ranking among org workers
+- [ ] **Phase 14**: Polish pass — animations, loading skeletons, empty states, error states, contextual nudges
+- [ ] **Phase 15**: EAS Build setup, TestFlight beta, internal testers
+- [ ] **Phase 16**: App Store submission (iOS) + Play Store submission (Android)
 
 ---
 
