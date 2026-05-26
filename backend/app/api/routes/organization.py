@@ -29,14 +29,14 @@ def get_org_admin_service(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> OrgService:
-    return OrgService(db, current_user, org_id=OrgService.get_admin_org_id(current_user, db))
+    return OrgService(db, current_user, org_id=OrgService.get_user_org_id(current_user, db))
 
 
 def get_org_owner_service(
     current_user=Depends(require_owner),
     db: Session = Depends(get_db),
 ) -> OrgService:
-    return OrgService(db, current_user, org_id=OrgService.get_admin_org_id(current_user, db))
+    return OrgService(db, current_user, org_id=OrgService.get_user_org_id(current_user, db))
 
 
 # ─────────────────────────────────────────

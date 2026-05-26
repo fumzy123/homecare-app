@@ -13,7 +13,7 @@ class ProgressNoteService:
     def __init__(self, db: Session, current_user: SupabaseUser):
         self.db = db
         self.note_repo = ProgressNoteRepository(db)
-        self.org_id = OrgService.get_admin_org_id(current_user, db)
+        self.org_id = OrgService.get_user_org_id(current_user, db)
 
     # ─────────────────────────────────────────
     # 1. Get progress note for an occurrence
