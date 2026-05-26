@@ -13,7 +13,7 @@ def get_billing_service(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> BillingService:
-    return BillingService(db, current_user, org_id=OrgService.get_admin_org_id(current_user, db))
+    return BillingService(db, current_user, org_id=OrgService.get_user_org_id(current_user, db))
 
 
 def get_billing_webhook_service(
