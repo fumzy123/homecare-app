@@ -12,7 +12,7 @@ class LeaveService:
         self.db = db
         self.current_user = current_user
         self.leave_repo = LeaveRepository(db)
-        self.org_id = OrgService.get_admin_org_id(current_user, db)
+        self.org_id = OrgService.get_user_org_id(current_user, db)
 
     def list_leave_records(self, worker_id: str, year: int) -> list[LeaveRecord]:
         self.leave_repo.get_worker(worker_id, self.org_id)

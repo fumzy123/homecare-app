@@ -35,7 +35,7 @@ class InvitationService:
         self.db = db
         self.current_user = current_user
         self.invitation_repo = InvitationRepository(db)
-        self.org_id = OrgService.get_admin_org_id(current_user, db)
+        self.org_id = OrgService.get_user_org_id(current_user, db)
         self.supabase = get_supabase_client()
 
     async def create_invitation(self, payload: CreateInvitationSchema):

@@ -16,7 +16,7 @@ class ClientService:
         self.db = db
         self.current_user = current_user
         self.client_repo = ClientRepository(db)
-        self.org_id = OrgService.get_admin_org_id(current_user, db)
+        self.org_id = OrgService.get_user_org_id(current_user, db)
 
     # ─────────────────────────────────────────
     # 1. Create a client

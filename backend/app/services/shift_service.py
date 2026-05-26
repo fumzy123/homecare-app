@@ -30,7 +30,7 @@ class ShiftService:
         self.shift_repo = ShiftRepository(db)
         self.modification_repo = ShiftModificationRepository(db)
         self.org_member_repo = OrgMemberRepository(db)
-        self.org_id = OrgService.get_admin_org_id(current_user, db)
+        self.org_id = OrgService.get_user_org_id(current_user, db)
 
     # ─────────────────────────────────────────
     # Internal helpers

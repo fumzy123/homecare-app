@@ -21,7 +21,7 @@ class OrgService:
         self.org_id = org_id
 
     @staticmethod
-    def get_admin_org_id(current_user: SupabaseUser, db: Session) -> uuid.UUID:
+    def get_user_org_id(current_user: SupabaseUser, db: Session) -> uuid.UUID:
         """Resolve the org_id for the currently authenticated user. Used by all services."""
         repo = OrganizationRepository(db)
         member = repo.get_member_by_id(current_user.id)
