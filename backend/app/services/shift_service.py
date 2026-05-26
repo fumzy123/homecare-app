@@ -8,9 +8,9 @@ from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
 from app.core.exceptions import AppError
 from app.schemas.shift import (
-    CancelFromSchema,
-    CancelShiftSchema,
-    EditFromSchema,
+    ShiftCancelFromSchema,
+    ShiftCancelSchema,
+    ShiftEditFromSchema,
     ShiftCreateSchema,
     ShiftModificationCreateSchema,
     ShiftModificationUpdateSchema,
@@ -484,7 +484,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 5. Cancel entire shift schedule (soft delete)
     # ─────────────────────────────────────────
-    async def cancel_shift(self, shift_id: str, payload: CancelShiftSchema):
+    async def cancel_shift(self, shift_id: str, payload: ShiftCancelSchema):
         try:
             shift = self._get_active_shift(shift_id)
 
@@ -634,7 +634,7 @@ class ShiftService:
     # 8. Cancel this occurrence and all following
     # Truncates recurrence_end_date; cancels all if first occurrence
     # ─────────────────────────────────────────
-    async def cancel_from_date(self, shift_id: str, payload: CancelFromSchema):
+    async def cancel_from_date(self, shift_id: str, payload: ShiftCancelFromSchema):
         try:
             shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date
@@ -661,7 +661,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 9. Edit this occurrence and all following (splits the series)
     # ─────────────────────────────────────────
-    async def edit_from_date(self, shift_id: str, payload: EditFromSchema):
+    async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema):
         try:
             shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date

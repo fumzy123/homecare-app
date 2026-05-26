@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
 from app.schemas.shift import (
-    CancelFromSchema,
-    CancelShiftSchema,
-    EditFromSchema,
+    ShiftCancelFromSchema,
+    ShiftCancelSchema,
+    ShiftEditFromSchema,
     ShiftCreateSchema,
     ShiftMasterResponse,
     ShiftModificationCreateSchema,
@@ -97,7 +97,7 @@ async def update_shift(
 @router.post("/{shift_id}/cancel")
 async def cancel_shift(
     shift_id: str,
-    payload: CancelShiftSchema,
+    payload: ShiftCancelSchema,
     shift_service: ShiftService = Depends(get_shift_service),
 ):
     return await shift_service.cancel_shift(shift_id, payload)
@@ -134,7 +134,7 @@ async def update_modification(
 @router.post("/{shift_id}/cancel-from")
 async def cancel_from_date(
     shift_id: str,
-    payload: CancelFromSchema,
+    payload: ShiftCancelFromSchema,
     shift_service: ShiftService = Depends(get_shift_service),
 ):
     return await shift_service.cancel_from_date(shift_id, payload)
@@ -146,7 +146,7 @@ async def cancel_from_date(
 @router.post("/{shift_id}/edit-from")
 async def edit_from_date(
     shift_id: str,
-    payload: EditFromSchema,
+    payload: ShiftEditFromSchema,
     shift_service: ShiftService = Depends(get_shift_service),
 ):
     return await shift_service.edit_from_date(shift_id, payload)
