@@ -2,7 +2,6 @@ import { View, Text, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Btn } from '@/shared/components/ui';
 
@@ -37,7 +36,7 @@ function PermissionRow({
 export default function PermissionsScreen() {
   const handleAllow = async () => {
     await Location.requestForegroundPermissionsAsync();
-    await Notifications.requestPermissionsAsync();
+    // await Notifications.requestPermissionsAsync(); // Disabled in Expo Go
     await markPermissionsSeen();
     router.replace('/onboarding/profile-completion');
   };
