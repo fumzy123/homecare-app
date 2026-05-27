@@ -11,6 +11,11 @@ export interface ShiftClientSummary {
   id: string;
   first_name: string;
   last_name: string;
+  date_of_birth: string;
+  street: string;
+  city: string;
+  service_type: string;
+  medical_conditions: string | null;
 }
 
 export interface ShiftOccurrence {

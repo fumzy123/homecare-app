@@ -1,16 +1,7 @@
 import { View, Text } from 'react-native';
 import { ShiftStatusBadge } from './ShiftStatusBadge';
+import { formatTimeRange } from '@/shared/utils/formatTime';
 import type { ShiftOccurrence } from '../types';
-
-function formatTimeRange(start: string, end: string): string {
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleTimeString('en-CA', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-  return `${fmt(start)} – ${fmt(end)}`;
-}
 
 type ShiftCardVariant = 'default' | 'featured';
 
