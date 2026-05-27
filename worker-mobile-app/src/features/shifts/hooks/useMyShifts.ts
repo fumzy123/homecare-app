@@ -18,5 +18,9 @@ export function useMyShifts(fromDate: string, toDate: string) {
 
 export function useTodayShifts() {
   const today = toDateString(new Date());
-  return useMyShifts(today, today);
+  return useQuery({
+    queryKey: ['my-shifts', today, today],
+    queryFn: () => getMyShifts(today, today),
+    staleTime: 0,
+  });
 }
