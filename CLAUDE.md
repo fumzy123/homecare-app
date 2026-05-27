@@ -215,3 +215,18 @@ Frontend catches this and displays the localized times to the admin.
 5. **Voice to notes**
 6. **Export reports**
 7. **AI Smart Scheduling**: Suggest best worker based on schedule and proximity.
+
+---
+
+## Local Mobile Development Gotchas
+
+### Local Network Connection Issues (Physical Device)
+When testing the mobile app on a physical device, `EXPO_PUBLIC_BACKEND_API_URL` cannot use `localhost` or `127.0.0.1` because the phone evaluates that to itself. It must be pointed to the computer's local Wi-Fi IP address.
+
+**How this is automated in this project:**
+- A custom script `worker-mobile-app/scripts/update-ip.js` automatically detects your local Wi-Fi IP and injects it into `.env.local` before `npx expo start` runs.
+- **Critical Requirement:** Your computer's Wi-Fi network must be set to "Private" (not Public), and Windows Defender Firewall must explicitly allow inbound connections to port 8000. If the app fails to load shifts (connection refused), run this as Administrator in PowerShell to bypass the silent block:
+  `New-NetFirewallRule -DisplayName "Allow Port 8000 for Expo Backend" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow`
+
+### Expo Go vs Development Builds
+- `expo-notifications` (starting SDK 53) will crash Expo Go immediately on import because native push capabilities were stripped from the Go app. It is currently commented out in `app/onboarding/permissions.tsx`. A custom development build must be created when we are ready to implement Push Notifications.
