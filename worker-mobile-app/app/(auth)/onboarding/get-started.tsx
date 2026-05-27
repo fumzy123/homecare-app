@@ -1,4 +1,4 @@
-import { View, Text, Linking, Pressable } from 'react-native';
+import { View, Text, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Kicker, Btn } from '@/shared/components/ui';
@@ -21,7 +21,7 @@ export default function GetStartedScreen() {
 
         <Btn
           className="mb-3"
-          onPress={() => router.replace('/auth/login')}
+          onPress={() => router.replace('/(auth)/login')}
         >
           Sign In
         </Btn>

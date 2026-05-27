@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
       <View className="px-6 pb-8">
         <Pressable
           className="min-h-11 items-center justify-center rounded-full bg-ink px-8 py-3"
-          onPress={() => router.push('/onboarding/how-it-works')}
+          onPress={() => router.push('/(auth)/onboarding/how-it-works')}
         >
           <Text className="font-sans text-sm font-semibold text-cream">Get Started</Text>
         </Pressable>
