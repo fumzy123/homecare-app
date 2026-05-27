@@ -12,6 +12,7 @@ import { useAuthStore } from '@/shared/lib/auth-store';
 import {
   Newsreader_400Regular,
   Newsreader_400Regular_Italic,
+  Newsreader_600SemiBold,
   Newsreader_700Bold,
 } from '@expo-google-fonts/newsreader';
 import {
@@ -27,6 +28,7 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Newsreader_400Regular,
     Newsreader_400Regular_Italic,
+    Newsreader_600SemiBold,
     Newsreader_700Bold,
     JetBrainsMono_400Regular,
     JetBrainsMono_700Bold,
