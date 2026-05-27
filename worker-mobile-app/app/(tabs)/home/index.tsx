@@ -1,8 +1,9 @@
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTodayShifts } from '@/features/shifts/hooks/useMyShifts';
 import { useWorkerProfile } from '@/features/profile/hooks/useWorkerProfile';
 import { useWorkerStats } from '@/features/profile/hooks/useWorkerStats';
+import { useRefreshControl } from '@/shared/hooks/useRefreshControl';
 import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { WorkerStatsRow } from '@/features/home/components/WorkerStatsRow';
 import { NextShiftCard } from '@/features/home/components/NextShiftCard';
@@ -18,14 +19,15 @@ function partitionShifts(shifts: ShiftOccurrence[]) {
 }
 
 export default function HomeScreen() {
-  const { data: shifts = [], isLoading: shiftsLoading, isError: shiftsError } = useTodayShifts();
+  const { data: shifts = [], isLoading: shiftsLoading, isError: shiftsError, refetch } = useTodayShifts();
   const { data: profile } = useWorkerProfile();
   const { data: stats } = useWorkerStats();
+  const { refreshing, onRefresh } = useRefreshControl(refetch);
 
   const { next, later, total } = partitionShifts(shifts);
   const nextIndex = next ? shifts.filter((s) => s.completion_status !== 'cancelled').indexOf(next) + 1 : 1;
 
-  const isLoading = shiftsLoading;
+  const isLoading = shiftsLoading && !refreshing;
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
@@ -33,6 +35,14 @@ export default function HomeScreen() {
         className="flex-1 px-5"
         contentContainerStyle={{ paddingTop: 24, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FF5A1F"
+            colors={['#FF5A1F']}
+          />
+        }
       >
         <HomeHeader profile={profile} />
 
