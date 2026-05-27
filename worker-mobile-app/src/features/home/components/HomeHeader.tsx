@@ -19,7 +19,7 @@ function formatHeaderDate(): string {
   const month = now.toLocaleDateString('en-CA', { month: 'short' }).toUpperCase();
   const date = now.getDate();
   const wk = getWeekNumber(now);
-  return `${day} · ${month} ${date} · WK ${wk}`;
+  return `— ${day} · ${month} ${date} · WK ${wk}`;
 }
 
 interface HomeHeaderProps {
@@ -35,10 +35,10 @@ export function HomeHeader({ profile, notificationCount = 0 }: HomeHeaderProps) 
     <View className="mb-6 flex-row items-start justify-between">
       <View className="flex-1 pr-4">
         <Text className="mb-1 font-mono text-xs text-muted">{formatHeaderDate()}</Text>
-        <Text className="font-serif text-3xl text-ink">
-          {getGreeting()}{firstName ? ' ' : ''}
-          <Text className="italic">{firstName}{firstName ? '.' : ''}</Text>
-        </Text>
+        <Text className="font-serif-semibold text-3xl text-ink">{getGreeting()}</Text>
+        {firstName ? (
+          <Text className="font-serif-italic text-3xl text-ink">{firstName}.</Text>
+        ) : null}
       </View>
 
       <View className="flex-row items-center gap-3 pt-1">
