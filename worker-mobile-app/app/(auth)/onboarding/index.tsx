@@ -126,7 +126,7 @@ function HowItWorksPage({ onNext }: { onNext: () => void }) {
 function GetStartedPage() {
   const handleSignIn = async () => {
     await SecureStore.setItemAsync(ONBOARDING_SEEN_KEY, 'true');
-    router.replace('/auth/login');
+    router.replace('/(auth)/login');
   };
 
   const handleInviteLink = () => {
