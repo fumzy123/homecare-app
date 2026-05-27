@@ -15,7 +15,7 @@ export default function TabsLayout() {
 
   useEffect(() => {
     if (!isLoading && !session) {
-      router.replace('/auth/login');
+      router.replace('/(auth)/login');
     }
   }, [session, isLoading, router]);
 
@@ -39,29 +39,22 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <TabIcon name="home-outline" color={color as string} />,
+          title: 'Today',
+          tabBarIcon: ({ color }) => <TabIcon name="home-outline" color={color} />,
         }}
       />
       <Tabs.Screen
         name="schedule"
         options={{
           title: 'Schedule',
-          tabBarIcon: ({ color }) => <TabIcon name="calendar-outline" color={color as string} />,
+          tabBarIcon: ({ color }) => <TabIcon name="calendar-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="notifications"
+        name="ranks"
         options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color }) => <TabIcon name="notifications-outline" color={color as string} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <TabIcon name="person-outline" color={color as string} />,
+          title: 'Ranks',
+          tabBarIcon: ({ color }) => <TabIcon name="trophy-outline" color={color} />,
         }}
       />
     </Tabs>
