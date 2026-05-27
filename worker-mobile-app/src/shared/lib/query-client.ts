@@ -1,4 +1,9 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, focusManager } from '@tanstack/react-query';
+import { AppState } from 'react-native';
+
+AppState.addEventListener('change', (state) => {
+  focusManager.setFocused(state === 'active');
+});
 
 export const queryClient = new QueryClient({
   defaultOptions: {
