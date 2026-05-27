@@ -397,6 +397,35 @@ class ShiftService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
+    # 2b. Get hours this ISO week for a worker
+    # ─────────────────────────────────────────
+    async def get_worker_stats(self, worker_id: str) -> dict:
+        today = date.today()
+        monday, sunday = self._iso_week_range(today)
+
+        shifts = self.shift_repo.get_shifts_in_range(self.org_id, sunday, worker_id=worker_id)
+
+        hours = 0.0
+        for shift in shifts:
+            mod_map = {m.original_date: m for m in shift.modifications}
+            for occ_date in self._expand_occurrences(shift, monday, sunday):
+                timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
+                if timeblock is None:
+                    continue
+                start, end = timeblock
+                hours += (end - start).total_seconds() / 3600.0
+
+        worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
+        cap = worker.max_hours_per_week if worker else None
+
+        return {
+            "hours_this_week":    round(hours, 2),
+            "weekly_hour_cap":    cap,
+            "punctuality_streak": None,
+            "care_log_streak":    None,
+        }
+
+    # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
     # ─────────────────────────────────────────
     async def get_shifts(

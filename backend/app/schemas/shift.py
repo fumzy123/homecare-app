@@ -2,7 +2,7 @@ from pydantic import BaseModel, model_validator
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
-from app.core.enums import ShiftCompletionStatus
+from app.core.enums import ShiftCompletionStatus, ServiceType
 
 
 # ─────────────────────────────────────────
@@ -140,9 +140,14 @@ class WorkerSummary(BaseModel):
 
 
 class ClientSummary(BaseModel):
-    id:         UUID
-    first_name: str
-    last_name:  str
+    id:                 UUID
+    first_name:         str
+    last_name:          str
+    date_of_birth:      date
+    street:             str
+    city:               str
+    service_type:       ServiceType
+    medical_conditions: str | None
     model_config = {"from_attributes": True}
 
 
