@@ -26,6 +26,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 export const apiClient = axios.create({
   baseURL: `${BACKEND_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 10_000,
 });
 
 apiClient.interceptors.request.use(async (config) => {
