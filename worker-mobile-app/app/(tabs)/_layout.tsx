@@ -37,21 +37,21 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="home"
+        name="home/index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <TabIcon name="home-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="schedule"
+        name="schedule/index"
         options={{
           title: 'Schedule',
           tabBarIcon: ({ color }) => <TabIcon name="calendar-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="ranks"
+        name="ranks/index"
         options={{
           title: 'Rank',
           tabBarIcon: ({ color }) => <TabIcon name="trophy-outline" color={color} />,
