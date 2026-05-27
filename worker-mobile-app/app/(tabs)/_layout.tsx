@@ -39,7 +39,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Today',
+          title: 'Home',
           tabBarIcon: ({ color }) => <TabIcon name="home-outline" color={color} />,
         }}
       />
@@ -53,7 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="ranks"
         options={{
-          title: 'Ranks',
+          title: 'Rank',
           tabBarIcon: ({ color }) => <TabIcon name="trophy-outline" color={color} />,
         }}
       />
