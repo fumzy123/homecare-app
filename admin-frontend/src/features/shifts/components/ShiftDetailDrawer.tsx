@@ -119,15 +119,13 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
   function handleSave() {
     setEditError(null)
-    const s = new Date(`${date}T${startTime}`)
-    const e = new Date(`${endDate}T${endTime}`)
     if (shift.is_recurring) {
       setShowSaveModal(true)
     } else {
       saveMutation.mutate(async () => {
         await shiftsApi.updateShift(shift.shift_id, {
           worker_id: workerId, client_id: clientId,
-          start_time: s.toISOString(), end_time: e.toISOString(),
+          start_time: `${date}T${startTime}:00`, end_time: `${endDate}T${endTime}:00`,
           location: location || undefined, notes: notes || undefined,
         })
         if (completionStatus !== shift.completion_status) {
@@ -155,8 +153,8 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   function executeSave(scope: RecurringScope) {
-    const startISO = new Date(`${date}T${startTime}`).toISOString()
-    const endISO   = new Date(`${endDate}T${endTime}`).toISOString()
+    const startISO = `${date}T${startTime}:00`
+    const endISO   = `${endDate}T${endTime}:00`
     if (scope === 'this') {
       const originalDate = shift.date
       if (shift.is_modification) {
