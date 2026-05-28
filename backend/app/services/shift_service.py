@@ -63,8 +63,8 @@ class ShiftService:
 
         rule = rrulestr(rule_str, dtstart=shift.start_time)
         occurrences = rule.between(
-            datetime.combine(from_date, time.min, tzinfo=timezone.utc),
-            datetime.combine(cap, time.max, tzinfo=timezone.utc),
+            datetime.combine(from_date, time.min),
+            datetime.combine(cap, time.max),
             inc=True,
         )
         return [dt.date() for dt in occurrences]
@@ -81,8 +81,8 @@ class ShiftService:
 
         rule = rrulestr(shift.recurrence_rule, dtstart=shift.start_time)
         matches = rule.between(
-            datetime.combine(target_date, time.min, tzinfo=timezone.utc),
-            datetime.combine(target_date, time.max, tzinfo=timezone.utc),
+            datetime.combine(target_date, time.min),
+            datetime.combine(target_date, time.max),
             inc=True,
         )
         return len(matches) > 0
@@ -240,7 +240,7 @@ class ShiftService:
             end_time = start_time + delta
 
         stored_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
-        now = datetime.now(timezone.utc)
+        now = datetime.now()
         if stored_status == ShiftCompletionStatus.scheduled:
             if start_time <= now <= end_time:
                 effective_status = ShiftCompletionStatus.in_progress
@@ -298,8 +298,8 @@ class ShiftService:
                 cap_date = recurrence_end_date or (payload.start_time.date() + timedelta(days=365))
                 rule = rrulestr(recurrence_rule, dtstart=payload.start_time)
                 occurrences = rule.between(
-                    datetime.combine(payload.start_time.date(), time.min, tzinfo=timezone.utc),
-                    datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                    datetime.combine(payload.start_time.date(), time.min),
+                    datetime.combine(cap_date, time.max),
                     inc=True,
                 )
                 duration = payload.end_time - payload.start_time
@@ -494,8 +494,7 @@ class ShiftService:
                     shift.recurrence_rule = new_rule
                     if payload.recurrence.recurrence_end_date:
                         shift.recurrence_end_date = payload.recurrence.recurrence_end_date
-                    today = datetime.now(timezone.utc).date()
-                    self.shift_repo.delete_modifications_from_date(shift_id, today)
+                    self.shift_repo.delete_modifications_from_date(shift_id, date.today())
 
             for field, value in updates.items():
                 setattr(shift, field, value)
@@ -706,8 +705,8 @@ class ShiftService:
                     new_rule = self._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
                     rule = rrulestr(new_rule, dtstart=new_start_time)
                     occurrences = rule.between(
-                        datetime.combine(new_start_time.date(), time.min, tzinfo=timezone.utc),
-                        datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                        datetime.combine(new_start_time.date(), time.min),
+                        datetime.combine(cap_date, time.max),
                         inc=True,
                     )
                     duration = new_end_time - new_start_time
@@ -785,8 +784,8 @@ class ShiftService:
             if shift.is_recurring:
                 rule = rrulestr(new_rule, dtstart=new_start)
                 occurrences = rule.between(
-                    datetime.combine(new_start.date(), time.min, tzinfo=timezone.utc),
-                    datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                    datetime.combine(new_start.date(), time.min),
+                    datetime.combine(cap_date, time.max),
                     inc=True,
                 )
                 duration = new_end - new_start

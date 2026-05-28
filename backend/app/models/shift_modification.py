@@ -19,8 +19,8 @@ class ShiftModification(Base):
     original_date = Column(Date, nullable=False)
 
     # Time overrides — NULL means "inherit from master shift"
-    new_start_time = Column(DateTime(timezone=True), nullable=True)
-    new_end_time = Column(DateTime(timezone=True), nullable=True)
+    new_start_time = Column(DateTime(timezone=False), nullable=True)
+    new_end_time = Column(DateTime(timezone=False), nullable=True)
 
     # Per-occurrence lifecycle status
     completion_status = Column(
