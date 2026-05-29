@@ -30,21 +30,6 @@ function getDirectionsUrl(street: string, city: string): string {
   return `https://maps.google.com/?q=${query}`;
 }
 
-function ShiftStatusPill({ startTime }: { startTime: string }) {
-  const now = new Date();
-  const start = new Date(startTime);
-  const isLate = now > start;
-
-  return (
-    <View className="flex-row items-center gap-1.5">
-      <StatusDot color={isLate ? 'red' : 'green'} />
-      <Text className="font-mono text-xs text-cream opacity-80">
-        {isLate ? 'LATE' : 'ON TIME'}
-      </Text>
-    </View>
-  );
-}
-
 interface NextShiftCardProps {
   shift: ShiftOccurrence;
   shiftIndex: number;
@@ -61,6 +46,10 @@ export function NextShiftCard({ shift, shiftIndex, totalToday, onDetailsPress }:
   const focus = formatFocus(client.service_type, client.medical_conditions);
   const address = `${client.street}, ${client.city}`;
 
+  const now = new Date();
+  const start = new Date(start_time);
+  const isLate = now > start;
+
   const handleDirections = () => {
     Linking.openURL(getDirectionsUrl(client.street, client.city));
   };
@@ -75,36 +64,12 @@ export function NextShiftCard({ shift, shiftIndex, totalToday, onDetailsPress }:
       </View>
 
       <View className="rounded-2xl bg-ink p-5">
-        <View className="mb-4 flex-row items-start justify-between">
-          <View>
-            <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-50">
-              Starting In
-            </Text>
-            {countdown ? (
-              <View className="flex-row items-baseline gap-2">
-                <Text className="font-serif text-4xl text-orange">{countdown}</Text>
-                <Text className="font-mono text-xs text-cream opacity-40">H:MM:SS</Text>
-              </View>
-            ) : (
-              <Text className="font-serif text-2xl text-cream">Started</Text>
-            )}
-          </View>
-          <View className="items-end">
-            <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-50">
-              Status
-            </Text>
-            <ShiftStatusPill startTime={start_time} />
-          </View>
-        </View>
-
-        <View className="mb-4 border-b border-cream opacity-10" />
-
+        {/* Client info */}
         <View className="mb-4 flex-row items-center gap-4">
           <Avatar initials={initials} size="lg" className="bg-orange" />
           <View className="flex-1">
             <Text className="font-serif text-xl text-cream">
-              {client.first_name}{' '}
-              <Text className="italic">{client.last_name}</Text>
+              {client.first_name} <Text className="italic">{client.last_name}</Text>
             </Text>
             <Text className="mt-0.5 font-sans text-xs text-cream opacity-60" numberOfLines={1}>
               {age} years · {address}
@@ -112,23 +77,52 @@ export function NextShiftCard({ shift, shiftIndex, totalToday, onDetailsPress }:
           </View>
         </View>
 
+        {/* Countdown + Status */}
+        {countdown && (
+          <>
+            <View className="mb-4 border-b border-cream opacity-10" />
+            <View className="mb-4 flex-row items-end justify-between">
+              <View>
+                <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Starting in</Text>
+                <Text className="font-mono text-4xl text-orange">{countdown}</Text>
+              </View>
+              <View>
+                <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Status</Text>
+                <View className="flex-row items-center gap-1.5">
+                  <StatusDot color={isLate ? 'red' : 'green'} />
+                  <Text className="font-mono text-xs text-cream opacity-80">
+                    {isLate ? 'LATE' : 'ON TIME'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
+
         <View className="mb-4 border-b border-cream opacity-10" />
 
-        <View className="mb-4 flex-row gap-6">
-          <View>
-            <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Start</Text>
-            <Text className="font-mono text-lg text-cream">{formatTime(start_time)}</Text>
+        {/* Times */}
+        <View className="mb-4 flex-row items-start">
+          {/* Stacked start / end */}
+          <View className="flex-1">
+            <Text className="font-mono text-xs uppercase tracking-widest text-cream opacity-40">Start</Text>
+            <Text className="mb-3 font-mono text-2xl text-cream">{formatTime(start_time)}</Text>
+            <Text className="font-mono text-xs uppercase tracking-widest text-cream opacity-40">End</Text>
+            <Text className="font-mono text-2xl text-cream">{formatTime(end_time)}</Text>
           </View>
-          <View>
-            <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">End</Text>
-            <Text className="font-mono text-lg text-cream">{formatTime(end_time)}</Text>
-          </View>
+
+          <View className="mx-4 w-px self-stretch bg-cream opacity-10" />
+
+          {/* Duration */}
           <View>
             <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Duration</Text>
-            <Text className="font-mono text-lg text-cream">{duration}</Text>
+            <Text className="font-mono text-xl text-cream">{duration}</Text>
           </View>
         </View>
 
+        <View className="mb-4 border-b border-cream opacity-10" />
+
+        {/* Focus */}
         {focus && (
           <View className="mb-5">
             <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Focus</Text>
@@ -136,6 +130,7 @@ export function NextShiftCard({ shift, shiftIndex, totalToday, onDetailsPress }:
           </View>
         )}
 
+        {/* Buttons */}
         <View className="flex-row gap-3">
           <Pressable
             onPress={handleDirections}
