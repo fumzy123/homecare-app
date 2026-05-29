@@ -6,10 +6,10 @@ import { formatDuration } from '@/shared/utils/formatDuration';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 function formatHour(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-CA', {
-    hour: '2-digit',
+  return new Date(iso).toLocaleTimeString('en-US', {
+    hour: 'numeric',
     minute: '2-digit',
-    hour12: false,
+    hour12: true,
   });
 }
 
@@ -38,7 +38,7 @@ export function CompactShiftRow({ shift, onPress, className = '' }: CompactShift
       onPress={onPress}
       className={`flex-row items-center rounded-xl border border-cream-2 bg-paper px-4 py-3 ${className}`}
     >
-      <View className="mr-4 items-center" style={{ width: 40 }}>
+      <View className="mr-4 items-center" style={{ width: 64 }}>
         <Text className="font-mono text-sm font-bold text-ink">{formatHour(start_time)}</Text>
         <Text className="font-mono text-xs text-muted">{duration}</Text>
       </View>
