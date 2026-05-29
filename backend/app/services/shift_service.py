@@ -239,15 +239,7 @@ class ShiftService:
             delta = shift.end_time - shift.start_time
             end_time = start_time + delta
 
-        stored_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
-        now = datetime.now()
-        if stored_status == ShiftCompletionStatus.scheduled:
-            if start_time <= now <= end_time:
-                effective_status = ShiftCompletionStatus.in_progress
-            else:
-                effective_status = ShiftCompletionStatus.scheduled
-        else:
-            effective_status = stored_status
+        effective_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
 
         recurrence_frequency    = None
         recurrence_days_of_week = None
