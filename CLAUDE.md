@@ -122,10 +122,10 @@ VITE_SENTRY_DSN=                 # Optional
 VITE_APP_ENV=development
 ```
 
-### Mobile App (`worker-mobile-app/.env`)
+### Mobile App (`worker-mobile-app/.env.local`)
 
 ```
-EXPO_PUBLIC_BACKEND_API_URL=http://10.0.0.117:8000   # Use local network IP for physical device
+EXPO_PUBLIC_BACKEND_API_URL=https://xxxxx.ngrok-free.app   # ngrok tunnel URL (see Mobile Dev Gotchas)
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY= # Publishable key — safe for frontend
 ```
@@ -162,7 +162,7 @@ npm run build        # TypeScript check + Vite build
 
 ```bash
 cd worker-mobile-app
-npx expo start --clear   # Starts Metro bundler and clears cache
+npx expo start --tunnel --clear
 ```
 
 ---
@@ -218,15 +218,92 @@ Frontend catches this and displays the localized times to the admin.
 
 ---
 
+## Worker Mobile App — Architecture
+
+```
+Screen (app/**/*.tsx)
+  → hooks from src/features/X/hooks/
+    → api.ts (TanStack Query wrappers)
+      → src/shared/lib/api-client.ts (Axios + JWT refresh)
+        → backend FastAPI
+```
+
+Shared design tokens match `admin-frontend/src/index.css` exactly.
+
+### Mobile Stack Detail
+
+| Concern | Tool |
+|---|---|
+| Framework | React Native + Expo SDK 54 |
+| Language | TypeScript (strict) |
+| Routing | Expo Router v4 (file-based, `app/` dir) |
+| Server state | TanStack Query v5 |
+| Client state | Zustand |
+| Styling | NativeWind v4 (Tailwind in React Native) |
+| Forms | TanStack Form v1 + Zod |
+| Auth | Supabase (@supabase/supabase-js) |
+| HTTP | Axios (`src/shared/lib/api-client.ts`) |
+| Secure storage | expo-secure-store |
+| Build | EAS Build + EAS Submit |
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `app/_layout.tsx` | Root layout — fonts, providers, auth listener |
+| `app/index.tsx` | Redirect: session → tabs, no session → onboarding |
+| `src/shared/lib/api-client.ts` | Axios instance + JWT auto-refresh |
+| `src/shared/lib/auth-store.ts` | Zustand session store |
+| `src/shared/lib/query-client.ts` | TanStack Query global config |
+| `src/shared/components/ui/index.tsx` | Design system components |
+| `tailwind.config.js` | NativeWind — same tokens as admin-frontend |
+
+### Mobile Feature Roadmap
+
+- [x] **Phase 0**: Project scaffold, design system, NativeWind, shared components, Expo Router setup
+- [x] **Phase 1**: Authentication — sign in, JWT storage, Zustand auth store, protected routes
+- [ ] **Phase 2**: Onboarding flow — pre-login 3-page intro, permissions screen, profile completion bar
+- [ ] **Phase 3**: Invite acceptance — deep link handling, token verification, profile setup form, `POST /api/me/complete-profile` (requires EAS build)
+- [x] **Phase 4**: Home screen — today's shifts summary, next shift card, warm empty state
+- [ ] **Phase 5**: Schedule / shifts — calendar view, shift detail screen, ShiftCard component
+- [ ] **Phase 6**: Profile overview — read own profile (`GET /api/me/profile`), credentials view
+- [ ] **Phase 7**: Availability — weekly availability picker, `PATCH /api/me/availability`
+- [ ] **Phase 8**: Visit verification — GPS check-in, distance check against client address
+- [ ] **Phase 9**: Progress notes — note editor per shift occurrence, voice-to-text
+- [ ] **Phase 10**: Digital flowsheet — per-client task checklist during shift
+- [ ] **Phase 11**: Notifications — push notification setup, notification centre screen
+- [ ] **Phase 12**: Compliance documents — upload docs to profile, view uploaded docs
+- [ ] **Phase 13**: Leaderboard — attendance ranking among org workers
+- [ ] **Phase 14**: Polish pass — animations, loading skeletons, empty states, error states, contextual nudges
+- [ ] **Phase 15**: EAS Build setup, TestFlight beta, internal testers
+- [ ] **Phase 16**: App Store submission (iOS) + Play Store submission (Android)
+
+### Backend Endpoints Still Needed (Mobile)
+
+| Endpoint | Phase | Purpose |
+|---|---|---|
+| `GET /api/me/profile` | 6 | Worker reads own profile |
+| `PATCH /api/me/availability` | 7 | Worker updates own availability |
+| `POST /api/me/shifts/{id}/check-in` | 8 | GPS check-in |
+| `GET /api/me/notifications` | 11 | Notification history |
+| `GET /api/leaderboard` | 13 | Org attendance ranking |
+
+---
+
 ## Local Mobile Development Gotchas
 
-### Local Network Connection Issues (Physical Device)
-When testing the mobile app on a physical device, `EXPO_PUBLIC_BACKEND_API_URL` cannot use `localhost` or `127.0.0.1` because the phone evaluates that to itself. It must be pointed to the computer's local Wi-Fi IP address.
+### Running the Mobile App on a Physical Device
 
-**How this is automated in this project:**
-- A custom script `worker-mobile-app/scripts/update-ip.js` automatically detects your local Wi-Fi IP and injects it into `.env.local` before `npx expo start` runs.
-- **Critical Requirement:** Your computer's Wi-Fi network must be set to "Private" (not Public), and Windows Defender Firewall must explicitly allow inbound connections to port 8000. If the app fails to load shifts (connection refused), run this as Administrator in PowerShell to bypass the silent block:
-  `New-NetFirewallRule -DisplayName "Allow Port 8000 for Expo Backend" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow`
+The phone needs two connections: Metro bundler (JS bundle) and the backend API. Both are tunnelled through ngrok/Expo so the setup is the same on any network.
+
+**Every time you start a dev session:**
+
+1. Start the backend: `docker compose up`
+2. Run `ngrok http 8000`, copy the `https://xxxxx.ngrok-free.app` URL into `worker-mobile-app/.env.local` → `EXPO_PUBLIC_BACKEND_API_URL`
+3. Run `cd worker-mobile-app && npx expo start --tunnel --clear`
+4. Scan QR code in Expo Go.
+
+**ngrok:** Microsoft Store install (v3.39.1), available in PATH as `ngrok`. Authtoken saved. Regenerate token at dashboard.ngrok.com if compromised.
 
 ### Expo Go vs Development Builds
 - `expo-notifications` (starting SDK 53) will crash Expo Go immediately on import because native push capabilities were stripped from the Go app. It is currently commented out in `app/onboarding/permissions.tsx`. A custom development build must be created when we are ready to implement Push Notifications.
