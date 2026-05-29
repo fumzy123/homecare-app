@@ -1,14 +1,14 @@
 from datetime import date
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import get_current_user
 from app.core.exceptions import AppError
 from app.models.org_member import OrgMember
 from app.schemas.shift import ShiftOccurrenceResponse
-from app.schemas.worker_profile import WorkerProfileResponse, WorkerStatsResponse
+from app.schemas.worker_profile import WorkerProfileResponse, WorkerStatsResponse, CredentialResponse
 from app.services.shift_service import ShiftService
-from fastapi import Query
+from app.repositories.credential_repository import CredentialRepository
 
 router = APIRouter(prefix="/me", tags=["Worker — Me"])
 
@@ -56,3 +56,15 @@ async def get_my_shifts(
     shift_service: ShiftService = Depends(get_worker_shift_service),
 ):
     return await shift_service.get_shifts(from_date, to_date, worker_id=current_user.id)
+
+
+# ─────────────────────────────────────────
+# 4. Get own credentials
+# ─────────────────────────────────────────
+@router.get("/credentials", response_model=list[CredentialResponse])
+async def get_my_credentials(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    repo = CredentialRepository(db)
+    return repo.list_for_member(current_user.id)
