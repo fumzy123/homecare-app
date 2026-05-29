@@ -29,6 +29,8 @@ export const apiClient = axios.create({
   timeout: 10_000,
 });
 
+console.log('🛠️ INITIALIZED API CLIENT WITH BASE URL:', `${BACKEND_URL}/api`);
+
 apiClient.interceptors.request.use(async (config) => {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
@@ -41,6 +43,7 @@ apiClient.interceptors.request.use(async (config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
+    console.error('❌ API NETWORK ERROR:', error?.message, 'URL:', error?.config?.url);
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
