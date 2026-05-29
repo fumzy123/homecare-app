@@ -389,30 +389,64 @@ class ShiftService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 2b. Get hours this ISO week for a worker
+    # 2b. Worker stats — hours and overtime
     # ─────────────────────────────────────────
-    async def get_worker_stats(self, worker_id: str) -> dict:
-        today = date.today()
-        monday, sunday = self._iso_week_range(today)
-
-        shifts = self.shift_repo.get_shifts_in_range(self.org_id, sunday, worker_id=worker_id)
-
+    def _calculate_hours_in_range(self, worker_id: str, from_date: date, to_date: date) -> float:
+        """Total scheduled hours for a worker between from_date and to_date (inclusive)."""
+        shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id=worker_id)
         hours = 0.0
         for shift in shifts:
             mod_map = {m.original_date: m for m in shift.modifications}
-            for occ_date in self._expand_occurrences(shift, monday, sunday):
+            for occ_date in self._expand_occurrences(shift, from_date, to_date):
                 timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
                 if timeblock is None:
                     continue
                 start, end = timeblock
                 hours += (end - start).total_seconds() / 3600.0
+        return round(hours, 2)
+
+    def _calculate_overtime_in_range(self, worker_id: str, from_date: date, to_date: date, weekly_cap: int) -> float:
+        """Sum of hours exceeding weekly_cap for each ISO week that overlaps from_date..to_date."""
+        shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id=worker_id)
+
+        # Accumulate hours per ISO week key
+        week_hours: dict[tuple[date, date], float] = {}
+        for shift in shifts:
+            mod_map = {m.original_date: m for m in shift.modifications}
+            for occ_date in self._expand_occurrences(shift, from_date, to_date):
+                timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
+                if timeblock is None:
+                    continue
+                start, end = timeblock
+                week_key = self._iso_week_range(occ_date)
+                week_hours[week_key] = week_hours.get(week_key, 0.0) + (end - start).total_seconds() / 3600.0
+
+        overtime = sum(max(0.0, h - weekly_cap) for h in week_hours.values())
+        return round(overtime, 2)
+
+    async def get_worker_stats(self, worker_id: str) -> dict:
+        today = date.today()
+        monday, sunday = self._iso_week_range(today)
+        month_start = today.replace(day=1)
+        year_start = today.replace(month=1, day=1)
 
         worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
         cap = worker.max_hours_per_week if worker else None
 
+        hours_this_week = self._calculate_hours_in_range(worker_id, monday, sunday)
+        hours_mtd = self._calculate_hours_in_range(worker_id, month_start, today)
+        hours_ytd = self._calculate_hours_in_range(worker_id, year_start, today)
+
+        overtime_mtd = self._calculate_overtime_in_range(worker_id, month_start, today, cap) if cap else 0.0
+        overtime_ytd = self._calculate_overtime_in_range(worker_id, year_start, today, cap) if cap else 0.0
+
         return {
-            "hours_this_week":    round(hours, 2),
+            "hours_this_week":    hours_this_week,
             "weekly_hour_cap":    cap,
+            "hours_mtd":          hours_mtd,
+            "hours_ytd":          hours_ytd,
+            "overtime_mtd":       overtime_mtd,
+            "overtime_ytd":       overtime_ytd,
             "punctuality_streak": None,
             "care_log_streak":    None,
         }
