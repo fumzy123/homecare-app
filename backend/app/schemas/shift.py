@@ -2,7 +2,7 @@ from pydantic import BaseModel, model_validator
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
-from app.core.enums import ShiftCompletionStatus
+from app.core.enums import ShiftCompletionStatus, ServiceType
 
 
 # ─────────────────────────────────────────
@@ -56,7 +56,7 @@ class ShiftUpdateSchema(BaseModel):
 # ─────────────────────────────────────────
 # POST /shifts/{id}/cancel — cancel a shift with a reason
 # ─────────────────────────────────────────
-class CancelShiftSchema(BaseModel):
+class ShiftCancelSchema(BaseModel):
     cancellation_reason: str | None = None
 
 
@@ -100,7 +100,7 @@ class ShiftModificationUpdateSchema(BaseModel):
 # ─────────────────────────────────────────
 # POST /shifts/{id}/cancel-from — cancel this occurrence and all following
 # ─────────────────────────────────────────
-class CancelFromSchema(BaseModel):
+class ShiftCancelFromSchema(BaseModel):
     occurrence_date:     date
     cancellation_reason: str | None = None
 
@@ -108,7 +108,7 @@ class CancelFromSchema(BaseModel):
 # ─────────────────────────────────────────
 # POST /shifts/{id}/edit-from — edit this occurrence and all following
 # ─────────────────────────────────────────
-class EditFromSchema(BaseModel):
+class ShiftEditFromSchema(BaseModel):
     occurrence_date:     date
     new_start_time:      datetime | None = None
     new_end_time:        datetime | None = None
@@ -140,9 +140,14 @@ class WorkerSummary(BaseModel):
 
 
 class ClientSummary(BaseModel):
-    id:         UUID
-    first_name: str
-    last_name:  str
+    id:                 UUID
+    first_name:         str
+    last_name:          str
+    date_of_birth:      date
+    street:             str
+    city:               str
+    service_type:       ServiceType
+    medical_conditions: str | None
     model_config = {"from_attributes": True}
 
 

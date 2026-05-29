@@ -42,7 +42,7 @@ export default function HowItWorksScreen() {
       <View className="px-6 pb-8 pt-4">
         <Pressable
           className="min-h-11 items-center justify-center rounded-full bg-orange px-8 py-3"
-          onPress={() => router.push('/onboarding/get-started')}
+          onPress={() => router.push('/(auth)/onboarding/get-started')}
         >
           <Text className="font-sans text-sm font-semibold text-white">Continue</Text>
         </Pressable>

@@ -38,12 +38,12 @@ export default function PermissionsScreen() {
     await Location.requestForegroundPermissionsAsync();
     // await Notifications.requestPermissionsAsync(); // Disabled in Expo Go
     await markPermissionsSeen();
-    router.replace('/onboarding/profile-completion');
+    router.replace('/(auth)/onboarding/profile-completion');
   };
 
   const handleSkip = async () => {
     await markPermissionsSeen();
-    router.replace('/onboarding/profile-completion');
+    router.replace('/(auth)/onboarding/profile-completion');
   };
 
   return (

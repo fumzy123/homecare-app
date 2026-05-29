@@ -104,8 +104,8 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
         safeEndDate = nextDay(value.date)
       }
 
-      const startISO = new Date(`${value.date}T${value.start_time}`).toISOString()
-      const endISO   = new Date(`${safeEndDate}T${value.end_time}`).toISOString()
+      const startISO = `${value.date}T${value.start_time}:00`
+      const endISO   = `${safeEndDate}T${value.end_time}:00`
       try {
         await shiftsApi.createShift({
           worker_id:  value.worker_id,

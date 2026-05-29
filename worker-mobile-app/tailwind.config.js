@@ -22,6 +22,8 @@ module.exports = {
       },
       fontFamily: {
         serif: ['Newsreader_400Regular', 'serif'],
+        'serif-semibold': ['Newsreader_600SemiBold', 'serif'],
+        'serif-bold': ['Newsreader_700Bold', 'serif'],
         'serif-italic': ['Newsreader_400Regular_Italic', 'serif'],
         mono: ['JetBrainsMono_400Regular', 'monospace'],
         'mono-bold': ['JetBrainsMono_700Bold', 'monospace'],

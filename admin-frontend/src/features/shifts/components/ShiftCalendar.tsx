@@ -208,7 +208,12 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
               if (event.resource?.shift_id === '__phantom__') {
                 return { style: { background: 'transparent', border: '2px dashed #8A8378', borderRadius: 0, fontSize: 11, padding: '2px 6px', color: '#8A8378', fontFamily: "'JetBrains Mono', monospace" } }
               }
-              const status = event.resource?.completion_status ?? 'scheduled'
+              const rawStatus = event.resource?.completion_status ?? 'scheduled'
+              const now = new Date()
+              const status =
+                rawStatus === 'scheduled' && event.start <= now && now <= event.end
+                  ? 'in_progress'
+                  : rawStatus
               const m = getStatusToken(status)
               return { style: { background: m.bg, border: `1px ${m.dashed ? 'dashed' : 'solid'} ${m.border}`, borderRadius: 0, color: m.color, fontSize: 11, padding: '3px 7px', fontFamily: "'JetBrains Mono', monospace" } }
             }}

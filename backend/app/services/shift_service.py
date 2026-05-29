@@ -8,9 +8,9 @@ from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
 from app.core.exceptions import AppError
 from app.schemas.shift import (
-    CancelFromSchema,
-    CancelShiftSchema,
-    EditFromSchema,
+    ShiftCancelFromSchema,
+    ShiftCancelSchema,
+    ShiftEditFromSchema,
     ShiftCreateSchema,
     ShiftModificationCreateSchema,
     ShiftModificationUpdateSchema,
@@ -63,8 +63,8 @@ class ShiftService:
 
         rule = rrulestr(rule_str, dtstart=shift.start_time)
         occurrences = rule.between(
-            datetime.combine(from_date, time.min, tzinfo=timezone.utc),
-            datetime.combine(cap, time.max, tzinfo=timezone.utc),
+            datetime.combine(from_date, time.min),
+            datetime.combine(cap, time.max),
             inc=True,
         )
         return [dt.date() for dt in occurrences]
@@ -81,8 +81,8 @@ class ShiftService:
 
         rule = rrulestr(shift.recurrence_rule, dtstart=shift.start_time)
         matches = rule.between(
-            datetime.combine(target_date, time.min, tzinfo=timezone.utc),
-            datetime.combine(target_date, time.max, tzinfo=timezone.utc),
+            datetime.combine(target_date, time.min),
+            datetime.combine(target_date, time.max),
             inc=True,
         )
         return len(matches) > 0
@@ -239,15 +239,7 @@ class ShiftService:
             delta = shift.end_time - shift.start_time
             end_time = start_time + delta
 
-        stored_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
-        now = datetime.now(timezone.utc)
-        if stored_status == ShiftCompletionStatus.scheduled:
-            if start_time <= now <= end_time:
-                effective_status = ShiftCompletionStatus.in_progress
-            else:
-                effective_status = ShiftCompletionStatus.scheduled
-        else:
-            effective_status = stored_status
+        effective_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
 
         recurrence_frequency    = None
         recurrence_days_of_week = None
@@ -298,8 +290,8 @@ class ShiftService:
                 cap_date = recurrence_end_date or (payload.start_time.date() + timedelta(days=365))
                 rule = rrulestr(recurrence_rule, dtstart=payload.start_time)
                 occurrences = rule.between(
-                    datetime.combine(payload.start_time.date(), time.min, tzinfo=timezone.utc),
-                    datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                    datetime.combine(payload.start_time.date(), time.min),
+                    datetime.combine(cap_date, time.max),
                     inc=True,
                 )
                 duration = payload.end_time - payload.start_time
@@ -397,6 +389,35 @@ class ShiftService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
+    # 2b. Get hours this ISO week for a worker
+    # ─────────────────────────────────────────
+    async def get_worker_stats(self, worker_id: str) -> dict:
+        today = date.today()
+        monday, sunday = self._iso_week_range(today)
+
+        shifts = self.shift_repo.get_shifts_in_range(self.org_id, sunday, worker_id=worker_id)
+
+        hours = 0.0
+        for shift in shifts:
+            mod_map = {m.original_date: m for m in shift.modifications}
+            for occ_date in self._expand_occurrences(shift, monday, sunday):
+                timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
+                if timeblock is None:
+                    continue
+                start, end = timeblock
+                hours += (end - start).total_seconds() / 3600.0
+
+        worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
+        cap = worker.max_hours_per_week if worker else None
+
+        return {
+            "hours_this_week":    round(hours, 2),
+            "weekly_hour_cap":    cap,
+            "punctuality_streak": None,
+            "care_log_streak":    None,
+        }
+
+    # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
     # ─────────────────────────────────────────
     async def get_shifts(
@@ -465,8 +486,7 @@ class ShiftService:
                     shift.recurrence_rule = new_rule
                     if payload.recurrence.recurrence_end_date:
                         shift.recurrence_end_date = payload.recurrence.recurrence_end_date
-                    today = datetime.now(timezone.utc).date()
-                    self.shift_repo.delete_modifications_from_date(shift_id, today)
+                    self.shift_repo.delete_modifications_from_date(shift_id, date.today())
 
             for field, value in updates.items():
                 setattr(shift, field, value)
@@ -484,7 +504,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 5. Cancel entire shift schedule (soft delete)
     # ─────────────────────────────────────────
-    async def cancel_shift(self, shift_id: str, payload: CancelShiftSchema):
+    async def cancel_shift(self, shift_id: str, payload: ShiftCancelSchema):
         try:
             shift = self._get_active_shift(shift_id)
 
@@ -634,7 +654,7 @@ class ShiftService:
     # 8. Cancel this occurrence and all following
     # Truncates recurrence_end_date; cancels all if first occurrence
     # ─────────────────────────────────────────
-    async def cancel_from_date(self, shift_id: str, payload: CancelFromSchema):
+    async def cancel_from_date(self, shift_id: str, payload: ShiftCancelFromSchema):
         try:
             shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date
@@ -661,7 +681,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 9. Edit this occurrence and all following (splits the series)
     # ─────────────────────────────────────────
-    async def edit_from_date(self, shift_id: str, payload: EditFromSchema):
+    async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema):
         try:
             shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date
@@ -677,8 +697,8 @@ class ShiftService:
                     new_rule = self._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
                     rule = rrulestr(new_rule, dtstart=new_start_time)
                     occurrences = rule.between(
-                        datetime.combine(new_start_time.date(), time.min, tzinfo=timezone.utc),
-                        datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                        datetime.combine(new_start_time.date(), time.min),
+                        datetime.combine(cap_date, time.max),
                         inc=True,
                     )
                     duration = new_end_time - new_start_time
@@ -756,8 +776,8 @@ class ShiftService:
             if shift.is_recurring:
                 rule = rrulestr(new_rule, dtstart=new_start)
                 occurrences = rule.between(
-                    datetime.combine(new_start.date(), time.min, tzinfo=timezone.utc),
-                    datetime.combine(cap_date, time.max, tzinfo=timezone.utc),
+                    datetime.combine(new_start.date(), time.min),
+                    datetime.combine(cap_date, time.max),
                     inc=True,
                 )
                 duration = new_end - new_start

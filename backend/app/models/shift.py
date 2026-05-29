@@ -21,8 +21,8 @@ class Shift(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
 
     # Shift timing — first occurrence (or the only occurrence if non-recurring)
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
+    start_time = Column(DateTime(timezone=False), nullable=False)
+    end_time = Column(DateTime(timezone=False), nullable=False)
 
     # Recurrence
     is_recurring = Column(Boolean, nullable=False, default=False)
