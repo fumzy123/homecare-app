@@ -50,3 +50,15 @@ class EmploymentStatus(str, enum.Enum):
     active = "active"
     on_leave = "on_leave"
     terminated = "terminated"
+
+class ComplianceDocumentType(str, enum.Enum):
+    first_aid_cpr = "first_aid_cpr"
+    criminal_record_check = "criminal_record_check"
+    vulnerable_sector_check = "vulnerable_sector_check"
+    drivers_license = "drivers_license"
+    child_access_check = "child_access_check"
+    tb_test = "tb_test"
+    immunization_record = "immunization_record"
+    auto_insurance = "auto_insurance"
+    work_permit = "work_permit"
+    psw_certificate = "psw_certificate"
