@@ -64,6 +64,19 @@ export interface Credential {
   uploaded_at: string;
 }
 
+export interface WorkerProfileUpdatePayload {
+  phone_number?: string | null;
+  gender?: string | null;
+  street?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postal_code?: string | null;
+  languages?: string[] | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  emergency_contact_relationship?: string | null;
+}
+
 export type CredentialStatus = 'valid' | 'expiring' | 'expired';
 
 export function computeCredentialStatus(expiry_date: string | null): CredentialStatus {
