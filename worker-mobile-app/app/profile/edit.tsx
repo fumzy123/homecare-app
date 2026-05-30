@@ -177,38 +177,6 @@ function LockedField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EToggle({
-  label, sub, value, onValueChange,
-}: {
-  label: string; sub?: string; value: boolean; onValueChange: (v: boolean) => void;
-}) {
-  return (
-    <Pressable
-      onPress={() => onValueChange(!value)}
-      className="flex-row items-center justify-between border-b border-ink/[0.08] py-3"
-    >
-      <View>
-        <Text className="text-[13px] text-ink">{label}</Text>
-        {sub && (
-          <Text className="mt-0.5 font-mono text-[9px] text-ink-soft">{sub}</Text>
-        )}
-      </View>
-      {/* 40×23 square blueprint toggle */}
-      <View style={{
-        width: 40, height: 23, borderWidth: 1, borderColor: '#111111',
-        backgroundColor: value ? '#9DE8DC' : '#EDE8DC',
-      }}>
-        <View style={{
-          position: 'absolute', top: 1,
-          left: value ? 19 : 1,
-          width: 19, height: 19,
-          backgroundColor: '#111111',
-        }} />
-      </View>
-    </Pressable>
-  );
-}
-
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function EditProfileScreen() {
@@ -228,8 +196,6 @@ export default function EditProfileScreen() {
     emergency_contact_phone: profile?.emergency_contact_phone ?? '',
     emergency_contact_relationship: profile?.emergency_contact_relationship ?? '',
   }));
-
-  const [notif, setNotif] = useState({ push: true, sms: true, email: false });
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -478,29 +444,6 @@ export default function EditProfileScreen() {
                 </Text>
               )}
             </View>
-          </View>
-
-          {/* ── Notifications ────────────────────────────────────────────── */}
-          <SectionDivider label="Notifications" />
-          <View className="px-5">
-            <EToggle
-              label="Push notifications"
-              sub="SHIFT REMINDERS, MESSAGES"
-              value={notif.push}
-              onValueChange={(v) => setNotif((n) => ({ ...n, push: v }))}
-            />
-            <EToggle
-              label="SMS alerts"
-              sub="URGENT SCHEDULE CHANGES"
-              value={notif.sms}
-              onValueChange={(v) => setNotif((n) => ({ ...n, sms: v }))}
-            />
-            <EToggle
-              label="Email summaries"
-              sub="WEEKLY HOURS & PAY"
-              value={notif.email}
-              onValueChange={(v) => setNotif((n) => ({ ...n, email: v }))}
-            />
           </View>
 
           {/* ── Managed by your agency ───────────────────────────────────── */}
