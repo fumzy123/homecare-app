@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
-import type { Credential } from '../types';
-import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '../types';
+import type { Credential } from '@/features/profile/types';
+import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '@/features/profile/types';
 
 interface ComplianceAlertProps {
   credentials: Credential[];

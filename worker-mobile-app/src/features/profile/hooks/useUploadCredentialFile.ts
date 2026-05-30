@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/shared/lib/auth-store';
-import { pickAndUploadDocument } from '../lib/uploadDocument';
-import { upsertCredential } from '../api';
-import type { ComplianceDocumentType } from '../types';
+import { pickAndUploadDocument } from '@/features/profile/lib/uploadDocument';
+import { upsertCredential } from '@/features/profile/api';
+import type { ComplianceDocumentType } from '@/features/profile/types';
 
 export function useUploadCredentialFile() {
   const queryClient = useQueryClient();
