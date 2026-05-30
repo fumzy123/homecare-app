@@ -1,6 +1,7 @@
-import { View, Text } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import type { Credential, CredentialStatus } from '../types';
 import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '../types';
+import { useOpenDocumentPreview } from '../hooks/useOpenDocumentPreview';
 
 function StatusChip({ status, expiry_date }: { status: CredentialStatus; expiry_date: string | null }) {
   if (status === 'valid') {
@@ -58,9 +59,12 @@ export function CredentialCard({ credential }: CredentialCardProps) {
   const name = DOCUMENT_TYPE_LABELS[document_type];
   const status = computeCredentialStatus(expiry_date);
   const needsAction = status === 'expired' || status === 'expiring';
+  const hasFile = !!file_url;
 
-  return (
-    <View className="border border-ink bg-paper p-3">
+  const { openPreview, isOpening } = useOpenDocumentPreview();
+
+  const cardContent = (
+    <View className="border border-ink bg-paper p-3" style={{ opacity: isOpening ? 0.7 : 1 }}>
       <View className="flex-row gap-3">
         <StatusIcon status={status} />
 
@@ -82,10 +86,17 @@ export function CredentialCard({ credential }: CredentialCardProps) {
             )}
           </Text>
 
-          {/* Document status */}
-          <View className="mt-2">
-            {file_url ? (
-              <Text className="font-mono text-[9.5px] text-ink">▪ DOCUMENT ON FILE</Text>
+          {/* Document status / view affordance */}
+          <View className="mt-2 flex-row items-center gap-1.5">
+            {hasFile ? (
+              isOpening ? (
+                <>
+                  <ActivityIndicator size="small" color="#4A453E" style={{ transform: [{ scale: 0.7 }] }} />
+                  <Text className="font-mono text-[9.5px] text-ink-soft">OPENING…</Text>
+                </>
+              ) : (
+                <Text className="font-mono text-[9.5px] text-ink">▪ DOCUMENT ON FILE  · VIEW →</Text>
+              )
             ) : (
               <Text className="font-mono text-[9.5px] text-orange">↤ UPLOAD DOCUMENT</Text>
             )}
@@ -93,5 +104,19 @@ export function CredentialCard({ credential }: CredentialCardProps) {
         </View>
       </View>
     </View>
+  );
+
+  if (!hasFile) return cardContent;
+
+  return (
+    <Pressable
+      onPress={() => openPreview(file_url)}
+      disabled={isOpening}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${name}`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+    >
+      {cardContent}
+    </Pressable>
   );
 }
