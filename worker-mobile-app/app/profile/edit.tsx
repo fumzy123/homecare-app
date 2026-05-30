@@ -408,12 +408,7 @@ export default function EditProfileScreen() {
                     }} />
                   </View>
                   <View className="min-w-0 flex-1">
-                    <View className="flex-row items-center">
-                      <Text className="text-[12.5px] font-semibold text-ink">{c.name}</Text>
-                      {c.is_required && (
-                        <Text className="ml-1.5 font-mono text-[8px] text-orange">REQ</Text>
-                      )}
-                    </View>
+                    <Text className="text-[12.5px] font-semibold text-ink">{c.name}</Text>
                     <Text
                       className="mt-1 font-mono text-[9px]"
                       style={{ color: c.file_url ? '#4A453E' : '#FF5A1F' }}
