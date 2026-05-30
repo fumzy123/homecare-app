@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
 import type { Credential } from '../types';
-import { computeCredentialStatus } from '../types';
+import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '../types';
 
 interface ComplianceAlertProps {
   credentials: Credential[];
@@ -20,14 +20,14 @@ export function ComplianceAlert({ credentials }: ComplianceAlertProps) {
   const detailLine = flagged
     .map((c) => {
       const s = computeCredentialStatus(c.expiry_date);
-      if (s === 'expired') return `${c.name.toUpperCase()} · EXPIRED`;
+      if (s === 'expired') return `${DOCUMENT_TYPE_LABELS[c.document_type].toUpperCase()} · EXPIRED`;
       if (c.expiry_date) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const days = Math.ceil((new Date(c.expiry_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        return `${c.name.toUpperCase()} · ${days} DAYS`;
+        return `${DOCUMENT_TYPE_LABELS[c.document_type].toUpperCase()} · ${days} DAYS`;
       }
-      return c.name.toUpperCase();
+      return DOCUMENT_TYPE_LABELS[c.document_type].toUpperCase();
     })
     .join('   —   ');
 
