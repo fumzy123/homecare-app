@@ -50,11 +50,3 @@ class EmploymentStatus(str, enum.Enum):
     active = "active"
     on_leave = "on_leave"
     terminated = "terminated"
-
-class CredentialCategory(str, enum.Enum):
-    safety = "safety"
-    health = "health"
-    emergency_response = "emergency_response"
-    transportation = "transportation"
-    eligibility = "eligibility"
-    qualification = "qualification"
