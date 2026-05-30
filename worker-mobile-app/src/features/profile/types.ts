@@ -43,23 +43,11 @@ export interface WorkerStats {
   care_log_streak: number | null;
 }
 
-export type CredentialCategory =
-  | 'safety'
-  | 'health'
-  | 'emergency_response'
-  | 'transportation'
-  | 'eligibility'
-  | 'qualification';
-
 export interface Credential {
   id: string;
   org_member_id: string;
   name: string;
-  category: CredentialCategory | null;
-  issuer: string | null;
-  issue_date: string | null;
   expiry_date: string | null;
-  is_required: boolean;
   file_url: string | null;
   uploaded_at: string;
 }
