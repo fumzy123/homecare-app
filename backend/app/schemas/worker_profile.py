@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 from typing import Optional, List, Any
-from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus, CredentialCategory
+from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus
 
 
 class WorkerProfileResponse(BaseModel):
@@ -51,11 +51,7 @@ class CredentialResponse(BaseModel):
     id: UUID
     org_member_id: UUID
     name: str
-    category: Optional[CredentialCategory]
-    issuer: Optional[str]
-    issue_date: Optional[date]
     expiry_date: Optional[date]
-    is_required: bool
     file_url: Optional[str]
     uploaded_at: Optional[datetime]
 
@@ -64,21 +60,13 @@ class CredentialResponse(BaseModel):
 
 class CredentialCreateSchema(BaseModel):
     name: str
-    category: Optional[CredentialCategory] = None
-    issuer: Optional[str] = None
-    issue_date: Optional[date] = None
     expiry_date: Optional[date] = None
-    is_required: bool = False
     file_url: Optional[str] = None
 
 
 class CredentialUpdateSchema(BaseModel):
     name: Optional[str] = None
-    category: Optional[CredentialCategory] = None
-    issuer: Optional[str] = None
-    issue_date: Optional[date] = None
     expiry_date: Optional[date] = None
-    is_required: Optional[bool] = None
     file_url: Optional[str] = None
 
 
