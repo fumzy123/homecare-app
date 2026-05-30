@@ -7,7 +7,7 @@ Create Date: 2026-05-30
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ENUM as PGENUM
 
 revision = 'e1f2a3b4c5d6'
 down_revision = 'd27f49ca45f8'
@@ -16,12 +16,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── 1. Create notificationtype enum ───────────────────────────────────────
-    notification_type_enum = sa.Enum(
+    # ── 1. Create notificationtype enum (idempotent) ──────────────────────────
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE notificationtype AS ENUM (
+                'profile_updated', 'credential_uploaded', 'shift_dropped'
+            );
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+    """)
+
+    _notification_type = PGENUM(
         'profile_updated', 'credential_uploaded', 'shift_dropped',
         name='notificationtype',
+        create_type=False,
     )
-    notification_type_enum.create(op.get_bind(), checkfirst=True)
 
     # ── 2. admin_notifications ────────────────────────────────────────────────
     op.create_table(
@@ -30,8 +39,7 @@ def upgrade() -> None:
                   server_default=sa.text('gen_random_uuid()')),
         sa.Column('org_id', UUID(as_uuid=True),
                   sa.ForeignKey('organizations.id'), nullable=False),
-        sa.Column('type', sa.Enum('profile_updated', 'credential_uploaded', 'shift_dropped',
-                                  name='notificationtype', create_type=False), nullable=False),
+        sa.Column('type', _notification_type, nullable=False),
         sa.Column('worker_id', UUID(as_uuid=True),
                   sa.ForeignKey('org_members.id'), nullable=False),
         sa.Column('payload', JSONB, nullable=False, server_default='{}'),
