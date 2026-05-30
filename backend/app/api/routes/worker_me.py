@@ -6,7 +6,8 @@ from app.core.security import get_current_user
 from app.core.exceptions import AppError
 from app.models.org_member import OrgMember
 from app.schemas.shift import ShiftOccurrenceResponse
-from app.schemas.worker_profile import WorkerProfileResponse, WorkerProfileUpdateSchema, WorkerStatsResponse, CredentialResponse
+from app.core.enums import ComplianceDocumentType
+from app.schemas.worker_profile import WorkerProfileResponse, WorkerProfileUpdateSchema, WorkerStatsResponse, CredentialResponse, CredentialUpsertSchema
 from app.services.shift_service import ShiftService
 from app.repositories.credential_repository import CredentialRepository
 
@@ -87,3 +88,20 @@ async def get_my_credentials(
 ):
     repo = CredentialRepository(db)
     return repo.list_for_member(current_user.id)
+
+
+# ─────────────────────────────────────────
+# 5. Upload / replace a compliance document
+# ─────────────────────────────────────────
+@router.put("/credentials/{document_type}", response_model=CredentialResponse)
+async def upsert_my_credential(
+    document_type: ComplianceDocumentType,
+    payload: CredentialUpsertSchema,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    repo = CredentialRepository(db)
+    credential = repo.upsert_for_member(current_user.id, document_type, payload.file_url)
+    db.commit()
+    db.refresh(credential)
+    return credential
