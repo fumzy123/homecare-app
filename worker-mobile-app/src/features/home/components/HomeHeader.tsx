@@ -56,7 +56,7 @@ export function HomeHeader({ profile, notificationCount = 0 }: HomeHeaderProps) 
           )}
         </Pressable>
 
-        <Pressable onPress={() => router.push('/profile')}>
+        <Pressable onPress={() => router.navigate('/(tabs)/me/index')}>
           <Avatar initials={initials} size="md" className="bg-orange" />
         </Pressable>
       </View>
