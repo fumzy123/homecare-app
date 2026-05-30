@@ -20,11 +20,11 @@ export async function pickAndUploadDocument(
   const storagePath = `${userId}/${documentType}/document.${ext}`;
 
   const response = await fetch(file.uri);
-  const blob = await response.blob();
+  const arrayBuffer = await response.arrayBuffer();
 
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(storagePath, blob, {
+    .upload(storagePath, arrayBuffer, {
       contentType: file.mimeType ?? 'application/pdf',
       upsert: true,
     });
