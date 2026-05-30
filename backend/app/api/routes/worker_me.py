@@ -6,7 +6,7 @@ from app.core.security import get_current_user
 from app.core.exceptions import AppError
 from app.models.org_member import OrgMember
 from app.schemas.shift import ShiftOccurrenceResponse
-from app.schemas.worker_profile import WorkerProfileResponse, WorkerStatsResponse, CredentialResponse
+from app.schemas.worker_profile import WorkerProfileResponse, WorkerProfileUpdateSchema, WorkerStatsResponse, CredentialResponse
 from app.services.shift_service import ShiftService
 from app.repositories.credential_repository import CredentialRepository
 
@@ -35,7 +35,26 @@ async def get_my_profile(
 
 
 # ─────────────────────────────────────────
-# 2. Get own stats (hours this week, streaks)
+# 2. Update own profile (worker-editable fields only)
+# ─────────────────────────────────────────
+@router.patch("/profile", response_model=WorkerProfileResponse)
+async def update_my_profile(
+    payload: WorkerProfileUpdateSchema,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
+    if not member:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Profile not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(member, field, value)
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+# ─────────────────────────────────────────
+# 3. Get own stats (hours this week, streaks)
 # ─────────────────────────────────────────
 @router.get("/stats", response_model=WorkerStatsResponse)
 async def get_my_stats(

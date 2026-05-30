@@ -82,6 +82,19 @@ class CredentialUpdateSchema(BaseModel):
     file_url: Optional[str] = None
 
 
+class WorkerProfileUpdateSchema(BaseModel):
+    phone_number: Optional[str] = None
+    gender: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
+    postal_code: Optional[str] = None
+    languages: Optional[List[str]] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+
+
 class WorkerStatsResponse(BaseModel):
     hours_this_week: float
     weekly_hour_cap: Optional[int]
