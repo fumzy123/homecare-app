@@ -1,5 +1,4 @@
 import { View, Text, Pressable } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/shared/components/ui';
 import { getInitials } from '@/shared/utils/getInitials';
@@ -56,9 +55,7 @@ export function HomeHeader({ profile, notificationCount = 0 }: HomeHeaderProps) 
           )}
         </Pressable>
 
-        <Pressable onPress={() => router.push('/profile')}>
-          <Avatar initials={initials} size="md" className="bg-orange" />
-        </Pressable>
+        <Avatar initials={initials} size="md" className="bg-orange" />
       </View>
     </View>
   );

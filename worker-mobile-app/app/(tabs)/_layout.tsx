@@ -57,6 +57,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <TabIcon name="trophy-outline" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="me/index"
+        options={{
+          title: 'Me',
+          tabBarIcon: ({ color }) => <TabIcon name="person-outline" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,8 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Any
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
-from app.core.enums import OrgMemberRole, EmploymentType
+from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus
 
 
 class OrgMemberResponse(BaseModel):
@@ -15,15 +16,19 @@ class OrgMemberResponse(BaseModel):
     date_of_birth: Optional[date]
     role: OrgMemberRole
     hire_date: Optional[date]
-    is_active: bool
+    employment_status: EmploymentStatus
     employment_type: Optional[EmploymentType]
     has_vehicle: Optional[bool]
     max_hours_per_week: Optional[int]
+    pay_rate: Optional[Decimal]
     street: Optional[str]
     city: Optional[str]
     province: Optional[str]
     postal_code: Optional[str]
-    availability: Optional[dict]
+    availability: Optional[Any]
+    languages: Optional[List[str]]
+    pet_tolerance: Optional[str]
+    preferred_client_types: Optional[List[str]]
     emergency_contact_name: Optional[str]
     emergency_contact_phone: Optional[str]
     emergency_contact_relationship: Optional[str]
@@ -42,15 +47,19 @@ class OrgMemberUpdateSchema(BaseModel):
     gender: Optional[str] = None
     date_of_birth: Optional[date] = None
     hire_date: Optional[date] = None
-    is_active: Optional[bool] = None
+    employment_status: Optional[EmploymentStatus] = None
     employment_type: Optional[EmploymentType] = None
     has_vehicle: Optional[bool] = None
     max_hours_per_week: Optional[int] = None
+    pay_rate: Optional[Decimal] = None
     street: Optional[str] = None
     city: Optional[str] = None
     province: Optional[str] = None
     postal_code: Optional[str] = None
     availability: Optional[dict] = None
+    languages: Optional[List[str]] = None
+    pet_tolerance: Optional[str] = None
+    preferred_client_types: Optional[List[str]] = None
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
