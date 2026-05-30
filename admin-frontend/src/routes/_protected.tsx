@@ -8,6 +8,7 @@ import { isAdminRole } from '@/shared/lib/roles'
 import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { billingApi } from '@/features/billing/api'
 
 export const Route = createFileRoute('/_protected')({
@@ -146,9 +147,12 @@ function ProtectedLayout() {
               )}
             </span>
           </div>
-          <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft shrink-0 max-sm:hidden">
-            WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}
-          </span>
+          <div className="flex items-center gap-3 shrink-0">
+            <NotificationBell />
+            <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft max-sm:hidden">
+              WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}
+            </span>
+          </div>
         </div>
 
         <main className="flex-1 overflow-y-auto">
