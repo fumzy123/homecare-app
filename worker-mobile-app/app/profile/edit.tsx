@@ -12,6 +12,7 @@ import { SectionDivider } from '@/features/profile/components/SectionDivider';
 import { Avatar } from '@/shared/components/ui';
 import { getInitials } from '@/shared/utils/getInitials';
 import type { WorkerProfileUpdatePayload } from '@/features/profile/types';
+import { DOCUMENT_TYPE_LABELS } from '@/features/profile/types';
 
 const LANGUAGE_OPTIONS = [
   'English', 'French', 'Spanish', 'Tagalog', 'Mandarin', 'Cantonese',
@@ -408,7 +409,7 @@ export default function EditProfileScreen() {
                     }} />
                   </View>
                   <View className="min-w-0 flex-1">
-                    <Text className="text-[12.5px] font-semibold text-ink">{c.name}</Text>
+                    <Text className="text-[12.5px] font-semibold text-ink">{DOCUMENT_TYPE_LABELS[c.document_type]}</Text>
                     <Text
                       className="mt-1 font-mono text-[9px]"
                       style={{ color: c.file_url ? '#4A453E' : '#FF5A1F' }}
