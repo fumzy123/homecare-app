@@ -51,6 +51,23 @@ class EmploymentStatus(str, enum.Enum):
     on_leave = "on_leave"
     terminated = "terminated"
 
+class NotificationType(str, enum.Enum):
+    profile_updated     = "profile_updated"
+    credential_uploaded = "credential_uploaded"
+    shift_dropped       = "shift_dropped"
+
+
+# Roles that receive admin notifications. Kept here (not in security.py)
+# so repositories can import it without a circular dependency.
+ADMIN_ROLES = [
+    OrgMemberRole.owner,
+    OrgMemberRole.manager,
+    OrgMemberRole.supervisor,
+    OrgMemberRole.financial_officer,
+    OrgMemberRole.nurse,
+]
+
+
 class ComplianceDocumentType(str, enum.Enum):
     first_aid_cpr = "first_aid_cpr"
     criminal_record_check = "criminal_record_check"

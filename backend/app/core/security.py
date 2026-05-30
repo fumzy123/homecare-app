@@ -5,18 +5,10 @@ from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.db.session import get_db
 from app.models.org_member import OrgMember
-from app.core.enums import OrgMemberRole
+from app.core.enums import OrgMemberRole, ADMIN_ROLES  # noqa: F401  (re-exported for callers)
 from app.core.exceptions import AppError
 
 security = HTTPBearer()
-
-ADMIN_ROLES = [
-    OrgMemberRole.owner,
-    OrgMemberRole.manager,
-    OrgMemberRole.supervisor,
-    OrgMemberRole.financial_officer,
-    OrgMemberRole.nurse,
-]
 
 
 async def get_current_user(token=Depends(security)) -> SupabaseUser:
