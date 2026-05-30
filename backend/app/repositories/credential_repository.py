@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.models.credential import Credential
+from app.core.enums import ComplianceDocumentType
 from app.core.exceptions import AppError
 from uuid import UUID
 
@@ -39,6 +41,33 @@ class CredentialRepository:
         for key, value in data.items():
             if value is not None:
                 setattr(credential, key, value)
+        self.db.flush()
+        return credential
+
+    def upsert_for_member(
+        self,
+        org_member_id: UUID,
+        document_type: ComplianceDocumentType,
+        file_url: str,
+    ) -> Credential:
+        credential = (
+            self.db.query(Credential)
+            .filter(
+                Credential.org_member_id == org_member_id,
+                Credential.document_type == document_type,
+            )
+            .first()
+        )
+        if credential:
+            credential.file_url = file_url
+            credential.uploaded_at = datetime.now(timezone.utc)
+        else:
+            credential = Credential(
+                org_member_id=org_member_id,
+                document_type=document_type,
+                file_url=file_url,
+            )
+            self.db.add(credential)
         self.db.flush()
         return credential
 

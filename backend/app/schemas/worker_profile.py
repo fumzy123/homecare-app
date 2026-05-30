@@ -69,6 +69,10 @@ class CredentialUpdateSchema(BaseModel):
     file_url: Optional[str] = None
 
 
+class CredentialUpsertSchema(BaseModel):
+    file_url: str
+
+
 class WorkerProfileUpdateSchema(BaseModel):
     phone_number: Optional[str] = None
     gender: Optional[str] = None
