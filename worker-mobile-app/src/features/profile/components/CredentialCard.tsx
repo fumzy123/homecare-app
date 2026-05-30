@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
 import type { Credential, CredentialStatus } from '../types';
-import { computeCredentialStatus } from '../types';
+import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '../types';
 
 function StatusChip({ status, expiry_date }: { status: CredentialStatus; expiry_date: string | null }) {
   if (status === 'valid') {
@@ -54,7 +54,8 @@ interface CredentialCardProps {
 }
 
 export function CredentialCard({ credential }: CredentialCardProps) {
-  const { name, expiry_date, file_url } = credential;
+  const { document_type, expiry_date, file_url } = credential;
+  const name = DOCUMENT_TYPE_LABELS[document_type];
   const status = computeCredentialStatus(expiry_date);
   const needsAction = status === 'expired' || status === 'expiring';
 
