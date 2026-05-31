@@ -1,17 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
-import { format, startOfWeek, endOfWeek } from 'date-fns'
-import { WEEK_STARTS_ON } from '@/shared/lib/date'
-import { clientsApi } from '@/features/clients/api'
-import { shiftsApi } from '@/features/shifts/api'
 import { Card, Kicker, Avatar } from '@/shared/components/ui'
+import type { Client } from '@/features/clients/api'
+import type { ShiftOccurrence } from '@/features/shifts/api'
 
-const weekStart = format(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
-const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
+interface ClientRosterCardProps {
+  clients: Client[]
+  weekShifts: ShiftOccurrence[]
+}
 
-export function ClientRosterCard() {
-  const { data: clients    = [] } = useQuery({ queryKey: ['clients'],  queryFn: () => clientsApi.listClients() })
-  const { data: weekShifts = [] } = useQuery({ queryKey: ['shifts', weekStart, weekEnd], queryFn: () => shiftsApi.listShifts(weekStart, weekEnd) })
-
+export function ClientRosterCard({ clients, weekShifts }: ClientRosterCardProps) {
   const activeClients = clients.filter((c) => c.status === 'active')
 
   const clientHours = weekShifts.reduce<Record<string, number>>((acc, shift) => {

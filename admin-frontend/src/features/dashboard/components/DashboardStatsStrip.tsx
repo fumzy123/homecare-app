@@ -1,27 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
-import { clientsApi } from '@/features/clients/api'
-import { orgMembersApi } from '@/features/org-members/api'
-import { shiftsApi } from '@/features/shifts/api'
-import { addDays, subDays } from 'date-fns'
 import { StatCard } from '@/shared/components/ui'
+import type { Client } from '@/features/clients/api'
+import type { OrgMember } from '@/features/org-members/api'
+import type { ShiftOccurrence } from '@/features/shifts/api'
 
-const today     = format(new Date(), 'yyyy-MM-dd')
-const weekStart = format(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
-const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
 const weekStartDisplay = format(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
 const weekEndDisplay   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }), 'MMM d')
-const droppedFrom = format(subDays(new Date(), 7),  'yyyy-MM-dd')
-const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
 
-export function DashboardStatsStrip() {
-  const { data: clients     = [] } = useQuery({ queryKey: ['clients'],  queryFn: () => clientsApi.listClients() })
-  const { data: workers     = [] } = useQuery({ queryKey: ['workers'],  queryFn: () => orgMembersApi.listByRole('home_support_worker') })
-  const { data: todayShifts = [] } = useQuery({ queryKey: ['shifts', today, today], queryFn: () => shiftsApi.listShifts(today, today) })
-  const { data: weekShifts  = [] } = useQuery({ queryKey: ['shifts', weekStart, weekEnd], queryFn: () => shiftsApi.listShifts(weekStart, weekEnd) })
-  const { data: droppedShifts = [] } = useQuery({ queryKey: ['shifts', droppedFrom, droppedTo, 'dropped'], queryFn: () => shiftsApi.listShifts(droppedFrom, droppedTo, undefined, undefined, ['dropped']) })
+interface DashboardStatsStripProps {
+  clients: Client[]
+  workers: OrgMember[]
+  todayShifts: ShiftOccurrence[]
+  weekShifts: ShiftOccurrence[]
+  droppedShifts: ShiftOccurrence[]
+}
 
+export function DashboardStatsStrip({ clients, workers, todayShifts, weekShifts, droppedShifts }: DashboardStatsStripProps) {
   const activeClients = clients.filter((c) => c.status === 'active')
   const activeWorkers = workers.filter((w) => w.is_active)
   const onHoldClients = clients.filter((c) => c.status === 'on_hold')
