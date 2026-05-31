@@ -12,6 +12,7 @@ import { DashboardStatsStrip } from '@/features/dashboard/components/DashboardSt
 import { DroppedShiftsAlert } from '@/features/dashboard/components/DroppedShiftsAlert'
 import { WorkerUtilizationCard } from '@/features/dashboard/components/WorkerUtilizationCard'
 import { ClientRosterCard } from '@/features/dashboard/components/ClientRosterCard'
+import { ComplianceAlertsPanel } from '@/features/workers/components/ComplianceAlertsPanel'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
@@ -90,6 +91,11 @@ function DashboardPage() {
           <DroppedShiftsAlert droppedShifts={droppedShifts} onSelectShift={setSelectedShift} />
           <WorkerUtilizationCard workers={workers} weekShifts={weekShifts} />
         </div>
+      </section>
+
+      {/* ── Compliance alerts ── */}
+      <section className="px-10 max-md:px-4 mb-8">
+        <ComplianceAlertsPanel />
       </section>
 
       {/* ── Client roster ── */}

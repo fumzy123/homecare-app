@@ -77,6 +77,16 @@ export interface WorkerCredential {
   verified_by: string | null
 }
 
+export interface ExpiringCredential {
+  id: string
+  document_type: string
+  expiry_date: string
+  days_remaining: number
+  worker_id: string
+  worker_first_name: string
+  worker_last_name: string
+}
+
 export const orgMembersApi = {
   listByRole: async (role: OrgMember['role']): Promise<OrgMember[]> => {
     const { data } = await apiClient.get(`/api/org-members?role=${role}`)
@@ -124,5 +134,21 @@ export const orgMembersApi = {
       `/api/org-members/${memberId}/credentials/${documentType}/preview-url`,
     )
     return data.url
+  },
+
+  listExpiringCredentials: async (withinDays = 30): Promise<ExpiringCredential[]> => {
+    const { data } = await apiClient.get(`/api/credentials/expiring?within_days=${withinDays}`)
+    return data
+  },
+
+  uploadCredentialDocument: async (memberId: string, documentType: string, file: File): Promise<WorkerCredential> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await apiClient.post(
+      `/api/org-members/${memberId}/credentials/${documentType}/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return data
   },
 }

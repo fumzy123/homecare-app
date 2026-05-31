@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { format, differenceInDays } from 'date-fns'
 import { orgMembersApi } from '@/features/org-members/api'
-import { useWorkerCredentials, useVerifyCredential } from '../hooks/useWorkerCredentials'
+import { useWorkerCredentials, useVerifyCredential, useUploadCredential } from '../hooks/useWorkerCredentials'
 import { DateInput } from '@/shared/components/ui'
 import type { WorkerCredential } from '@/features/org-members/api'
 
@@ -88,9 +88,12 @@ function CredentialRow({
   documentType: string
   isFirst: boolean
 }) {
-  const [expiryInput, setExpiryInput] = useState('')
+  const [expiryInput, setExpiryInput]   = useState('')
+  const [isEditing, setIsEditing]       = useState(false)
   const [previewState, setPreviewState] = useState<'idle' | 'loading' | string>('idle')
-  const { mutate: verify, isPending } = useVerifyCredential(workerId)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { mutate: verify, isPending: isVerifying }   = useVerifyCredential(workerId)
+  const { mutate: upload, isPending: isUploading }   = useUploadCredential(workerId)
 
   const status   = getDocStatus(credential)
   const label    = DOCUMENT_LABELS[documentType] ?? documentType
@@ -110,9 +113,31 @@ function CredentialRow({
     }
   }
 
+  function handleStartEdit() {
+    setExpiryInput(expiry ?? '')
+    setIsEditing(true)
+  }
+
+  function handleSaveEdit() {
+    if (!expiryInput || !credential) return
+    verify(
+      { documentType: credential.document_type, expiryDate: expiryInput },
+      { onSuccess: () => setIsEditing(false) },
+    )
+  }
+
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    upload({ documentType, file })
+    e.target.value = ''
+  }
+
   const isLoading  = previewState === 'loading'
   const previewErr = typeof previewState === 'string' && previewState !== 'idle' && previewState !== 'loading'
     ? previewState : null
+
+  const isVerified = status === 'valid' || status === 'expiring' || status === 'expired'
 
   return (
     <>
@@ -146,22 +171,58 @@ function CredentialRow({
         </div>
 
         {/* Action */}
-        <div className="px-4 py-[13px] flex justify-end">
+        <div className="px-4 py-[13px] flex items-center justify-end gap-2">
           {status === 'missing' ? (
-            <button className="font-mono text-[9px] tracking-[0.08em] uppercase border border-ink px-[11px] py-1.5 text-ink hover:bg-cream-2 transition-colors">
-              Upload →
-            </button>
-          ) : hasFile && status !== 'needs_review' ? (
             <button
-              onClick={handlePreview}
-              disabled={isLoading}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
               className="font-mono text-[9px] tracking-[0.08em] uppercase border border-ink px-[11px] py-1.5 text-ink hover:bg-cream-2 transition-colors disabled:opacity-50"
             >
-              {isLoading ? 'Opening…' : 'View →'}
+              {isUploading ? 'Uploading…' : 'Upload →'}
             </button>
-          ) : null}
+          ) : (
+            <>
+              {hasFile && status !== 'needs_review' && (
+                <button
+                  type="button"
+                  onClick={handlePreview}
+                  disabled={isLoading}
+                  className="font-mono text-[9px] tracking-[0.08em] uppercase border border-ink px-[11px] py-1.5 text-ink hover:bg-cream-2 transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? 'Opening…' : 'View →'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors disabled:opacity-50"
+              >
+                {isUploading ? 'Uploading…' : 'Upload new'}
+              </button>
+              {isVerified && (
+                <button
+                  type="button"
+                  onClick={handleStartEdit}
+                  className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                >
+                  Edit
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
+
+      {/* Hidden file input shared by all upload buttons in this row */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png"
+        className="hidden"
+        onChange={handleUpload}
+      />
 
       {previewErr && (
         <p className="px-4 pb-2 font-mono text-[10px] text-orange border-t border-dashed border-line-soft">
@@ -179,14 +240,16 @@ function CredentialRow({
             <DateInput value={expiryInput} onChange={(v) => setExpiryInput(v)} className="w-full" />
           </div>
           <button
+            type="button"
             onClick={() => credential && verify({ documentType: credential.document_type, expiryDate: expiryInput })}
-            disabled={!expiryInput || isPending || !credential}
+            disabled={!expiryInput || isVerifying || !credential}
             className="shrink-0 bg-ink text-cream font-mono text-[10px] tracking-[0.08em] uppercase px-4 py-2 hover:opacity-80 disabled:opacity-40 transition-opacity"
           >
-            {isPending ? 'Saving…' : '✓ Verify'}
+            {isVerifying ? 'Saving…' : '✓ Verify'}
           </button>
           {hasFile && (
             <button
+              type="button"
               onClick={handlePreview}
               disabled={isLoading}
               className="shrink-0 font-mono text-[10px] tracking-[0.08em] uppercase px-3 py-2 border border-ink text-ink-soft hover:text-ink transition-colors"
@@ -194,6 +257,33 @@ function CredentialRow({
               {isLoading ? 'Opening…' : 'View →'}
             </button>
           )}
+        </div>
+      )}
+
+      {/* Inline edit strip for verified rows */}
+      {isEditing && (
+        <div className="flex items-end gap-3 px-4 pb-4 pt-1 bg-cream-2 border-t border-dashed border-line-soft">
+          <div className="w-[200px] shrink-0">
+            <label className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft block mb-1">
+              Update expiry date
+            </label>
+            <DateInput value={expiryInput} onChange={(v) => setExpiryInput(v)} className="w-full" />
+          </div>
+          <button
+            type="button"
+            onClick={handleSaveEdit}
+            disabled={!expiryInput || isVerifying}
+            className="shrink-0 bg-ink text-cream font-mono text-[10px] tracking-[0.08em] uppercase px-4 py-2 hover:opacity-80 disabled:opacity-40 transition-opacity"
+          >
+            {isVerifying ? 'Saving…' : '✓ Save'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="shrink-0 font-mono text-[10px] tracking-[0.08em] uppercase px-3 py-2 border border-ink text-ink-soft hover:text-ink transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       )}
     </>
