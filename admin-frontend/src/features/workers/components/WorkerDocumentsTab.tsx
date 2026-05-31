@@ -1,16 +1,15 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { orgMembersApi } from '@/features/org-members/api'
 import { useWorkerCredentials, useVerifyCredential } from '../hooks/useWorkerCredentials'
+import { DateInput } from '@/shared/components/ui'
 import type { WorkerCredential } from '@/features/org-members/api'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types & constants ──────────────────────────────────────────────────────────
 
-type PreviewState = 'idle' | 'loading' | { error: string }
+type DocStatus = 'expired' | 'expiring' | 'needs_review' | 'missing' | 'valid'
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const DOCUMENT_LABELS: Record<string, string> = {
+export const DOCUMENT_LABELS: Record<string, string> = {
   first_aid_cpr:           'First Aid / CPR',
   criminal_record_check:   'Criminal Record Check',
   vulnerable_sector_check: 'Vulnerable Sector Check',
@@ -25,237 +24,263 @@ const DOCUMENT_LABELS: Record<string, string> = {
 
 const ALL_DOCUMENT_TYPES = Object.keys(DOCUMENT_LABELS)
 
-// ── Document preview ──────────────────────────────────────────────────────────
-
-async function openPreview(workerId: string, documentType: string): Promise<void> {
-  // Open the tab synchronously (before any await) so the browser doesn't treat
-  // it as a popup and block it. We set the real URL once the signed URL arrives.
-  const tab = window.open('', '_blank')
-  const signedUrl = await orgMembersApi.getCredentialPreviewUrl(workerId, documentType)
-  if (tab) {
-    tab.location.href = signedUrl
-  } else {
-    window.location.href = signedUrl
-  }
+const STATUS_ORDER: Record<DocStatus, number> = {
+  expired: 0, needs_review: 1, expiring: 2, missing: 3, valid: 4,
 }
 
-// ── Credential card ───────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<DocStatus, { label: string; row: string; chip: string; dot: string }> = {
+  expired:      { label: 'Expired',      row: 'bg-[rgba(255,90,31,0.04)]', chip: 'bg-orange text-white border-orange',                          dot: 'bg-white' },
+  needs_review: { label: 'Needs review', row: '',                           chip: 'bg-transparent text-orange border-orange',                    dot: 'bg-orange' },
+  expiring:     { label: 'Expiring',     row: '',                           chip: 'bg-yellow text-ink border-[#C9A234]',                         dot: 'bg-[#C9A234]' },
+  missing:      { label: 'Missing',      row: '',                           chip: 'bg-transparent text-muted border-line-soft',                  dot: 'bg-muted' },
+  valid:        { label: 'Valid',        row: '',                           chip: 'bg-mint text-ink border-mint-dark',                           dot: 'bg-mint-dark' },
+}
 
-function CredentialCard({
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function getDocStatus(cred: WorkerCredential | null): DocStatus {
+  if (!cred?.file_url) return 'missing'
+  if (!cred.verified_at) return 'needs_review'
+  if (!cred.expiry_date) return 'valid'
+  const today = new Date()
+  const expiry = new Date(cred.expiry_date)
+  if (expiry < today) return 'expired'
+  if (differenceInDays(expiry, today) <= 30) return 'expiring'
+  return 'valid'
+}
+
+function relativeExpiry(expiryDate: string): { text: string; colorClass: string } {
+  const days = differenceInDays(new Date(expiryDate), new Date())
+  if (days < 0)    return { text: `Expired ${Math.abs(days)} days ago`,  colorClass: 'text-orange' }
+  if (days <= 30)  return { text: `Expires in ${days} days`,             colorClass: 'text-[#9a7d1e]' }
+  return             { text: `Expires in ${days} days`,                  colorClass: 'text-ink-soft' }
+}
+
+async function openPreview(workerId: string, documentType: string): Promise<void> {
+  const tab = window.open('', '_blank')
+  const url = await orgMembersApi.getCredentialPreviewUrl(workerId, documentType)
+  if (tab) tab.location.href = url
+  else window.location.href = url
+}
+
+// ── State chip ─────────────────────────────────────────────────────────────────
+
+function StateChip({ status }: { status: DocStatus }) {
+  const cfg = STATUS_CONFIG[status]
+  return (
+    <span className={`inline-flex items-center gap-1.5 font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-[3px] border ${cfg.chip}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  )
+}
+
+// ── Credential row ─────────────────────────────────────────────────────────────
+
+function CredentialRow({
   workerId,
   credential,
   documentType,
+  isFirst,
 }: {
   workerId: string
   credential: WorkerCredential | null
   documentType: string
+  isFirst: boolean
 }) {
   const [expiryInput, setExpiryInput] = useState('')
-  const [preview, setPreview]         = useState<PreviewState>('idle')
-  const { mutate: verify, isPending }  = useVerifyCredential(workerId)
+  const [previewState, setPreviewState] = useState<'idle' | 'loading' | string>('idle')
+  const { mutate: verify, isPending } = useVerifyCredential(workerId)
 
-  const docType    = credential?.document_type ?? documentType
-  const label      = DOCUMENT_LABELS[docType] ?? docType
-  const isVerified = credential?.verified_at != null
-  const hasFile    = !!credential?.file_url
-  const isPreviewing = preview === 'loading'
+  const status   = getDocStatus(credential)
+  const label    = DOCUMENT_LABELS[documentType] ?? documentType
+  const hasFile  = !!credential?.file_url
+  const uploaded = credential?.uploaded_at
+    ? format(new Date(credential.uploaded_at), 'MMM d, yyyy') : null
+  const expiry   = credential?.expiry_date
+  const rel      = expiry ? relativeExpiry(expiry) : null
 
   async function handlePreview() {
-    setPreview('loading')
+    setPreviewState('loading')
     try {
-      await openPreview(workerId, docType)
-      setPreview('idle')
+      await openPreview(workerId, documentType)
+      setPreviewState('idle')
     } catch (err) {
-      setPreview({ error: err instanceof Error ? err.message : 'Could not open document.' })
+      setPreviewState(err instanceof Error ? err.message : 'Could not open document.')
     }
   }
 
-  function handleVerify() {
-    if (!expiryInput || !credential) return
-    verify({ documentType: credential.document_type, expiryDate: expiryInput })
-  }
+  const isLoading  = previewState === 'loading'
+  const previewErr = typeof previewState === 'string' && previewState !== 'idle' && previewState !== 'loading'
+    ? previewState : null
 
   return (
-    <div className={`border border-ink bg-paper p-5 flex flex-col gap-3 ${
-      !isVerified && hasFile ? 'border-orange' : ''
-    }`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-0.5">
-            {docType.replace(/_/g, ' ')}
+    <>
+      <div
+        className={`grid items-center ${!isFirst ? 'border-t border-dashed border-line-soft' : ''} ${STATUS_CONFIG[status].row}`}
+        style={{ gridTemplateColumns: '1.8fr 1fr 1.5fr 0.9fr' }}
+      >
+        {/* Document */}
+        <div className="px-4 py-[13px] min-w-0">
+          <p className="text-[13.5px] font-medium leading-snug">{label}</p>
+          <p className="font-mono text-[9px] tracking-[0.08em] uppercase text-muted">
+            {uploaded ? `Uploaded ${uploaded}` : 'Not uploaded'}
           </p>
-          <p className="text-[15px] font-medium leading-snug">{label}</p>
         </div>
-        {isVerified && (
-          <span className="shrink-0 rounded-sm bg-ink px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-cream">
-            ✓ Verified
-          </span>
-        )}
-        {!isVerified && hasFile && (
-          <span className="shrink-0 rounded-sm bg-orange px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-white">
-            Needs review
-          </span>
-        )}
-      </div>
 
-      {/* File info + preview */}
-      {hasFile ? (
-        <>
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-ink-soft mb-0.5">Uploaded</p>
-              <p className="text-[12px]">
-                {credential!.uploaded_at
-                  ? format(new Date(credential!.uploaded_at), 'MMM d, yyyy')
-                  : '—'}
-              </p>
-            </div>
+        {/* Status */}
+        <div className="px-4 py-[13px]">
+          <StateChip status={status} />
+        </div>
+
+        {/* Expiry */}
+        <div className="px-4 py-[13px]">
+          {expiry ? (
+            <>
+              <p className="text-[12.5px] tabular-nums">{format(new Date(expiry), 'MMM d, yyyy')}</p>
+              {rel && <p className={`font-mono text-[9.5px] ${rel.colorClass}`}>{rel.text}</p>}
+            </>
+          ) : (
+            <span className="font-mono text-[11px] text-muted">—</span>
+          )}
+        </div>
+
+        {/* Action */}
+        <div className="px-4 py-[13px] flex justify-end">
+          {status === 'missing' ? (
+            <button className="font-mono text-[9px] tracking-[0.08em] uppercase border border-ink px-[11px] py-1.5 text-ink hover:bg-cream-2 transition-colors">
+              Upload →
+            </button>
+          ) : hasFile && status !== 'needs_review' ? (
             <button
               onClick={handlePreview}
-              disabled={isPreviewing}
-              className="ml-auto font-mono text-[9px] uppercase tracking-wider text-ink border border-ink px-3 py-1.5 hover:bg-cream-2 disabled:opacity-50 transition-colors"
+              disabled={isLoading}
+              className="font-mono text-[9px] tracking-[0.08em] uppercase border border-ink px-[11px] py-1.5 text-ink hover:bg-cream-2 transition-colors disabled:opacity-50"
             >
-              {isPreviewing ? 'Opening…' : 'View document →'}
+              {isLoading ? 'Opening…' : 'View →'}
             </button>
-          </div>
-          {typeof preview === 'object' && 'error' in preview && (
-            <p className="font-mono text-[10px] text-orange">{preview.error}</p>
-          )}
-        </>
-      ) : (
-        <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-          No document uploaded yet
+          ) : null}
+        </div>
+      </div>
+
+      {previewErr && (
+        <p className="px-4 pb-2 font-mono text-[10px] text-orange border-t border-dashed border-line-soft">
+          {previewErr}
         </p>
       )}
 
-      {/* Expiry info */}
-      {credential?.expiry_date && (
-        <div>
-          <p className="font-mono text-[9px] uppercase tracking-wider text-ink-soft mb-0.5">Expiry date</p>
-          <p className="text-[13px]">{format(new Date(credential.expiry_date), 'MMM d, yyyy')}</p>
-        </div>
-      )}
-
-      {/* Verify form — shown when not yet verified */}
-      {!isVerified && (
-        <div className="border-t border-line-faint pt-3 flex items-end gap-3">
-          <div className="flex-1">
-            <label className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1">
-              Expiry date
+      {/* Inline verify strip for needs_review rows */}
+      {status === 'needs_review' && (
+        <div className="flex items-end gap-3 px-4 pb-4 pt-1 bg-cream-2 border-t border-dashed border-line-soft">
+          <div className="w-[200px] shrink-0">
+            <label className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft block mb-1">
+              Set expiry to verify
             </label>
-            <input
-              type="date"
-              value={expiryInput}
-              onChange={(e) => setExpiryInput(e.target.value)}
-              className="w-full border border-ink bg-cream px-3 py-1.5 font-mono text-[12px] focus:outline-none focus:ring-1 focus:ring-ink"
-            />
+            <DateInput value={expiryInput} onChange={(v) => setExpiryInput(v)} className="w-full" />
           </div>
           <button
-            onClick={handleVerify}
-            disabled={!expiryInput || isPending}
-            className="shrink-0 bg-ink text-cream font-mono text-[10px] uppercase tracking-[0.08em] px-4 py-2 hover:opacity-80 disabled:opacity-40 transition-opacity"
+            onClick={() => credential && verify({ documentType: credential.document_type, expiryDate: expiryInput })}
+            disabled={!expiryInput || isPending || !credential}
+            className="shrink-0 bg-ink text-cream font-mono text-[10px] tracking-[0.08em] uppercase px-4 py-2 hover:opacity-80 disabled:opacity-40 transition-opacity"
           >
-            {isPending ? 'Saving…' : 'Confirm'}
+            {isPending ? 'Saving…' : '✓ Verify'}
           </button>
+          {hasFile && (
+            <button
+              onClick={handlePreview}
+              disabled={isLoading}
+              className="shrink-0 font-mono text-[10px] tracking-[0.08em] uppercase px-3 py-2 border border-ink text-ink-soft hover:text-ink transition-colors"
+            >
+              {isLoading ? 'Opening…' : 'View →'}
+            </button>
+          )}
         </div>
       )}
-
-      {/* Verified by info */}
-      {isVerified && credential?.verified_at && (
-        <p className="font-mono text-[9px] uppercase tracking-wider text-ink-soft">
-          Verified {format(new Date(credential.verified_at), 'MMM d, yyyy')}
-        </p>
-      )}
-    </div>
+    </>
   )
 }
 
-// ── Main tab ──────────────────────────────────────────────────────────────────
+// ── Main export ────────────────────────────────────────────────────────────────
 
 export function WorkerDocumentsTab({ workerId }: { workerId: string }) {
-  const { data: credentials, isLoading } = useWorkerCredentials(workerId)
+  const { data: credentials = [], isLoading } = useWorkerCredentials(workerId)
 
-  if (isLoading) {
-    return <p className="p-8 font-mono text-[11px] text-muted">Loading…</p>
-  }
+  if (isLoading) return <p className="font-mono text-[11px] text-muted">Loading…</p>
 
-  const byType = Object.fromEntries(
-    (credentials ?? []).map((c) => [c.document_type, c])
-  )
+  const byType = Object.fromEntries(credentials.map((c) => [c.document_type, c]))
 
-  const needsReview = ALL_DOCUMENT_TYPES.filter(
-    (t) => byType[t]?.file_url && !byType[t]?.verified_at
-  )
-  const verified   = ALL_DOCUMENT_TYPES.filter((t) => byType[t]?.verified_at)
-  const notUploaded = ALL_DOCUMENT_TYPES.filter((t) => !byType[t]?.file_url)
+  const allDocs = ALL_DOCUMENT_TYPES
+    .map((type) => ({ type, credential: byType[type] ?? null, status: getDocStatus(byType[type] ?? null) }))
+    .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+
+  const counts = allDocs.reduce<Partial<Record<DocStatus, number>>>((acc, d) => {
+    acc[d.status] = (acc[d.status] ?? 0) + 1
+    return acc
+  }, {})
+
+  const validCount     = counts.valid ?? 0
+  const needsAttention = (counts.expired ?? 0) + (counts.needs_review ?? 0)
+
+  const summaryItems: Array<{ status: DocStatus; label: string }> = [
+    { status: 'valid',        label: 'Valid' },
+    { status: 'expiring',     label: 'Expiring' },
+    { status: 'expired',      label: 'Expired' },
+    { status: 'needs_review', label: 'Needs review' },
+    { status: 'missing',      label: 'Missing' },
+  ]
 
   return (
-    <div className="p-8 max-w-3xl">
-      <div className="mb-6">
-        <h2 className="font-serif text-[26px] font-medium tracking-[-0.02em] leading-none mb-1">
-          Compliance Documents
-        </h2>
-        <p className="text-[13px] text-ink-soft">
-          {needsReview.length > 0
-            ? `${needsReview.length} document${needsReview.length > 1 ? 's' : ''} need${needsReview.length === 1 ? 's' : ''} review`
-            : 'All uploaded documents verified'}
-        </p>
+    <div>
+      {/* Summary strip */}
+      <div className="flex items-center border border-ink bg-cream mb-[18px]">
+        <div className="px-5 py-3.5 border-r border-line-soft shrink-0">
+          <p className="font-serif text-[30px] font-medium leading-none">
+            {validCount}<span className="text-[16px] text-muted">/{ALL_DOCUMENT_TYPES.length}</span>
+          </p>
+          <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mt-[3px]">Compliant</p>
+        </div>
+        <div className="flex flex-wrap gap-x-[22px] gap-y-2.5 px-5">
+          {summaryItems.map(({ status, label }) => {
+            const n   = counts[status] ?? 0
+            const cfg = STATUS_CONFIG[status]
+            return (
+              <span key={status} className={`inline-flex items-center gap-[7px] font-mono text-[10px] tracking-[0.06em] uppercase ${n ? 'text-ink' : 'text-muted'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                {n} {label}
+              </span>
+            )
+          })}
+        </div>
       </div>
 
-      {needsReview.length > 0 && (
-        <section className="mb-8">
-          <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-orange mb-3">
-            Needs review
+      {/* Attention banner */}
+      {needsAttention > 0 && (
+        <div className="flex items-center gap-2.5 border border-orange bg-orange-soft px-3.5 py-2.5 mb-[18px]">
+          <span className="w-1.5 h-1.5 rounded-full bg-orange shrink-0" />
+          <p className="font-mono text-[10px] tracking-[0.04em] uppercase">
+            {needsAttention} item{needsAttention !== 1 ? 's' : ''} need attention —{' '}
+            <strong>{counts.expired ?? 0} expired</strong>, {counts.needs_review ?? 0} awaiting review. Sorted to the top.
           </p>
-          <div className="flex flex-col gap-3">
-            {needsReview.map((t) => (
-              <CredentialCard
-                key={t}
-                workerId={workerId}
-                credential={byType[t] ?? null}
-                documentType={t}
-              />
-            ))}
-          </div>
-        </section>
+        </div>
       )}
 
-      {verified.length > 0 && (
-        <section className="mb-8">
-          <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-ink-soft mb-3">
-            Verified
-          </p>
-          <div className="flex flex-col gap-3">
-            {verified.map((t) => (
-              <CredentialCard
-                key={t}
-                workerId={workerId}
-                credential={byType[t] ?? null}
-                documentType={t}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {notUploaded.length > 0 && (
-        <section>
-          <p className="font-mono text-[9px] uppercase tracking-[0.15em] text-ink-soft mb-3">
-            Not yet uploaded
-          </p>
-          <div className="flex flex-col gap-3">
-            {notUploaded.map((t) => (
-              <CredentialCard
-                key={t}
-                workerId={workerId}
-                credential={null}
-                documentType={t}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Credential table */}
+      <div className="border border-ink">
+        <div className="grid bg-cream-2 border-b border-ink" style={{ gridTemplateColumns: '1.8fr 1fr 1.5fr 0.9fr' }}>
+          {['Document', 'Status', 'Expiry', ''].map((h, i) => (
+            <div key={i} className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft px-4 py-2.5">{h}</div>
+          ))}
+        </div>
+        {allDocs.map((doc, i) => (
+          <CredentialRow
+            key={doc.type}
+            workerId={workerId}
+            credential={doc.credential}
+            documentType={doc.type}
+            isFirst={i === 0}
+          />
+        ))}
+      </div>
     </div>
   )
 }
