@@ -96,6 +96,63 @@ Roles are `OrgMemberRole` enum: `owner`, `agency_admin`, `home_support_worker`.
 
 ---
 
+## Frontend Architecture — 4-Layer Component Model
+
+Every React component in `admin-frontend` (and `worker-mobile-app`) must fit one of four layers. When writing or reviewing code, identify the layer first, then enforce the rules for that layer.
+
+### Layer 1 — Primitives
+**Purpose:** Styling and interaction only. No awareness of domain, data, or app state.
+**Examples:** `Button`, `Input`, `Avatar`, `Badge`, `Pill`, `StatusDot`, `ProgressBar`, `DateInput`, `TimeInput`
+**Rules:** No `useQuery`, no API calls, no business logic. Props only: style, value, onClick, etc.
+**Lives in:** `src/shared/components/ui/`
+
+### Layer 2 — Compound Components
+**Purpose:** Combine primitives into richer UI patterns. Still no data fetching.
+**Examples:** `Modal`, `FormField`, `Drawer`, `StatCard`, `SectionHeader`, `AvailabilityGrid`
+**Rules:** May manage local UI state (open/close, focus). Never calls `useQuery` or any API. Accepts data as props.
+**Lives in:** `src/shared/components/` or within a feature's `components/` if domain-specific and not reusable
+
+### Layer 3 — Domain / Business Logic Components
+**Purpose:** Bridge between UI and data. Own data fetching, form state, and orchestration.
+**Examples:** `LoginForm`, `WorkerDocumentsTab`, `ShiftCalendar`, `CreateShiftDrawer`, `DashboardStatsStrip`
+**Rules:** May call `useQuery`/`useMutation`. Decides which Layer 1/2 components to render and what props to pass. Is domain-specific. If a component fetches data AND renders UI, it is Layer 3 — not Layer 2.
+**Lives in:** `src/features/<domain>/components/`
+
+### Layer 4 — Pages / App Shell
+**Purpose:** Routes, layouts, global providers.
+**Examples:** `__root.tsx`, `_protected.tsx`, `dashboard/index.tsx`, `workers/$workerId.tsx`
+**Rules:** Composes domain components. Controls routing and layout. Handles global providers.
+**Lives in:** `src/routes/`
+
+### File placement rules
+```
+src/shared/components/ui/      ← Layer 1 (primitives only)
+src/shared/components/         ← Layer 2 (compounds, no data fetching)
+src/shared/components/layout/  ← Layer 4 shell pieces (Sidebar, Topbar — may use auth store)
+src/features/<domain>/components/  ← Layer 3 domain components
+src/routes/                    ← Layer 4 pages
+```
+
+### The key rule: don't mix data-fetching into Layer 2
+
+If a component calls `useQuery`, it is Layer 3, not Layer 2. If you find a component that renders a card/chart/list AND fetches its own data, it must either:
+- Accept data as props (move fetching up to the route), or
+- Be explicitly treated as a Layer 3 domain component in `features/`
+
+### Known violations (fix as you touch these files)
+
+| File | Violation | Fix |
+|---|---|---|
+| `shared/components/layout/Sidebar.tsx` | Uses `useAuthStore` + `authApi.signOut()` — Layer 4 logic in Layer 2 location | Acceptable in `layout/` — layout components may use auth store for nav/logout |
+| `features/dashboard/components/DashboardStatsStrip.tsx` | Calls 5x `useQuery` but is used as a presentational strip | Keep as Layer 3; rename to make the data-fetching role obvious |
+| `features/dashboard/components/ClientRosterCard.tsx` | Fetches data inside card component | Move query to parent route; pass data as props |
+| `features/dashboard/components/DroppedShiftsAlert.tsx` | Fetches data inside alert component | Move query to parent route; pass data as props |
+| `features/settings/components/ProfileForm.tsx` | Fetches own data inside form | Accept `member` as prop or use route loader |
+| `features/clients/components/ClientStatusBadge.tsx` | Domain-specific badge in features/ | Could move to `shared/components/ui/` for reuse |
+| `features/invitations/components/StatusBadge.tsx` | Same as above | Move to `shared/components/ui/` |
+
+---
+
 ## Environment Variables
 
 ### Backend (`.env.local` or `.env`)
