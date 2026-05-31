@@ -12,7 +12,6 @@ const TABS = [
   { label: 'Shifts',     to: '/dashboard/workers/$workerId' },
   { label: 'Attendance', to: '/dashboard/workers/$workerId/attendance' },
   { label: 'Leave',      to: '/dashboard/workers/$workerId/leave' },
-  { label: 'Documents',  to: '/dashboard/workers/$workerId/documents' },
 ] as const
 
 function WorkerTabNav({ workerId }: { workerId: string }) {
