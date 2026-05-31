@@ -6,7 +6,10 @@ from app.repositories.org_member_repository import OrgMemberRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.core.exceptions import AppError
 from app.core.enums import ComplianceDocumentType
+from app.db.supabase import get_supabase_client
 from uuid import UUID
+
+COMPLIANCE_BUCKET = "compliance-documents"
 
 
 class CredentialService:
@@ -86,6 +89,18 @@ class CredentialService:
         except Exception as e:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    def get_preview_url(self, member_id: UUID, document_type: ComplianceDocumentType) -> str:
+        self._assert_member_in_org(member_id)
+        credential = self.credential_repo.get_by_document_type(member_id, document_type)
+        if not credential or not credential.file_url:
+            raise AppError(status_code=404, code="NOT_FOUND", message="No document uploaded for this credential")
+        storage = get_supabase_client().storage.from_(COMPLIANCE_BUCKET)
+        result = storage.create_signed_url(credential.file_url, 120)
+        signed_url = result.get("signedURL") or result.get("signedUrl")
+        if not signed_url:
+            raise AppError(status_code=500, code="STORAGE_ERROR", message="Could not generate preview URL")
+        return signed_url
 
     def delete(self, member_id: UUID, credential_id: UUID):
         self._assert_member_in_org(member_id)

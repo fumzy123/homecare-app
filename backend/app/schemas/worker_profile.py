@@ -64,6 +64,10 @@ class CredentialVerifySchema(BaseModel):
     expiry_date: date
 
 
+class CredentialPreviewUrlResponse(BaseModel):
+    url: str
+
+
 class CredentialCreateSchema(BaseModel):
     document_type: ComplianceDocumentType
     expiry_date: Optional[date] = None

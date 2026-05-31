@@ -118,4 +118,11 @@ export const orgMembersApi = {
     )
     return data
   },
+
+  getCredentialPreviewUrl: async (memberId: string, documentType: string): Promise<string> => {
+    const { data } = await apiClient.get(
+      `/api/org-members/${memberId}/credentials/${documentType}/preview-url`,
+    )
+    return data.url
+  },
 }
