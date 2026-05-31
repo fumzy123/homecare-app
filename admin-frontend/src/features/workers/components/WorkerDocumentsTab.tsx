@@ -4,6 +4,10 @@ import { supabase } from '@/shared/lib/supabase'
 import { useWorkerCredentials, useVerifyCredential } from '../hooks/useWorkerCredentials'
 import type { WorkerCredential } from '@/features/org-members/api'
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type PreviewState = 'idle' | 'loading' | { error: string }
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const BUCKET = 'compliance-documents'
@@ -25,12 +29,23 @@ const ALL_DOCUMENT_TYPES = Object.keys(DOCUMENT_LABELS)
 
 // ── Document preview ──────────────────────────────────────────────────────────
 
-async function openPreview(storagePath: string) {
+async function openPreview(storagePath: string): Promise<void> {
+  // Open the tab synchronously (before any await) so the browser doesn't treat
+  // it as a popup and block it. We set the real URL once the signed URL arrives.
+  const tab = window.open('', '_blank')
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(storagePath, 60)
-  if (error || !data?.signedUrl) throw new Error(error?.message ?? 'Could not generate preview link')
-  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    .createSignedUrl(storagePath, 120)
+  if (error || !data?.signedUrl) {
+    tab?.close()
+    throw new Error(error?.message ?? 'Could not generate a preview link. Check storage permissions.')
+  }
+  if (tab) {
+    tab.location.href = data.signedUrl
+  } else {
+    // Fallback: tab was blocked despite the early open; try direct navigation
+    window.location.href = data.signedUrl
+  }
 }
 
 // ── Credential card ───────────────────────────────────────────────────────────
@@ -45,23 +60,23 @@ function CredentialCard({
   documentType: string
 }) {
   const [expiryInput, setExpiryInput] = useState('')
-  const [previewing, setPreviewing]   = useState(false)
+  const [preview, setPreview]         = useState<PreviewState>('idle')
   const { mutate: verify, isPending }  = useVerifyCredential(workerId)
 
   const docType    = credential?.document_type ?? documentType
   const label      = DOCUMENT_LABELS[docType] ?? docType
   const isVerified = credential?.verified_at != null
   const hasFile    = !!credential?.file_url
+  const isPreviewing = preview === 'loading'
 
   async function handlePreview() {
     if (!credential?.file_url) return
-    setPreviewing(true)
+    setPreview('loading')
     try {
       await openPreview(credential.file_url)
-    } catch {
-      // silent — browser may have blocked popup, tab still opens
-    } finally {
-      setPreviewing(false)
+      setPreview('idle')
+    } catch (err) {
+      setPreview({ error: err instanceof Error ? err.message : 'Could not open document.' })
     }
   }
 
@@ -96,23 +111,28 @@ function CredentialCard({
 
       {/* File info + preview */}
       {hasFile ? (
-        <div className="flex items-center gap-4">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-wider text-ink-soft mb-0.5">Uploaded</p>
-            <p className="text-[12px]">
-              {credential!.uploaded_at
-                ? format(new Date(credential!.uploaded_at), 'MMM d, yyyy')
-                : '—'}
-            </p>
+        <>
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-wider text-ink-soft mb-0.5">Uploaded</p>
+              <p className="text-[12px]">
+                {credential!.uploaded_at
+                  ? format(new Date(credential!.uploaded_at), 'MMM d, yyyy')
+                  : '—'}
+              </p>
+            </div>
+            <button
+              onClick={handlePreview}
+              disabled={isPreviewing}
+              className="ml-auto font-mono text-[9px] uppercase tracking-wider text-ink border border-ink px-3 py-1.5 hover:bg-cream-2 disabled:opacity-50 transition-colors"
+            >
+              {isPreviewing ? 'Opening…' : 'View document →'}
+            </button>
           </div>
-          <button
-            onClick={handlePreview}
-            disabled={previewing}
-            className="ml-auto font-mono text-[9px] uppercase tracking-wider text-ink border border-ink px-3 py-1.5 hover:bg-cream-2 disabled:opacity-50 transition-colors"
-          >
-            {previewing ? 'Opening…' : 'View document →'}
-          </button>
-        </div>
+          {typeof preview === 'object' && 'error' in preview && (
+            <p className="font-mono text-[10px] text-orange">{preview.error}</p>
+          )}
+        </>
       ) : (
         <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
           No document uploaded yet
