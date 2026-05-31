@@ -5,7 +5,8 @@ from app.db.session import get_db
 from app.core.security import require_admin
 from app.services.credential_service import CredentialService
 from app.services.org_service import OrgService
-from app.schemas.worker_profile import CredentialResponse, CredentialCreateSchema, CredentialUpdateSchema
+from app.schemas.worker_profile import CredentialResponse, CredentialCreateSchema, CredentialUpdateSchema, CredentialVerifySchema
+from app.core.enums import ComplianceDocumentType
 
 router = APIRouter(prefix="/org-members/{member_id}/credentials", tags=["Credentials"])
 
@@ -42,6 +43,16 @@ async def update_credential(
     credential_service: CredentialService = Depends(get_credential_service),
 ):
     return credential_service.update(member_id, credential_id, payload)
+
+
+@router.patch("/{document_type}/verify", response_model=CredentialResponse)
+async def verify_credential(
+    member_id: UUID,
+    document_type: ComplianceDocumentType,
+    payload: CredentialVerifySchema,
+    credential_service: CredentialService = Depends(get_credential_service),
+):
+    return credential_service.verify(member_id, document_type, payload)
 
 
 @router.delete("/{credential_id}", status_code=204)

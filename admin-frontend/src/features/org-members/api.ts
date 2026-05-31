@@ -66,6 +66,17 @@ export interface OrgMemberSelfUpdatePayload {
   date_of_birth?: string
 }
 
+export interface WorkerCredential {
+  id: string
+  org_member_id: string
+  document_type: string
+  expiry_date: string | null
+  file_url: string | null
+  uploaded_at: string | null
+  verified_at: string | null
+  verified_by: string | null
+}
+
 export const orgMembersApi = {
   listByRole: async (role: OrgMember['role']): Promise<OrgMember[]> => {
     const { data } = await apiClient.get(`/api/org-members?role=${role}`)
@@ -89,5 +100,22 @@ export const orgMembersApi = {
 
   deleteOrgMember: async (memberId: string): Promise<void> => {
     await apiClient.delete(`/api/org-members/${memberId}`)
+  },
+
+  listCredentials: async (memberId: string): Promise<WorkerCredential[]> => {
+    const { data } = await apiClient.get(`/api/org-members/${memberId}/credentials`)
+    return data
+  },
+
+  verifyCredential: async (
+    memberId: string,
+    documentType: string,
+    expiryDate: string,
+  ): Promise<WorkerCredential> => {
+    const { data } = await apiClient.patch(
+      `/api/org-members/${memberId}/credentials/${documentType}/verify`,
+      { expiry_date: expiryDate },
+    )
+    return data
   },
 }

@@ -71,6 +71,29 @@ class CredentialRepository:
         self.db.flush()
         return credential
 
+    def verify_for_member(
+        self,
+        org_member_id: UUID,
+        document_type: ComplianceDocumentType,
+        expiry_date,
+        verified_by: UUID,
+    ) -> Credential:
+        credential = (
+            self.db.query(Credential)
+            .filter(
+                Credential.org_member_id == org_member_id,
+                Credential.document_type == document_type,
+            )
+            .first()
+        )
+        if not credential:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Credential not found")
+        credential.expiry_date = expiry_date
+        credential.verified_at = datetime.now(timezone.utc)
+        credential.verified_by = verified_by
+        self.db.flush()
+        return credential
+
     def delete(self, credential: Credential) -> None:
         self.db.delete(credential)
         self.db.flush()

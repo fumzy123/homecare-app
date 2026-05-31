@@ -54,8 +54,14 @@ class CredentialResponse(BaseModel):
     expiry_date: Optional[date]
     file_url: Optional[str]
     uploaded_at: Optional[datetime]
+    verified_at: Optional[datetime]
+    verified_by: Optional[UUID]
 
     model_config = {"from_attributes": True}
+
+
+class CredentialVerifySchema(BaseModel):
+    expiry_date: date
 
 
 class CredentialCreateSchema(BaseModel):

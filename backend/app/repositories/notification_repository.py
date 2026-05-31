@@ -124,6 +124,29 @@ class NotificationRepository:
             .count()
         )
 
+    def resolve_credential_notification(
+        self,
+        org_id: UUID,
+        worker_id: UUID,
+        document_type: str,
+        resolver_id: UUID,
+    ) -> None:
+        """Find the most recent unresolved credential_uploaded notification for this worker+doc_type and resolve it."""
+        notification = (
+            self.db.query(AdminNotification)
+            .filter(
+                AdminNotification.org_id == org_id,
+                AdminNotification.worker_id == worker_id,
+                AdminNotification.type == NotificationType.credential_uploaded,
+                AdminNotification.resolved_at.is_(None),
+                AdminNotification.payload["document_type"].astext == document_type,
+            )
+            .order_by(AdminNotification.created_at.desc())
+            .first()
+        )
+        if notification:
+            self.mark_resolved(notification, resolver_id)
+
     def get_by_id(self, notification_id: UUID) -> AdminNotification | None:
         return self.db.query(AdminNotification).filter(
             AdminNotification.id == notification_id
