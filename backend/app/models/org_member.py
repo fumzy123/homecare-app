@@ -55,4 +55,9 @@ class OrgMember(Base):
 
     # Relationships
     organization = relationship("Organization", back_populates="members")
-    credentials = relationship("Credential", back_populates="org_member", cascade="all, delete-orphan")
+    credentials = relationship(
+        "Credential",
+        back_populates="org_member",
+        foreign_keys="[Credential.org_member_id]",
+        cascade="all, delete-orphan",
+    )
