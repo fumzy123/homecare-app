@@ -1,4 +1,7 @@
+from datetime import date
+from pathlib import Path
 from sqlalchemy.orm import Session
+from fastapi import UploadFile
 from supabase_auth.types import User as SupabaseUser
 from app.schemas.worker_profile import CredentialCreateSchema, CredentialUpdateSchema, CredentialVerifySchema
 from app.repositories.credential_repository import CredentialRepository
@@ -101,6 +104,45 @@ class CredentialService:
         if not signed_url:
             raise AppError(status_code=500, code="STORAGE_ERROR", message="Could not generate preview URL")
         return signed_url
+
+    async def upload_document(self, member_id: UUID, document_type: ComplianceDocumentType, file: UploadFile):
+        self._assert_member_in_org(member_id)
+        ext = Path(file.filename).suffix if file.filename else ''
+        storage_path = f"{member_id}/{document_type.value}{ext}"
+        file_bytes = await file.read()
+        storage = get_supabase_client().storage.from_(COMPLIANCE_BUCKET)
+        storage.upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": file.content_type or "application/octet-stream", "upsert": "true"},
+        )
+        try:
+            credential = self.credential_repo.upsert_for_member(
+                org_member_id=member_id,
+                document_type=document_type,
+                file_url=storage_path,
+            )
+            self.db.commit()
+            return credential
+        except Exception as e:
+            self.db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    def get_expiring(self, within_days: int = 30) -> list[dict]:
+        today = date.today()
+        credentials = self.credential_repo.list_expiring_for_org(self.org_id, within_days)
+        return [
+            {
+                'id': c.id,
+                'document_type': c.document_type,
+                'expiry_date': c.expiry_date,
+                'days_remaining': (c.expiry_date - today).days,
+                'worker_id': c.org_member_id,
+                'worker_first_name': c.org_member.first_name,
+                'worker_last_name': c.org_member.last_name,
+            }
+            for c in credentials
+        ]
 
     def delete(self, member_id: UUID, credential_id: UUID):
         self._assert_member_in_org(member_id)
