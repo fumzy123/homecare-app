@@ -51,10 +51,31 @@ class EmploymentStatus(str, enum.Enum):
     on_leave = "on_leave"
     terminated = "terminated"
 
-class CredentialCategory(str, enum.Enum):
-    safety = "safety"
-    health = "health"
-    emergency_response = "emergency_response"
-    transportation = "transportation"
-    eligibility = "eligibility"
-    qualification = "qualification"
+class NotificationType(str, enum.Enum):
+    profile_updated     = "profile_updated"
+    credential_uploaded = "credential_uploaded"
+    shift_dropped       = "shift_dropped"
+
+
+# Roles that receive admin notifications. Kept here (not in security.py)
+# so repositories can import it without a circular dependency.
+ADMIN_ROLES = [
+    OrgMemberRole.owner,
+    OrgMemberRole.manager,
+    OrgMemberRole.supervisor,
+    OrgMemberRole.financial_officer,
+    OrgMemberRole.nurse,
+]
+
+
+class ComplianceDocumentType(str, enum.Enum):
+    first_aid_cpr = "first_aid_cpr"
+    criminal_record_check = "criminal_record_check"
+    vulnerable_sector_check = "vulnerable_sector_check"
+    drivers_license = "drivers_license"
+    child_access_check = "child_access_check"
+    tb_test = "tb_test"
+    immunization_record = "immunization_record"
+    auto_insurance = "auto_insurance"
+    work_permit = "work_permit"
+    psw_certificate = "psw_certificate"

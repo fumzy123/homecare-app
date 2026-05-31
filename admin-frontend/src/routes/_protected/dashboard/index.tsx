@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { format, subDays, addDays } from 'date-fns'
-import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
+import { format } from 'date-fns'
+import { type ShiftOccurrence } from '@/features/shifts/api'
+import { useTodayShifts, useWeekShifts, useDroppedShifts } from '@/features/shifts/hooks/useShifts'
+import { useClients } from '@/features/clients/hooks/useClients'
+import { useWorkers } from '@/features/workers/hooks/useWorkers'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { DayTimeline } from '@/features/shifts/components/DayTimeline'
 import { Card, Kicker } from '@/shared/components/ui'
@@ -10,26 +12,21 @@ import { DashboardStatsStrip } from '@/features/dashboard/components/DashboardSt
 import { DroppedShiftsAlert } from '@/features/dashboard/components/DroppedShiftsAlert'
 import { WorkerUtilizationCard } from '@/features/dashboard/components/WorkerUtilizationCard'
 import { ClientRosterCard } from '@/features/dashboard/components/ClientRosterCard'
+import { ComplianceAlertsPanel } from '@/features/workers/components/ComplianceAlertsPanel'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
 })
 
-const today       = format(new Date(), 'yyyy-MM-dd')
-const droppedFrom = format(subDays(new Date(), 7),  'yyyy-MM-dd')
-const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
-
 function DashboardPage() {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
-  const { data: todayShifts = [], isLoading: loadingToday } = useQuery({
-    queryKey: ['shifts', today, today],
-    queryFn:  () => shiftsApi.listShifts(today, today),
-  })
-  const { data: droppedShifts = [] } = useQuery({
-    queryKey: ['shifts', droppedFrom, droppedTo, 'dropped'],
-    queryFn:  () => shiftsApi.listShifts(droppedFrom, droppedTo, undefined, undefined, ['dropped']),
-  })
+  const { data: todayShifts   = [], isLoading: loadingToday } = useTodayShifts()
+  const { data: weekShifts    = [] }                          = useWeekShifts()
+  const { data: droppedShifts = [] }                          = useDroppedShifts()
+  const { data: clients       = [] }                          = useClients()
+  const { data: workers       = [] }                          = useWorkers()
+
   const inProgress  = todayShifts.filter((s) => s.completion_status === 'in_progress')
   const scheduled   = todayShifts.filter((s) => s.completion_status === 'scheduled')
   const sortedToday = [...todayShifts].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
@@ -58,7 +55,13 @@ function DashboardPage() {
 
       {/* ── Stat strip ── */}
       <section className="px-10 max-md:px-4 mb-8">
-        <DashboardStatsStrip />
+        <DashboardStatsStrip
+          clients={clients}
+          workers={workers}
+          todayShifts={todayShifts}
+          weekShifts={weekShifts}
+          droppedShifts={droppedShifts}
+        />
       </section>
 
       {/* ── Main grid ── */}
@@ -85,14 +88,19 @@ function DashboardPage() {
         </Card>
 
         <div className="flex flex-col gap-6">
-          <DroppedShiftsAlert onSelectShift={setSelectedShift} />
-          <WorkerUtilizationCard />
+          <DroppedShiftsAlert droppedShifts={droppedShifts} onSelectShift={setSelectedShift} />
+          <WorkerUtilizationCard workers={workers} weekShifts={weekShifts} />
         </div>
+      </section>
+
+      {/* ── Compliance alerts ── */}
+      <section className="px-10 max-md:px-4 mb-8">
+        <ComplianceAlertsPanel />
       </section>
 
       {/* ── Client roster ── */}
       <section className="px-10 max-md:px-4 pb-12">
-        <ClientRosterCard />
+        <ClientRosterCard clients={clients} weekShifts={weekShifts} />
       </section>
 
       {selectedShift && (

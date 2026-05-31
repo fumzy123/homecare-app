@@ -66,6 +66,27 @@ export interface OrgMemberSelfUpdatePayload {
   date_of_birth?: string
 }
 
+export interface WorkerCredential {
+  id: string
+  org_member_id: string
+  document_type: string
+  expiry_date: string | null
+  file_url: string | null
+  uploaded_at: string | null
+  verified_at: string | null
+  verified_by: string | null
+}
+
+export interface ExpiringCredential {
+  id: string
+  document_type: string
+  expiry_date: string
+  days_remaining: number
+  worker_id: string
+  worker_first_name: string
+  worker_last_name: string
+}
+
 export const orgMembersApi = {
   listByRole: async (role: OrgMember['role']): Promise<OrgMember[]> => {
     const { data } = await apiClient.get(`/api/org-members?role=${role}`)
@@ -89,5 +110,45 @@ export const orgMembersApi = {
 
   deleteOrgMember: async (memberId: string): Promise<void> => {
     await apiClient.delete(`/api/org-members/${memberId}`)
+  },
+
+  listCredentials: async (memberId: string): Promise<WorkerCredential[]> => {
+    const { data } = await apiClient.get(`/api/org-members/${memberId}/credentials`)
+    return data
+  },
+
+  verifyCredential: async (
+    memberId: string,
+    documentType: string,
+    expiryDate: string,
+  ): Promise<WorkerCredential> => {
+    const { data } = await apiClient.patch(
+      `/api/org-members/${memberId}/credentials/${documentType}/verify`,
+      { expiry_date: expiryDate },
+    )
+    return data
+  },
+
+  getCredentialPreviewUrl: async (memberId: string, documentType: string): Promise<string> => {
+    const { data } = await apiClient.get(
+      `/api/org-members/${memberId}/credentials/${documentType}/preview-url`,
+    )
+    return data.url
+  },
+
+  listExpiringCredentials: async (withinDays = 30): Promise<ExpiringCredential[]> => {
+    const { data } = await apiClient.get(`/api/credentials/expiring?within_days=${withinDays}`)
+    return data
+  },
+
+  uploadCredentialDocument: async (memberId: string, documentType: string, file: File): Promise<WorkerCredential> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await apiClient.post(
+      `/api/org-members/${memberId}/credentials/${documentType}/upload`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return data
   },
 }

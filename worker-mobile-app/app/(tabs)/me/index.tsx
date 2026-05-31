@@ -110,7 +110,7 @@ export default function MeScreen() {
                 My Profile
               </Text>
             </View>
-            <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+            <Pressable onPress={() => router.push('/settings' as any)} hitSlop={12}>
               <Ionicons name="settings-outline" size={18} color="#4A453E" />
             </Pressable>
           </View>

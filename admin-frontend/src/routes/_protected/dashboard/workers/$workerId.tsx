@@ -42,11 +42,16 @@ function WorkerTabNav({ workerId }: { workerId: string }) {
 
 function WorkerLayout() {
   const { workerId } = Route.useParams()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const isEditMode = pathname === `/dashboard/workers/${workerId}/edit`
 
   const { data: worker, isLoading, isError } = useQuery({
     queryKey: ['worker', workerId],
     queryFn: () => orgMembersApi.getOrgMember(workerId),
   })
+
+  // Edit page renders its own full-page layout — skip the rail/tab wrapper
+  if (isEditMode) return <Outlet />
 
   if (isLoading) return (
     <div className="p-8 font-mono text-[11px] text-muted">Loading…</div>
@@ -131,9 +136,9 @@ function WorkerLayout() {
         <Link
           to="/dashboard/workers/$workerId/edit"
           params={{ workerId } as never}
-          className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink"
+          className="flex items-center justify-center rounded-full border border-ink bg-ink text-cream font-mono text-[12px] tracking-[0.03em] px-4 py-2 hover:opacity-80 transition-opacity"
         >
-          Edit →
+          Edit profile →
         </Link>
       </div>
 

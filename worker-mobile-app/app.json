@@ -24,7 +24,8 @@
           "color": "#FF5A1F"
         }
       ],
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-web-browser"
     ],
     "ios": {
       "supportsTablet": false,

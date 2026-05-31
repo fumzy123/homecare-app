@@ -30,7 +30,7 @@ function AcceptInvitePage() {
       if (session) setReady(true)
     })
     return () => subscription.unsubscribe()
-  }, [navigate])
+  }, [navigate, error])
 
   if (error) {
     return (

@@ -9,6 +9,8 @@ import { WorkerStatsRow } from '@/features/home/components/WorkerStatsRow';
 import { NextShiftCard } from '@/features/home/components/NextShiftCard';
 import { LaterTodaySection } from '@/features/home/components/LaterTodaySection';
 import { NeedsYouToday } from '@/features/home/components/NeedsYouToday';
+import { ComplianceAlert } from '@/features/profile/components/ComplianceAlert';
+import { useMyCredentials } from '@/features/profile/hooks/useMyCredentials';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 function partitionShifts(shifts: ShiftOccurrence[]) {
@@ -22,6 +24,7 @@ export default function HomeScreen() {
   const { data: shifts = [], isLoading: shiftsLoading, isError: shiftsError, refetch } = useTodayShifts();
   const { data: profile } = useWorkerProfile();
   const { data: stats } = useWorkerStats();
+  const { data: credentials = [] } = useMyCredentials();
   const { refreshing, onRefresh } = useRefreshControl(refetch);
 
   const { next, later, total } = partitionShifts(shifts);
@@ -47,6 +50,11 @@ export default function HomeScreen() {
         <HomeHeader profile={profile} />
 
         <WorkerStatsRow stats={stats} />
+
+        <ComplianceAlert
+          credentials={credentials}
+          className="mt-4 border border-ink bg-orange-soft p-3.5"
+        />
 
         {isLoading && (
           <View className="mt-8 items-center">

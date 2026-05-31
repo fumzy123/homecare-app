@@ -1,5 +1,8 @@
-from sqlalchemy.orm import Session
+from datetime import datetime, date, timedelta, timezone
+from sqlalchemy.orm import Session, joinedload
 from app.models.credential import Credential
+from app.models.org_member import OrgMember
+from app.core.enums import ComplianceDocumentType
 from app.core.exceptions import AppError
 from uuid import UUID
 
@@ -29,6 +32,16 @@ class CredentialRepository:
             raise AppError(status_code=404, code="NOT_FOUND", message="Credential not found")
         return credential
 
+    def get_by_document_type(self, org_member_id: UUID, document_type: ComplianceDocumentType) -> Credential | None:
+        return (
+            self.db.query(Credential)
+            .filter(
+                Credential.org_member_id == org_member_id,
+                Credential.document_type == document_type,
+            )
+            .first()
+        )
+
     def create(self, org_member_id: UUID, data: dict) -> Credential:
         credential = Credential(org_member_id=org_member_id, **data)
         self.db.add(credential)
@@ -41,6 +54,77 @@ class CredentialRepository:
                 setattr(credential, key, value)
         self.db.flush()
         return credential
+
+    def upsert_for_member(
+        self,
+        org_member_id: UUID,
+        document_type: ComplianceDocumentType,
+        file_url: str,
+    ) -> Credential:
+        credential = (
+            self.db.query(Credential)
+            .filter(
+                Credential.org_member_id == org_member_id,
+                Credential.document_type == document_type,
+            )
+            .first()
+        )
+        if credential:
+            credential.file_url = file_url
+            credential.uploaded_at = datetime.now(timezone.utc)
+            # New file invalidates previous verification — admin must re-verify
+            credential.verified_at = None
+            credential.verified_by = None
+            credential.expiry_date = None
+        else:
+            credential = Credential(
+                org_member_id=org_member_id,
+                document_type=document_type,
+                file_url=file_url,
+            )
+            self.db.add(credential)
+        self.db.flush()
+        return credential
+
+    def verify_for_member(
+        self,
+        org_member_id: UUID,
+        document_type: ComplianceDocumentType,
+        expiry_date,
+        verified_by: UUID,
+    ) -> Credential:
+        credential = (
+            self.db.query(Credential)
+            .filter(
+                Credential.org_member_id == org_member_id,
+                Credential.document_type == document_type,
+            )
+            .first()
+        )
+        if not credential:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Credential not found")
+        credential.expiry_date = expiry_date
+        credential.verified_at = datetime.now(timezone.utc)
+        credential.verified_by = verified_by
+        self.db.flush()
+        return credential
+
+    def list_expiring_for_org(self, org_id: UUID, within_days: int) -> list[Credential]:
+        today = date.today()
+        cutoff = today + timedelta(days=within_days)
+        return (
+            self.db.query(Credential)
+            .options(joinedload(Credential.org_member))
+            .join(OrgMember, Credential.org_member_id == OrgMember.id)
+            .filter(
+                OrgMember.org_id == org_id,
+                Credential.expiry_date.isnot(None),
+                Credential.expiry_date >= today,
+                Credential.expiry_date <= cutoff,
+            )
+            .order_by(Credential.expiry_date.asc())
+            .all()
+        )
 
     def delete(self, credential: Credential) -> None:
         self.db.delete(credential)

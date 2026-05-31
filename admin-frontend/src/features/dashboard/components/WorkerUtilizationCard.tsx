@@ -1,18 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import { format, startOfWeek, endOfWeek } from 'date-fns'
-import { WEEK_STARTS_ON } from '@/shared/lib/date'
-import { orgMembersApi } from '@/features/org-members/api'
-import { shiftsApi } from '@/features/shifts/api'
 import { Card, Kicker, Avatar, ProgressBar } from '@/shared/components/ui'
+import type { OrgMember } from '@/features/org-members/api'
+import type { ShiftOccurrence } from '@/features/shifts/api'
 
-const weekStart = format(startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
-const weekEnd   = format(endOfWeek(new Date(),   { weekStartsOn: WEEK_STARTS_ON }), 'yyyy-MM-dd')
 const TARGET_HOURS = 40
 
-export function WorkerUtilizationCard() {
-  const { data: workers    = [] } = useQuery({ queryKey: ['workers'],  queryFn: () => orgMembersApi.listByRole('home_support_worker') })
-  const { data: weekShifts = [] } = useQuery({ queryKey: ['shifts', weekStart, weekEnd], queryFn: () => shiftsApi.listShifts(weekStart, weekEnd) })
+interface WorkerUtilizationCardProps {
+  workers: OrgMember[]
+  weekShifts: ShiftOccurrence[]
+}
 
+export function WorkerUtilizationCard({ workers, weekShifts }: WorkerUtilizationCardProps) {
   const activeWorkers = workers.filter((w) => w.is_active)
 
   const workerHours = weekShifts.reduce<Record<string, number>>((acc, shift) => {

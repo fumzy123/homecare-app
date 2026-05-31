@@ -43,23 +43,49 @@ export interface WorkerStats {
   care_log_streak: number | null;
 }
 
-export type CredentialCategory =
-  | 'safety'
-  | 'health'
-  | 'emergency_response'
-  | 'transportation'
-  | 'eligibility'
-  | 'qualification';
+export type ComplianceDocumentType =
+  | 'first_aid_cpr'
+  | 'criminal_record_check'
+  | 'vulnerable_sector_check'
+  | 'drivers_license'
+  | 'child_access_check'
+  | 'tb_test'
+  | 'immunization_record'
+  | 'auto_insurance'
+  | 'work_permit'
+  | 'psw_certificate';
+
+export const DOCUMENT_TYPE_LABELS: Record<ComplianceDocumentType, string> = {
+  first_aid_cpr: 'First Aid / CPR',
+  criminal_record_check: 'Criminal Record Check',
+  vulnerable_sector_check: 'Vulnerable Sector Check',
+  drivers_license: "Driver's License",
+  child_access_check: 'Child Access Check',
+  tb_test: 'TB Test',
+  immunization_record: 'Immunization Record',
+  auto_insurance: 'Auto Insurance',
+  work_permit: 'Work Permit',
+  psw_certificate: 'PSW Certificate',
+};
+
+export const ALL_DOCUMENT_TYPES: ComplianceDocumentType[] = [
+  'first_aid_cpr',
+  'criminal_record_check',
+  'vulnerable_sector_check',
+  'drivers_license',
+  'child_access_check',
+  'tb_test',
+  'immunization_record',
+  'auto_insurance',
+  'work_permit',
+  'psw_certificate',
+];
 
 export interface Credential {
   id: string;
   org_member_id: string;
-  name: string;
-  category: CredentialCategory | null;
-  issuer: string | null;
-  issue_date: string | null;
+  document_type: ComplianceDocumentType;
   expiry_date: string | null;
-  is_required: boolean;
   file_url: string | null;
   uploaded_at: string;
 }

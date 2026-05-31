@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/lib/api-client';
-import type { WorkerProfile, WorkerProfileUpdatePayload, WorkerStats, Credential } from './types';
+import type { WorkerProfile, WorkerProfileUpdatePayload, WorkerStats, Credential, ComplianceDocumentType } from './types';
 
 export async function getMyProfile(): Promise<WorkerProfile> {
   const { data } = await apiClient.get<WorkerProfile>('/me/profile');
@@ -18,5 +18,13 @@ export async function getMyCredentials(): Promise<Credential[]> {
 
 export async function updateMyProfile(payload: WorkerProfileUpdatePayload): Promise<WorkerProfile> {
   const { data } = await apiClient.patch<WorkerProfile>('/me/profile', payload);
+  return data;
+}
+
+export async function upsertCredential(
+  documentType: ComplianceDocumentType,
+  fileUrl: string,
+): Promise<Credential> {
+  const { data } = await apiClient.put<Credential>(`/me/credentials/${documentType}`, { file_url: fileUrl });
   return data;
 }

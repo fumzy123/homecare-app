@@ -8,10 +8,12 @@ import { router } from 'expo-router';
 import { useWorkerProfile } from '@/features/profile/hooks/useWorkerProfile';
 import { useUpdateMyProfile } from '@/features/profile/hooks/useUpdateMyProfile';
 import { useMyCredentials } from '@/features/profile/hooks/useMyCredentials';
+import { useUploadCredentialFile } from '@/features/profile/hooks/useUploadCredentialFile';
 import { SectionDivider } from '@/features/profile/components/SectionDivider';
 import { Avatar } from '@/shared/components/ui';
 import { getInitials } from '@/shared/utils/getInitials';
-import type { WorkerProfileUpdatePayload } from '@/features/profile/types';
+import type { WorkerProfileUpdatePayload, ComplianceDocumentType } from '@/features/profile/types';
+import { DOCUMENT_TYPE_LABELS, ALL_DOCUMENT_TYPES } from '@/features/profile/types';
 
 const LANGUAGE_OPTIONS = [
   'English', 'French', 'Spanish', 'Tagalog', 'Mandarin', 'Cantonese',
@@ -225,6 +227,9 @@ export default function EditProfileScreen() {
     save(payload, { onSuccess: () => router.back() });
   }
 
+  const { mutate: upload, isPending: uploading, variables: uploadingType } = useUploadCredentialFile();
+  const credentialMap = Object.fromEntries(credentials.map((c) => [c.document_type, c]));
+
   const initials = profile ? getInitials(profile.first_name, profile.last_name) : '?';
 
   return (
@@ -388,61 +393,65 @@ export default function EditProfileScreen() {
           <SectionDivider label="My Documents" />
           <View className="px-5">
             <Text className="mb-2.5 font-mono text-[9px] leading-relaxed text-ink-soft">
-              You can upload or replace documents. Issuer, dates and verification status are set by your agency after review.
+              Tap Upload to add a document. Expiry dates and verification are set by your agency after review.
             </Text>
             <View className="gap-2">
-              {credentials.map((c) => (
-                <View
-                  key={c.id}
-                  className="flex-row items-center gap-3 border border-ink bg-paper p-3"
-                >
-                  {/* Paper doc glyph */}
-                  <View style={{
-                    width: 26, height: 32, backgroundColor: '#EDE8DC',
-                    borderWidth: 1, borderColor: '#111111', flexShrink: 0, position: 'relative',
-                  }}>
-                    <View style={{
-                      position: 'absolute', top: -1, right: -1,
-                      width: 8, height: 8, backgroundColor: '#F2EEE5',
-                      borderLeftWidth: 1, borderBottomWidth: 1, borderColor: '#111111',
-                    }} />
-                  </View>
-                  <View className="min-w-0 flex-1">
-                    <View className="flex-row items-center">
-                      <Text className="text-[12.5px] font-semibold text-ink">{c.name}</Text>
-                      {c.is_required && (
-                        <Text className="ml-1.5 font-mono text-[8px] text-orange">REQ</Text>
-                      )}
-                    </View>
-                    <Text
-                      className="mt-1 font-mono text-[9px]"
-                      style={{ color: c.file_url ? '#4A453E' : '#FF5A1F' }}
-                    >
-                      {c.file_url ? 'DOCUMENT ON FILE' : 'NOT UPLOADED'}
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={{
-                      paddingVertical: 7, paddingHorizontal: 11, flexShrink: 0,
-                      borderWidth: 1,
-                      borderColor: c.file_url ? '#111111' : '#FF5A1F',
-                      backgroundColor: c.file_url ? '#F8F5EC' : '#FF5A1F',
-                    }}
+              {ALL_DOCUMENT_TYPES.map((docType: ComplianceDocumentType) => {
+                const c = credentialMap[docType];
+                const hasFile = !!c?.file_url;
+                const isThisUploading = uploading && uploadingType === docType;
+                return (
+                  <View
+                    key={docType}
+                    className="flex-row items-center gap-3 border border-ink bg-paper p-3"
                   >
-                    <Text
-                      className="font-mono text-[9px] uppercase tracking-wider"
-                      style={{ color: c.file_url ? '#111111' : 'white' }}
+                    {/* Paper doc glyph */}
+                    <View style={{
+                      width: 26, height: 32, backgroundColor: '#EDE8DC',
+                      borderWidth: 1, borderColor: '#111111', flexShrink: 0, position: 'relative',
+                    }}>
+                      <View style={{
+                        position: 'absolute', top: -1, right: -1,
+                        width: 8, height: 8, backgroundColor: '#F2EEE5',
+                        borderLeftWidth: 1, borderBottomWidth: 1, borderColor: '#111111',
+                      }} />
+                    </View>
+                    <View className="min-w-0 flex-1">
+                      <Text className="text-[12.5px] font-semibold text-ink">
+                        {DOCUMENT_TYPE_LABELS[docType]}
+                      </Text>
+                      <Text
+                        className="mt-1 font-mono text-[9px]"
+                        style={{ color: hasFile ? '#4A453E' : '#FF5A1F' }}
+                      >
+                        {hasFile ? 'DOCUMENT ON FILE' : 'NOT UPLOADED'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => upload(docType)}
+                      disabled={isThisUploading}
+                      style={{
+                        paddingVertical: 7, paddingHorizontal: 11, flexShrink: 0,
+                        borderWidth: 1,
+                        borderColor: hasFile ? '#111111' : '#FF5A1F',
+                        backgroundColor: hasFile ? '#F8F5EC' : '#FF5A1F',
+                        opacity: isThisUploading ? 0.6 : 1,
+                      }}
                     >
-                      {c.file_url ? 'Replace' : '↤ Upload'}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-              {credentials.length === 0 && (
-                <Text className="py-3 text-center font-mono text-[10px] text-muted">
-                  No credentials on file.
-                </Text>
-              )}
+                      {isThisUploading ? (
+                        <ActivityIndicator size="small" color={hasFile ? '#111111' : 'white'} />
+                      ) : (
+                        <Text
+                          className="font-mono text-[9px] uppercase tracking-wider"
+                          style={{ color: hasFile ? '#111111' : 'white' }}
+                        >
+                          {hasFile ? 'Replace' : '↤ Upload'}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </View>
+                );
+              })}
             </View>
           </View>
 

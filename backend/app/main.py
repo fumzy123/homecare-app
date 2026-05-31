@@ -16,9 +16,11 @@ from app.core.exceptions import AppError, app_error_handler, validation_error_ha
 from app.jobs.shift_completion import mark_shifts_completed
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
-from app.models.organization import Organization   # noqa: F401
-from app.models.org_member import OrgMember       # noqa: F401
-from app.models.leave_record import LeaveRecord   # noqa: F401
+from app.models.organization import Organization             # noqa: F401
+from app.models.org_member import OrgMember                 # noqa: F401
+from app.models.leave_record import LeaveRecord             # noqa: F401
+from app.models.admin_notification import AdminNotification  # noqa: F401
+from app.models.admin_notification import AdminNotificationRead  # noqa: F401
 
 from app.api.api import router as api_router
 

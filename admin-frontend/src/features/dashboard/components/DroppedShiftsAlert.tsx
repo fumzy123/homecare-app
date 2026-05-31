@@ -1,21 +1,13 @@
-import { format, subDays, addDays } from 'date-fns'
-import { useQuery } from '@tanstack/react-query'
-import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
+import { format } from 'date-fns'
 import { Card, Kicker } from '@/shared/components/ui'
-
-const droppedFrom = format(subDays(new Date(), 7),  'yyyy-MM-dd')
-const droppedTo   = format(addDays(new Date(), 60), 'yyyy-MM-dd')
+import type { ShiftOccurrence } from '@/features/shifts/api'
 
 interface DroppedShiftsAlertProps {
+  droppedShifts: ShiftOccurrence[]
   onSelectShift: (shift: ShiftOccurrence) => void
 }
 
-export function DroppedShiftsAlert({ onSelectShift }: DroppedShiftsAlertProps) {
-  const { data: droppedShifts = [] } = useQuery({
-    queryKey: ['shifts', droppedFrom, droppedTo, 'dropped'],
-    queryFn:  () => shiftsApi.listShifts(droppedFrom, droppedTo, undefined, undefined, ['dropped']),
-  })
-
+export function DroppedShiftsAlert({ droppedShifts, onSelectShift }: DroppedShiftsAlertProps) {
   const sorted = [...droppedShifts].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
 
   if (sorted.length === 0) {

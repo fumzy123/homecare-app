@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 from typing import Optional, List, Any
-from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus, CredentialCategory
+from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus, ComplianceDocumentType
 
 
 class WorkerProfileResponse(BaseModel):
@@ -50,36 +50,47 @@ class WorkerProfileResponse(BaseModel):
 class CredentialResponse(BaseModel):
     id: UUID
     org_member_id: UUID
-    name: str
-    category: Optional[CredentialCategory]
-    issuer: Optional[str]
-    issue_date: Optional[date]
+    document_type: ComplianceDocumentType
     expiry_date: Optional[date]
-    is_required: bool
     file_url: Optional[str]
     uploaded_at: Optional[datetime]
+    verified_at: Optional[datetime]
+    verified_by: Optional[UUID]
 
     model_config = {"from_attributes": True}
 
 
+class CredentialVerifySchema(BaseModel):
+    expiry_date: date
+
+
+class CredentialPreviewUrlResponse(BaseModel):
+    url: str
+
+
 class CredentialCreateSchema(BaseModel):
-    name: str
-    category: Optional[CredentialCategory] = None
-    issuer: Optional[str] = None
-    issue_date: Optional[date] = None
+    document_type: ComplianceDocumentType
     expiry_date: Optional[date] = None
-    is_required: bool = False
     file_url: Optional[str] = None
 
 
 class CredentialUpdateSchema(BaseModel):
-    name: Optional[str] = None
-    category: Optional[CredentialCategory] = None
-    issuer: Optional[str] = None
-    issue_date: Optional[date] = None
     expiry_date: Optional[date] = None
-    is_required: Optional[bool] = None
     file_url: Optional[str] = None
+
+
+class ExpiringCredentialResponse(BaseModel):
+    id: UUID
+    document_type: ComplianceDocumentType
+    expiry_date: date
+    days_remaining: int
+    worker_id: UUID
+    worker_first_name: str
+    worker_last_name: str
+
+
+class CredentialUpsertSchema(BaseModel):
+    file_url: str
 
 
 class WorkerProfileUpdateSchema(BaseModel):
