@@ -19,3 +19,15 @@ export function useVerifyCredential(workerId: string) {
     },
   })
 }
+
+export function useUploadCredential(workerId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ documentType, file }: { documentType: string; file: File }) =>
+      orgMembersApi.uploadCredentialDocument(workerId, documentType, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['worker-credentials', workerId] })
+      queryClient.invalidateQueries({ queryKey: ['expiring-credentials'] })
+    },
+  })
+}
