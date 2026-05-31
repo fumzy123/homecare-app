@@ -1,32 +1,26 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { orgMembersApi } from '@/features/org-members/api'
 import { useAuthStore } from '@/shared/stores/auth'
 import { DateInput } from '@/shared/components/ui'
+import type { OrgMember } from '@/features/org-members/api'
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 
-export function ProfileForm() {
+export function ProfileForm({ member }: { member: OrgMember }) {
   const { user, updateUser } = useAuthStore()
   const [saved, setSaved]             = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const { data: member } = useQuery({
-    queryKey: ['org-member-self', user?.id],
-    queryFn:  () => orgMembersApi.getOrgMember(user!.id),
-    enabled:  !!user?.id,
-  })
-
   const form = useForm({
     defaultValues: {
-      first_name:    user?.firstName    ?? '',
-      last_name:     user?.lastName     ?? '',
-      email:         user?.email        ?? '',
-      phone_number:  member?.phone_number  ?? '',
-      gender:        member?.gender        ?? '',
-      date_of_birth: member?.date_of_birth ?? '',
+      first_name:    member.first_name    ?? '',
+      last_name:     member.last_name     ?? '',
+      email:         member.email         ?? '',
+      phone_number:  member.phone_number  ?? '',
+      gender:        member.gender        ?? '',
+      date_of_birth: member.date_of_birth ?? '',
     },
     onSubmit: async ({ value }) => {
       if (!user) return

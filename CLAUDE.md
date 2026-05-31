@@ -133,10 +133,27 @@ src/features/<domain>/components/  ← Layer 3 domain components
 src/routes/                    ← Layer 4 pages
 ```
 
+### Custom hooks own all useQuery / useMutation calls
+
+`useQuery` and `useMutation` must never appear naked in a component — always wrap them in a named custom hook in `src/features/<domain>/hooks/`. The hook encapsulates the query key, queryFn, and any config. Components (including routes) import the hook, not the raw query.
+
+```
+// Wrong — naked useQuery in a route or component
+const { data } = useQuery({ queryKey: ['clients'], queryFn: clientsApi.listClients })
+
+// Right — hook in features/clients/hooks/useClients.ts
+export function useClients() {
+  return useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
+}
+// Route calls: const { data: clients = [] } = useClients()
+```
+
+Hooks live in `src/features/<domain>/hooks/<hookName>.ts`. One file per hook or one file grouping tightly related hooks (e.g. `useShifts.ts` exports `useTodayShifts`, `useWeekShifts`, `useDroppedShifts`).
+
 ### The key rule: don't mix data-fetching into Layer 2
 
 If a component calls `useQuery`, it is Layer 3, not Layer 2. If you find a component that renders a card/chart/list AND fetches its own data, it must either:
-- Accept data as props (move fetching up to the route), or
+- Accept data as props (move fetching up to the route via a custom hook), or
 - Be explicitly treated as a Layer 3 domain component in `features/`
 
 ### Known violations (fix as you touch these files)
@@ -144,10 +161,8 @@ If a component calls `useQuery`, it is Layer 3, not Layer 2. If you find a compo
 | File | Violation | Fix |
 |---|---|---|
 | `shared/components/layout/Sidebar.tsx` | Uses `useAuthStore` + `authApi.signOut()` — Layer 4 logic in Layer 2 location | Acceptable in `layout/` — layout components may use auth store for nav/logout |
-| `features/dashboard/components/DashboardStatsStrip.tsx` | Calls 5x `useQuery` but is used as a presentational strip | Keep as Layer 3; rename to make the data-fetching role obvious |
-| `features/dashboard/components/ClientRosterCard.tsx` | Fetches data inside card component | Move query to parent route; pass data as props |
-| `features/dashboard/components/DroppedShiftsAlert.tsx` | Fetches data inside alert component | Move query to parent route; pass data as props |
-| `features/settings/components/ProfileForm.tsx` | Fetches own data inside form | Accept `member` as prop or use route loader |
+| `features/clients/components/ClientStatusBadge.tsx` | Domain-specific badge in features/ | Could move to `shared/components/ui/` for reuse |
+| `features/invitations/components/StatusBadge.tsx` | Same as above | Move to `shared/components/ui/` |
 | `features/clients/components/ClientStatusBadge.tsx` | Domain-specific badge in features/ | Could move to `shared/components/ui/` for reuse |
 | `features/invitations/components/StatusBadge.tsx` | Same as above | Move to `shared/components/ui/` |
 
