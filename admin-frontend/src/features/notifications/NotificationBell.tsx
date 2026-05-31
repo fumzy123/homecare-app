@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { formatDistanceToNow } from 'date-fns'
-import { useNotifications, useMarkRead, useMarkResolved } from './hooks'
+import { useNotifications, useMarkRead } from './hooks'
 import type { Notification, NotificationType } from './api'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ function notificationTitle(n: Notification): string {
     case 'profile_updated': {
       const fields = (n.payload.changed_fields as string[]) ?? []
       return `${name} updated their profile`
-        + (fields.length ? ` (${fields.map(humaniseField).join(', ')})` : '')
+        + (fields.length ? ` (${fields.map((f) => f.replace(/_/g, ' ')).join(', ')})` : '')
     }
     case 'shift_dropped':
       return `${name} dropped a shift — ${n.payload.client_name ?? ''}`
@@ -25,8 +26,17 @@ function notificationTitle(n: Notification): string {
   }
 }
 
-function humaniseField(f: string): string {
-  return f.replace(/_/g, ' ')
+function notificationDestination(n: Notification): string {
+  switch (n.type as NotificationType) {
+    case 'credential_uploaded':
+      return `/dashboard/workers/${n.worker_id}/documents`
+    case 'profile_updated':
+      return `/dashboard/workers/${n.worker_id}/edit`
+    case 'shift_dropped':
+      return `/dashboard/workers/${n.worker_id}`
+    default:
+      return `/dashboard/workers/${n.worker_id}`
+  }
 }
 
 const DOCUMENT_LABELS: Record<string, string> = {
@@ -44,19 +54,24 @@ const DOCUMENT_LABELS: Record<string, string> = {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function NotificationItem({ n }: { n: Notification }) {
-  const { mutate: markRead }     = useMarkRead()
-  const { mutate: markResolved, isPending: resolving } = useMarkResolved()
-  const isUnread    = n.read_at === null
-  const isResolved  = n.resolved_at !== null
+function NotificationItem({
+  n,
+  onNavigate,
+}: {
+  n: Notification
+  onNavigate: (dest: string, id: string, isUnread: boolean) => void
+}) {
+  const isUnread   = n.read_at === null
+  const isResolved = n.resolved_at !== null
+  const dest       = notificationDestination(n)
 
   return (
-    <div
-      className={`border-b border-line-faint px-4 py-3 transition-colors ${
+    <button
+      onClick={() => onNavigate(dest, n.id, isUnread)}
+      className={`w-full text-left border-b border-line-faint px-4 py-3 transition-colors hover:bg-cream-2 ${
         isUnread ? 'bg-cream-2' : 'bg-paper'
       }`}
     >
-      {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[12px] leading-snug text-ink">
@@ -73,53 +88,35 @@ function NotificationItem({ n }: { n: Notification }) {
               Action needed
             </span>
           )}
+          {isResolved && (
+            <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft">✓</span>
+          )}
           {isUnread && (
             <div className="h-2 w-2 shrink-0 rounded-full bg-orange" />
           )}
         </div>
       </div>
 
-      {/* Action row */}
-      <div className="mt-2 flex items-center gap-3">
-        {isUnread && (
-          <button
-            onClick={() => markRead(n.id)}
-            className="font-mono text-[9px] uppercase tracking-wider text-ink-soft underline hover:text-ink"
-          >
-            Mark read
-          </button>
-        )}
-        {n.requires_action && !isResolved && (
-          <button
-            onClick={() => markResolved(n.id)}
-            disabled={resolving}
-            className="font-mono text-[9px] uppercase tracking-wider text-orange underline hover:text-ink disabled:opacity-50"
-          >
-            {resolving ? 'Resolving…' : 'Mark resolved'}
-          </button>
-        )}
-        {isResolved && (
-          <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft">
-            ✓ Resolved
-          </span>
-        )}
-      </div>
-    </div>
+      <p className="mt-1.5 font-mono text-[9px] uppercase tracking-wider text-ink-soft text-right">
+        View →
+      </p>
+    </button>
   )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const { data } = useNotifications()
+  const [open, setOpen]       = useState(false)
+  const ref                   = useRef<HTMLDivElement>(null)
+  const navigate              = useNavigate()
+  const { data }              = useNotifications()
+  const { mutate: markRead }  = useMarkRead()
 
-  const unread         = data?.unread_count ?? 0
-  const actionNeeded   = data?.action_needed_count ?? 0
-  const notifications  = data?.notifications ?? []
+  const unread        = data?.unread_count ?? 0
+  const actionNeeded  = data?.action_needed_count ?? 0
+  const notifications = data?.notifications ?? []
 
-  // Close on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -129,6 +126,12 @@ export function NotificationBell() {
     if (open) document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
+
+  function handleNavigate(dest: string, id: string, isUnread: boolean) {
+    setOpen(false)
+    if (isUnread) markRead(id)
+    navigate({ to: dest as never })
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -175,7 +178,9 @@ export function NotificationBell() {
                 All clear
               </p>
             ) : (
-              notifications.map((n) => <NotificationItem key={n.id} n={n} />)
+              notifications.map((n) => (
+                <NotificationItem key={n.id} n={n} onNavigate={handleNavigate} />
+              ))
             )}
           </div>
         </div>

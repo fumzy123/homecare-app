@@ -21,4 +21,8 @@ class Credential(Base):
     file_url = Column(String, nullable=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    org_member = relationship("OrgMember", back_populates="credentials")
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    verified_by = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=True)
+
+    org_member  = relationship("OrgMember", back_populates="credentials",
+                               foreign_keys=[org_member_id])

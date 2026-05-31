@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
-from app.schemas.worker_profile import CredentialCreateSchema, CredentialUpdateSchema
+from app.schemas.worker_profile import CredentialCreateSchema, CredentialUpdateSchema, CredentialVerifySchema
 from app.repositories.credential_repository import CredentialRepository
 from app.repositories.org_member_repository import OrgMemberRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.core.exceptions import AppError
+from app.core.enums import ComplianceDocumentType
 from uuid import UUID
 
 
@@ -56,6 +58,29 @@ class CredentialService:
             )
             self.db.commit()
             return updated
+        except AppError:
+            raise
+        except Exception as e:
+            self.db.rollback()
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    def verify(self, member_id: UUID, document_type: ComplianceDocumentType, payload: CredentialVerifySchema):
+        member = self._assert_member_in_org(member_id)
+        try:
+            credential = self.credential_repo.verify_for_member(
+                org_member_id=member_id,
+                document_type=document_type,
+                expiry_date=payload.expiry_date,
+                verified_by=self.current_user.id,
+            )
+            NotificationRepository(self.db).resolve_credential_notification(
+                org_id=member.org_id,
+                worker_id=member_id,
+                document_type=document_type.value,
+                resolver_id=self.current_user.id,
+            )
+            self.db.commit()
+            return credential
         except AppError:
             raise
         except Exception as e:
