@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { supabase } from '@/shared/lib/supabase'
+import { orgMembersApi } from '@/features/org-members/api'
 import { useWorkerCredentials, useVerifyCredential } from '../hooks/useWorkerCredentials'
 import type { WorkerCredential } from '@/features/org-members/api'
 
@@ -9,8 +9,6 @@ import type { WorkerCredential } from '@/features/org-members/api'
 type PreviewState = 'idle' | 'loading' | { error: string }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const BUCKET = 'compliance-documents'
 
 const DOCUMENT_LABELS: Record<string, string> = {
   first_aid_cpr:           'First Aid / CPR',
@@ -29,22 +27,15 @@ const ALL_DOCUMENT_TYPES = Object.keys(DOCUMENT_LABELS)
 
 // ── Document preview ──────────────────────────────────────────────────────────
 
-async function openPreview(storagePath: string): Promise<void> {
+async function openPreview(workerId: string, documentType: string): Promise<void> {
   // Open the tab synchronously (before any await) so the browser doesn't treat
   // it as a popup and block it. We set the real URL once the signed URL arrives.
   const tab = window.open('', '_blank')
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(storagePath, 120)
-  if (error || !data?.signedUrl) {
-    tab?.close()
-    throw new Error(error?.message ?? 'Could not generate a preview link. Check storage permissions.')
-  }
+  const signedUrl = await orgMembersApi.getCredentialPreviewUrl(workerId, documentType)
   if (tab) {
-    tab.location.href = data.signedUrl
+    tab.location.href = signedUrl
   } else {
-    // Fallback: tab was blocked despite the early open; try direct navigation
-    window.location.href = data.signedUrl
+    window.location.href = signedUrl
   }
 }
 
@@ -70,10 +61,9 @@ function CredentialCard({
   const isPreviewing = preview === 'loading'
 
   async function handlePreview() {
-    if (!credential?.file_url) return
     setPreview('loading')
     try {
-      await openPreview(credential.file_url)
+      await openPreview(workerId, docType)
       setPreview('idle')
     } catch (err) {
       setPreview({ error: err instanceof Error ? err.message : 'Could not open document.' })

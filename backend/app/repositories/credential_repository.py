@@ -31,6 +31,16 @@ class CredentialRepository:
             raise AppError(status_code=404, code="NOT_FOUND", message="Credential not found")
         return credential
 
+    def get_by_document_type(self, org_member_id: UUID, document_type: ComplianceDocumentType) -> Credential | None:
+        return (
+            self.db.query(Credential)
+            .filter(
+                Credential.org_member_id == org_member_id,
+                Credential.document_type == document_type,
+            )
+            .first()
+        )
+
     def create(self, org_member_id: UUID, data: dict) -> Credential:
         credential = Credential(org_member_id=org_member_id, **data)
         self.db.add(credential)
