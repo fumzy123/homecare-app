@@ -67,7 +67,7 @@ export function ConfirmEmailForm() {
     })
 
     return () => subscription.unsubscribe()
-  }, [navigate])
+  }, [navigate, error])
 
   if (error === 'wrong-browser') {
     return (
