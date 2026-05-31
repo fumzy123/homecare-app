@@ -4,9 +4,10 @@ import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '@/features/profil
 
 interface ComplianceAlertProps {
   credentials: Credential[];
+  className?: string;
 }
 
-export function ComplianceAlert({ credentials }: ComplianceAlertProps) {
+export function ComplianceAlert({ credentials, className }: ComplianceAlertProps) {
   const expired = credentials.filter((c) => computeCredentialStatus(c.expiry_date) === 'expired');
   const expiring = credentials.filter((c) => computeCredentialStatus(c.expiry_date) === 'expiring');
 
@@ -32,7 +33,7 @@ export function ComplianceAlert({ credentials }: ComplianceAlertProps) {
     .join('   —   ');
 
   return (
-    <View className="mx-5 mt-3.5 border border-ink bg-orange-soft p-3.5">
+    <View className={className ?? 'mx-5 mt-3.5 border border-ink bg-orange-soft p-3.5'}>
       <Text className="font-mono text-[9px] font-bold uppercase tracking-widest text-orange">
         ⚠ ACTION NEEDED
       </Text>
