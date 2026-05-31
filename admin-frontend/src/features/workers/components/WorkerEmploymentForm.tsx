@@ -9,17 +9,13 @@ const labelClass  = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-
 const inputClass  = 'w-full bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 const selectClass = `${inputClass} appearance-none`
 
-export function WorkerProfileForm({ worker }: { worker: OrgMember }) {
+export function WorkerEmploymentForm({ worker }: { worker: OrgMember }) {
   const queryClient = useQueryClient()
   const [saved, setSaved]             = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
   const form = useForm({
     defaultValues: {
-      street:             worker.street ?? '',
-      city:               worker.city ?? '',
-      province:           worker.province ?? '',
-      postal_code:        worker.postal_code ?? '',
       employment_type:    (worker.employment_type ?? '') as EmploymentType | '',
       has_vehicle:        worker.has_vehicle ?? false,
       max_hours_per_week: worker.max_hours_per_week?.toString() ?? '',
@@ -31,10 +27,6 @@ export function WorkerProfileForm({ worker }: { worker: OrgMember }) {
       try {
         const maxHours = value.max_hours_per_week ? parseInt(value.max_hours_per_week, 10) : undefined
         await orgMembersApi.updateOrgMember(worker.id, {
-          street:             value.street || undefined,
-          city:               value.city || undefined,
-          province:           value.province || undefined,
-          postal_code:        value.postal_code || undefined,
           employment_type:    (value.employment_type as EmploymentType) || undefined,
           has_vehicle:        value.has_vehicle,
           max_hours_per_week: isNaN(maxHours as number) ? undefined : maxHours,
@@ -52,57 +44,11 @@ export function WorkerProfileForm({ worker }: { worker: OrgMember }) {
   return (
     <section className="border border-ink bg-paper">
       <div className="px-6 py-4 border-b border-ink">
-        <Kicker>Work profile</Kicker>
+        <Kicker>Employment information</Kicker>
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="px-6 py-6 space-y-4">
         <div>
-          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Address</p>
-          <form.Field name="street">
-            {(field) => (
-              <div className="mb-4">
-                <label className={labelClass}>Street</label>
-                <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} placeholder="123 Main St" />
-              </div>
-            )}
-          </form.Field>
-          <div className="grid grid-cols-[1fr_120px_120px] gap-4">
-            <form.Field name="city">
-              {(field) => (
-                <div>
-                  <label className={labelClass}>City</label>
-                  <input className={inputClass} value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)} placeholder="Vancouver" />
-                </div>
-              )}
-            </form.Field>
-            <form.Field name="province">
-              {(field) => (
-                <div>
-                  <label className={labelClass}>Province</label>
-                  <select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}>
-                    <option value="">—</option>
-                    {['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'].map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </form.Field>
-            <form.Field name="postal_code">
-              {(field) => (
-                <div>
-                  <label className={labelClass}>Postal Code</label>
-                  <input className={inputClass} value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)} placeholder="V6B 1A1" />
-                </div>
-              )}
-            </form.Field>
-          </div>
-        </div>
-
-        <div className="border-t border-dashed border-line-soft pt-4">
           <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Employment</p>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <form.Field name="employment_type">

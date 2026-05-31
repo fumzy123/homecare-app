@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { orgMembersApi } from '@/features/org-members/api'
 import { WorkerPersonalInfoForm } from '@/features/workers/components/WorkerPersonalInfoForm'
-import { WorkerProfileForm } from '@/features/workers/components/WorkerProfileForm'
+import { WorkerEmploymentForm } from '@/features/workers/components/WorkerEmploymentForm'
 import { WorkerDangerZone } from '@/features/workers/components/WorkerDangerZone'
 import { WorkerDocumentsTab } from '@/features/workers/components/WorkerDocumentsTab'
 
@@ -25,7 +25,7 @@ function WorkerEditPage() {
     <div className="p-10 space-y-6">
       <div className="h-2" />
       <WorkerPersonalInfoForm worker={worker} />
-      <WorkerProfileForm worker={worker} />
+      <WorkerEmploymentForm worker={worker} />
       <WorkerDocumentsTab workerId={workerId} />
       <WorkerDangerZone worker={worker} />
     </div>

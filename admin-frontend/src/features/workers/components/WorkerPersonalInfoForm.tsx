@@ -37,6 +37,10 @@ export function WorkerPersonalInfoForm({ worker }: { worker: OrgMember }) {
       gender:                         worker.gender ?? '',
       date_of_birth:                  toDateInput(worker.date_of_birth),
       hire_date:                      toDateInput(worker.hire_date),
+      street:                         worker.street ?? '',
+      city:                           worker.city ?? '',
+      province:                       worker.province ?? '',
+      postal_code:                    worker.postal_code ?? '',
       emergency_contact_name:         worker.emergency_contact_name ?? '',
       emergency_contact_phone:        worker.emergency_contact_phone ?? '',
       emergency_contact_relationship: worker.emergency_contact_relationship ?? '',
@@ -53,6 +57,10 @@ export function WorkerPersonalInfoForm({ worker }: { worker: OrgMember }) {
           gender:                         value.gender || undefined,
           date_of_birth:                  value.date_of_birth || undefined,
           hire_date:                      value.hire_date || undefined,
+          street:                         value.street || undefined,
+          city:                           value.city || undefined,
+          province:                       value.province || undefined,
+          postal_code:                    value.postal_code || undefined,
           emergency_contact_name:         value.emergency_contact_name || undefined,
           emergency_contact_phone:        value.emergency_contact_phone || undefined,
           emergency_contact_relationship: value.emergency_contact_relationship || undefined,
@@ -170,6 +178,52 @@ export function WorkerPersonalInfoForm({ worker }: { worker: OrgMember }) {
               </div>
             )}
           </form.Field>
+        </div>
+
+        <div className="border-t border-dashed border-line-soft pt-4">
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-4">Address</p>
+          <form.Field name="street">
+            {(field) => (
+              <div className="mb-4">
+                <label className={labelClass}>Street</label>
+                <input className={inputClass} value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)} placeholder="123 Main St" />
+              </div>
+            )}
+          </form.Field>
+          <div className="grid grid-cols-[1fr_120px_120px] gap-4">
+            <form.Field name="city">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>City</label>
+                  <input className={inputClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)} placeholder="Vancouver" />
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="province">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Province</label>
+                  <select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}>
+                    <option value="">—</option>
+                    {['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'].map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="postal_code">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Postal Code</label>
+                  <input className={inputClass} value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)} placeholder="V6B 1A1" />
+                </div>
+              )}
+            </form.Field>
+          </div>
         </div>
 
         <div className="border-t border-dashed border-line-soft pt-4">
