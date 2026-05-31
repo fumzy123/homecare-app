@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
-from sqlalchemy.orm import Session
+from datetime import datetime, date, timedelta, timezone
+from sqlalchemy.orm import Session, joinedload
 from app.models.credential import Credential
+from app.models.org_member import OrgMember
 from app.core.enums import ComplianceDocumentType
 from app.core.exceptions import AppError
 from uuid import UUID
@@ -71,6 +72,10 @@ class CredentialRepository:
         if credential:
             credential.file_url = file_url
             credential.uploaded_at = datetime.now(timezone.utc)
+            # New file invalidates previous verification — admin must re-verify
+            credential.verified_at = None
+            credential.verified_by = None
+            credential.expiry_date = None
         else:
             credential = Credential(
                 org_member_id=org_member_id,
@@ -103,6 +108,23 @@ class CredentialRepository:
         credential.verified_by = verified_by
         self.db.flush()
         return credential
+
+    def list_expiring_for_org(self, org_id: UUID, within_days: int) -> list[Credential]:
+        today = date.today()
+        cutoff = today + timedelta(days=within_days)
+        return (
+            self.db.query(Credential)
+            .options(joinedload(Credential.org_member))
+            .join(OrgMember, Credential.org_member_id == OrgMember.id)
+            .filter(
+                OrgMember.org_id == org_id,
+                Credential.expiry_date.isnot(None),
+                Credential.expiry_date >= today,
+                Credential.expiry_date <= cutoff,
+            )
+            .order_by(Credential.expiry_date.asc())
+            .all()
+        )
 
     def delete(self, credential: Credential) -> None:
         self.db.delete(credential)

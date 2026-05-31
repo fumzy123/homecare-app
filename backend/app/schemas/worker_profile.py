@@ -79,6 +79,16 @@ class CredentialUpdateSchema(BaseModel):
     file_url: Optional[str] = None
 
 
+class ExpiringCredentialResponse(BaseModel):
+    id: UUID
+    document_type: ComplianceDocumentType
+    expiry_date: date
+    days_remaining: int
+    worker_id: UUID
+    worker_first_name: str
+    worker_last_name: str
+
+
 class CredentialUpsertSchema(BaseModel):
     file_url: str
 

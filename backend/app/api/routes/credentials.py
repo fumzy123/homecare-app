@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from uuid import UUID
 from app.db.session import get_db
@@ -63,6 +63,16 @@ async def verify_credential(
     credential_service: CredentialService = Depends(get_credential_service),
 ):
     return credential_service.verify(member_id, document_type, payload)
+
+
+@router.post("/{document_type}/upload", response_model=CredentialResponse)
+async def upload_credential_document(
+    member_id: UUID,
+    document_type: ComplianceDocumentType,
+    file: UploadFile = File(...),
+    credential_service: CredentialService = Depends(get_credential_service),
+):
+    return await credential_service.upload_document(member_id, document_type, file)
 
 
 @router.delete("/{credential_id}", status_code=204)
