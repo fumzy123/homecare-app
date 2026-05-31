@@ -4,6 +4,7 @@ import { orgMembersApi } from '@/features/org-members/api'
 import { WorkerPersonalInfoForm } from '@/features/workers/components/WorkerPersonalInfoForm'
 import { WorkerProfileForm } from '@/features/workers/components/WorkerProfileForm'
 import { WorkerDangerZone } from '@/features/workers/components/WorkerDangerZone'
+import { WorkerDocumentsTab } from '@/features/workers/components/WorkerDocumentsTab'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
   component: WorkerEditPage,
@@ -25,6 +26,7 @@ function WorkerEditPage() {
       <div className="h-2" />
       <WorkerPersonalInfoForm worker={worker} />
       <WorkerProfileForm worker={worker} />
+      <WorkerDocumentsTab workerId={workerId} />
       <WorkerDangerZone worker={worker} />
     </div>
   )
