@@ -24,13 +24,14 @@ class RecurrenceSchema(BaseModel):
 # POST /shifts — create a single or recurring shift
 # ─────────────────────────────────────────
 class ShiftCreateSchema(BaseModel):
-    worker_id:  UUID
-    client_id:  UUID
-    start_time: datetime
-    end_time:   datetime
-    location:   str | None = None   # defaults to client's address in the service
-    notes:      str | None = None
-    recurrence: RecurrenceSchema | None = None  # absent = single shift
+    worker_id:            UUID
+    client_id:            UUID
+    start_time:           datetime
+    end_time:             datetime
+    location:             str | None = None   # defaults to client's address in the service
+    notes:                str | None = None
+    recurrence:           RecurrenceSchema | None = None  # absent = single shift
+    override_hours_check: bool = False
 
     @model_validator(mode="after")
     def validate_times(self):
@@ -64,12 +65,13 @@ class ShiftCancelSchema(BaseModel):
 # POST /shifts/{id}/modifications — override a specific occurrence
 # ─────────────────────────────────────────
 class ShiftModificationCreateSchema(BaseModel):
-    original_date:       date
-    new_start_time:      datetime | None = None
-    new_end_time:        datetime | None = None
-    completion_status:   ShiftCompletionStatus | None = None
-    notes:               str | None = None
-    cancellation_reason: str | None = None
+    original_date:        date
+    new_start_time:       datetime | None = None
+    new_end_time:         datetime | None = None
+    completion_status:    ShiftCompletionStatus | None = None
+    notes:                str | None = None
+    cancellation_reason:  str | None = None
+    override_hours_check: bool = False
 
     @model_validator(mode="after")
     def validate_times(self):
@@ -83,11 +85,12 @@ class ShiftModificationCreateSchema(BaseModel):
 # PATCH /shifts/{id}/modifications/{date} — update an existing modification
 # ─────────────────────────────────────────
 class ShiftModificationUpdateSchema(BaseModel):
-    new_start_time:      datetime | None = None
-    new_end_time:        datetime | None = None
-    completion_status:   ShiftCompletionStatus | None = None
-    notes:               str | None = None
-    cancellation_reason: str | None = None
+    new_start_time:       datetime | None = None
+    new_end_time:         datetime | None = None
+    completion_status:    ShiftCompletionStatus | None = None
+    notes:                str | None = None
+    cancellation_reason:  str | None = None
+    override_hours_check: bool = False
 
     @model_validator(mode="after")
     def validate_times(self):
@@ -109,15 +112,16 @@ class ShiftCancelFromSchema(BaseModel):
 # POST /shifts/{id}/edit-from — edit this occurrence and all following
 # ─────────────────────────────────────────
 class ShiftEditFromSchema(BaseModel):
-    occurrence_date:     date
-    new_start_time:      datetime | None = None
-    new_end_time:        datetime | None = None
-    worker_id:           UUID | None = None
-    client_id:           UUID | None = None
-    location:            str | None = None
-    recurrence_end_date: date | None = None
-    recurrence:          RecurrenceSchema | None = None
-    notes:               str | None = None
+    occurrence_date:      date
+    new_start_time:       datetime | None = None
+    new_end_time:         datetime | None = None
+    worker_id:            UUID | None = None
+    client_id:            UUID | None = None
+    location:             str | None = None
+    recurrence_end_date:  date | None = None
+    recurrence:           RecurrenceSchema | None = None
+    notes:                str | None = None
+    override_hours_check: bool = False
 
     @model_validator(mode="after")
     def validate_times(self):

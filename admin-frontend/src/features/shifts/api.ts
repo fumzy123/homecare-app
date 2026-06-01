@@ -58,6 +58,7 @@ export interface ShiftCreatePayload {
     days_of_week?: DayOfWeek[]
     recurrence_end_date?: string  // YYYY-MM-DD
   }
+  override_hours_check?: boolean
 }
 
 export interface ShiftUpdatePayload {
@@ -77,6 +78,7 @@ export interface ShiftModificationPayload {
   new_end_time?: string   // ISO datetime
   completion_status?: string
   notes?: string
+  override_hours_check?: boolean
 }
 
 export interface ShiftModificationUpdatePayload {
@@ -84,6 +86,7 @@ export interface ShiftModificationUpdatePayload {
   new_end_time?: string   // ISO datetime
   completion_status?: string
   notes?: string
+  override_hours_check?: boolean
 }
 
 // ─── Progress Notes ───────────────────────────────────────────────────────────
@@ -214,7 +217,7 @@ export const shiftsApi = {
   editFromDate: async (
     shiftId: string,
     occurrenceDate: string,
-    payload: { new_start_time?: string; new_end_time?: string; worker_id?: string; client_id?: string; location?: string; recurrence_end_date?: string; recurrence?: { frequency: RecurrenceFrequency; days_of_week?: DayOfWeek[]; recurrence_end_date?: string }; notes?: string },
+    payload: { new_start_time?: string; new_end_time?: string; worker_id?: string; client_id?: string; location?: string; recurrence_end_date?: string; recurrence?: { frequency: RecurrenceFrequency; days_of_week?: DayOfWeek[]; recurrence_end_date?: string }; notes?: string; override_hours_check?: boolean },
   ): Promise<void> => {
     await apiClient.post(`/api/shifts/${shiftId}/edit-from`, {
       occurrence_date: occurrenceDate,

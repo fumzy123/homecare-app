@@ -36,6 +36,7 @@ class Shift(Base):
     notes = Column(Text, nullable=True)
 
     cancellation_reason = Column(Text, nullable=True)
+    overtime_approved = Column(Boolean, nullable=True, default=False)
 
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())

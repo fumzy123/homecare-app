@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, field_validator
-from app.core.enums import OrgMemberRole
+from app.core.enums import OrgMemberRole, EmploymentType
 
 # Must match Supabase Authentication → Email OTP expiration setting.
 # Update both here and in the Supabase dashboard together.
@@ -9,8 +9,9 @@ INVITE_EXPIRY_SECONDS = 86_400  # 24 hours
 
 
 class CreateInvitationSchema(BaseModel):
-    email: EmailStr
-    role: OrgMemberRole
+    email:           EmailStr
+    role:            OrgMemberRole
+    employment_type: EmploymentType
 
     @field_validator("role")
     @classmethod

@@ -1,6 +1,6 @@
 import { useForm } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
@@ -59,6 +59,9 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
   const defaultEndTime   = initialEndDate ? format(initialEndDate, 'HH:mm')      : '17:00'
 
   const [serverError, setServerError] = useState<string | null>(null)
+  const [pendingOverride, setPendingOverride] = useState<{ code: string; message: string } | null>(null)
+  const overrideRef = useRef(false)
+
   const [endDate, setEndDate]               = useState(defaultDate)
   const [location, setLocation]             = useState('')
   const [isRecurring, setIsRecurring]       = useState(false)
@@ -98,6 +101,9 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
         setServerError('Select at least one day for weekly recurrence.')
         return
       }
+      const override = overrideRef.current
+      overrideRef.current = false
+
       // Safety net: forcibly roll over the end date if the time is overnight
       let safeEndDate = endDate
       if (value.end_time <= value.start_time && safeEndDate === value.date) {
@@ -117,24 +123,42 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
           recurrence: isRecurring
             ? { frequency, days_of_week: frequency === 'weekly' ? daysOfWeek : undefined, recurrence_end_date: recurrenceEndDate || undefined }
             : undefined,
+          override_hours_check: override,
         })
         onSuccess()
         onClose()
       } catch (err: unknown) {
         if (err instanceof ApiError && err.code === 'WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK' && Array.isArray(err.details) && err.details.length > 0) {
           const first = err.details[0] as { date: string; start: string; end: string; client_name: string }
-          const start = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          const end   = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          setServerError(`Worker already scheduled on ${first.date} (${start}–${end}) for ${first.client_name}.`)
-        } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK' && Array.isArray(err.details) && err.details.length > 0) {
-          const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; max_hours: number; current_hours: number; proposed_hours: number; total_hours: number }
-          setServerError(`${first.worker_name} would be scheduled for ${first.total_hours}h the week of ${first.week_start} — over their ${first.max_hours}h/week cap (currently ${first.current_hours}h, this adds ${first.proposed_hours}h).`)
+          const s = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          const e = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          setServerError(`Worker already scheduled on ${first.date} (${s}–${e}) for ${first.client_name}.`)
+        } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_ENTER_OVERTIME' && Array.isArray(err.details) && err.details.length > 0) {
+          const first = err.details[0] as { week_start: string; worker_name: string; total_hours: number; overtime_threshold: number }
+          const over = Math.round((first.total_hours - first.overtime_threshold) * 10) / 10
+          setPendingOverride({
+            code: err.code,
+            message: `${first.worker_name} would reach ${first.total_hours}h the week of ${first.week_start} — ${over}h over the 40h overtime threshold. Approve overtime?`,
+          })
+        } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_WEEKLY_CAP' && Array.isArray(err.details) && err.details.length > 0) {
+          const first = err.details[0] as { week_start: string; worker_name: string; total_hours: number; max_hours: number }
+          const over = Math.round((first.total_hours - first.max_hours) * 10) / 10
+          setPendingOverride({
+            code: err.code,
+            message: `${first.worker_name} would reach ${first.total_hours}h the week of ${first.week_start} — ${over}h over their ${first.max_hours}h/week cap. Schedule anyway?`,
+          })
         } else {
           setServerError(err instanceof Error ? err.message : 'Something went wrong')
         }
       }
     },
   })
+
+  function handleApproveOverride() {
+    setPendingOverride(null)
+    overrideRef.current = true
+    form.handleSubmit()
+  }
 
   function toggleDay(day: DayOfWeek) {
     setDaysOfWeek((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day])
@@ -379,6 +403,28 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
 
           {serverError && (
             <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
+          )}
+
+          {pendingOverride && (
+            <div className="border border-orange bg-cream-2 px-4 py-3 flex flex-col gap-3">
+              <p className="font-mono text-[10px] text-ink leading-relaxed">{pendingOverride.message}</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleApproveOverride}
+                  className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                >
+                  {pendingOverride.code === 'WORKER_WOULD_ENTER_OVERTIME' ? 'Approve overtime' : 'Schedule anyway'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingOverride(null)}
+                  className="border border-ink px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
         </form>
 

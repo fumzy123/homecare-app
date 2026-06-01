@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Enum, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.models.base import Base
-from app.core.enums import OrgMemberRole
+from app.core.enums import OrgMemberRole, EmploymentType
 import uuid
 
 
@@ -12,6 +12,7 @@ class Invitation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, nullable=False)
     role = Column(Enum(OrgMemberRole), nullable=False)
+    employment_type = Column(Enum(EmploymentType), nullable=True)
 
     # Who sent it and which org it belongs to
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)

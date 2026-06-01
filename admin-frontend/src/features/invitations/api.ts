@@ -7,6 +7,8 @@ export type InvitationRole =
   | 'nurse'
   | 'home_support_worker'
 
+export type EmploymentType = 'full_time' | 'part_time' | 'casual'
+
 export interface Invitation {
   id: string
   email: string
@@ -19,7 +21,7 @@ export interface Invitation {
 }
 
 export const invitationsApi = {
-  sendInvitation: async (payload: { email: string; role: InvitationRole }) => {
+  sendInvitation: async (payload: { email: string; role: InvitationRole; employment_type: EmploymentType }) => {
     const { data } = await apiClient.post('/api/invitations', payload)
     return data
   },
