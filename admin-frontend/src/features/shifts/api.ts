@@ -136,6 +136,13 @@ export function toCalendarEvents(occurrences: ShiftOccurrence[]): CalendarEvent[
   }))
 }
 
+export interface OvertimeApprovalRequest {
+  worker_id:   string
+  week_start:  string   // YYYY-MM-DD
+  week_end:    string   // YYYY-MM-DD
+  total_hours: number
+}
+
 export const shiftsApi = {
   getShiftStats: async (
     fromDate: string,
@@ -175,6 +182,10 @@ export const shiftsApi = {
 
   createShift: async (payload: ShiftCreatePayload): Promise<void> => {
     await apiClient.post('/api/shifts', payload)
+  },
+
+  requestOvertimeApproval: async (payload: OvertimeApprovalRequest): Promise<void> => {
+    await apiClient.post('/api/shifts/request-overtime-approval', payload)
   },
 
   updateShift: async (shiftId: string, payload: ShiftUpdatePayload): Promise<void> => {

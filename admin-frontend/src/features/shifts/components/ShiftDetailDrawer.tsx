@@ -78,7 +78,15 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   const [recurrenceFreq, setRecurrenceFreq]         = useState<RecurrenceFrequency>(shift.recurrence_frequency ?? 'weekly')
   const [recurrenceDays, setRecurrenceDays]         = useState<DayOfWeek[]>(shift.recurrence_days_of_week ?? [])
   const [editError, setEditError]             = useState<string | null>(null)
-  const [pendingOverride, setPendingOverride] = useState<{ code: string; message: string } | null>(null)
+  const [pendingOverride, setPendingOverride] = useState<{
+    code: string
+    message: string
+    workerIdForApproval?: string
+    weekStart?: string
+    weekEnd?: string
+    totalHours?: number
+  } | null>(null)
+  const [approvalRequested, setApprovalRequested] = useState(false)
   const overrideRef                           = useRef(false)
   const pendingOverrideFnRef                  = useRef<(() => void) | null>(null)
   const [saved, setSaved]                     = useState(false)
@@ -116,6 +124,17 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         setPendingOverride({
           code: err.code,
           message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. Approve overtime?`,
+        })
+      } else if (err instanceof ApiError && err.code === 'OVERTIME_APPROVAL_REQUIRED' && Array.isArray(err.details) && err.details.length > 0) {
+        const first = err.details[0] as { week_start: string; week_end: string; worker_id: string; worker_name: string; total_hours: number }
+        const over = Math.round((first.total_hours - 40) * 10) / 10
+        setPendingOverride({
+          code: err.code,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. A manager or owner must approve this shift.`,
+          workerIdForApproval: first.worker_id,
+          weekStart: first.week_start,
+          weekEnd: first.week_end,
+          totalHours: first.total_hours,
         })
       } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_WEEKLY_CAP' && Array.isArray(err.details) && err.details.length > 0) {
         const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; total_hours: number; max_hours: number }
@@ -413,21 +432,51 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                 <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{editError}</p>
               )}
 
+              {approvalRequested && (
+                <p className="font-mono text-[10px] text-mint border border-mint px-3 py-2">
+                  Manager notified — they will review and approve the shift.
+                </p>
+              )}
+
               {pendingOverride && (
                 <div className="border border-orange bg-cream-2 px-4 py-3 flex flex-col gap-3">
                   <p className="font-mono text-[10px] text-ink leading-relaxed">{pendingOverride.message}</p>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const fn = pendingOverrideFnRef.current
-                        setPendingOverride(null)
-                        fn?.()
-                      }}
-                      className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
-                    >
-                      {pendingOverride.code === 'WORKER_WOULD_ENTER_OVERTIME' ? 'Approve overtime' : 'Schedule anyway'}
-                    </button>
+                    {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!pendingOverride.workerIdForApproval) return
+                          try {
+                            await shiftsApi.requestOvertimeApproval({
+                              worker_id:   pendingOverride.workerIdForApproval,
+                              week_start:  pendingOverride.weekStart!,
+                              week_end:    pendingOverride.weekEnd!,
+                              total_hours: pendingOverride.totalHours!,
+                            })
+                            setPendingOverride(null)
+                            setApprovalRequested(true)
+                          } catch {
+                            setEditError('Failed to send approval request. Please try again.')
+                          }
+                        }}
+                        className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                      >
+                        Notify Manager
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fn = pendingOverrideFnRef.current
+                          setPendingOverride(null)
+                          fn?.()
+                        }}
+                        className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                      >
+                        {pendingOverride.code === 'WORKER_WOULD_ENTER_OVERTIME' ? 'Approve overtime' : 'Schedule anyway'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setPendingOverride(null)}
