@@ -132,6 +132,16 @@ class ShiftEditFromSchema(BaseModel):
 
 
 # ─────────────────────────────────────────
+# POST /shifts/request-overtime-approval
+# ─────────────────────────────────────────
+class OvertimeApprovalRequestSchema(BaseModel):
+    worker_id:   UUID
+    week_start:  str    # YYYY-MM-DD
+    week_end:    str    # YYYY-MM-DD
+    total_hours: float
+
+
+# ─────────────────────────────────────────
 # Response schemas
 # ─────────────────────────────────────────
 

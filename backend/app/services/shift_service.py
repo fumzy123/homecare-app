@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
+from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency, OVERTIME_APPROVERS
 from app.core.exceptions import AppError
 from app.schemas.shift import (
     ShiftCancelFromSchema,
@@ -31,6 +31,8 @@ class ShiftService:
         self.modification_repo = ShiftModificationRepository(db)
         self.org_member_repo = OrgMemberRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
+        current_member = self.org_member_repo.get_active_member(current_user.id, self.org_id)
+        self.current_member_role = current_member.role
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -164,6 +166,28 @@ class ShiftService:
 
     _OVERTIME_THRESHOLD = 40.0
 
+    def _can_approve_overtime(self) -> bool:
+        return self.current_member_role in OVERTIME_APPROVERS
+
+    def _raise_overtime_violation(self, violations: list[dict]) -> None:
+        """Approvers see WORKER_WOULD_ENTER_OVERTIME (409) and can re-submit with override.
+        Non-approvers see OVERTIME_APPROVAL_REQUIRED (403) and must request manager approval."""
+        first = violations[0]
+        if self._can_approve_overtime():
+            raise AppError(
+                status_code=409,
+                code="WORKER_WOULD_ENTER_OVERTIME",
+                message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h "
+                        f"the week of {first['week_start']} — over the 40h overtime threshold.",
+                details=violations,
+            )
+        raise AppError(
+            status_code=403,
+            code="OVERTIME_APPROVAL_REQUIRED",
+            message=f"{first['worker_name']} would require overtime approval for the week of {first['week_start']}.",
+            details=violations,
+        )
+
     def _find_hours_violations(
         self,
         worker_id,
@@ -212,6 +236,7 @@ class ShiftService:
             base = {
                 "week_start":     week_sun.isoformat(),
                 "week_end":       week_sat.isoformat(),
+                "worker_id":      str(worker.id),
                 "worker_name":    f"{worker.first_name} {worker.last_name}",
                 "current_hours":  round(existing_hours, 2),
                 "proposed_hours": round(proposed_hours, 2),
@@ -311,19 +336,20 @@ class ShiftService:
                     details=conflicts,
                 )
 
+            if payload.override_hours_check and not self._can_approve_overtime():
+                raise AppError(
+                    status_code=403,
+                    code="OVERTIME_APPROVAL_REQUIRED",
+                    message="Only managers and owners can approve overtime.",
+                )
+
             if not payload.override_hours_check:
                 overtime_violations, cap_violations = self._find_hours_violations(
                     worker_id=payload.worker_id,
                     proposed_time_blocks=proposed_time_blocks,
                 )
                 if overtime_violations:
-                    first = overtime_violations[0]
-                    raise AppError(
-                        status_code=409,
-                        code="WORKER_WOULD_ENTER_OVERTIME",
-                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over the 40h overtime threshold.",
-                        details=overtime_violations,
-                    )
+                    self._raise_overtime_violation(overtime_violations)
                 if cap_violations:
                     first = cap_violations[0]
                     raise AppError(
@@ -593,6 +619,13 @@ class ShiftService:
                         details=conflicts,
                     )
 
+                if payload.override_hours_check and not self._can_approve_overtime():
+                    raise AppError(
+                        status_code=403,
+                        code="OVERTIME_APPROVAL_REQUIRED",
+                        message="Only managers and owners can approve overtime.",
+                    )
+
                 if not payload.override_hours_check:
                     overtime_violations, cap_violations = self._find_hours_violations(
                         worker_id=master.worker_id,
@@ -600,13 +633,7 @@ class ShiftService:
                         exclude_shift_id=shift_id,
                     )
                     if overtime_violations:
-                        first = overtime_violations[0]
-                        raise AppError(
-                            status_code=409,
-                            code="WORKER_WOULD_ENTER_OVERTIME",
-                            message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over the 40h overtime threshold.",
-                            details=overtime_violations,
-                        )
+                        self._raise_overtime_violation(overtime_violations)
                     if cap_violations:
                         first = cap_violations[0]
                         raise AppError(
@@ -676,6 +703,13 @@ class ShiftService:
                         details=conflicts,
                     )
 
+                if payload.override_hours_check and not self._can_approve_overtime():
+                    raise AppError(
+                        status_code=403,
+                        code="OVERTIME_APPROVAL_REQUIRED",
+                        message="Only managers and owners can approve overtime.",
+                    )
+
                 if not payload.override_hours_check:
                     overtime_violations, cap_violations = self._find_hours_violations(
                         worker_id=master.worker_id,
@@ -683,13 +717,7 @@ class ShiftService:
                         exclude_shift_id=shift_id,
                     )
                     if overtime_violations:
-                        first = overtime_violations[0]
-                        raise AppError(
-                            status_code=409,
-                            code="WORKER_WOULD_ENTER_OVERTIME",
-                            message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over the 40h overtime threshold.",
-                            details=overtime_violations,
-                        )
+                        self._raise_overtime_violation(overtime_violations)
                     if cap_violations:
                         first = cap_violations[0]
                         raise AppError(
@@ -783,6 +811,13 @@ class ShiftService:
                         details=conflicts,
                     )
 
+                if payload.override_hours_check and not self._can_approve_overtime():
+                    raise AppError(
+                        status_code=403,
+                        code="OVERTIME_APPROVAL_REQUIRED",
+                        message="Only managers and owners can approve overtime.",
+                    )
+
                 if not payload.override_hours_check:
                     overtime_violations, cap_violations = self._find_hours_violations(
                         worker_id=new_worker_id,
@@ -790,13 +825,7 @@ class ShiftService:
                         exclude_shift_id=shift_id,
                     )
                     if overtime_violations:
-                        first = overtime_violations[0]
-                        raise AppError(
-                            status_code=409,
-                            code="WORKER_WOULD_ENTER_OVERTIME",
-                            message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over the 40h overtime threshold.",
-                            details=overtime_violations,
-                        )
+                        self._raise_overtime_violation(overtime_violations)
                     if cap_violations:
                         first = cap_violations[0]
                         raise AppError(

@@ -43,6 +43,32 @@ class NotificationService:
         self.repo.create_reads_for_admins(notification.id, org_id)
         self.db.commit()
 
+    def notify_overtime_approval_requested(
+        self,
+        org_id: UUID,
+        requesting_member_id: UUID,
+        requesting_member_name: str,
+        worker_id: UUID,
+        week_start: str,
+        week_end: str,
+        total_hours: float,
+    ) -> None:
+        notification = self.repo.create(
+            org_id=org_id,
+            type=NotificationType.overtime_approval_requested,
+            worker_id=worker_id,
+            payload={
+                "requesting_member_id": str(requesting_member_id),
+                "requesting_member_name": requesting_member_name,
+                "week_start": week_start,
+                "week_end": week_end,
+                "total_hours": total_hours,
+            },
+            requires_action=True,
+        )
+        self.repo.create_reads_for_approvers(notification.id, org_id)
+        self.db.commit()
+
     def notify_shift_dropped(
         self, org_id: UUID, worker_id: UUID, shift_id: UUID,
         occurrence_date: str, client_name: str

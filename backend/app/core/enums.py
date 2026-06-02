@@ -52,9 +52,10 @@ class EmploymentStatus(str, enum.Enum):
     terminated = "terminated"
 
 class NotificationType(str, enum.Enum):
-    profile_updated     = "profile_updated"
-    credential_uploaded = "credential_uploaded"
-    shift_dropped       = "shift_dropped"
+    profile_updated              = "profile_updated"
+    credential_uploaded          = "credential_uploaded"
+    shift_dropped                = "shift_dropped"
+    overtime_approval_requested  = "overtime_approval_requested"
 
 
 # Roles that receive admin notifications. Kept here (not in security.py)
@@ -65,6 +66,12 @@ ADMIN_ROLES = [
     OrgMemberRole.supervisor,
     OrgMemberRole.financial_officer,
     OrgMemberRole.nurse,
+]
+
+# Only these roles can approve statutory overtime (>40 h/week).
+OVERTIME_APPROVERS = [
+    OrgMemberRole.owner,
+    OrgMemberRole.manager,
 ]
 
 

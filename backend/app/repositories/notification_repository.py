@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.admin_notification import AdminNotification, AdminNotificationRead
 from app.models.org_member import OrgMember
-from app.core.enums import NotificationType, ADMIN_ROLES
+from app.core.enums import NotificationType, ADMIN_ROLES, OVERTIME_APPROVERS
 
 
 class NotificationRepository:
@@ -39,6 +39,17 @@ class NotificationRepository:
             self.db.add(AdminNotificationRead(
                 notification_id=notification_id,
                 admin_id=admin_id,
+                read_at=None,
+            ))
+        self.db.flush()
+
+    def create_reads_for_approvers(self, notification_id: UUID, org_id: UUID) -> None:
+        """Fan out: insert an unread row for every owner/manager in the org only."""
+        approver_ids = self._get_approver_ids(org_id)
+        for approver_id in approver_ids:
+            self.db.add(AdminNotificationRead(
+                notification_id=notification_id,
+                admin_id=approver_id,
                 read_at=None,
             ))
         self.db.flush()
@@ -160,6 +171,18 @@ class NotificationRepository:
             .filter(
                 OrgMember.org_id == org_id,
                 OrgMember.role.in_(ADMIN_ROLES),
+                OrgMember.deleted_at.is_(None),
+            )
+            .all()
+        )
+        return [m.id for m in members]
+
+    def _get_approver_ids(self, org_id: UUID) -> list[UUID]:
+        members = (
+            self.db.query(OrgMember.id)
+            .filter(
+                OrgMember.org_id == org_id,
+                OrgMember.role.in_(OVERTIME_APPROVERS),
                 OrgMember.deleted_at.is_(None),
             )
             .all()
