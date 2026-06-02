@@ -78,6 +78,7 @@ class InvitationService:
                 id=uuid.uuid4(),
                 email=payload.email,
                 role=payload.role,
+                employment_type=payload.employment_type,
                 org_id=self.org_id,
                 invited_by=self.current_user.id,
             )
@@ -93,6 +94,7 @@ class InvitationService:
                         "org_id": str(self.org_id),
                         "org_name": org_name,
                         "invited_by": f"{self.current_user.user_metadata.get('first_name', '')} {self.current_user.user_metadata.get('last_name', '')}".strip(),
+                        "employment_type": payload.employment_type,
                     },
                 }
             )
@@ -181,6 +183,7 @@ class InvitationService:
                     "org_id": str(invitation.org_id),
                     "org_name": org_name,
                     "invited_by": f"{self.current_user.user_metadata.get('first_name', '')} {self.current_user.user_metadata.get('last_name', '')}".strip(),
+                    "employment_type": invitation.employment_type,
                 },
             }
         )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { getStatusToken, STATUS_TOKENS, ADMIN_SELECTABLE_STATUSES } from '@/shared/lib/shiftStatus'
 import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
@@ -17,6 +17,20 @@ import { ApiError } from '@/shared/lib/api-client'
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 const inputClass = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+function formatWeekRange(weekStart: string, weekEnd: string): string {
+  const [sy, sm, sd] = weekStart.split('-').map(Number)
+  const [ey, em, ed] = weekEnd.split('-').map(Number)
+  const s = new Date(sy, sm - 1, sd)
+  const e = new Date(ey, em - 1, ed)
+  return `${format(s, 'MMMM')} ${ordinal(s.getDate())} to ${format(e, 'MMMM')} ${ordinal(e.getDate())}, ${e.getFullYear()}`
+}
 
 function formatDuration(start: Date, end: Date): string {
   const mins = differenceInMinutes(end, start)
@@ -64,6 +78,17 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   const [recurrenceFreq, setRecurrenceFreq]         = useState<RecurrenceFrequency>(shift.recurrence_frequency ?? 'weekly')
   const [recurrenceDays, setRecurrenceDays]         = useState<DayOfWeek[]>(shift.recurrence_days_of_week ?? [])
   const [editError, setEditError]             = useState<string | null>(null)
+  const [pendingOverride, setPendingOverride] = useState<{
+    code: string
+    message: string
+    workerIdForApproval?: string
+    weekStart?: string
+    weekEnd?: string
+    totalHours?: number
+  } | null>(null)
+  const [approvalRequested, setApprovalRequested] = useState(false)
+  const overrideRef                           = useRef(false)
+  const pendingOverrideFnRef                  = useRef<(() => void) | null>(null)
   const [saved, setSaved]                     = useState(false)
 
   const { data: workers = [] } = useQuery({
@@ -90,12 +115,34 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     onError: (err) => {
       if (err instanceof ApiError && err.code === 'WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK' && Array.isArray(err.details) && err.details.length > 0) {
         const first = err.details[0] as { date: string; start: string; end: string; client_name: string }
-        const start = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        const end   = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        setEditError(`Worker already scheduled on ${first.date} (${start}–${end}) for ${first.client_name}.`)
-      } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK' && Array.isArray(err.details) && err.details.length > 0) {
-        const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; max_hours: number; current_hours: number; proposed_hours: number; total_hours: number }
-        setEditError(`${first.worker_name} would be scheduled for ${first.total_hours}h the week of ${first.week_start} — over their ${first.max_hours}h/week cap (currently ${first.current_hours}h, this adds ${first.proposed_hours}h).`)
+        const s = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const e = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        setEditError(`Worker already scheduled on ${first.date} (${s}–${e}) for ${first.client_name}.`)
+      } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_ENTER_OVERTIME' && Array.isArray(err.details) && err.details.length > 0) {
+        const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; total_hours: number; overtime_threshold: number }
+        const over = Math.round((first.total_hours - first.overtime_threshold) * 10) / 10
+        setPendingOverride({
+          code: err.code,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. Approve overtime?`,
+        })
+      } else if (err instanceof ApiError && err.code === 'OVERTIME_APPROVAL_REQUIRED' && Array.isArray(err.details) && err.details.length > 0) {
+        const first = err.details[0] as { week_start: string; week_end: string; worker_id: string; worker_name: string; total_hours: number }
+        const over = Math.round((first.total_hours - 40) * 10) / 10
+        setPendingOverride({
+          code: err.code,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. A manager or owner must approve this shift.`,
+          workerIdForApproval: first.worker_id,
+          weekStart: first.week_start,
+          weekEnd: first.week_end,
+          totalHours: first.total_hours,
+        })
+      } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_WEEKLY_CAP' && Array.isArray(err.details) && err.details.length > 0) {
+        const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; total_hours: number; max_hours: number }
+        const over = Math.round((first.total_hours - first.max_hours) * 10) / 10
+        setPendingOverride({
+          code: err.code,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over their ${first.max_hours}h/week cap. Schedule anyway?`,
+        })
       } else {
         setEditError(err instanceof Error ? err.message : 'Something went wrong')
       }
@@ -153,6 +200,15 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   function executeSave(scope: RecurringScope) {
+    const override = overrideRef.current
+    overrideRef.current = false
+
+    // Register a retry function so the approve button can re-run the same scope
+    pendingOverrideFnRef.current = () => {
+      overrideRef.current = true
+      executeSave(scope)
+    }
+
     const startISO = `${date}T${startTime}:00`
     const endISO   = `${endDate}T${endTime}:00`
     if (scope === 'this') {
@@ -161,11 +217,13 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         saveMutation.mutate(() => shiftsApi.updateModification(shift.shift_id, originalDate, {
           new_start_time: startISO, new_end_time: endISO,
           completion_status: completionStatus, notes: notes || undefined,
+          override_hours_check: override,
         }))
       } else {
         saveMutation.mutate(() => shiftsApi.createModification(shift.shift_id, {
           original_date: originalDate, new_start_time: startISO, new_end_time: endISO,
           completion_status: completionStatus, notes: notes || undefined,
+          override_hours_check: override,
         }))
       }
     } else if (scope === 'following') {
@@ -177,6 +235,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         recurrence_end_date: recurrenceEndDate || undefined,
         recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
         notes: notes || undefined,
+        override_hours_check: override,
       }))
     } else {
       saveMutation.mutate(() => shiftsApi.updateShift(shift.shift_id, {
@@ -206,7 +265,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     setRecurrenceEndDate(shift.recurrence_end_date ?? '')
     setRecurrenceFreq(shift.recurrence_frequency ?? 'weekly')
     setRecurrenceDays(shift.recurrence_days_of_week ?? [])
-    setEditError(null); setIsEditing(false)
+    setEditError(null); setPendingOverride(null); setIsEditing(false)
   }
 
   return (
@@ -371,6 +430,62 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
               {editError && (
                 <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{editError}</p>
+              )}
+
+              {approvalRequested && (
+                <p className="font-mono text-[10px] text-mint border border-mint px-3 py-2">
+                  Manager notified — they will review and approve the shift.
+                </p>
+              )}
+
+              {pendingOverride && (
+                <div className="border border-orange bg-cream-2 px-4 py-3 flex flex-col gap-3">
+                  <p className="font-mono text-[10px] text-ink leading-relaxed">{pendingOverride.message}</p>
+                  <div className="flex gap-2">
+                    {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!pendingOverride.workerIdForApproval) return
+                          try {
+                            await shiftsApi.requestOvertimeApproval({
+                              worker_id:   pendingOverride.workerIdForApproval,
+                              week_start:  pendingOverride.weekStart!,
+                              week_end:    pendingOverride.weekEnd!,
+                              total_hours: pendingOverride.totalHours!,
+                            })
+                            setPendingOverride(null)
+                            setApprovalRequested(true)
+                          } catch {
+                            setEditError('Failed to send approval request. Please try again.')
+                          }
+                        }}
+                        className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                      >
+                        Notify Manager
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fn = pendingOverrideFnRef.current
+                          setPendingOverride(null)
+                          fn?.()
+                        }}
+                        className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                      >
+                        {pendingOverride.code === 'WORKER_WOULD_ENTER_OVERTIME' ? 'Approve overtime' : 'Schedule anyway'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPendingOverride(null)}
+                      className="border border-ink px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
             </>
 

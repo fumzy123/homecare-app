@@ -1,12 +1,11 @@
 import { apiClient } from '@/shared/lib/api-client'
 import type { ScheduleMap } from '@/shared/components/AvailabilityGrid'
 
-export type EmploymentType = 'full_time' | 'part_time' | 'casual'
+export type EmploymentType = 'full_time' | 'part_time'
 
 export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
   full_time: 'Full-time',
   part_time: 'Part-time',
-  casual:    'Casual',
 }
 
 export interface OrgMember {

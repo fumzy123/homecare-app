@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -14,8 +15,10 @@ from app.schemas.shift import (
     ShiftOccurrenceResponse,
     ShiftStatsResponse,
     ShiftUpdateSchema,
+    OvertimeApprovalRequestSchema,
 )
 from app.services.shift_service import ShiftService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/shifts", tags=["Shifts"])
 
@@ -25,6 +28,37 @@ def get_shift_service(
     db: Session = Depends(get_db),
 ) -> ShiftService:
     return ShiftService(db, current_user)
+
+
+def get_notification_service(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> NotificationService:
+    return NotificationService(db, current_user_id=current_user.id)
+
+
+# ─────────────────────────────────────────
+# 0. Request overtime approval from a manager
+# ─────────────────────────────────────────
+@router.post("/request-overtime-approval")
+async def request_overtime_approval(
+    payload: OvertimeApprovalRequestSchema,
+    shift_service: ShiftService = Depends(get_shift_service),
+    notification_service: NotificationService = Depends(get_notification_service),
+):
+    requesting_member = shift_service.org_member_repo.get_active_member(
+        shift_service.current_user.id, shift_service.org_id
+    )
+    notification_service.notify_overtime_approval_requested(
+        org_id=shift_service.org_id,
+        requesting_member_id=UUID(str(shift_service.current_user.id)),
+        requesting_member_name=f"{requesting_member.first_name} {requesting_member.last_name}",
+        worker_id=payload.worker_id,
+        week_start=payload.week_start,
+        week_end=payload.week_end,
+        total_hours=payload.total_hours,
+    )
+    return {"ok": True}
 
 
 # ─────────────────────────────────────────

@@ -4,9 +4,15 @@ from supabase_auth.types import User as SupabaseUser
 from app.schemas.invitation import AcceptInvitationSchema, INVITE_EXPIRY_SECONDS
 from app.schemas.org_member import OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
 from app.models.org_member import OrgMember
-from app.core.enums import OrgMemberRole
+from app.core.enums import OrgMemberRole, EmploymentType
 from app.core.exceptions import AppError
 from app.repositories.org_member_repository import OrgMemberRepository
+
+_DEFAULT_HOURS: dict[EmploymentType, int] = {
+    EmploymentType.full_time: 40,
+    EmploymentType.part_time: 24,
+    # casual has no default cap
+}
 
 
 class OrgMemberService:
@@ -59,6 +65,10 @@ class OrgMemberService:
                     message="This invitation has expired — ask an admin to send a new one",
                 )
 
+            employment_type_str = metadata.get("employment_type")
+            employment_type = EmploymentType(employment_type_str) if employment_type_str else None
+            max_hours = _DEFAULT_HOURS.get(employment_type) if employment_type else None
+
             member = OrgMember(
                 id=self.current_user.id,
                 first_name=payload.first_name,
@@ -66,6 +76,8 @@ class OrgMemberService:
                 email=self.current_user.email,
                 role=role,
                 org_id=org_id,
+                employment_type=employment_type,
+                max_hours_per_week=max_hours,
             )
             self.org_member_repo.add(member)
             invitation.accepted_at = datetime.now(timezone.utc)

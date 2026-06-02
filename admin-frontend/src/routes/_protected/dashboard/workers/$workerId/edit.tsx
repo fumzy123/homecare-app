@@ -484,7 +484,12 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
                   <div>
                     <label className={labelCls}>Employment type</label>
                     <select className={selectCls} value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value as EmploymentType | '')}>
+                      onChange={(e) => {
+                        const val = e.target.value as EmploymentType | ''
+                        field.handleChange(val)
+                        if (val === 'full_time') form.setFieldValue('max_hours_per_week', '30')
+                        else if (val === 'part_time') form.setFieldValue('max_hours_per_week', '24')
+                      }}>
                       <option value="">Select…</option>
                       {(Object.entries(EMPLOYMENT_TYPE_LABELS) as [EmploymentType, string][]).map(([val, label]) => (
                         <option key={val} value={val}>{label}</option>
@@ -493,16 +498,25 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
                   </div>
                 )}
               </form.Field>
-              <form.Field name="max_hours_per_week">
-                {(field) => (
-                  <div>
-                    <label className={labelCls}>Max hours / week</label>
-                    <input type="number" min={0} max={80} className={`${inputCls} font-mono`}
-                      value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="40" />
-                    <p className="font-mono text-[9px] text-muted mt-[5px]">Used to flag over-scheduling.</p>
-                  </div>
-                )}
-              </form.Field>
+              <form.Subscribe selector={(s) => s.values.employment_type}>
+                {(empType) => {
+                  const min = empType === 'full_time' ? 30 : 1
+                  const max = empType === 'full_time' ? 40 : 29
+                  const hint = empType === 'full_time' ? '30–40 hrs/week' : empType === 'part_time' ? 'Up to 29 hrs/week' : 'Used to flag over-scheduling.'
+                  return (
+                    <form.Field name="max_hours_per_week">
+                      {(field) => (
+                        <div>
+                          <label className={labelCls}>Max hours / week</label>
+                          <input type="number" min={min} max={max} className={`${inputCls} font-mono`}
+                            value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder={String(min)} />
+                          <p className="font-mono text-[9px] text-muted mt-[5px]">{hint}</p>
+                        </div>
+                      )}
+                    </form.Field>
+                  )
+                }}
+              </form.Subscribe>
             </div>
 
             <form.Field name="has_vehicle">

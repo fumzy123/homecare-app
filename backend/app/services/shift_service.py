@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency
+from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency, OVERTIME_APPROVERS
 from app.core.exceptions import AppError
 from app.schemas.shift import (
     ShiftCancelFromSchema,
@@ -31,6 +31,8 @@ class ShiftService:
         self.modification_repo = ShiftModificationRepository(db)
         self.org_member_repo = OrgMemberRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
+        current_member = self.org_member_repo.get_active_member(current_user.id, self.org_id)
+        self.current_member_role = current_member.role
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -157,72 +159,96 @@ class ShiftService:
 
     @staticmethod
     def _iso_week_range(d: date) -> tuple[date, date]:
-        """Return the (Monday, Sunday) date range for the ISO week containing d."""
-        monday = d - timedelta(days=d.isoweekday() - 1)
-        sunday = monday + timedelta(days=6)
-        return (monday, sunday)
+        """Return the (Sunday, Saturday) calendar week range containing d."""
+        sunday = d - timedelta(days=d.isoweekday() % 7)
+        saturday = sunday + timedelta(days=6)
+        return (sunday, saturday)
 
-    def _find_max_hours_violations(
+    _OVERTIME_THRESHOLD = 40.0
+
+    def _can_approve_overtime(self) -> bool:
+        return self.current_member_role in OVERTIME_APPROVERS
+
+    def _raise_overtime_violation(self, violations: list[dict]) -> None:
+        """Approvers see WORKER_WOULD_ENTER_OVERTIME (409) and can re-submit with override.
+        Non-approvers see OVERTIME_APPROVAL_REQUIRED (403) and must request manager approval."""
+        first = violations[0]
+        if self._can_approve_overtime():
+            raise AppError(
+                status_code=409,
+                code="WORKER_WOULD_ENTER_OVERTIME",
+                message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h "
+                        f"the week of {first['week_start']} — over the 40h overtime threshold.",
+                details=violations,
+            )
+        raise AppError(
+            status_code=403,
+            code="OVERTIME_APPROVAL_REQUIRED",
+            message=f"{first['worker_name']} would require overtime approval for the week of {first['week_start']}.",
+            details=violations,
+        )
+
+    def _find_hours_violations(
         self,
         worker_id,
         proposed_time_blocks: list[tuple[date, datetime, datetime]],
         exclude_shift_id=None,
-    ) -> list[dict]:
-        """Check whether proposed_time_blocks would push the worker over their
-        max_hours_per_week cap in any ISO week (Mon–Sun).
+    ) -> tuple[list[dict], list[dict]]:
+        """Return (overtime_violations, cap_violations) for the proposed blocks.
 
-        Returns one violation dict per affected week that would exceed the cap.
-        Returns an empty list when:
-        - proposed_time_blocks is empty
-        - worker has no max_hours_per_week set (NULL or <= 0)
-        - no week would exceed the cap
+        overtime_violations — weeks where existing + proposed > 40 h (statutory overtime).
+        cap_violations      — weeks where existing + proposed > worker's personal cap,
+                              but only when that cap is below 40 h (part-time sub-threshold).
 
-        Each occurrence's full duration is attributed to the ISO week of its
-        date, even for shifts that cross midnight into the next week.
+        Returns ([], []) when proposed_time_blocks is empty.
+        Overtime is checked regardless of whether a personal cap is set.
         """
         if not proposed_time_blocks:
-            return []
+            return [], []
 
         worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
         cap = worker.max_hours_per_week
-        if cap is None or cap <= 0:
-            return []
 
-        proposed_hours_by_week: dict[tuple[date, date], float] = {}
+        proposed_by_week: dict[tuple[date, date], float] = {}
         for occ_date, start, end in proposed_time_blocks:
             week = self._iso_week_range(occ_date)
-            duration_hours = (end - start).total_seconds() / 3600.0
-            proposed_hours_by_week[week] = proposed_hours_by_week.get(week, 0.0) + duration_hours
+            proposed_by_week[week] = proposed_by_week.get(week, 0.0) + (end - start).total_seconds() / 3600.0
 
         existing_shifts = self.shift_repo.get_active_shifts_for_conflict_check(worker_id, self.org_id)
         if exclude_shift_id:
             existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
 
-        violations = []
-        for (monday, sunday), proposed_hours in proposed_hours_by_week.items():
+        overtime_violations: list[dict] = []
+        cap_violations: list[dict] = []
+
+        for (week_sun, week_sat), proposed_hours in proposed_by_week.items():
             existing_hours = 0.0
             for shift in existing_shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
-                for occ_date in self._expand_occurrences(shift, monday, sunday):
+                for occ_date in self._expand_occurrences(shift, week_sun, week_sat):
                     timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
                     if timeblock is None:
                         continue
-                    existing_start, existing_end = timeblock
-                    existing_hours += (existing_end - existing_start).total_seconds() / 3600.0
+                    s, e = timeblock
+                    existing_hours += (e - s).total_seconds() / 3600.0
 
             total = existing_hours + proposed_hours
-            if total > cap:
-                violations.append({
-                    "week_start":     monday.isoformat(),
-                    "week_end":       sunday.isoformat(),
-                    "worker_name":    f"{worker.first_name} {worker.last_name}",
-                    "max_hours":      cap,
-                    "current_hours":  round(existing_hours, 2),
-                    "proposed_hours": round(proposed_hours, 2),
-                    "total_hours":    round(total, 2),
-                })
+            base = {
+                "week_start":     week_sun.isoformat(),
+                "week_end":       week_sat.isoformat(),
+                "worker_id":      str(worker.id),
+                "worker_name":    f"{worker.first_name} {worker.last_name}",
+                "current_hours":  round(existing_hours, 2),
+                "proposed_hours": round(proposed_hours, 2),
+                "total_hours":    round(total, 2),
+            }
 
-        return violations
+            if total > self._OVERTIME_THRESHOLD:
+                overtime_violations.append({**base, "overtime_threshold": self._OVERTIME_THRESHOLD})
+            elif cap is not None and cap > 0 and cap < self._OVERTIME_THRESHOLD and total > cap:
+                cap_violations.append({**base, "max_hours": cap})
+
+        return overtime_violations, cap_violations
 
     @staticmethod
     def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
@@ -310,18 +336,28 @@ class ShiftService:
                     details=conflicts,
                 )
 
-            max_hours_violations = self._find_max_hours_violations(
-                worker_id=payload.worker_id,
-                proposed_time_blocks=proposed_time_blocks,
-            )
-            if max_hours_violations:
-                first = max_hours_violations[0]
+            if payload.override_hours_check and not self._can_approve_overtime():
                 raise AppError(
-                    status_code=409,
-                    code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
-                    message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
-                    details=max_hours_violations,
+                    status_code=403,
+                    code="OVERTIME_APPROVAL_REQUIRED",
+                    message="Only managers and owners can approve overtime.",
                 )
+
+            if not payload.override_hours_check:
+                overtime_violations, cap_violations = self._find_hours_violations(
+                    worker_id=payload.worker_id,
+                    proposed_time_blocks=proposed_time_blocks,
+                )
+                if overtime_violations:
+                    self._raise_overtime_violation(overtime_violations)
+                if cap_violations:
+                    first = cap_violations[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_WOULD_EXCEED_WEEKLY_CAP",
+                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                        details=cap_violations,
+                    )
 
             if payload.location:
                 location = payload.location
@@ -344,6 +380,7 @@ class ShiftService:
                 recurrence_end_date=recurrence_end_date,
                 location=location,
                 notes=payload.notes,
+                overtime_approved=payload.override_hours_check or False,
             )
             self.shift_repo.add(shift)
             self.db.commit()
@@ -426,14 +463,14 @@ class ShiftService:
 
     async def get_worker_stats(self, worker_id: str) -> dict:
         today = date.today()
-        monday, sunday = self._iso_week_range(today)
+        week_sun, week_sat = self._iso_week_range(today)
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
         worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
         cap = worker.max_hours_per_week if worker else None
 
-        hours_this_week = self._calculate_hours_in_range(worker_id, monday, sunday)
+        hours_this_week = self._calculate_hours_in_range(worker_id, week_sun, week_sat)
         hours_mtd = self._calculate_hours_in_range(worker_id, month_start, today)
         hours_ytd = self._calculate_hours_in_range(worker_id, year_start, today)
 
@@ -582,19 +619,29 @@ class ShiftService:
                         details=conflicts,
                     )
 
-                max_hours_violations = self._find_max_hours_violations(
-                    worker_id=master.worker_id,
-                    proposed_time_blocks=[(payload.original_date, new_start, new_end)],
-                    exclude_shift_id=shift_id,
-                )
-                if max_hours_violations:
-                    first = max_hours_violations[0]
+                if payload.override_hours_check and not self._can_approve_overtime():
                     raise AppError(
-                        status_code=409,
-                        code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
-                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
-                        details=max_hours_violations,
+                        status_code=403,
+                        code="OVERTIME_APPROVAL_REQUIRED",
+                        message="Only managers and owners can approve overtime.",
                     )
+
+                if not payload.override_hours_check:
+                    overtime_violations, cap_violations = self._find_hours_violations(
+                        worker_id=master.worker_id,
+                        proposed_time_blocks=[(payload.original_date, new_start, new_end)],
+                        exclude_shift_id=shift_id,
+                    )
+                    if overtime_violations:
+                        self._raise_overtime_violation(overtime_violations)
+                    if cap_violations:
+                        first = cap_violations[0]
+                        raise AppError(
+                            status_code=409,
+                            code="WORKER_WOULD_EXCEED_WEEKLY_CAP",
+                            message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                            details=cap_violations,
+                        )
 
             existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
 
@@ -656,19 +703,29 @@ class ShiftService:
                         details=conflicts,
                     )
 
-                max_hours_violations = self._find_max_hours_violations(
-                    worker_id=master.worker_id,
-                    proposed_time_blocks=[(original_date, new_start, new_end)],
-                    exclude_shift_id=shift_id,
-                )
-                if max_hours_violations:
-                    first = max_hours_violations[0]
+                if payload.override_hours_check and not self._can_approve_overtime():
                     raise AppError(
-                        status_code=409,
-                        code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
-                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
-                        details=max_hours_violations,
+                        status_code=403,
+                        code="OVERTIME_APPROVAL_REQUIRED",
+                        message="Only managers and owners can approve overtime.",
                     )
+
+                if not payload.override_hours_check:
+                    overtime_violations, cap_violations = self._find_hours_violations(
+                        worker_id=master.worker_id,
+                        proposed_time_blocks=[(original_date, new_start, new_end)],
+                        exclude_shift_id=shift_id,
+                    )
+                    if overtime_violations:
+                        self._raise_overtime_violation(overtime_violations)
+                    if cap_violations:
+                        first = cap_violations[0]
+                        raise AppError(
+                            status_code=409,
+                            code="WORKER_WOULD_EXCEED_WEEKLY_CAP",
+                            message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                            details=cap_violations,
+                        )
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
@@ -754,19 +811,32 @@ class ShiftService:
                         details=conflicts,
                     )
 
-                max_hours_violations = self._find_max_hours_violations(
-                    worker_id=new_worker_id,
-                    proposed_time_blocks=proposed_time_blocks,
-                    exclude_shift_id=shift_id,
-                )
-                if max_hours_violations:
-                    first = max_hours_violations[0]
+                if payload.override_hours_check and not self._can_approve_overtime():
                     raise AppError(
-                        status_code=409,
-                        code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
-                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
-                        details=max_hours_violations,
+                        status_code=403,
+                        code="OVERTIME_APPROVAL_REQUIRED",
+                        message="Only managers and owners can approve overtime.",
                     )
+
+                if not payload.override_hours_check:
+                    overtime_violations, cap_violations = self._find_hours_violations(
+                        worker_id=new_worker_id,
+                        proposed_time_blocks=proposed_time_blocks,
+                        exclude_shift_id=shift_id,
+                    )
+                    if overtime_violations:
+                        self._raise_overtime_violation(overtime_violations)
+                    if cap_violations:
+                        first = cap_violations[0]
+                        raise AppError(
+                            status_code=409,
+                            code="WORKER_WOULD_EXCEED_WEEKLY_CAP",
+                            message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                            details=cap_violations,
+                        )
+
+                if payload.override_hours_check:
+                    shift.overtime_approved = True
 
                 if payload.new_start_time:
                     shift.start_time = payload.new_start_time
@@ -833,19 +903,28 @@ class ShiftService:
                     details=conflicts,
                 )
 
-            max_hours_violations = self._find_max_hours_violations(
-                worker_id=new_worker_id,
-                proposed_time_blocks=proposed_time_blocks,
-                exclude_shift_id=shift_id,
-            )
-            if max_hours_violations:
-                first = max_hours_violations[0]
-                raise AppError(
-                    status_code=409,
-                    code="WORKER_WOULD_EXCEED_MAX_HOURS_PER_WEEK",
-                    message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
-                    details=max_hours_violations,
+            if not payload.override_hours_check:
+                overtime_violations, cap_violations = self._find_hours_violations(
+                    worker_id=new_worker_id,
+                    proposed_time_blocks=proposed_time_blocks,
+                    exclude_shift_id=shift_id,
                 )
+                if overtime_violations:
+                    first = overtime_violations[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_WOULD_ENTER_OVERTIME",
+                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over the 40h overtime threshold.",
+                        details=overtime_violations,
+                    )
+                if cap_violations:
+                    first = cap_violations[0]
+                    raise AppError(
+                        status_code=409,
+                        code="WORKER_WOULD_EXCEED_WEEKLY_CAP",
+                        message=f"{first['worker_name']} would be scheduled for {first['total_hours']}h the week of {first['week_start']} — over their {first['max_hours']}h/week cap.",
+                        details=cap_violations,
+                    )
 
             shift.recurrence_end_date = occurrence_date - timedelta(days=1)
             self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
@@ -863,6 +942,7 @@ class ShiftService:
                 recurrence_end_date=new_end_date,
                 location=payload.location if payload.location is not None else shift.location,
                 notes=payload.notes if payload.notes is not None else shift.notes,
+                overtime_approved=payload.override_hours_check or False,
             )
             self.shift_repo.add(new_shift)
             self.db.commit()

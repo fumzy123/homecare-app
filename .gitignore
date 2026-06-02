@@ -62,5 +62,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Supabase CLI local state (not project config)
+supabase/.branches/
+supabase/.temp/
+
 # OS
 .DS_Store

@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { invitationsApi, type InvitationRole } from '@/features/invitations/api'
+import { invitationsApi, type InvitationRole, type EmploymentType } from '@/features/invitations/api'
 import { STAFF_ROLES, ROLE_LABELS } from '@/features/invitations/constants'
 import { Kicker } from '@/shared/components/ui'
 import { useAuthStore } from '@/shared/stores/auth'
@@ -9,6 +9,11 @@ import { useAuthStore } from '@/shared/stores/auth'
 const schema = z.object({
   email: z.string().email('Invalid email address'),
 })
+
+const EMPLOYMENT_TYPES: { value: EmploymentType; label: string; hint: string }[] = [
+  { value: 'part_time', label: 'Part-time', hint: 'Default cap: 24h/week' },
+  { value: 'full_time', label: 'Full-time', hint: 'Default cap: 40h/week' },
+]
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
@@ -33,11 +38,16 @@ export function InviteModal({
     defaultValues: {
       email: '',
       role: showRoleSelector ? ('manager' as InvitationRole) : role,
+      employment_type: 'full_time' as EmploymentType,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await invitationsApi.sendInvitation({ email: value.email, role: value.role })
+        await invitationsApi.sendInvitation({
+          email: value.email,
+          role: value.role,
+          employment_type: value.employment_type,
+        })
         onSuccess()
         onClose()
       } catch (err: unknown) {
@@ -83,6 +93,7 @@ export function InviteModal({
             </form.Field>
           )}
 
+          {/* Email */}
           <form.Field name="email" validators={{ onBlur: ({ value }) => {
             const r = schema.shape.email.safeParse(value)
             if (!r.success) return r.error.issues[0].message
@@ -105,6 +116,37 @@ export function InviteModal({
                 )}
               </div>
             )}
+          </form.Field>
+
+          {/* Employment type */}
+          <form.Field name="employment_type">
+            {(field) => {
+              const selected = EMPLOYMENT_TYPES.find((t) => t.value === field.state.value)
+              return (
+                <div>
+                  <label className={labelClass}>Employment type</label>
+                  <div className="flex">
+                    {EMPLOYMENT_TYPES.map((t, i) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => field.handleChange(t.value)}
+                        className={`flex-1 py-2 font-mono text-[10px] tracking-[0.06em] uppercase border transition-colors ${
+                          field.state.value === t.value
+                            ? 'bg-ink text-cream border-ink'
+                            : 'border-ink text-ink-soft hover:text-ink'
+                        } ${i > 0 ? '-ml-px' : ''}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  {selected && (
+                    <p className="mt-1 font-mono text-[9px] text-muted">{selected.hint}</p>
+                  )}
+                </div>
+              )
+            }}
           </form.Field>
 
           {serverError && (

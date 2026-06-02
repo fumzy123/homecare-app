@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Calendar, dateFnsLocalizer, Navigate, type View, type ToolbarProps } from 'react-big-calendar'
 import { format, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
@@ -92,6 +92,42 @@ function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps<Calendar
   )
 }
 
+// ─── Overtime computation ─────────────────────────────────────────────────────
+
+const OVERTIME_THRESHOLD = 40
+const OT_COLOR = '#2d2a26'
+
+function computeOvertimeMap(occurrences: ShiftOccurrence[]): Map<string, number> {
+  const map = new Map<string, number>()
+  const active = occurrences.filter(o => !['cancelled', 'dropped'].includes(o.completion_status))
+
+  const groups = new Map<string, ShiftOccurrence[]>()
+  for (const o of active) {
+    const d = new Date(o.start_time)
+    const sunday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay())
+    const key = `${o.worker.id}:${format(sunday, 'yyyy-MM-dd')}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(o)
+  }
+
+  for (const group of groups.values()) {
+    group.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    let cumulative = 0
+    for (const o of group) {
+      const duration = (new Date(o.end_time).getTime() - new Date(o.start_time).getTime()) / 3_600_000
+      const occKey = `${o.shift_id}:${o.date}`
+      if (cumulative >= OVERTIME_THRESHOLD) {
+        map.set(occKey, 1)
+      } else if (cumulative + duration > OVERTIME_THRESHOLD) {
+        map.set(occKey, (cumulative + duration - OVERTIME_THRESHOLD) / duration)
+      }
+      cumulative += duration
+    }
+  }
+
+  return map
+}
+
 // ─── ShiftCalendar ────────────────────────────────────────────────────────────
 
 interface ShiftCalendarProps {
@@ -127,6 +163,11 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
   })
   const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: () => orgMembersApi.listByRole('home_support_worker') })
   const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
+
+  const overtimeMap = useMemo(
+    () => view === 'week' ? computeOvertimeMap(occurrences) : new Map<string, number>(),
+    [occurrences, view],
+  )
 
   const baseEvents   = toCalendarEvents(occurrences)
   const phantomEvent = showDrawer && pendingShift
@@ -178,6 +219,12 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
             </span>
           )
         })}
+        {view === 'week' && (
+          <span className="flex items-center gap-2">
+            <span style={{ width: 14, height: 14, background: `linear-gradient(to bottom, #FFE2D4 50%, ${OT_COLOR} 50%)`, border: '1px solid #111111', display: 'inline-block', flexShrink: 0 }} />
+            Overtime
+          </span>
+        )}
       </div>
 
       {/* Calendar */}
@@ -215,7 +262,19 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
                   ? 'in_progress'
                   : rawStatus
               const m = getStatusToken(status)
-              return { style: { background: m.bg, border: `1px ${m.dashed ? 'dashed' : 'solid'} ${m.border}`, borderRadius: 0, color: m.color, fontSize: 11, padding: '3px 7px', fontFamily: "'JetBrains Mono', monospace" } }
+
+              const otFraction = overtimeMap.get(`${event.resource?.shift_id}:${event.resource?.date}`) ?? 0
+              let background = m.bg
+              let color = m.color
+              if (otFraction >= 1) {
+                background = OT_COLOR
+                color = '#f5f0e8'
+              } else if (otFraction > 0) {
+                const normalPct = Math.round((1 - otFraction) * 100)
+                background = `linear-gradient(to bottom, ${m.bg} ${normalPct}%, ${OT_COLOR} ${normalPct}%)`
+              }
+
+              return { style: { background, border: `1px ${m.dashed ? 'dashed' : 'solid'} ${m.border}`, borderRadius: 0, color, fontSize: 11, padding: '3px 7px', fontFamily: "'JetBrains Mono', monospace" } }
             }}
             dayPropGetter={(date) => ({
               style: { backgroundColor: format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? '#FFE2D4' : undefined },
