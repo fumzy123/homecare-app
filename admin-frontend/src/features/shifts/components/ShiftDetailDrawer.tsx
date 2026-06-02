@@ -18,6 +18,20 @@ import { ApiError } from '@/shared/lib/api-client'
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 const inputClass = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+function formatWeekRange(weekStart: string, weekEnd: string): string {
+  const [sy, sm, sd] = weekStart.split('-').map(Number)
+  const [ey, em, ed] = weekEnd.split('-').map(Number)
+  const s = new Date(sy, sm - 1, sd)
+  const e = new Date(ey, em - 1, ed)
+  return `${format(s, 'MMMM')} ${ordinal(s.getDate())} to ${format(e, 'MMMM')} ${ordinal(e.getDate())}, ${e.getFullYear()}`
+}
+
 function formatDuration(start: Date, end: Date): string {
   const mins = differenceInMinutes(end, start)
   const h = Math.floor(mins / 60)
@@ -97,18 +111,18 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         const e = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         setEditError(`Worker already scheduled on ${first.date} (${s}–${e}) for ${first.client_name}.`)
       } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_ENTER_OVERTIME' && Array.isArray(err.details) && err.details.length > 0) {
-        const first = err.details[0] as { week_start: string; worker_name: string; total_hours: number; overtime_threshold: number }
+        const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; total_hours: number; overtime_threshold: number }
         const over = Math.round((first.total_hours - first.overtime_threshold) * 10) / 10
         setPendingOverride({
           code: err.code,
-          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${first.week_start} — ${over}h over the 40h overtime threshold. Approve overtime?`,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. Approve overtime?`,
         })
       } else if (err instanceof ApiError && err.code === 'WORKER_WOULD_EXCEED_WEEKLY_CAP' && Array.isArray(err.details) && err.details.length > 0) {
-        const first = err.details[0] as { week_start: string; worker_name: string; total_hours: number; max_hours: number }
+        const first = err.details[0] as { week_start: string; week_end: string; worker_name: string; total_hours: number; max_hours: number }
         const over = Math.round((first.total_hours - first.max_hours) * 10) / 10
         setPendingOverride({
           code: err.code,
-          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${first.week_start} — ${over}h over their ${first.max_hours}h/week cap. Schedule anyway?`,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over their ${first.max_hours}h/week cap. Schedule anyway?`,
         })
       } else {
         setEditError(err instanceof Error ? err.message : 'Something went wrong')
