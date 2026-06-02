@@ -7,7 +7,7 @@ export type InvitationRole =
   | 'nurse'
   | 'home_support_worker'
 
-export type EmploymentType = 'full_time' | 'part_time' | 'casual'
+export type EmploymentType = 'full_time' | 'part_time'
 
 export interface Invitation {
   id: string

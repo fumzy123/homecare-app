@@ -13,7 +13,6 @@ const schema = z.object({
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string; hint: string }[] = [
   { value: 'part_time', label: 'Part-time', hint: 'Default cap: 24h/week' },
   { value: 'full_time', label: 'Full-time', hint: 'Default cap: 40h/week' },
-  { value: 'casual',    label: 'Casual',    hint: 'No weekly cap' },
 ]
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
