@@ -157,10 +157,10 @@ class ShiftService:
 
     @staticmethod
     def _iso_week_range(d: date) -> tuple[date, date]:
-        """Return the (Monday, Sunday) date range for the ISO week containing d."""
-        monday = d - timedelta(days=d.isoweekday() - 1)
-        sunday = monday + timedelta(days=6)
-        return (monday, sunday)
+        """Return the (Sunday, Saturday) calendar week range containing d."""
+        sunday = d - timedelta(days=d.isoweekday() % 7)
+        saturday = sunday + timedelta(days=6)
+        return (sunday, saturday)
 
     _OVERTIME_THRESHOLD = 40.0
 
@@ -197,11 +197,11 @@ class ShiftService:
         overtime_violations: list[dict] = []
         cap_violations: list[dict] = []
 
-        for (monday, sunday), proposed_hours in proposed_by_week.items():
+        for (week_sun, week_sat), proposed_hours in proposed_by_week.items():
             existing_hours = 0.0
             for shift in existing_shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
-                for occ_date in self._expand_occurrences(shift, monday, sunday):
+                for occ_date in self._expand_occurrences(shift, week_sun, week_sat):
                     timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
                     if timeblock is None:
                         continue
@@ -210,8 +210,8 @@ class ShiftService:
 
             total = existing_hours + proposed_hours
             base = {
-                "week_start":     monday.isoformat(),
-                "week_end":       sunday.isoformat(),
+                "week_start":     week_sun.isoformat(),
+                "week_end":       week_sat.isoformat(),
                 "worker_name":    f"{worker.first_name} {worker.last_name}",
                 "current_hours":  round(existing_hours, 2),
                 "proposed_hours": round(proposed_hours, 2),
@@ -437,14 +437,14 @@ class ShiftService:
 
     async def get_worker_stats(self, worker_id: str) -> dict:
         today = date.today()
-        monday, sunday = self._iso_week_range(today)
+        week_sun, week_sat = self._iso_week_range(today)
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
         worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
         cap = worker.max_hours_per_week if worker else None
 
-        hours_this_week = self._calculate_hours_in_range(worker_id, monday, sunday)
+        hours_this_week = self._calculate_hours_in_range(worker_id, week_sun, week_sat)
         hours_mtd = self._calculate_hours_in_range(worker_id, month_start, today)
         hours_ytd = self._calculate_hours_in_range(worker_id, year_start, today)
 
