@@ -1,7 +1,18 @@
-const IS_STAGING = process.env.APP_ENV === 'staging'
+const APP_ENV = process.env.APP_ENV ?? 'development'
+const IS_STAGING = APP_ENV === 'staging'
+const IS_DEV = APP_ENV === 'development'
 
-const appName = IS_STAGING ? 'HomeCare Worker (Staging)' : 'HomeCare Worker'
-const bundleId = IS_STAGING ? 'com.homecareapp.worker.staging' : 'com.homecareapp.worker'
+const appName = IS_DEV
+  ? 'HomeCare Worker (Dev)'
+  : IS_STAGING
+  ? 'HomeCare Worker (Staging)'
+  : 'HomeCare Worker'
+
+const bundleId = IS_DEV
+  ? 'com.homecareapp.worker.dev'
+  : IS_STAGING
+  ? 'com.homecareapp.worker.staging'
+  : 'com.homecareapp.worker'
 
 module.exports = {
   expo: {
