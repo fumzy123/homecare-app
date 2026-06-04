@@ -1,0 +1,17 @@
+name: Enforce Staging to Main
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-branch:
+    name: Check Branch Name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if PR is from staging
+        run: |
+          if [ "${{ github.head_ref }}" != "staging" ]; then
+            echo "Error: You can only merge into main from the staging branch!"
+            exit 1
+          fi
