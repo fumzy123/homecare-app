@@ -1,12 +1,13 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.client import Client
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
-from app.core.enums import ClientStatus
+from app.core.enums import ClientStatus, ShiftStatus
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 from app.repositories.client_repository import ClientRepository
+from app.repositories.shift_repository import ShiftRepository
 import uuid
 
 
@@ -16,6 +17,7 @@ class ClientService:
         self.db = db
         self.current_user = current_user
         self.client_repo = ClientRepository(db)
+        self.shift_repo = ShiftRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
 
     # ─────────────────────────────────────────
@@ -90,6 +92,15 @@ class ClientService:
     async def delete_client(self, client_id: str):
         try:
             client = self.client_repo.get_active_client(client_id, self.org_id)
+            today = date.today()
+
+            active_shifts = self.shift_repo.get_active_shifts_for_client(client_id, self.org_id)
+            for shift in active_shifts:
+                if shift.is_recurring:
+                    shift.recurrence_end_date = today
+                    self.shift_repo.delete_modifications_from_date(shift.id, today)
+                elif shift.start_time.date() >= today:
+                    shift.status = ShiftStatus.cancelled
 
             client.deleted_at = datetime.now(timezone.utc)
             self.db.commit()

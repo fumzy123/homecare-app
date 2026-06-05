@@ -133,6 +133,30 @@ class ShiftRepository:
         """
         return self.db.query(Client).filter(Client.id == client_id).first()
 
+    def get_active_shifts_for_client(self, client_id, org_id) -> list[Shift]:
+        """Fetch all active, non-deleted shifts assigned to a client in an organisation.
+
+        Used during client deletion to find shifts that need to be truncated
+        or cancelled. Does not load relationships — caller only needs scalar fields.
+
+        Args:
+            client_id: Client whose shifts to fetch.
+            org_id: Organisation scope (tenant isolation).
+
+        Returns:
+            List of Shift ORM instances. Returns an empty list if none exist.
+        """
+        return (
+            self.db.query(Shift)
+            .filter(
+                Shift.client_id == client_id,
+                Shift.org_id == org_id,
+                Shift.status == ShiftStatus.active,
+                Shift.deleted_at == None,  # noqa: E711
+            )
+            .all()
+        )
+
     def add(self, shift: Shift) -> None:
         """Stage a new Shift for insertion.
 

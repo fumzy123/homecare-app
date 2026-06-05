@@ -1,3 +1,5 @@
+import stripe
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.org_member import OrgMember
@@ -5,9 +7,13 @@ from app.models.organization import Organization
 from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, RegisterDirectSchema
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
+from app.core.config import settings
 from app.db.supabase import get_supabase_client
 from app.repositories.organization_repository import OrganizationRepository
+from app.repositories.org_member_repository import OrgMemberRepository
 import uuid
+
+stripe.api_key = settings.stripe_secret_key
 
 
 class OrgService:
@@ -16,6 +22,7 @@ class OrgService:
         self.db = db
         self.current_user = current_user
         self.org_repo = OrganizationRepository(db)
+        self.org_member_repo = OrgMemberRepository(db)
         # org_id is None for register routes (user has no org yet).
         # Admin/owner factory functions resolve it and pass it in.
         self.org_id = org_id
@@ -183,7 +190,7 @@ class OrgService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 4. Deactivate organization (owner only)
+    # 4. Delete organization (owner only)
     # ─────────────────────────────────────────
     async def delete_organization(self):
         try:
@@ -191,11 +198,38 @@ class OrgService:
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
+            # Collect member IDs before mutating (needed for Supabase calls after commit)
+            active_members = self.org_member_repo.get_all_by_org(self.org_id)
+            member_ids = [str(m.id) for m in active_members]
+
+            now = datetime.now(timezone.utc)
+            for member in active_members:
+                member.deleted_at = now
+
+            subscription_id = org.subscription_id
+            org.deleted_at = now
             org.is_active = False
             self.db.commit()
-            return {"message": "Organization deactivated successfully"}
+
+            # Cancel Stripe subscription — best-effort, org is already marked deleted
+            if subscription_id:
+                try:
+                    stripe.Subscription.cancel(subscription_id)
+                except Exception:
+                    pass
+
+            # Revoke all member Supabase auth tokens — best-effort
+            supabase = get_supabase_client()
+            for member_id in member_ids:
+                try:
+                    supabase.auth.admin.delete_user(member_id)
+                except Exception:
+                    pass
+
+            return {"message": "Organization deleted successfully"}
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()

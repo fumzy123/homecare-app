@@ -23,6 +23,8 @@ class Organization(Base):
     province    = Column(String, nullable=True)
     postal_code = Column(String, nullable=True)
 
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     terms_accepted_version = Column(String, nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True)
