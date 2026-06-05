@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from uuid import UUID
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from app.models.admin_notification import AdminNotification, AdminNotificationRead
 from app.models.employment import Employment
@@ -100,6 +100,7 @@ class NotificationRepository:
         """Return (notification, read_row) pairs for this admin, newest first."""
         rows = (
             self.db.query(AdminNotification, AdminNotificationRead)
+            .options(joinedload(AdminNotification.worker).joinedload(Employment.person))
             .outerjoin(
                 AdminNotificationRead,
                 and_(
