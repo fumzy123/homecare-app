@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
+from app.core.exceptions import AppError
+from app.repositories.organization_repository import OrganizationRepository
 from app.services.notification_service import NotificationService
 from app.schemas.notification import NotificationListResponse
 
@@ -13,7 +15,10 @@ def get_notification_service(
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> NotificationService:
-    return NotificationService(db, current_user_id=current_user.id)
+    employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
+    if not employment:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
+    return NotificationService(db, current_user_id=employment.id)
 
 
 @router.get("", response_model=NotificationListResponse)
