@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
@@ -11,6 +11,15 @@ class AssignedWorkerResponse(BaseModel):
     last_name: str
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def flatten_person(cls, data):
+        # When Pydantic receives an Employment ORM object, person fields live
+        # one hop away on the Person relationship — traverse it explicitly.
+        if hasattr(data, "person") and data.person is not None:
+            return {"id": data.id, "first_name": data.person.first_name, "last_name": data.person.last_name}
+        return data
 
 
 class ClientCreateSchema(BaseModel):

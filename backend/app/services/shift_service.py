@@ -8,6 +8,7 @@ from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency, OVERTIME_APPROVERS
 from app.core.exceptions import AppError
 from app.schemas.shift import (
+    ClientSummary,
     ShiftCancelFromSchema,
     ShiftCancelSchema,
     ShiftEditFromSchema,
@@ -16,6 +17,7 @@ from app.schemas.shift import (
     ShiftModificationUpdateSchema,
     ShiftOccurrenceResponse,
     ShiftUpdateSchema,
+    WorkerSummary,
 )
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
 from app.repositories.organization_repository import OrganizationRepository
@@ -37,6 +39,7 @@ class ShiftService:
         self.org_id = current_employment.org_id
         self.current_employment_id = current_employment.id
         self.current_member_role = current_employment.role
+        self.current_employment = current_employment
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -283,6 +286,7 @@ class ShiftService:
                     if part.startswith("BYDAY="):
                         recurrence_days_of_week = part[len("BYDAY="):].split(",")
 
+        worker = shift.worker
         return ShiftOccurrenceResponse(
             shift_id=shift.id,
             modification_id=mod.id if mod else None,
@@ -292,8 +296,13 @@ class ShiftService:
             completion_status=effective_status,
             is_modification=mod is not None,
             is_recurring=shift.is_recurring,
-            worker=shift.worker,
-            client=shift.client,
+            worker=WorkerSummary(
+                id=worker.id,
+                first_name=worker.person.first_name,
+                last_name=worker.person.last_name,
+                email=worker.person.email,
+            ),
+            client=ClientSummary.model_validate(shift.client),
             location=shift.location,
             notes=mod.notes if mod else shift.notes,
             recurrence_end_date=shift.recurrence_end_date,

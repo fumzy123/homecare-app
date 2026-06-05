@@ -1,5 +1,4 @@
 from datetime import date
-from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -46,13 +45,10 @@ async def request_overtime_approval(
     shift_service: ShiftService = Depends(get_shift_service),
     notification_service: NotificationService = Depends(get_notification_service),
 ):
-    requesting_member = shift_service.org_member_repo.get_active_member(
-        shift_service.current_user.id, shift_service.org_id
-    )
     notification_service.notify_overtime_approval_requested(
         org_id=shift_service.org_id,
-        requesting_member_id=UUID(str(shift_service.current_user.id)),
-        requesting_member_name=f"{requesting_member.first_name} {requesting_member.last_name}",
+        requesting_member_id=shift_service.current_employment_id,
+        requesting_member_name=f"{shift_service.current_employment.person.first_name} {shift_service.current_employment.person.last_name}",
         worker_id=payload.worker_id,
         week_start=payload.week_start,
         week_end=payload.week_end,
