@@ -82,6 +82,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
     totalHours?: number
   } | null>(null)
   const [approvalRequested, setApprovalRequested] = useState(false)
+  const [approvalNote, setApprovalNote] = useState('')
   const overrideRef = useRef(false)
 
   const [endDate, setEndDate]               = useState(defaultDate)
@@ -195,12 +196,27 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
 
   async function handleRequestApproval() {
     if (!pendingOverride?.workerIdForApproval) return
+    const values = form.state.values
+    const client = clients.find((c) => c.id === values.client_id)
+    let safeEndDate = endDate
+    if (values.end_time <= values.start_time && safeEndDate === values.date) {
+      safeEndDate = nextDay(values.date)
+    }
     try {
       await shiftsApi.requestOvertimeApproval({
-        worker_id:   pendingOverride.workerIdForApproval,
-        week_start:  pendingOverride.weekStart!,
-        week_end:    pendingOverride.weekEnd!,
-        total_hours: pendingOverride.totalHours!,
+        worker_id:    pendingOverride.workerIdForApproval,
+        week_start:   pendingOverride.weekStart!,
+        week_end:     pendingOverride.weekEnd!,
+        total_hours:  pendingOverride.totalHours!,
+        client_id:    values.client_id || undefined,
+        client_name:  client ? `${client.first_name} ${client.last_name}` : undefined,
+        start_time:   values.date ? `${values.date}T${values.start_time}:00` : undefined,
+        end_time:     values.date ? `${safeEndDate}T${values.end_time}:00` : undefined,
+        is_recurring: isRecurring,
+        recurrence: isRecurring
+          ? { frequency, days_of_week: frequency === 'weekly' ? daysOfWeek : undefined, recurrence_end_date: recurrenceEndDate || undefined }
+          : undefined,
+        note: approvalNote || undefined,
       })
       setPendingOverride(null)
       setApprovalRequested(true)
@@ -463,6 +479,20 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
           {pendingOverride && (
             <div className="border border-orange bg-cream-2 px-4 py-3 flex flex-col gap-3">
               <p className="font-mono text-[10px] text-ink leading-relaxed">{pendingOverride.message}</p>
+              {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' && (
+                <div>
+                  <label className="block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1">
+                    Note for manager <span className="normal-case">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink"
+                    placeholder="Reason this shift is needed…"
+                    value={approvalNote}
+                    onChange={(e) => setApprovalNote(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="flex gap-2">
                 {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' ? (
                   <button

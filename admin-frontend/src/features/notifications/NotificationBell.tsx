@@ -3,7 +3,9 @@ import { Bell } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { formatDistanceToNow } from 'date-fns'
 import { useNotifications, useMarkRead } from './hooks'
+import { useOvertimeReviewStore } from './useOvertimeReviewStore'
 import type { Notification, NotificationType } from './api'
+import { DOCUMENT_LABELS } from '@/features/workers/constants'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,8 @@ function notificationTitle(n: Notification): string {
     }
     case 'shift_dropped':
       return `${name} dropped a shift — ${n.payload.client_name ?? ''}`
+    case 'overtime_approval_requested':
+      return `${n.payload.requesting_member_name ?? 'Someone'} requested overtime for ${name}`
     default:
       return `Update from ${name}`
   }
@@ -39,24 +43,21 @@ function notificationDestination(n: Notification): string {
   }
 }
 
-import { DOCUMENT_LABELS } from '@/features/workers/constants'
-
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function NotificationItem({
   n,
-  onNavigate,
+  onAction,
 }: {
   n: Notification
-  onNavigate: (dest: string, id: string, isUnread: boolean) => void
+  onAction: (n: Notification, isUnread: boolean) => void
 }) {
   const isUnread   = n.read_at === null
   const isResolved = n.resolved_at !== null
-  const dest       = notificationDestination(n)
 
   return (
     <button
-      onClick={() => onNavigate(dest, n.id, isUnread)}
+      onClick={() => onAction(n, isUnread)}
       className={`w-full text-left border-b border-line-faint px-4 py-3 transition-colors hover:bg-cream-2 ${
         isUnread ? 'bg-cream-2' : 'bg-paper'
       }`}
@@ -96,11 +97,12 @@ function NotificationItem({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
-  const [open, setOpen]       = useState(false)
-  const ref                   = useRef<HTMLDivElement>(null)
-  const navigate              = useNavigate()
-  const { data }              = useNotifications()
-  const { mutate: markRead }  = useMarkRead()
+  const [open, setOpen]            = useState(false)
+  const ref                        = useRef<HTMLDivElement>(null)
+  const navigate                   = useNavigate()
+  const { data }                   = useNotifications()
+  const { mutate: markRead }       = useMarkRead()
+  const { open: openOvertimeReview } = useOvertimeReviewStore()
 
   const unread        = data?.unread_count ?? 0
   const actionNeeded  = data?.action_needed_count ?? 0
@@ -116,10 +118,14 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  function handleNavigate(dest: string, id: string, isUnread: boolean) {
+  function handleAction(n: Notification, isUnread: boolean) {
     setOpen(false)
-    if (isUnread) markRead(id)
-    navigate({ to: dest as never })
+    if (isUnread) markRead(n.id)
+    if (n.type === 'overtime_approval_requested') {
+      openOvertimeReview(n)
+      return
+    }
+    navigate({ to: notificationDestination(n) as never })
   }
 
   return (
@@ -168,7 +174,7 @@ export function NotificationBell() {
               </p>
             ) : (
               notifications.map((n) => (
-                <NotificationItem key={n.id} n={n} onNavigate={handleNavigate} />
+                <NotificationItem key={n.id} n={n} onAction={handleAction} />
               ))
             )}
           </div>

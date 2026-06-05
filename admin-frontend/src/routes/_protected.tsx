@@ -9,6 +9,7 @@ import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
+import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
 import { billingApi } from '@/features/billing/api'
 
 export const Route = createFileRoute('/_protected')({
@@ -159,6 +160,8 @@ function ProtectedLayout() {
           <Outlet />
         </main>
       </div>
+
+      <OvertimeReviewDrawer />
     </div>
   )
 }
