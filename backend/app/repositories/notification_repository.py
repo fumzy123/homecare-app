@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.admin_notification import AdminNotification, AdminNotificationRead
-from app.models.org_member import OrgMember
+from app.models.employment import Employment
 from app.core.enums import NotificationType, ADMIN_ROLES, OVERTIME_APPROVERS
 
 
@@ -166,25 +166,25 @@ class NotificationRepository:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _get_admin_ids(self, org_id: UUID) -> list[UUID]:
-        members = (
-            self.db.query(OrgMember.id)
+        rows = (
+            self.db.query(Employment.id)
             .filter(
-                OrgMember.org_id == org_id,
-                OrgMember.role.in_(ADMIN_ROLES),
-                OrgMember.deleted_at.is_(None),
+                Employment.org_id == org_id,
+                Employment.role.in_(ADMIN_ROLES),
+                Employment.deleted_at.is_(None),
             )
             .all()
         )
-        return [m.id for m in members]
+        return [r.id for r in rows]
 
     def _get_approver_ids(self, org_id: UUID) -> list[UUID]:
-        members = (
-            self.db.query(OrgMember.id)
+        rows = (
+            self.db.query(Employment.id)
             .filter(
-                OrgMember.org_id == org_id,
-                OrgMember.role.in_(OVERTIME_APPROVERS),
-                OrgMember.deleted_at.is_(None),
+                Employment.org_id == org_id,
+                Employment.role.in_(OVERTIME_APPROVERS),
+                Employment.deleted_at.is_(None),
             )
             .all()
         )
-        return [m.id for m in members]
+        return [r.id for r in rows]
