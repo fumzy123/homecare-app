@@ -2,15 +2,17 @@ import stripe
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
-from app.models.org_member import OrgMember
+from app.models.person import Person
+from app.models.employment import Employment
 from app.models.organization import Organization
 from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, RegisterDirectSchema
-from app.core.enums import OrgMemberRole
+from app.core.enums import OrgMemberRole, EmploymentStatus
 from app.core.exceptions import AppError
 from app.core.config import settings
 from app.db.supabase import get_supabase_client
 from app.repositories.organization_repository import OrganizationRepository
-from app.repositories.org_member_repository import OrgMemberRepository
+from app.repositories.person_repository import PersonRepository
+from app.repositories.employment_repository import EmploymentRepository
 import uuid
 
 stripe.api_key = settings.stripe_secret_key
@@ -22,19 +24,23 @@ class OrgService:
         self.db = db
         self.current_user = current_user
         self.org_repo = OrganizationRepository(db)
-        self.org_member_repo = OrgMemberRepository(db)
-        # org_id is None for register routes (user has no org yet).
-        # Admin/owner factory functions resolve it and pass it in.
+        self.person_repo = PersonRepository(db)
+        self.employment_repo = EmploymentRepository(db)
         self.org_id = org_id
 
     @staticmethod
     def get_user_org_id(current_user: SupabaseUser, db: Session) -> uuid.UUID:
         """Resolve the org_id for the currently authenticated user. Used by all services."""
         repo = OrganizationRepository(db)
-        member = repo.get_member_by_id(current_user.id)
-        if not member:
+        employment = repo.get_active_employment_for_user(current_user.id)
+        if not employment:
             raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
-        return member.org_id
+        return employment.org_id
+
+    @staticmethod
+    def get_admin_org_id(current_user: SupabaseUser, db: Session) -> uuid.UUID:
+        """Alias kept for callers that use this name."""
+        return OrgService.get_user_org_id(current_user, db)
 
     # ─────────────────────────────────────────
     # 1. Register a new organization + owner
@@ -43,24 +49,31 @@ class OrgService:
         supabase = get_supabase_client()
         org_id = None
         try:
+            person = Person(
+                supabase_user_id=self.current_user.id,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                email=self.current_user.email,
+            )
+            self.person_repo.add(person)
+            self.db.flush()
+
             new_org = Organization(
                 id=uuid.uuid4(),
                 name=payload.organization_name,
-                owner_id=self.current_user.id,
+                owner_id=person.id,
             )
             self.org_repo.add(new_org)
             self.org_repo.flush()
             org_id = new_org.id
 
-            new_member = OrgMember(
-                id=self.current_user.id,
-                first_name=payload.first_name,
-                last_name=payload.last_name,
-                email=self.current_user.email,
-                role=OrgMemberRole.owner,
+            employment = Employment(
+                person_id=person.id,
                 org_id=org_id,
+                role=OrgMemberRole.owner,
+                employment_status=EmploymentStatus.active,
             )
-            self.org_repo.add_member(new_member)
+            self.employment_repo.add(employment)
             self.db.commit()
 
             supabase.auth.admin.update_user_by_id(
@@ -96,7 +109,7 @@ class OrgService:
     # ─────────────────────────────────────────
     async def register_organization_direct(self, payload: RegisterDirectSchema):
         supabase = get_supabase_client()
-        user_id = None
+        supabase_user_id = None
         org_id = None
         try:
             result = supabase.auth.admin.create_user({
@@ -105,30 +118,37 @@ class OrgService:
                 "email_confirm": True,
             })
             user = result.user
-            user_id = str(user.id)
+            supabase_user_id = str(user.id)
+
+            person = Person(
+                supabase_user_id=user.id,
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                email=payload.email,
+            )
+            self.person_repo.add(person)
+            self.db.flush()
 
             new_org = Organization(
                 id=uuid.uuid4(),
                 name=payload.organization_name,
-                owner_id=user.id,
+                owner_id=person.id,
             )
             self.org_repo.add(new_org)
             self.org_repo.flush()
             org_id = new_org.id
 
-            new_member = OrgMember(
-                id=user.id,
-                first_name=payload.first_name,
-                last_name=payload.last_name,
-                email=payload.email,
-                role=OrgMemberRole.owner,
+            employment = Employment(
+                person_id=person.id,
                 org_id=org_id,
+                role=OrgMemberRole.owner,
+                employment_status=EmploymentStatus.active,
             )
-            self.org_repo.add_member(new_member)
+            self.employment_repo.add(employment)
             self.db.commit()
 
             supabase.auth.admin.update_user_by_id(
-                user_id,
+                supabase_user_id,
                 {"user_metadata": {
                     "first_name": payload.first_name,
                     "last_name": payload.last_name,
@@ -137,16 +157,16 @@ class OrgService:
                 }},
             )
 
-            return {"message": "Organization registered successfully", "org_id": str(org_id), "user_id": user_id}
+            return {"message": "Organization registered successfully", "org_id": str(org_id), "user_id": supabase_user_id}
 
         except AppError:
             self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
-            if user_id and org_id is None:
+            if supabase_user_id and org_id is None:
                 try:
-                    supabase.auth.admin.delete_user(user_id)
+                    supabase.auth.admin.delete_user(supabase_user_id)
                 except Exception:
                     pass
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
@@ -198,13 +218,17 @@ class OrgService:
             if not org:
                 raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
 
-            # Collect member IDs before mutating (needed for Supabase calls after commit)
-            active_members = self.org_member_repo.get_all_by_org(self.org_id)
-            member_ids = [str(m.id) for m in active_members]
+            active_employments = self.employment_repo.get_all_active_by_org(self.org_id)
 
+            # Collect supabase user IDs before mutating (needed after commit)
+            supabase_user_ids = []
             now = datetime.now(timezone.utc)
-            for member in active_members:
-                member.deleted_at = now
+            for emp in active_employments:
+                emp.deleted_at = now
+                person = emp.person
+                if person and person.supabase_user_id:
+                    supabase_user_ids.append(str(person.supabase_user_id))
+                    person.supabase_user_id = None
 
             subscription_id = org.subscription_id
             org.deleted_at = now
@@ -220,9 +244,9 @@ class OrgService:
 
             # Revoke all member Supabase auth tokens — best-effort
             supabase = get_supabase_client()
-            for member_id in member_ids:
+            for sid in supabase_user_ids:
                 try:
-                    supabase.auth.admin.delete_user(member_id)
+                    supabase.auth.admin.delete_user(sid)
                 except Exception:
                     pass
 

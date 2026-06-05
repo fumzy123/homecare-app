@@ -1,7 +1,8 @@
 from datetime import datetime, date, timedelta, timezone
 from sqlalchemy.orm import Session, joinedload
 from app.models.credential import Credential
-from app.models.org_member import OrgMember
+from app.models.person import Person
+from app.models.employment import Employment
 from app.core.enums import ComplianceDocumentType
 from app.core.exceptions import AppError
 from uuid import UUID
@@ -11,20 +12,20 @@ class CredentialRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list_for_member(self, org_member_id: UUID) -> list[Credential]:
+    def list_for_member(self, person_id: UUID) -> list[Credential]:
         return (
             self.db.query(Credential)
-            .filter(Credential.org_member_id == org_member_id)
+            .filter(Credential.person_id == person_id)
             .order_by(Credential.uploaded_at.desc())
             .all()
         )
 
-    def get_by_id(self, credential_id: UUID, org_member_id: UUID) -> Credential:
+    def get_by_id(self, credential_id: UUID, person_id: UUID) -> Credential:
         credential = (
             self.db.query(Credential)
             .filter(
                 Credential.id == credential_id,
-                Credential.org_member_id == org_member_id,
+                Credential.person_id == person_id,
             )
             .first()
         )
@@ -32,18 +33,18 @@ class CredentialRepository:
             raise AppError(status_code=404, code="NOT_FOUND", message="Credential not found")
         return credential
 
-    def get_by_document_type(self, org_member_id: UUID, document_type: ComplianceDocumentType) -> Credential | None:
+    def get_by_document_type(self, person_id: UUID, document_type: ComplianceDocumentType) -> Credential | None:
         return (
             self.db.query(Credential)
             .filter(
-                Credential.org_member_id == org_member_id,
+                Credential.person_id == person_id,
                 Credential.document_type == document_type,
             )
             .first()
         )
 
-    def create(self, org_member_id: UUID, data: dict) -> Credential:
-        credential = Credential(org_member_id=org_member_id, **data)
+    def create(self, person_id: UUID, data: dict) -> Credential:
+        credential = Credential(person_id=person_id, **data)
         self.db.add(credential)
         self.db.flush()
         return credential
@@ -57,14 +58,14 @@ class CredentialRepository:
 
     def upsert_for_member(
         self,
-        org_member_id: UUID,
+        person_id: UUID,
         document_type: ComplianceDocumentType,
         file_url: str,
     ) -> Credential:
         credential = (
             self.db.query(Credential)
             .filter(
-                Credential.org_member_id == org_member_id,
+                Credential.person_id == person_id,
                 Credential.document_type == document_type,
             )
             .first()
@@ -78,7 +79,7 @@ class CredentialRepository:
             credential.expiry_date = None
         else:
             credential = Credential(
-                org_member_id=org_member_id,
+                person_id=person_id,
                 document_type=document_type,
                 file_url=file_url,
             )
@@ -88,7 +89,7 @@ class CredentialRepository:
 
     def verify_for_member(
         self,
-        org_member_id: UUID,
+        person_id: UUID,
         document_type: ComplianceDocumentType,
         expiry_date,
         verified_by: UUID,
@@ -96,7 +97,7 @@ class CredentialRepository:
         credential = (
             self.db.query(Credential)
             .filter(
-                Credential.org_member_id == org_member_id,
+                Credential.person_id == person_id,
                 Credential.document_type == document_type,
             )
             .first()
@@ -114,10 +115,12 @@ class CredentialRepository:
         cutoff = today + timedelta(days=within_days)
         return (
             self.db.query(Credential)
-            .options(joinedload(Credential.org_member))
-            .join(OrgMember, Credential.org_member_id == OrgMember.id)
+            .options(joinedload(Credential.person))
+            .join(Person, Credential.person_id == Person.id)
+            .join(Employment, Employment.person_id == Person.id)
             .filter(
-                OrgMember.org_id == org_id,
+                Employment.org_id == org_id,
+                Employment.deleted_at.is_(None),
                 Credential.expiry_date.isnot(None),
                 Credential.expiry_date >= today,
                 Credential.expiry_date <= cutoff,

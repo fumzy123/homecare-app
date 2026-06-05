@@ -3,7 +3,7 @@ from sqlalchemy import extract
 from sqlalchemy.orm import Session
 from app.models.progress_note import ProgressNote
 from app.models.shift import Shift
-from app.models.org_member import OrgMember
+from app.models.employment import Employment
 from app.models.client import Client
 from app.core.exceptions import AppError
 
@@ -85,27 +85,11 @@ class ProgressNoteRepository:
         client_id,
         org_id,
         year: int | None = None,
-    ) -> list[tuple[ProgressNote, OrgMember]]:
-        """Fetch all progress notes for a client joined with the worker who wrote them.
-
-        Performs a single JOIN across ProgressNote → Shift → OrgMember.
-        Optionally filters by calendar year extracted from occurrence_date.
-        Results are ordered by occurrence_date descending (most recent first).
-
-        Args:
-            client_id: Client whose notes to fetch.
-            org_id: Organisation scope (tenant isolation).
-            year: If provided, only notes with an occurrence_date in this
-                calendar year are returned.
-
-        Returns:
-            List of (ProgressNote, OrgMember) tuples ordered by
-            occurrence_date descending. Returns an empty list if none exist.
-        """
+    ) -> list[tuple[ProgressNote, Employment]]:
         query = (
-            self.db.query(ProgressNote, OrgMember)
+            self.db.query(ProgressNote, Employment)
             .join(Shift, ProgressNote.shift_id == Shift.id)
-            .join(OrgMember, Shift.worker_id == OrgMember.id)
+            .join(Employment, Shift.worker_id == Employment.id)
             .filter(
                 Shift.client_id == client_id,
                 Shift.org_id == org_id,

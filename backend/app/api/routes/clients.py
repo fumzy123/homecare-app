@@ -86,7 +86,7 @@ async def delete_client(
 
 # ─────────────────────────────────────────
 # 6. List all progress notes for a client
-# Joins ProgressNote → Shift → OrgMember
+# Joins ProgressNote → Shift → Employment → Person
 # so callers get worker identity in one shot
 # ─────────────────────────────────────────
 @router.get("/{client_id}/notes", response_model=List[ClientNoteItemResponse])

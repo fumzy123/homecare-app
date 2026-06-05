@@ -10,11 +10,11 @@ import uuid
 class Credential(Base):
     __tablename__ = "credentials"
     __table_args__ = (
-        UniqueConstraint("org_member_id", "document_type", name="uq_credential_member_type"),
+        UniqueConstraint("person_id", "document_type", name="uq_credential_person_type"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_member_id = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
+    person_id = Column(UUID(as_uuid=True), ForeignKey("persons.id"), nullable=False)
 
     document_type = Column(Enum(ComplianceDocumentType), nullable=False)
     expiry_date = Column(Date, nullable=True)
@@ -22,7 +22,6 @@ class Credential(Base):
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
     verified_at = Column(DateTime(timezone=True), nullable=True)
-    verified_by = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=True)
+    verified_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
 
-    org_member  = relationship("OrgMember", back_populates="credentials",
-                               foreign_keys=[org_member_id])
+    person = relationship("Person", back_populates="credentials", foreign_keys=[person_id])

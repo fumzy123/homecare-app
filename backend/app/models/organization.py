@@ -35,9 +35,6 @@ class Organization(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships — one org has many users, clients, workers
-    members = relationship("OrgMember", back_populates="organization")
+    # Relationships
+    employments = relationship("Employment", back_populates="organization")
     clients = relationship("Client", back_populates="organization")
-    
-    # ⚠️ Temporarily commented out until you actually create the models!
-    # workers = relationship("Worker", back_populates="organization")

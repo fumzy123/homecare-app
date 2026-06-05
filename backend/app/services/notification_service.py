@@ -1,6 +1,6 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
-from app.models.org_member import OrgMember
+from app.models.employment import Employment
 from app.core.enums import NotificationType
 from app.core.exceptions import AppError
 from app.repositories.notification_repository import NotificationRepository
@@ -125,9 +125,10 @@ class NotificationService:
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
-    def _resolve_member(self) -> OrgMember:
-        member = self.db.query(OrgMember).filter(
-            OrgMember.id == self.current_user_id
+    def _resolve_member(self) -> Employment:
+        member = self.db.query(Employment).filter(
+            Employment.id == self.current_user_id,
+            Employment.deleted_at.is_(None),
         ).first()
         if not member:
             raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")

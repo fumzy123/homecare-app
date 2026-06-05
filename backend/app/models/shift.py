@@ -16,20 +16,20 @@ class Shift(Base):
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
 
     # Assignments
-    worker_id = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
+    worker_id = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
 
-    # Shift timing — first occurrence (or the only occurrence if non-recurring)
+    # Shift timing
     start_time = Column(DateTime(timezone=False), nullable=False)
     end_time = Column(DateTime(timezone=False), nullable=False)
 
     # Recurrence
     is_recurring = Column(Boolean, nullable=False, default=False)
-    recurrence_rule = Column(Text, nullable=True)         # e.g. "FREQ=WEEKLY;BYDAY=MO,WE,FR"
-    recurrence_end_date = Column(Date, nullable=True)     # when the schedule stops generating occurrences
+    recurrence_rule = Column(Text, nullable=True)
+    recurrence_end_date = Column(Date, nullable=True)
 
-    # Master status — "active" or "cancelled" (cancels the entire schedule)
+    # Master status
     status = Column(Enum(ShiftStatus), nullable=False, default=ShiftStatus.active)
 
     location = Column(String, nullable=True)
@@ -44,7 +44,7 @@ class Shift(Base):
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    worker = relationship("OrgMember", foreign_keys=[worker_id])
+    worker = relationship("Employment", foreign_keys=[worker_id])
     client = relationship("Client", foreign_keys=[client_id])
-    creator = relationship("OrgMember", foreign_keys=[created_by])
+    creator = relationship("Employment", foreign_keys=[created_by])
     modifications = relationship("ShiftModification", back_populates="shift")
