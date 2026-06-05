@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.db.supabase import get_supabase_client
 from app.db.session import get_db
-from app.models.org_member import OrgMember
+from app.models.person import Person
+from app.models.employment import Employment
 from app.core.enums import OrgMemberRole, ADMIN_ROLES  # noqa: F401  (re-exported for callers)
 from app.core.exceptions import AppError
 
@@ -24,12 +25,24 @@ async def get_current_user(token=Depends(security)) -> SupabaseUser:
         raise AppError(status_code=401, code="UNAUTHORIZED", message="Invalid or expired token")
 
 
+def _get_active_employment(current_user: SupabaseUser, db: Session) -> Employment | None:
+    person = db.query(Person).filter(
+        Person.supabase_user_id == current_user.id
+    ).first()
+    if not person:
+        return None
+    return db.query(Employment).filter(
+        Employment.person_id == person.id,
+        Employment.deleted_at.is_(None),
+    ).first()
+
+
 async def require_admin(
     current_user: SupabaseUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SupabaseUser:
-    member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-    if not member or member.role not in ADMIN_ROLES:
+    employment = _get_active_employment(current_user, db)
+    if not employment or employment.role not in ADMIN_ROLES:
         raise AppError(status_code=403, code="FORBIDDEN", message="Admins only")
     return current_user
 
@@ -38,7 +51,7 @@ async def require_owner(
     current_user: SupabaseUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SupabaseUser:
-    member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-    if not member or member.role != OrgMemberRole.owner:
+    employment = _get_active_employment(current_user, db)
+    if not employment or employment.role != OrgMemberRole.owner:
         raise AppError(status_code=403, code="FORBIDDEN", message="Owners only")
     return current_user

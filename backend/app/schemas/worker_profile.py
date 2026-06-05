@@ -49,7 +49,7 @@ class WorkerProfileResponse(BaseModel):
 
 class CredentialResponse(BaseModel):
     id: UUID
-    org_member_id: UUID
+    person_id: UUID
     document_type: ComplianceDocumentType
     expiry_date: Optional[date]
     file_url: Optional[str]
