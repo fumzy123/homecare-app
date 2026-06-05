@@ -17,9 +17,9 @@ from app.schemas.shift import (
     ShiftOccurrenceResponse,
     ShiftUpdateSchema,
 )
-from app.services.org_service import OrgService
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
-from app.repositories.org_member_repository import OrgMemberRepository
+from app.repositories.organization_repository import OrganizationRepository
+from app.repositories.employment_repository import EmploymentRepository
 
 
 class ShiftService:
@@ -29,10 +29,14 @@ class ShiftService:
         self.current_user = current_user
         self.shift_repo = ShiftRepository(db)
         self.modification_repo = ShiftModificationRepository(db)
-        self.org_member_repo = OrgMemberRepository(db)
-        self.org_id = OrgService.get_user_org_id(current_user, db)
-        current_member = self.org_member_repo.get_active_member(current_user.id, self.org_id)
-        self.current_member_role = current_member.role
+        self.employment_repo = EmploymentRepository(db)
+        org_repo = OrganizationRepository(db)
+        current_employment = org_repo.get_active_employment_for_user(current_user.id)
+        if not current_employment:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
+        self.org_id = current_employment.org_id
+        self.current_employment_id = current_employment.id
+        self.current_member_role = current_employment.role
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -206,7 +210,7 @@ class ShiftService:
         if not proposed_time_blocks:
             return [], []
 
-        worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
+        worker = self.employment_repo.get_active_by_id_and_org(worker_id, self.org_id)
         cap = worker.max_hours_per_week
 
         proposed_by_week: dict[tuple[date, date], float] = {}
@@ -237,7 +241,7 @@ class ShiftService:
                 "week_start":     week_sun.isoformat(),
                 "week_end":       week_sat.isoformat(),
                 "worker_id":      str(worker.id),
-                "worker_name":    f"{worker.first_name} {worker.last_name}",
+                "worker_name":    f"{worker.person.first_name} {worker.person.last_name}",
                 "current_hours":  round(existing_hours, 2),
                 "proposed_hours": round(proposed_hours, 2),
                 "total_hours":    round(total, 2),
@@ -372,7 +376,7 @@ class ShiftService:
                 org_id=self.org_id,
                 worker_id=payload.worker_id,
                 client_id=payload.client_id,
-                created_by=self.current_user.id,
+                created_by=self.current_employment_id,
                 start_time=payload.start_time,
                 end_time=payload.end_time,
                 is_recurring=is_recurring,
@@ -467,7 +471,7 @@ class ShiftService:
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
-        worker = self.org_member_repo.get_active_member(worker_id, self.org_id)
+        worker = self.employment_repo.get_active_by_id_and_org(worker_id, self.org_id)
         cap = worker.max_hours_per_week if worker else None
 
         hours_this_week = self._calculate_hours_in_range(worker_id, week_sun, week_sat)
@@ -934,7 +938,7 @@ class ShiftService:
                 org_id=shift.org_id,
                 worker_id=new_worker_id,
                 client_id=payload.client_id or shift.client_id,
-                created_by=self.current_user.id,
+                created_by=self.current_employment_id,
                 start_time=new_start,
                 end_time=new_end,
                 is_recurring=shift.is_recurring,
