@@ -433,7 +433,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
               )}
 
               {approvalRequested && (
-                <p className="font-mono text-[10px] text-mint border border-mint px-3 py-2">
+                <p className="font-mono text-[10px] text-ink border border-mint bg-cream-2 px-3 py-2">
                   Manager notified — they will review and approve the shift.
                 </p>
               )}
