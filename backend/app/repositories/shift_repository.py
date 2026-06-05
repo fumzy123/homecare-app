@@ -2,6 +2,7 @@ from datetime import date, datetime, time, timezone
 from sqlalchemy.orm import Session, joinedload
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
+from app.models.employment import Employment
 from app.models.client import Client
 from app.core.enums import ShiftStatus
 from app.core.exceptions import AppError
@@ -102,7 +103,7 @@ class ShiftRepository:
         query = (
             self.db.query(Shift)
             .options(
-                joinedload(Shift.worker),
+                joinedload(Shift.worker).joinedload(Employment.person),
                 joinedload(Shift.client),
                 joinedload(Shift.modifications),
             )
