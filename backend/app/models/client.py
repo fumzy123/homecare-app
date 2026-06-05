@@ -27,7 +27,7 @@ class Client(Base):
 
     # Organization & Assignment
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
-    assigned_worker_id = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=True)
+    assigned_worker_id = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
 
     # Care & Medical
     service_type = Column(Enum(ServiceType), nullable=False)
@@ -58,4 +58,4 @@ class Client(Base):
 
     # Relationships
     organization = relationship("Organization", back_populates="clients")
-    assigned_worker = relationship("OrgMember")
+    assigned_worker = relationship("Employment")

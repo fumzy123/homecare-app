@@ -1,6 +1,7 @@
 from app.models.base import Base as Base
 from app.models.organization import Organization as Organization
-from app.models.org_member import OrgMember as OrgMember
+from app.models.person import Person as Person
+from app.models.employment import Employment as Employment
 from app.models.client import Client as Client
 from app.models.shift import Shift as Shift
 from app.models.shift_modification import ShiftModification as ShiftModification

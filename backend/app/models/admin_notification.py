@@ -13,15 +13,15 @@ class AdminNotification(Base):
     id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id       = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     type         = Column(Enum(NotificationType), nullable=False)
-    worker_id    = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
+    worker_id    = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
     payload      = Column(JSONB, nullable=False, default=dict)
     requires_action = Column(Boolean, nullable=False, default=False)
     resolved_at  = Column(DateTime(timezone=True), nullable=True)
-    resolved_by  = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=True)
+    resolved_by  = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
-    worker       = relationship("OrgMember", foreign_keys=[worker_id])
-    resolver     = relationship("OrgMember", foreign_keys=[resolved_by])
+    worker       = relationship("Employment", foreign_keys=[worker_id])
+    resolver     = relationship("Employment", foreign_keys=[resolved_by])
     reads        = relationship("AdminNotificationRead", back_populates="notification",
                                 cascade="all, delete-orphan")
 
@@ -35,9 +35,9 @@ class AdminNotificationRead(Base):
 
     notification_id = Column(UUID(as_uuid=True), ForeignKey("admin_notifications.id",
                              ondelete="CASCADE"), nullable=False, primary_key=True)
-    admin_id        = Column(UUID(as_uuid=True), ForeignKey("org_members.id"),
+    admin_id        = Column(UUID(as_uuid=True), ForeignKey("employments.id"),
                              nullable=False, primary_key=True)
     read_at         = Column(DateTime(timezone=True), nullable=True)
 
     notification    = relationship("AdminNotification", back_populates="reads")
-    admin           = relationship("OrgMember", foreign_keys=[admin_id])
+    admin           = relationship("Employment", foreign_keys=[admin_id])
