@@ -4,9 +4,11 @@ from typing import List
 from app.db.session import get_db
 from app.schemas.invitation import AcceptInvitationSchema
 from app.schemas.org_member import OrgMemberResponse, OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
-from app.services.org_member_service import OrgMemberService
+from app.services.org_member_service import OrgMemberService, _flat_response
 from app.services.org_service import OrgService
+from app.repositories.organization_repository import OrganizationRepository
 from app.core.security import require_admin, get_current_user
+from app.core.exceptions import AppError
 from app.core.enums import OrgMemberRole
 
 router = APIRouter(prefix="/org-members", tags=["Org Members"])
@@ -38,7 +40,21 @@ async def create_member(
 
 
 # ─────────────────────────────────────────
-# 2. List all members — optional ?role= filter
+# 2. Get current user's own profile (/me must be before /{member_id})
+# ─────────────────────────────────────────
+@router.get("/me", response_model=OrgMemberResponse)
+async def get_me(
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
+    if not employment:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
+    return _flat_response(employment)
+
+
+# ─────────────────────────────────────────
+# 3. List all members — optional ?role= filter
 # ─────────────────────────────────────────
 @router.get("", response_model=List[OrgMemberResponse])
 async def get_all_members(

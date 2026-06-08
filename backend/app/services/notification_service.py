@@ -52,6 +52,13 @@ class NotificationService:
         week_start: str,
         week_end: str,
         total_hours: float,
+        client_id: UUID | None = None,
+        client_name: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        is_recurring: bool = False,
+        recurrence: dict | None = None,
+        note: str | None = None,
     ) -> None:
         notification = self.repo.create(
             org_id=org_id,
@@ -63,6 +70,13 @@ class NotificationService:
                 "week_start": week_start,
                 "week_end": week_end,
                 "total_hours": total_hours,
+                "client_id": str(client_id) if client_id else None,
+                "client_name": client_name,
+                "start_time": start_time,
+                "end_time": end_time,
+                "is_recurring": is_recurring,
+                "recurrence": recurrence,
+                "note": note,
             },
             requires_action=True,
         )
@@ -109,6 +123,13 @@ class NotificationService:
         member = self._resolve_member()
         self.repo.mark_read(notification_id, member.id)
         self.db.commit()
+
+    def get_notification(self, notification_id: UUID):
+        member = self._resolve_member()
+        notification = self.repo.get_by_id(notification_id)
+        if not notification or notification.org_id != member.org_id:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Notification not found")
+        return notification
 
     def mark_resolved(self, notification_id: UUID) -> None:
         member = self._resolve_member()

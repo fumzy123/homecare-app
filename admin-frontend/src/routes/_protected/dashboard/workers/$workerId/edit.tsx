@@ -112,6 +112,17 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
     return () => observer.disconnect()
   }, [])
 
+  // The last section never reaches the top detection band — force it active at bottom of page
+  useEffect(() => {
+    function onScroll() {
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 100) {
+        setActiveSection('danger')
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   // Credentials for the compliance mini-status widget
   const { data: credentials = [] } = useWorkerCredentials(worker.id)
   const credValidCount = credentials.filter((c) => c.verified_at && (!c.expiry_date || new Date(c.expiry_date) >= new Date())).length

@@ -56,6 +56,7 @@ def _flat_response(employment: Employment) -> dict:
         # Employment period
         "role":               employment.role,
         "hire_date":          employment.hire_date,
+        "is_active":          employment.employment_status == EmploymentStatus.active,
         "employment_status":  employment.employment_status,
         "employment_type":    employment.employment_type,
         "has_vehicle":        employment.has_vehicle,
@@ -195,7 +196,11 @@ class OrgMemberService:
 
             updates = payload.model_dump(exclude_unset=True)
             for field, value in updates.items():
-                if field in _PERSON_FIELDS:
+                if field == "is_active":
+                    employment.employment_status = (
+                        EmploymentStatus.active if value else EmploymentStatus.terminated
+                    )
+                elif field in _PERSON_FIELDS:
                     setattr(person, field, value)
                 elif field in _EMPLOYMENT_FIELDS:
                     setattr(employment, field, value)

@@ -135,10 +135,37 @@ class ShiftEditFromSchema(BaseModel):
 # POST /shifts/request-overtime-approval
 # ─────────────────────────────────────────
 class OvertimeApprovalRequestSchema(BaseModel):
-    worker_id:   UUID
-    week_start:  str    # YYYY-MM-DD
-    week_end:    str    # YYYY-MM-DD
-    total_hours: float
+    worker_id:    UUID
+    week_start:   str          # YYYY-MM-DD
+    week_end:     str          # YYYY-MM-DD
+    total_hours:  float
+    # Full shift context — present when request originates from CreateShiftDrawer
+    client_id:    UUID | None = None
+    client_name:  str  | None = None
+    start_time:   datetime | None = None
+    end_time:     datetime | None = None
+    is_recurring: bool = False
+    recurrence:   RecurrenceSchema | None = None
+    note:         str  | None = None
+
+
+# ─────────────────────────────────────────
+# POST /shifts/approve-overtime
+# ─────────────────────────────────────────
+class OvertimeApproveSchema(BaseModel):
+    notification_id: UUID
+    start_time:      datetime | None = None        # manager override
+    end_time:        datetime | None = None        # manager override
+    is_recurring:    bool | None = None            # None = use notification payload value
+    recurrence:      RecurrenceSchema | None = None
+
+
+# ─────────────────────────────────────────
+# POST /shifts/reject-overtime
+# ─────────────────────────────────────────
+class OvertimeRejectSchema(BaseModel):
+    notification_id: UUID
+    reason:          str | None = None
 
 
 # ─────────────────────────────────────────

@@ -52,7 +52,11 @@ class InvitationRepository:
         return invitation
 
     def list_by_org(self, org_id) -> list[Invitation]:
-        return self.db.query(Invitation).filter(Invitation.org_id == org_id).all()
+        return (
+            self.db.query(Invitation)
+            .filter(Invitation.org_id == org_id, Invitation.accepted_at.is_(None))
+            .all()
+        )
 
     def add(self, invitation: Invitation) -> None:
         self.db.add(invitation)

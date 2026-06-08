@@ -16,6 +16,7 @@ class OrgMemberResponse(BaseModel):
     date_of_birth: Optional[date]
     role: OrgMemberRole
     hire_date: Optional[date]
+    is_active: bool
     employment_status: EmploymentStatus
     employment_type: Optional[EmploymentType]
     has_vehicle: Optional[bool]
@@ -47,6 +48,7 @@ class OrgMemberUpdateSchema(BaseModel):
     gender: Optional[str] = None
     date_of_birth: Optional[date] = None
     hire_date: Optional[date] = None
+    is_active: Optional[bool] = None
     employment_status: Optional[EmploymentStatus] = None
     employment_type: Optional[EmploymentType] = None
     has_vehicle: Optional[bool] = None

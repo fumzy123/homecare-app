@@ -137,10 +137,39 @@ export function toCalendarEvents(occurrences: ShiftOccurrence[]): CalendarEvent[
 }
 
 export interface OvertimeApprovalRequest {
-  worker_id:   string
-  week_start:  string   // YYYY-MM-DD
-  week_end:    string   // YYYY-MM-DD
-  total_hours: number
+  worker_id:    string
+  week_start:   string   // YYYY-MM-DD
+  week_end:     string   // YYYY-MM-DD
+  total_hours:  number
+  // Full context — sent from CreateShiftDrawer so the manager can approve directly
+  client_id?:   string
+  client_name?: string
+  start_time?:  string   // ISO datetime
+  end_time?:    string   // ISO datetime
+  is_recurring?: boolean
+  recurrence?: {
+    frequency: RecurrenceFrequency
+    days_of_week?: DayOfWeek[]
+    recurrence_end_date?: string
+  }
+  note?: string
+}
+
+export interface OvertimeApproveRequest {
+  notification_id: string
+  start_time?: string
+  end_time?: string
+  is_recurring?: boolean
+  recurrence?: {
+    frequency: RecurrenceFrequency
+    days_of_week?: DayOfWeek[]
+    recurrence_end_date?: string
+  }
+}
+
+export interface OvertimeRejectRequest {
+  notification_id: string
+  reason?: string
 }
 
 export const shiftsApi = {
@@ -186,6 +215,14 @@ export const shiftsApi = {
 
   requestOvertimeApproval: async (payload: OvertimeApprovalRequest): Promise<void> => {
     await apiClient.post('/api/shifts/request-overtime-approval', payload)
+  },
+
+  approveOvertime: async (payload: OvertimeApproveRequest): Promise<void> => {
+    await apiClient.post('/api/shifts/approve-overtime', payload)
+  },
+
+  rejectOvertime: async (payload: OvertimeRejectRequest): Promise<void> => {
+    await apiClient.post('/api/shifts/reject-overtime', payload)
   },
 
   updateShift: async (shiftId: string, payload: ShiftUpdatePayload): Promise<void> => {
