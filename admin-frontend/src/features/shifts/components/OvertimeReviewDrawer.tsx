@@ -52,7 +52,7 @@ export function OvertimeReviewDrawer() {
 
   useEffect(() => {
     if (!notification) return
-    const p = notification.payload as OvertimeNotificationPayload
+    const p = notification.payload as unknown as OvertimeNotificationPayload
     setMode('default')
     setError(null)
     setRejectReason('')
@@ -74,7 +74,7 @@ export function OvertimeReviewDrawer() {
 
   if (!notification) return null
 
-  const p          = notification.payload as OvertimeNotificationPayload
+  const p          = notification.payload as unknown as OvertimeNotificationPayload
   const isResolved = notification.resolved_at !== null
   const hasFullCtx = !!(p.client_id && p.start_time && p.end_time)
 
