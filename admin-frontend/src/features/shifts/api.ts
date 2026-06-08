@@ -157,8 +157,14 @@ export interface OvertimeApprovalRequest {
 
 export interface OvertimeApproveRequest {
   notification_id: string
-  start_time?: string   // ISO datetime override
-  end_time?: string     // ISO datetime override
+  start_time?: string
+  end_time?: string
+  is_recurring?: boolean
+  recurrence?: {
+    frequency: RecurrenceFrequency
+    days_of_week?: DayOfWeek[]
+    recurrence_end_date?: string
+  }
 }
 
 export interface OvertimeRejectRequest {

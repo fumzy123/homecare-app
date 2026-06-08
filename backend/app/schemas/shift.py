@@ -154,8 +154,10 @@ class OvertimeApprovalRequestSchema(BaseModel):
 # ─────────────────────────────────────────
 class OvertimeApproveSchema(BaseModel):
     notification_id: UUID
-    start_time:      datetime | None = None   # optional time override
-    end_time:        datetime | None = None   # optional time override
+    start_time:      datetime | None = None        # manager override
+    end_time:        datetime | None = None        # manager override
+    is_recurring:    bool | None = None            # None = use notification payload value
+    recurrence:      RecurrenceSchema | None = None
 
 
 # ─────────────────────────────────────────

@@ -1,31 +1,50 @@
 import { useState, useEffect } from 'react'
-import { format, differenceInMinutes, addDays } from 'date-fns'
-import { Kicker, TimeInput } from '@/shared/components/ui'
+import { format, differenceInMinutes } from 'date-fns'
+import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { useOvertimeReviewStore } from '@/features/notifications/useOvertimeReviewStore'
 import { useApproveOvertime, useRejectOvertime } from '@/features/shifts/hooks/useOvertimeMutations'
 import { useMarkResolved } from '@/features/notifications/hooks'
 import type { OvertimeNotificationPayload } from '@/features/notifications/api'
+import {
+  type DayOfWeek,
+  type RecurrenceFrequency,
+  ORDERED_DAYS,
+  DAY_LABELS,
+  type OvertimeApproveRequest,
+} from '@/features/shifts/api'
 
 type DrawerMode = 'default' | 'edit' | 'reject'
-
-const DAY_LABELS: Record<string, string> = {
-  MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat', SU: 'Sun',
-}
 
 function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
+function nextDay(dateStr: string): string {
+  if (!dateStr) return ''
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + 1)
+  return format(dt, 'yyyy-MM-dd')
+}
+
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 
 export function OvertimeReviewDrawer() {
   const { notification, close } = useOvertimeReviewStore()
-  const [mode, setMode]               = useState<DrawerMode>('default')
-  const [editStartTime, setEditStartTime] = useState('')
-  const [editEndTime, setEditEndTime]     = useState('')
+  const [mode, setMode]                   = useState<DrawerMode>('default')
   const [rejectReason, setRejectReason]   = useState('')
-  const [error, setError]             = useState<string | null>(null)
+  const [error, setError]                 = useState<string | null>(null)
+
+  // Edit state — mirrors CreateShiftDrawer's scheduling fields
+  const [editDate, setEditDate]                           = useState('')
+  const [editEndDate, setEditEndDate]                     = useState('')
+  const [editStartTime, setEditStartTime]                 = useState('')
+  const [editEndTime, setEditEndTime]                     = useState('')
+  const [editIsRecurring, setEditIsRecurring]             = useState(false)
+  const [editFrequency, setEditFrequency]                 = useState<RecurrenceFrequency>('weekly')
+  const [editDaysOfWeek, setEditDaysOfWeek]               = useState<DayOfWeek[]>([])
+  const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState('')
 
   const { mutate: approveOvertime, isPending: approving } = useApproveOvertime()
   const { mutate: rejectOvertime,  isPending: rejecting  } = useRejectOvertime()
@@ -37,17 +56,29 @@ export function OvertimeReviewDrawer() {
     setMode('default')
     setError(null)
     setRejectReason('')
-    if (p.start_time) setEditStartTime(format(new Date(p.start_time), 'HH:mm'))
-    if (p.end_time)   setEditEndTime(format(new Date(p.end_time), 'HH:mm'))
+    if (p.start_time) {
+      const d = new Date(p.start_time)
+      setEditDate(format(d, 'yyyy-MM-dd'))
+      setEditStartTime(format(d, 'HH:mm'))
+    }
+    if (p.end_time) {
+      const d = new Date(p.end_time)
+      setEditEndDate(format(d, 'yyyy-MM-dd'))
+      setEditEndTime(format(d, 'HH:mm'))
+    }
+    setEditIsRecurring(p.is_recurring ?? false)
+    setEditFrequency((p.recurrence?.frequency as RecurrenceFrequency) ?? 'weekly')
+    setEditDaysOfWeek((p.recurrence?.days_of_week as DayOfWeek[]) ?? [])
+    setEditRecurrenceEndDate(p.recurrence?.recurrence_end_date ?? '')
   }, [notification?.id])
 
   if (!notification) return null
 
-  const p            = notification.payload as OvertimeNotificationPayload
-  const isResolved   = notification.resolved_at !== null
-  const hasFullCtx   = !!(p.client_id && p.start_time && p.end_time)
+  const p          = notification.payload as OvertimeNotificationPayload
+  const isResolved = notification.resolved_at !== null
+  const hasFullCtx = !!(p.client_id && p.start_time && p.end_time)
 
-  // Parse shift times
+  // Read-only display values
   const startDt      = p.start_time ? new Date(p.start_time) : null
   const endDt        = p.end_time   ? new Date(p.end_time)   : null
   const shiftDate    = startDt ? format(startDt, 'EEE, MMM d, yyyy') : null
@@ -58,24 +89,41 @@ export function OvertimeReviewDrawer() {
     ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}`
     : `${durationMins}m`
 
-  const workerName   = `${notification.worker_first_name} ${notification.worker_last_name}`
-  const recurrence   = p.recurrence
+  const workerName = `${notification.worker_first_name} ${notification.worker_last_name}`
+  const recurrence = p.recurrence
+
+  function toggleEditDay(day: DayOfWeek) {
+    setEditDaysOfWeek((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day])
+  }
 
   function handleApprove() {
     setError(null)
-    const req: { notification_id: string; start_time?: string; end_time?: string } = {
-      notification_id: notification!.id,
+    const req: OvertimeApproveRequest = { notification_id: notification!.id }
+
+    if (mode === 'edit') {
+      if (!editDate || !editStartTime || !editEndTime) {
+        setError('Please fill in the date and times.')
+        return
+      }
+      if (editIsRecurring && editFrequency === 'weekly' && editDaysOfWeek.length === 0) {
+        setError('Select at least one day for weekly recurrence.')
+        return
+      }
+      req.start_time   = `${editDate}T${editStartTime}:00`
+      req.end_time     = `${editEndDate || editDate}T${editEndTime}:00`
+      req.is_recurring = editIsRecurring
+      if (editIsRecurring) {
+        req.recurrence = {
+          frequency: editFrequency,
+          days_of_week: editFrequency === 'weekly' ? editDaysOfWeek : undefined,
+          recurrence_end_date: editRecurrenceEndDate || undefined,
+        }
+      }
     }
-    if (mode === 'edit' && startDt) {
-      const dateStr    = format(startDt, 'yyyy-MM-dd')
-      const isOvernight = editEndTime < editStartTime
-      const endDateStr = isOvernight ? format(addDays(startDt, 1), 'yyyy-MM-dd') : dateStr
-      req.start_time = `${dateStr}T${editStartTime}:00`
-      req.end_time   = `${endDateStr}T${editEndTime}:00`
-    }
+
     approveOvertime(req, {
       onSuccess: () => close(),
-      onError: (err) => setError(err instanceof Error ? err.message : 'Failed to approve. Try again.'),
+      onError:   (err) => setError(err instanceof Error ? err.message : 'Failed to approve. Try again.'),
     })
   }
 
@@ -94,7 +142,7 @@ export function OvertimeReviewDrawer() {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-ink/20" onClick={close} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[400px] flex-col bg-paper border-l border-ink">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col bg-paper border-l border-ink">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
@@ -112,20 +160,20 @@ export function OvertimeReviewDrawer() {
 
           {/* Worker */}
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft mb-1">Worker</p>
+            <p className={labelClass}>Worker</p>
             <p className="font-mono text-[12px] text-ink font-medium">{workerName}</p>
           </div>
 
           {/* Client */}
           {hasFullCtx && (
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft mb-1">Client</p>
+              <p className={labelClass}>Client</p>
               <p className="font-mono text-[12px] text-ink">{p.client_name ?? '—'}</p>
             </div>
           )}
 
-          {/* Proposed shift */}
-          {hasFullCtx && shiftDate && (
+          {/* Proposed shift — read-only summary */}
+          {hasFullCtx && shiftDate && mode === 'default' && (
             <div className="border border-line-faint bg-cream-2 px-4 py-3 flex flex-col gap-2">
               <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft">Proposed Shift</p>
               <p className="font-mono text-[11px] text-ink">{shiftDate}</p>
@@ -137,7 +185,7 @@ export function OvertimeReviewDrawer() {
                 <p className="font-mono text-[10px] text-ink-soft">
                   Recurring {recurrence.frequency}
                   {recurrence.days_of_week?.length
-                    ? ` — ${recurrence.days_of_week.map((d) => DAY_LABELS[d] ?? d).join(', ')}`
+                    ? ` — ${recurrence.days_of_week.map((d) => DAY_LABELS[d as DayOfWeek] ?? d).join(', ')}`
                     : ''}
                   {recurrence.recurrence_end_date
                     ? ` · ends ${format(parseLocalDate(recurrence.recurrence_end_date), 'MMM d, yyyy')}`
@@ -162,7 +210,7 @@ export function OvertimeReviewDrawer() {
 
           {/* Requested by + note */}
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft mb-1">Requested by</p>
+            <p className={labelClass}>Requested by</p>
             <p className="font-mono text-[11px] text-ink">{p.requesting_member_name ?? '—'}</p>
             {p.note && (
               <p className="mt-1.5 font-mono text-[10px] text-ink-soft italic border-l-2 border-line-soft pl-3">
@@ -171,27 +219,142 @@ export function OvertimeReviewDrawer() {
             )}
           </div>
 
-          {/* Adjust times (edit mode) */}
+          {/* ── Edit mode — full shift editor ────────────────────────────────── */}
           {mode === 'edit' && hasFullCtx && (
-            <div className="border-t border-dashed border-line-soft pt-4 flex flex-col gap-3">
-              <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft">Adjust Times</p>
+            <div className="border-t border-dashed border-line-soft pt-4 flex flex-col gap-4">
+              <p className={labelClass}>Edit Shift Details</p>
+
+              {/* Date row — second column appears when overnight */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>{editEndDate !== editDate ? 'Start Date' : 'Date'}</label>
+                  <DateInput
+                    value={editDate}
+                    onChange={(v) => {
+                      const wasOvernight = editEndDate === nextDay(editDate)
+                      setEditDate(v)
+                      setEditEndDate(wasOvernight ? nextDay(v) : v)
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                {editEndDate !== editDate && (
+                  <div>
+                    <label className={labelClass}>End Date</label>
+                    <DateInput value={editEndDate} min={editDate} onChange={setEditEndDate} className="w-full" />
+                  </div>
+                )}
+              </div>
+
+              {/* Times */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Start Time</label>
-                  <TimeInput value={editStartTime} onChange={setEditStartTime} className="w-full" />
+                  <TimeInput
+                    value={editStartTime}
+                    className="w-full"
+                    onChange={(v) => {
+                      setEditStartTime(v)
+                      if (v && editEndTime && editEndTime <= v && editEndDate === editDate) setEditEndDate(nextDay(editDate))
+                      if (v && editEndTime && editEndTime > v  && editEndDate === nextDay(editDate)) setEditEndDate(editDate)
+                    }}
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>End Time</label>
-                  <TimeInput value={editEndTime} onChange={setEditEndTime} className="w-full" />
+                  <TimeInput
+                    value={editEndTime}
+                    className="w-full"
+                    onChange={(v) => {
+                      setEditEndTime(v)
+                      if (v && editStartTime && v <= editStartTime && editEndDate === editDate) setEditEndDate(nextDay(editDate))
+                      if (v && editStartTime && v > editStartTime  && editEndDate === nextDay(editDate)) setEditEndDate(editDate)
+                    }}
+                  />
                 </div>
+              </div>
+
+              {/* Recurrence */}
+              <div className="border-t border-dashed border-line-soft pt-3 flex flex-col gap-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={editIsRecurring}
+                    onClick={() => setEditIsRecurring((v) => !v)}
+                    className={`relative inline-flex h-5 w-9 items-center border transition-colors ${
+                      editIsRecurring ? 'bg-ink border-ink' : 'bg-cream-2 border-line-soft'
+                    }`}
+                  >
+                    <span className={`inline-block h-3 w-3 bg-cream transition-transform ${editIsRecurring ? 'translate-x-5' : 'translate-x-1'}`} />
+                  </button>
+                  <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
+                    Repeat this shift
+                  </span>
+                </label>
+
+                {editIsRecurring && (
+                  <>
+                    {/* Frequency */}
+                    <div>
+                      <p className={labelClass}>Frequency</p>
+                      <div className="flex gap-2 mt-1">
+                        {(['daily', 'weekly'] as RecurrenceFrequency[]).map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => setEditFrequency(f)}
+                            className={`px-4 py-2 font-mono text-[10px] tracking-[0.05em] uppercase border transition-colors ${
+                              editFrequency === f ? 'bg-ink text-cream border-ink' : 'border-ink text-ink-soft hover:text-ink'
+                            }`}
+                          >
+                            {f === 'daily' ? 'Daily' : 'Weekly'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Days of week */}
+                    {editFrequency === 'weekly' && (
+                      <div>
+                        <p className={labelClass}>Days</p>
+                        <div className="flex gap-1.5 mt-1 flex-wrap">
+                          {ORDERED_DAYS.map((day) => (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => toggleEditDay(day)}
+                              className={`h-8 w-9 font-mono text-[9px] tracking-[0.05em] uppercase border transition-colors ${
+                                editDaysOfWeek.includes(day)
+                                  ? 'bg-ink text-cream border-ink'
+                                  : 'border-ink text-ink-soft hover:text-ink'
+                              }`}
+                            >
+                              {DAY_LABELS[day]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recurrence end date */}
+                    <div>
+                      <label className={labelClass}>
+                        Series End Date <span className="normal-case text-muted">(optional)</span>
+                      </label>
+                      <DateInput value={editRecurrenceEndDate} onChange={setEditRecurrenceEndDate} className="w-full" />
+                      <p className="mt-1 font-mono text-[9px] text-muted">Leave blank to repeat indefinitely.</p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* Reject reason (reject mode) */}
+          {/* Reject reason */}
           {mode === 'reject' && (
             <div className="border-t border-dashed border-line-soft pt-4 flex flex-col gap-3">
-              <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-soft">Reason (optional)</p>
+              <p className={labelClass}>Reason (optional)</p>
               <textarea
                 className="w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink resize-none"
                 rows={3}

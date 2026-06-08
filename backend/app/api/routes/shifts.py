@@ -90,9 +90,11 @@ async def approve_overtime(
     if not p.get("client_id") or not p.get("start_time") or not p.get("end_time"):
         raise AppError(status_code=400, code="INCOMPLETE_SHIFT_CONTEXT", message="Notification missing shift details — approve by editing the shift directly")
 
-    recurrence = None
-    if p.get("is_recurring") and p.get("recurrence"):
-        recurrence = RecurrenceSchema(**p["recurrence"])
+    # Manager's recurrence edit takes precedence over the notification payload
+    if payload.is_recurring is not None:
+        recurrence = payload.recurrence if payload.is_recurring else None
+    else:
+        recurrence = RecurrenceSchema(**p["recurrence"]) if p.get("is_recurring") and p.get("recurrence") else None
 
     shift_payload = ShiftCreateSchema(
         worker_id=notification.worker_id,
