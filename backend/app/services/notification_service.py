@@ -136,6 +136,24 @@ class NotificationService:
         self.repo.create_reads_for_workers(notification.id, org_id)
         self.db.commit()
 
+    # ── Worker-facing reads ───────────────────────────────────────────────────
+
+    def list_for_current_worker(self) -> NotificationListResponse:
+        member = self._resolve_member()
+        rows = self.repo.list_for_worker(
+            worker_id=member.id,
+            org_id=member.org_id,
+        )
+        notifications = [
+            self._to_response(notif, read)
+            for notif, read in rows
+        ]
+        return NotificationListResponse(
+            notifications=notifications,
+            unread_count=self.repo.unread_count(member.id),
+            action_needed_count=0,
+        )
+
     # ── Admin-facing reads ────────────────────────────────────────────────────
 
     def list_for_current_admin(self) -> NotificationListResponse:

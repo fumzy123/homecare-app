@@ -15,6 +15,10 @@ class PlacementCloseSchema(BaseModel):
     reason: str | None = None
 
 
+class PlacementInterestSchema(BaseModel):
+    note: str | None = None
+
+
 class PlacementFillSchema(BaseModel):
     employment_id: UUID   # the worker being selected
 
@@ -50,3 +54,15 @@ class PlacementResponse(BaseModel):
 
 class PlacementDetailResponse(PlacementResponse):
     interests: list[InterestWorkerSummary]
+
+
+class WorkerPlacementResponse(BaseModel):
+    id:                UUID
+    status:            PlacementStatus
+    masked_location:   str
+    shift_description: str
+    requirements:      str | None
+    created_at:        datetime
+    has_interest:      bool
+
+    model_config = {"from_attributes": True}

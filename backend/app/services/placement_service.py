@@ -9,6 +9,7 @@ from app.schemas.placement import (
     PlacementCreateSchema,
     PlacementResponse,
     PlacementDetailResponse,
+    WorkerPlacementResponse,
     InterestWorkerSummary,
 )
 
@@ -81,6 +82,21 @@ class PlacementService:
         return self._to_detail(placement)
 
     # ── Worker actions ────────────────────────────────────────────────────────
+
+    def get_for_worker(self, placement_id: UUID) -> WorkerPlacementResponse:
+        placement = self.repo.get_by_id(placement_id)
+        if not placement or placement.org_id != self.org_id:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Placement not found")
+        has_interest = bool(self.repo.get_interest(placement_id, self.employment_id))
+        return WorkerPlacementResponse(
+            id=placement.id,
+            status=placement.status,
+            masked_location=placement.masked_location,
+            shift_description=placement.shift_description,
+            requirements=placement.requirements,
+            created_at=placement.created_at,
+            has_interest=has_interest,
+        )
 
     def express_interest(
         self, placement_id: UUID, employment_id: UUID, note: str | None

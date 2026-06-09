@@ -144,6 +144,35 @@ class NotificationRepository:
         )
         return rows
 
+    def list_for_worker(
+        self,
+        worker_id: UUID,
+        org_id: UUID,
+        limit: int = 30,
+    ) -> list[tuple[Notification, NotificationRead | None]]:
+        """Return (notification, read_row) pairs for this worker, newest first."""
+        rows = (
+            self.db.query(Notification, NotificationRead)
+            .outerjoin(
+                NotificationRead,
+                and_(
+                    NotificationRead.notification_id == Notification.id,
+                    NotificationRead.recipient_id == worker_id,
+                ),
+            )
+            .filter(
+                Notification.org_id == org_id,
+                Notification.target_audience.in_([
+                    TargetAudience.workers_only,
+                    TargetAudience.all,
+                ]),
+            )
+            .order_by(Notification.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return rows
+
     def unread_count(self, recipient_id: UUID) -> int:
         return (
             self.db.query(NotificationRead)

@@ -11,6 +11,7 @@ import { LaterTodaySection } from '@/features/home/components/LaterTodaySection'
 import { NeedsYouToday } from '@/features/home/components/NeedsYouToday';
 import { ComplianceAlert } from '@/features/profile/components/ComplianceAlert';
 import { useMyCredentials } from '@/features/profile/hooks/useMyCredentials';
+import { useMyNotifications } from '@/features/notifications/hooks/useMyNotifications';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 function partitionShifts(shifts: ShiftOccurrence[]) {
@@ -25,6 +26,7 @@ export default function HomeScreen() {
   const { data: profile } = useWorkerProfile();
   const { data: stats } = useWorkerStats();
   const { data: credentials = [] } = useMyCredentials();
+  const { data: notificationsData } = useMyNotifications();
   const { refreshing, onRefresh } = useRefreshControl(refetch);
 
   const { next, later, total } = partitionShifts(shifts);
@@ -47,7 +49,7 @@ export default function HomeScreen() {
           />
         }
       >
-        <HomeHeader profile={profile} />
+        <HomeHeader profile={profile} notificationCount={notificationsData?.unread_count ?? 0} />
 
         <WorkerStatsRow stats={stats} />
 

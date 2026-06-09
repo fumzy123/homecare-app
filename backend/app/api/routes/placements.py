@@ -2,7 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.security import require_admin
+from app.core.security import require_admin, get_current_user
 from app.core.exceptions import AppError
 from app.core.enums import PlacementStatus
 from app.repositories.organization_repository import OrganizationRepository
@@ -11,6 +11,7 @@ from app.schemas.placement import (
     PlacementCreateSchema,
     PlacementFillSchema,
     PlacementCloseSchema,
+    PlacementInterestSchema,
     PlacementResponse,
     PlacementDetailResponse,
 )
@@ -20,6 +21,16 @@ router = APIRouter(prefix="/placements", tags=["Placements"])
 
 def get_placement_service(
     current_user=Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> PlacementService:
+    employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
+    if not employment:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
+    return PlacementService(db, current_user, org_id=employment.org_id)
+
+
+def get_placement_worker_service(
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PlacementService:
     employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
@@ -83,3 +94,26 @@ async def close_placement(
     service: PlacementService = Depends(get_placement_service),
 ):
     return service.close_placement(placement_id)
+
+
+# ─────────────────────────────────────────
+# 6. Express interest (worker)
+# ─────────────────────────────────────────
+@router.post("/{placement_id}/interest", status_code=204)
+async def express_interest(
+    placement_id: UUID,
+    payload: PlacementInterestSchema,
+    service: PlacementService = Depends(get_placement_worker_service),
+):
+    service.express_interest(placement_id, service.employment_id, payload.note)
+
+
+# ─────────────────────────────────────────
+# 7. Withdraw interest (worker)
+# ─────────────────────────────────────────
+@router.delete("/{placement_id}/interest", status_code=204)
+async def withdraw_interest(
+    placement_id: UUID,
+    service: PlacementService = Depends(get_placement_worker_service),
+):
+    service.withdraw_interest(placement_id, service.employment_id)
