@@ -89,7 +89,7 @@ export function OvertimeReviewDrawer() {
     ? `${Math.floor(durationMins / 60)}h${durationMins % 60 > 0 ? ` ${durationMins % 60}m` : ''}`
     : `${durationMins}m`
 
-  const workerName = `${notification.worker_first_name} ${notification.worker_last_name}`
+  const workerName = `${notification.about_worker_first_name ?? ''} ${notification.about_worker_last_name ?? ''}`.trim()
   const recurrence = p.recurrence
 
   function toggleEditDay(day: DayOfWeek) {
@@ -200,7 +200,7 @@ export function OvertimeReviewDrawer() {
             <div className="border border-orange bg-cream-2 px-4 py-3">
               <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-orange mb-1.5">Overtime Warning</p>
               <p className="font-mono text-[10px] text-ink leading-relaxed">
-                Approving this shift would bring {notification.worker_first_name} to{' '}
+                Approving this shift would bring {notification.about_worker_first_name} to{' '}
                 <strong>{p.total_hours}h</strong> for the week of{' '}
                 {format(parseLocalDate(p.week_start), 'MMM d')}–{format(parseLocalDate(p.week_end), 'MMM d, yyyy')},
                 above the 40h threshold.

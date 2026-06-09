@@ -5,6 +5,9 @@ export type NotificationType =
   | 'credential_uploaded'
   | 'shift_dropped'
   | 'overtime_approval_requested'
+  | 'placement_created'
+
+export type TargetAudience = 'admins_only' | 'workers_only' | 'all' | 'individual'
 
 export interface OvertimeNotificationPayload {
   requesting_member_id: string
@@ -26,12 +29,22 @@ export interface OvertimeNotificationPayload {
   note: string | null
 }
 
+export interface PlacementNotificationPayload {
+  placement_id: string
+  masked_location: string
+  shift_description: string
+  requirements: string | null
+}
+
 export interface Notification {
   id: string
   type: NotificationType
-  worker_id: string
-  worker_first_name: string
-  worker_last_name: string
+  target_audience: TargetAudience
+  about_worker_id: string | null
+  about_worker_first_name: string | null
+  about_worker_last_name: string | null
+  about_client_id: string | null
+  triggered_by_id: string | null
   payload: Record<string, unknown>
   requires_action: boolean
   resolved_at: string | null

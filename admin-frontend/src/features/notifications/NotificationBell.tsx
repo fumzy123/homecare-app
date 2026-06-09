@@ -10,36 +10,42 @@ import { DOCUMENT_LABELS } from '@/features/workers/constants'
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function notificationTitle(n: Notification): string {
-  const name = `${n.worker_first_name} ${n.worker_last_name}`
+  const workerName = n.about_worker_first_name
+    ? `${n.about_worker_first_name} ${n.about_worker_last_name}`
+    : null
   switch (n.type as NotificationType) {
     case 'credential_uploaded': {
       const label = DOCUMENT_LABELS[n.payload.document_type as string] ?? n.payload.document_type
-      return `${name} uploaded ${label}`
+      return `${workerName} uploaded ${label}`
     }
     case 'profile_updated': {
       const fields = (n.payload.changed_fields as string[]) ?? []
-      return `${name} updated their profile`
+      return `${workerName} updated their profile`
         + (fields.length ? ` (${fields.map((f) => f.replace(/_/g, ' ')).join(', ')})` : '')
     }
     case 'shift_dropped':
-      return `${name} dropped a shift — ${n.payload.client_name ?? ''}`
+      return `${workerName} dropped a shift — ${n.payload.client_name ?? ''}`
     case 'overtime_approval_requested':
-      return `${n.payload.requesting_member_name ?? 'Someone'} requested overtime for ${name}`
+      return `${n.payload.requesting_member_name ?? 'Someone'} requested overtime for ${workerName}`
+    case 'placement_created':
+      return `New placement available — ${n.payload.masked_location ?? ''}`
     default:
-      return `Update from ${name}`
+      return workerName ? `Update from ${workerName}` : 'New notification'
   }
 }
 
 function notificationDestination(n: Notification): string {
   switch (n.type as NotificationType) {
     case 'credential_uploaded':
-      return `/dashboard/workers/${n.worker_id}/documents`
+      return `/dashboard/workers/${n.about_worker_id}/documents`
     case 'profile_updated':
-      return `/dashboard/workers/${n.worker_id}/edit`
+      return `/dashboard/workers/${n.about_worker_id}/edit`
     case 'shift_dropped':
-      return `/dashboard/workers/${n.worker_id}`
+      return `/dashboard/workers/${n.about_worker_id}`
+    case 'placement_created':
+      return `/dashboard/placements/${n.payload.placement_id}`
     default:
-      return `/dashboard/workers/${n.worker_id}`
+      return n.about_worker_id ? `/dashboard/workers/${n.about_worker_id}` : '/dashboard'
   }
 }
 
