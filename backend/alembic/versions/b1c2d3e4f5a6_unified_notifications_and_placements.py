@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 
 
 revision: str = 'b1c2d3e4f5a6'
@@ -74,7 +75,7 @@ def upgrade() -> None:
         sa.Column('masked_location', sa.String(), nullable=False),
         sa.Column(
             'status',
-            sa.Enum('open', 'filled', 'closed', name='placementstatus', create_type=False),
+            PgEnum('open', 'filled', 'closed', name='placementstatus', create_type=False),
             nullable=False,
             server_default='open',
         ),
