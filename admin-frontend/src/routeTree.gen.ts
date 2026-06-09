@@ -34,8 +34,10 @@ import { Route as ProtectedSettingsAgencyRouteImport } from './routes/_protected
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
 import { Route as ProtectedDashboardTimesheetIndexRouteImport } from './routes/_protected/dashboard/timesheet/index'
 import { Route as ProtectedDashboardShiftsIndexRouteImport } from './routes/_protected/dashboard/shifts/index'
+import { Route as ProtectedDashboardPlacementsIndexRouteImport } from './routes/_protected/dashboard/placements/index'
 import { Route as ProtectedDashboardClientsIndexRouteImport } from './routes/_protected/dashboard/clients/index'
 import { Route as ProtectedDashboardWorkersWorkerIdRouteImport } from './routes/_protected/dashboard/workers/$workerId'
+import { Route as ProtectedDashboardPlacementsPlacementIdRouteImport } from './routes/_protected/dashboard/placements/$placementId'
 import { Route as ProtectedDashboardClientsClientIdRouteImport } from './routes/_protected/dashboard/clients/$clientId'
 import { Route as ProtectedDashboardWorkersWorkerIdIndexRouteImport } from './routes/_protected/dashboard/workers/$workerId/index'
 import { Route as ProtectedDashboardClientsClientIdIndexRouteImport } from './routes/_protected/dashboard/clients/$clientId/index'
@@ -175,6 +177,12 @@ const ProtectedDashboardShiftsIndexRoute =
     path: '/dashboard/shifts/',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedDashboardPlacementsIndexRoute =
+  ProtectedDashboardPlacementsIndexRouteImport.update({
+    id: '/dashboard/placements/',
+    path: '/dashboard/placements/',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 const ProtectedDashboardClientsIndexRoute =
   ProtectedDashboardClientsIndexRouteImport.update({
     id: '/dashboard/clients/',
@@ -185,6 +193,12 @@ const ProtectedDashboardWorkersWorkerIdRoute =
   ProtectedDashboardWorkersWorkerIdRouteImport.update({
     id: '/dashboard/workers/$workerId',
     path: '/dashboard/workers/$workerId',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
+const ProtectedDashboardPlacementsPlacementIdRoute =
+  ProtectedDashboardPlacementsPlacementIdRouteImport.update({
+    id: '/dashboard/placements/$placementId',
+    path: '/dashboard/placements/$placementId',
     getParentRoute: () => ProtectedRoute,
   } as any)
 const ProtectedDashboardClientsClientIdRoute =
@@ -265,8 +279,10 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof ProtectedDashboardIndexRoute
   '/settings/': typeof ProtectedSettingsIndexRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
+  '/dashboard/placements/$placementId': typeof ProtectedDashboardPlacementsPlacementIdRoute
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
+  '/dashboard/placements/': typeof ProtectedDashboardPlacementsIndexRoute
   '/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
@@ -300,7 +316,9 @@ export interface FileRoutesByTo {
   '/settings/team': typeof ProtectedSettingsTeamRoute
   '/dashboard': typeof ProtectedDashboardIndexRoute
   '/settings': typeof ProtectedSettingsIndexRoute
+  '/dashboard/placements/$placementId': typeof ProtectedDashboardPlacementsPlacementIdRoute
   '/dashboard/clients': typeof ProtectedDashboardClientsIndexRoute
+  '/dashboard/placements': typeof ProtectedDashboardPlacementsIndexRoute
   '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
@@ -338,8 +356,10 @@ export interface FileRoutesById {
   '/_protected/dashboard/': typeof ProtectedDashboardIndexRoute
   '/_protected/settings/': typeof ProtectedSettingsIndexRoute
   '/_protected/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdRouteWithChildren
+  '/_protected/dashboard/placements/$placementId': typeof ProtectedDashboardPlacementsPlacementIdRoute
   '/_protected/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   '/_protected/dashboard/clients/': typeof ProtectedDashboardClientsIndexRoute
+  '/_protected/dashboard/placements/': typeof ProtectedDashboardPlacementsIndexRoute
   '/_protected/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/_protected/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
@@ -377,8 +397,10 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/settings/'
     | '/dashboard/clients/$clientId'
+    | '/dashboard/placements/$placementId'
     | '/dashboard/workers/$workerId'
     | '/dashboard/clients/'
+    | '/dashboard/placements/'
     | '/dashboard/shifts/'
     | '/dashboard/timesheet/'
     | '/dashboard/workers/'
@@ -412,7 +434,9 @@ export interface FileRouteTypes {
     | '/settings/team'
     | '/dashboard'
     | '/settings'
+    | '/dashboard/placements/$placementId'
     | '/dashboard/clients'
+    | '/dashboard/placements'
     | '/dashboard/shifts'
     | '/dashboard/timesheet'
     | '/dashboard/workers'
@@ -449,8 +473,10 @@ export interface FileRouteTypes {
     | '/_protected/dashboard/'
     | '/_protected/settings/'
     | '/_protected/dashboard/clients/$clientId'
+    | '/_protected/dashboard/placements/$placementId'
     | '/_protected/dashboard/workers/$workerId'
     | '/_protected/dashboard/clients/'
+    | '/_protected/dashboard/placements/'
     | '/_protected/dashboard/shifts/'
     | '/_protected/dashboard/timesheet/'
     | '/_protected/dashboard/workers/'
@@ -657,6 +683,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardShiftsIndexRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/dashboard/placements/': {
+      id: '/_protected/dashboard/placements/'
+      path: '/dashboard/placements'
+      fullPath: '/dashboard/placements/'
+      preLoaderRoute: typeof ProtectedDashboardPlacementsIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/dashboard/clients/': {
       id: '/_protected/dashboard/clients/'
       path: '/dashboard/clients'
@@ -669,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/workers/$workerId'
       fullPath: '/dashboard/workers/$workerId'
       preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
+    '/_protected/dashboard/placements/$placementId': {
+      id: '/_protected/dashboard/placements/$placementId'
+      path: '/dashboard/placements/$placementId'
+      fullPath: '/dashboard/placements/$placementId'
+      preLoaderRoute: typeof ProtectedDashboardPlacementsPlacementIdRouteImport
       parentRoute: typeof ProtectedRoute
     }
     '/_protected/dashboard/clients/$clientId': {
@@ -811,8 +851,10 @@ interface ProtectedRouteChildren {
   ProtectedUpgradeRoute: typeof ProtectedUpgradeRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRouteWithChildren
+  ProtectedDashboardPlacementsPlacementIdRoute: typeof ProtectedDashboardPlacementsPlacementIdRoute
   ProtectedDashboardWorkersWorkerIdRoute: typeof ProtectedDashboardWorkersWorkerIdRouteWithChildren
   ProtectedDashboardClientsIndexRoute: typeof ProtectedDashboardClientsIndexRoute
+  ProtectedDashboardPlacementsIndexRoute: typeof ProtectedDashboardPlacementsIndexRoute
   ProtectedDashboardShiftsIndexRoute: typeof ProtectedDashboardShiftsIndexRoute
   ProtectedDashboardTimesheetIndexRoute: typeof ProtectedDashboardTimesheetIndexRoute
   ProtectedDashboardWorkersIndexRoute: typeof ProtectedDashboardWorkersIndexRoute
@@ -824,9 +866,13 @@ const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedDashboardClientsClientIdRoute:
     ProtectedDashboardClientsClientIdRouteWithChildren,
+  ProtectedDashboardPlacementsPlacementIdRoute:
+    ProtectedDashboardPlacementsPlacementIdRoute,
   ProtectedDashboardWorkersWorkerIdRoute:
     ProtectedDashboardWorkersWorkerIdRouteWithChildren,
   ProtectedDashboardClientsIndexRoute: ProtectedDashboardClientsIndexRoute,
+  ProtectedDashboardPlacementsIndexRoute:
+    ProtectedDashboardPlacementsIndexRoute,
   ProtectedDashboardShiftsIndexRoute: ProtectedDashboardShiftsIndexRoute,
   ProtectedDashboardTimesheetIndexRoute: ProtectedDashboardTimesheetIndexRoute,
   ProtectedDashboardWorkersIndexRoute: ProtectedDashboardWorkersIndexRoute,

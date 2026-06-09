@@ -1,8 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { clientsApi } from '@/features/clients/api'
 import { Avatar } from '@/shared/components/ui'
+import { PostPlacementDrawer } from '@/features/placements/components/PostPlacementDrawer'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')({
   component: ClientLayout,
@@ -40,6 +42,7 @@ function ClientTabNav({ clientId }: { clientId: string }) {
 
 function ClientLayout() {
   const { clientId } = Route.useParams()
+  const [showPlacementDrawer, setShowPlacementDrawer] = useState(false)
 
   const { data: client, isLoading, isError } = useQuery({
     queryKey: ['client', clientId],
@@ -128,7 +131,22 @@ function ClientLayout() {
         >
           Edit →
         </Link>
+
+        <button
+          onClick={() => setShowPlacementDrawer(true)}
+          className="w-full bg-ink text-cream px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-orange transition-colors text-left"
+        >
+          ＊ Post as Available
+        </button>
       </div>
+
+      {showPlacementDrawer && (
+        <PostPlacementDrawer
+          clients={client ? [{ id: client.id, first_name: client.first_name, last_name: client.last_name }] : []}
+          preselectedClientId={clientId}
+          onClose={() => setShowPlacementDrawer(false)}
+        />
+      )}
 
       {/* ── Right: Tab nav + content ── */}
       <div className="flex-1 min-w-0 flex flex-col">
