@@ -19,16 +19,31 @@ function timeAgo(iso: string): string {
 }
 
 function notificationTitle(n: WorkerNotification): string {
-  if (n.type === 'placement_created') {
-    const loc = n.payload.masked_location as string | undefined;
-    return `New placement available${loc ? ` — ${loc}` : ''}`;
+  const loc = n.payload.masked_location as string | undefined;
+  const suffix = loc ? ` — ${loc}` : '';
+  switch (n.type) {
+    case 'placement_created':
+      return `New placement available${suffix}`;
+    case 'placement_filled':
+      return `You've been selected for the placement${suffix}`;
+    case 'placement_closed':
+      return `Placement no longer available${suffix}`;
+    default:
+      return 'New notification';
   }
-  return 'New notification';
 }
 
 function notificationIcon(type: string): React.ComponentProps<typeof Ionicons>['name'] {
-  if (type === 'placement_created') return 'briefcase-outline';
-  return 'notifications-outline';
+  switch (type) {
+    case 'placement_created':
+      return 'briefcase-outline';
+    case 'placement_filled':
+      return 'checkmark-circle-outline';
+    case 'placement_closed':
+      return 'close-circle-outline';
+    default:
+      return 'notifications-outline';
+  }
 }
 
 function NotificationRow({
@@ -80,7 +95,11 @@ export default function NotificationsScreen() {
     if (n.read_at === null) {
       markRead(n.id);
     }
-    if (n.type === 'placement_created') {
+    if (
+      n.type === 'placement_created' ||
+      n.type === 'placement_filled' ||
+      n.type === 'placement_closed'
+    ) {
       const placementId = n.payload.placement_id as string | undefined;
       if (placementId) {
         router.push(`/placements/${placementId}` as never);

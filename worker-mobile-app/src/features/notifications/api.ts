@@ -5,7 +5,9 @@ export type NotificationType =
   | 'credential_uploaded'
   | 'shift_dropped'
   | 'overtime_approval_requested'
-  | 'placement_created';
+  | 'placement_created'
+  | 'placement_filled'
+  | 'placement_closed';
 
 export interface WorkerNotification {
   id: string;

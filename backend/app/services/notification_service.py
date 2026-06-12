@@ -141,6 +141,60 @@ class NotificationService:
         if commit:
             self.db.commit()
 
+    def notify_placement_filled(
+        self,
+        org_id: UUID,
+        placement_id: UUID,
+        masked_location: str,
+        chosen_worker_id: UUID,
+        triggered_by_id: UUID,
+        commit: bool = True,
+    ) -> None:
+        """Tell the selected worker they were chosen for the placement."""
+        notification = self.repo.create(
+            org_id=org_id,
+            type=NotificationType.placement_filled,
+            payload={
+                "placement_id": str(placement_id),
+                "masked_location": masked_location,
+            },
+            requires_action=False,
+            target_audience=TargetAudience.individual,
+            recipient_id=chosen_worker_id,
+            triggered_by_id=triggered_by_id,
+        )
+        self.repo.create_read_for_individual(notification.id, chosen_worker_id)
+        if commit:
+            self.db.commit()
+
+    def notify_placement_closed(
+        self,
+        org_id: UUID,
+        placement_id: UUID,
+        masked_location: str,
+        recipient_ids: list[UUID],
+        triggered_by_id: UUID,
+        commit: bool = True,
+    ) -> None:
+        """Tell interested-but-not-selected workers the placement is closed."""
+        if not recipient_ids:
+            return
+        notification = self.repo.create(
+            org_id=org_id,
+            type=NotificationType.placement_closed,
+            payload={
+                "placement_id": str(placement_id),
+                "masked_location": masked_location,
+            },
+            requires_action=False,
+            target_audience=TargetAudience.individual,
+            triggered_by_id=triggered_by_id,
+        )
+        for recipient_id in recipient_ids:
+            self.repo.create_read_for_individual(notification.id, recipient_id)
+        if commit:
+            self.db.commit()
+
     # ── Worker-facing reads ───────────────────────────────────────────────────
 
     def list_for_current_worker(self) -> NotificationListResponse:

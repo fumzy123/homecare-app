@@ -73,8 +73,40 @@ class PlacementService:
         if placement.status != PlacementStatus.open:
             raise AppError(status_code=400, code="PLACEMENT_NOT_OPEN",
                            message="Placement is no longer open")
-        self.repo.fill(placement, employment_id)
-        self.db.commit()
+        # Only a worker who actually expressed interest can be selected.
+        if not self.repo.get_interest(placement_id, employment_id):
+            raise AppError(status_code=400, code="WORKER_NOT_INTERESTED",
+                           message="That worker has not expressed interest in this placement")
+
+        others = [i.employment_id for i in placement.interests if i.employment_id != employment_id]
+        try:
+            self.repo.fill(placement, employment_id)
+
+            notification_svc = NotificationService(self.db, current_user_id=self.employment_id)
+            # Tell the selected worker they were chosen.
+            notification_svc.notify_placement_filled(
+                org_id=self.org_id,
+                placement_id=placement.id,
+                masked_location=placement.masked_location,
+                chosen_worker_id=employment_id,
+                triggered_by_id=self.employment_id,
+                commit=False,
+            )
+            # Tell everyone else the placement is no longer available.
+            notification_svc.notify_placement_closed(
+                org_id=self.org_id,
+                placement_id=placement.id,
+                masked_location=placement.masked_location,
+                recipient_ids=others,
+                triggered_by_id=self.employment_id,
+                commit=False,
+            )
+
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(placement)
         return self._to_detail(placement)
 
@@ -83,8 +115,27 @@ class PlacementService:
         if placement.status != PlacementStatus.open:
             raise AppError(status_code=400, code="PLACEMENT_NOT_OPEN",
                            message="Placement is no longer open")
-        self.repo.close(placement)
-        self.db.commit()
+
+        interested = [i.employment_id for i in placement.interests]
+        try:
+            self.repo.close(placement)
+
+            # Tell interested workers the placement is no longer available.
+            notification_svc = NotificationService(self.db, current_user_id=self.employment_id)
+            notification_svc.notify_placement_closed(
+                org_id=self.org_id,
+                placement_id=placement.id,
+                masked_location=placement.masked_location,
+                recipient_ids=interested,
+                triggered_by_id=self.employment_id,
+                commit=False,
+            )
+
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(placement)
         return self._to_detail(placement)
 

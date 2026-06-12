@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from app.models.admin_notification import Notification, NotificationRead
 from app.models.employment import Employment
 from app.core.enums import NotificationType, TargetAudience, ADMIN_ROLES, OVERTIME_APPROVERS
@@ -162,10 +162,16 @@ class NotificationRepository:
             )
             .filter(
                 Notification.org_id == org_id,
-                Notification.target_audience.in_([
-                    TargetAudience.workers_only,
-                    TargetAudience.all,
-                ]),
+                or_(
+                    # Broadcast to all workers
+                    Notification.target_audience.in_([
+                        TargetAudience.workers_only,
+                        TargetAudience.all,
+                    ]),
+                    # Individually delivered to this worker (e.g. placement
+                    # filled/closed) — presence of a read row is the delivery.
+                    NotificationRead.recipient_id == worker_id,
+                ),
             )
             .order_by(Notification.created_at.desc())
             .limit(limit)

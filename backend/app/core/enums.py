@@ -57,6 +57,8 @@ class NotificationType(str, enum.Enum):
     shift_dropped                = "shift_dropped"
     overtime_approval_requested  = "overtime_approval_requested"
     placement_created            = "placement_created"
+    placement_filled             = "placement_filled"
+    placement_closed             = "placement_closed"
 
 class TargetAudience(str, enum.Enum):
     admins_only = "admins_only"
