@@ -56,6 +56,20 @@ class NotificationType(str, enum.Enum):
     credential_uploaded          = "credential_uploaded"
     shift_dropped                = "shift_dropped"
     overtime_approval_requested  = "overtime_approval_requested"
+    placement_created            = "placement_created"
+    placement_filled             = "placement_filled"
+    placement_closed             = "placement_closed"
+
+class TargetAudience(str, enum.Enum):
+    admins_only = "admins_only"
+    workers_only = "workers_only"
+    all          = "all"
+    individual   = "individual"
+
+class PlacementStatus(str, enum.Enum):
+    open   = "open"
+    filled = "filled"
+    closed = "closed"
 
 
 # Roles that receive admin notifications. Kept here (not in security.py)

@@ -7,11 +7,12 @@ import { authApi } from '@/features/auth/api'
 import { Avatar } from '@/shared/components/ui'
 
 const NAV = [
-  { to: '/dashboard',           num: '01', label: 'Dashboard'  },
-  { to: '/dashboard/workers',   num: '02', label: 'Workers'    },
-  { to: '/dashboard/clients',   num: '03', label: 'Clients'    },
-  { to: '/dashboard/shifts',    num: '04', label: 'Schedule'   },
-  { to: '/dashboard/timesheet', num: '05', label: 'Timesheets' },
+  { to: '/dashboard',            num: '01', label: 'Dashboard'  },
+  { to: '/dashboard/workers',    num: '02', label: 'Workers'    },
+  { to: '/dashboard/clients',    num: '03', label: 'Clients'    },
+  { to: '/dashboard/shifts',     num: '04', label: 'Schedule'   },
+  { to: '/dashboard/timesheet',  num: '05', label: 'Timesheets' },
+  { to: '/dashboard/placements', num: '06', label: 'Placements' },
 ]
 
 interface SidebarProps {

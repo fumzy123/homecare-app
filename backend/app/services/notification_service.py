@@ -1,7 +1,7 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.models.employment import Employment
-from app.core.enums import NotificationType
+from app.core.enums import NotificationType, TargetAudience
 from app.core.exceptions import AppError
 from app.repositories.notification_repository import NotificationRepository
 from app.schemas.notification import NotificationResponse, NotificationListResponse
@@ -13,7 +13,7 @@ class NotificationService:
         self.current_user_id = current_user_id
         self.repo = NotificationRepository(db)
 
-    # ── Called from BackgroundTasks (no current_user needed) ──────────────────
+    # ── Called from BackgroundTasks / other services (no current_user needed) ─
 
     def notify_credential_uploaded(
         self, org_id: UUID, worker_id: UUID, document_type: str
@@ -21,9 +21,11 @@ class NotificationService:
         notification = self.repo.create(
             org_id=org_id,
             type=NotificationType.credential_uploaded,
-            worker_id=worker_id,
             payload={"document_type": document_type},
             requires_action=True,
+            target_audience=TargetAudience.admins_only,
+            about_worker_id=worker_id,
+            triggered_by_id=worker_id,
         )
         self.repo.create_reads_for_admins(notification.id, org_id)
         self.db.commit()
@@ -36,9 +38,11 @@ class NotificationService:
         notification = self.repo.create(
             org_id=org_id,
             type=NotificationType.profile_updated,
-            worker_id=worker_id,
             payload={"changed_fields": changed_fields},
             requires_action=False,
+            target_audience=TargetAudience.admins_only,
+            about_worker_id=worker_id,
+            triggered_by_id=worker_id,
         )
         self.repo.create_reads_for_admins(notification.id, org_id)
         self.db.commit()
@@ -63,7 +67,6 @@ class NotificationService:
         notification = self.repo.create(
             org_id=org_id,
             type=NotificationType.overtime_approval_requested,
-            worker_id=worker_id,
             payload={
                 "requesting_member_id": str(requesting_member_id),
                 "requesting_member_name": requesting_member_name,
@@ -79,6 +82,9 @@ class NotificationService:
                 "note": note,
             },
             requires_action=True,
+            target_audience=TargetAudience.admins_only,
+            about_worker_id=worker_id,
+            triggered_by_id=requesting_member_id,
         )
         self.repo.create_reads_for_approvers(notification.id, org_id)
         self.db.commit()
@@ -90,16 +96,122 @@ class NotificationService:
         notification = self.repo.create(
             org_id=org_id,
             type=NotificationType.shift_dropped,
-            worker_id=worker_id,
             payload={
                 "shift_id": str(shift_id),
                 "occurrence_date": occurrence_date,
                 "client_name": client_name,
             },
             requires_action=True,
+            target_audience=TargetAudience.admins_only,
+            about_worker_id=worker_id,
+            triggered_by_id=worker_id,
         )
         self.repo.create_reads_for_admins(notification.id, org_id)
         self.db.commit()
+
+    def notify_placement_created(
+        self,
+        org_id: UUID,
+        placement_id: UUID,
+        admin_id: UUID,
+        client_id: UUID,
+        masked_location: str,
+        shift_description: str,
+        requirements: str | None,
+        commit: bool = True,
+    ) -> None:
+        notification = self.repo.create(
+            org_id=org_id,
+            type=NotificationType.placement_created,
+            payload={
+                "placement_id": str(placement_id),
+                "masked_location": masked_location,
+                "shift_description": shift_description,
+                "requirements": requirements,
+            },
+            requires_action=True,
+            target_audience=TargetAudience.workers_only,
+            about_client_id=client_id,
+            triggered_by_id=admin_id,
+        )
+        self.repo.create_reads_for_workers(notification.id, org_id)
+        # When part of a larger transaction (e.g. placement creation), the
+        # caller owns the commit so the notification and its trigger succeed
+        # or fail together.
+        if commit:
+            self.db.commit()
+
+    def notify_placement_filled(
+        self,
+        org_id: UUID,
+        placement_id: UUID,
+        masked_location: str,
+        chosen_worker_id: UUID,
+        triggered_by_id: UUID,
+        commit: bool = True,
+    ) -> None:
+        """Tell the selected worker they were chosen for the placement."""
+        notification = self.repo.create(
+            org_id=org_id,
+            type=NotificationType.placement_filled,
+            payload={
+                "placement_id": str(placement_id),
+                "masked_location": masked_location,
+            },
+            requires_action=False,
+            target_audience=TargetAudience.individual,
+            recipient_id=chosen_worker_id,
+            triggered_by_id=triggered_by_id,
+        )
+        self.repo.create_read_for_individual(notification.id, chosen_worker_id)
+        if commit:
+            self.db.commit()
+
+    def notify_placement_closed(
+        self,
+        org_id: UUID,
+        placement_id: UUID,
+        masked_location: str,
+        recipient_ids: list[UUID],
+        triggered_by_id: UUID,
+        commit: bool = True,
+    ) -> None:
+        """Tell interested-but-not-selected workers the placement is closed."""
+        if not recipient_ids:
+            return
+        notification = self.repo.create(
+            org_id=org_id,
+            type=NotificationType.placement_closed,
+            payload={
+                "placement_id": str(placement_id),
+                "masked_location": masked_location,
+            },
+            requires_action=False,
+            target_audience=TargetAudience.individual,
+            triggered_by_id=triggered_by_id,
+        )
+        for recipient_id in recipient_ids:
+            self.repo.create_read_for_individual(notification.id, recipient_id)
+        if commit:
+            self.db.commit()
+
+    # ── Worker-facing reads ───────────────────────────────────────────────────
+
+    def list_for_current_worker(self) -> NotificationListResponse:
+        member = self._resolve_member()
+        rows = self.repo.list_for_worker(
+            worker_id=member.id,
+            org_id=member.org_id,
+        )
+        notifications = [
+            self._to_response(notif, read)
+            for notif, read in rows
+        ]
+        return NotificationListResponse(
+            notifications=notifications,
+            unread_count=self.repo.unread_count(member.id),
+            action_needed_count=0,
+        )
 
     # ── Admin-facing reads ────────────────────────────────────────────────────
 
@@ -140,7 +252,6 @@ class NotificationService:
             raise AppError(status_code=400, code="NOT_ACTIONABLE",
                            message="This notification does not require action")
         self.repo.mark_resolved(notification, member.id)
-        # Also mark as read for this admin when they resolve it
         self.repo.mark_read(notification_id, member.id)
         self.db.commit()
 
@@ -157,12 +268,16 @@ class NotificationService:
 
     @staticmethod
     def _to_response(notif, read) -> NotificationResponse:
+        about_worker = notif.about_worker
         return NotificationResponse(
             id=notif.id,
             type=notif.type,
-            worker_id=notif.worker_id,
-            worker_first_name=notif.worker.person.first_name,
-            worker_last_name=notif.worker.person.last_name,
+            target_audience=notif.target_audience,
+            about_worker_id=notif.about_worker_id,
+            about_worker_first_name=about_worker.person.first_name if about_worker else None,
+            about_worker_last_name=about_worker.person.last_name if about_worker else None,
+            about_client_id=notif.about_client_id,
+            triggered_by_id=notif.triggered_by_id,
             payload=notif.payload,
             requires_action=notif.requires_action,
             resolved_at=notif.resolved_at,
