@@ -28,29 +28,36 @@ class PlacementService:
     # ── Admin actions ─────────────────────────────────────────────────────────
 
     def create_placement(self, payload: PlacementCreateSchema) -> PlacementDetailResponse:
-        placement = self.repo.create(
-            org_id=self.org_id,
-            client_id=payload.client_id,
-            created_by=self.employment_id,
-            shift_description=payload.shift_description,
-            masked_location=payload.masked_location,
-            requirements=payload.requirements,
-        )
-        self.db.commit()
+        try:
+            placement = self.repo.create(
+                org_id=self.org_id,
+                client_id=payload.client_id,
+                created_by=self.employment_id,
+                shift_description=payload.shift_description,
+                masked_location=payload.masked_location,
+                requirements=payload.requirements,
+            )
+
+            # Notify all workers in the same transaction: if the fan-out fails,
+            # the placement is rolled back rather than left orphaned.
+            notification_svc = NotificationService(self.db, current_user_id=self.employment_id)
+            notification_svc.notify_placement_created(
+                org_id=self.org_id,
+                placement_id=placement.id,
+                admin_id=self.employment_id,
+                client_id=payload.client_id,
+                masked_location=payload.masked_location,
+                shift_description=payload.shift_description,
+                requirements=payload.requirements,
+                commit=False,
+            )
+
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(placement)
-
-        # Notify all workers
-        notification_svc = NotificationService(self.db, current_user_id=self.employment_id)
-        notification_svc.notify_placement_created(
-            org_id=self.org_id,
-            placement_id=placement.id,
-            admin_id=self.employment_id,
-            client_id=payload.client_id,
-            masked_location=payload.masked_location,
-            shift_description=payload.shift_description,
-            requirements=payload.requirements,
-        )
-
         return self._to_detail(placement)
 
     def list_placements(self, status: PlacementStatus | None = None) -> list[PlacementResponse]:

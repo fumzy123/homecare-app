@@ -118,6 +118,7 @@ class NotificationService:
         masked_location: str,
         shift_description: str,
         requirements: str | None,
+        commit: bool = True,
     ) -> None:
         notification = self.repo.create(
             org_id=org_id,
@@ -134,7 +135,11 @@ class NotificationService:
             triggered_by_id=admin_id,
         )
         self.repo.create_reads_for_workers(notification.id, org_id)
-        self.db.commit()
+        # When part of a larger transaction (e.g. placement creation), the
+        # caller owns the commit so the notification and its trigger succeed
+        # or fail together.
+        if commit:
+            self.db.commit()
 
     # ── Worker-facing reads ───────────────────────────────────────────────────
 
