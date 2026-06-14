@@ -22,4 +22,4 @@ class CareScheduleBlock(Base):
     service_type = Column(Enum(ServiceType), nullable=False)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
-    client = relationship("Client", foreign_keys=[client_id])
+    client = relationship("Client", foreign_keys=[client_id], back_populates="care_schedule_blocks")

@@ -43,7 +43,7 @@ class Authorization(Base):
     created_at           = Column(DateTime(timezone=True), server_default=func.now())
     updated_at           = Column(DateTime(timezone=True), onupdate=func.now())
 
-    client     = relationship("Client", foreign_keys=[client_id])
+    client     = relationship("Client", foreign_keys=[client_id], back_populates="authorizations")
     creator    = relationship("Employment", foreign_keys=[created_by])
     supersedes = relationship("Authorization", remote_side=[id], foreign_keys=[supersedes_id])
     services   = relationship("AuthorizationService", back_populates="authorization",

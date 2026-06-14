@@ -1,8 +1,8 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
-from app.models.authorization import Authorization, AuthorizationService
+from app.models.authorization import Authorization
 
 
 class AuthorizationRepository:
@@ -44,9 +44,8 @@ class AuthorizationRepository:
         """Authorizations in effect on `on_date`: not cancelled, not superseded,
         and the date falls within the covering window."""
         superseded_ids = (
-            self.db.query(Authorization.supersedes_id)
-            .filter(Authorization.supersedes_id.isnot(None))
-            .subquery()
+            select(Authorization.supersedes_id)
+            .where(Authorization.supersedes_id.isnot(None))
         )
         return (
             self.db.query(Authorization)

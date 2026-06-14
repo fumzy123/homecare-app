@@ -60,10 +60,10 @@ class Client(Base):
     organization = relationship("Organization", back_populates="clients")
     assigned_worker = relationship("Employment")
     authorizations = relationship(
-        "Authorization", foreign_keys="Authorization.client_id",
-        cascade="all, delete-orphan",
+        "Authorization", back_populates="client",
+        foreign_keys="Authorization.client_id", cascade="all, delete-orphan",
     )
     care_schedule_blocks = relationship(
-        "CareScheduleBlock", foreign_keys="CareScheduleBlock.client_id",
-        cascade="all, delete-orphan",
+        "CareScheduleBlock", back_populates="client",
+        foreign_keys="CareScheduleBlock.client_id", cascade="all, delete-orphan",
     )
