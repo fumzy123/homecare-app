@@ -2,7 +2,7 @@ from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
-from app.core.enums import ClientStatus, ServiceType
+from app.core.enums import ClientStatus, ServiceType, AuthorizationCoverage
 
 
 class AssignedWorkerResponse(BaseModel):
@@ -40,8 +40,7 @@ class ClientCreateSchema(BaseModel):
     # Assignment (optional on create)
     assigned_worker_id: Optional[UUID] = None
 
-    # Care & Medical
-    service_type: ServiceType
+    # Medical
     medical_conditions: Optional[str] = None
     allergies: Optional[str] = None
     medications: Optional[str] = None
@@ -52,14 +51,8 @@ class ClientCreateSchema(BaseModel):
     emergency_contact_phone: str
     emergency_contact_relationship: str
 
-    # Requested Schedule
-    requested_schedule: Optional[dict] = None
-
     # Administrative
     status: ClientStatus = ClientStatus.active
-    care_start_date: date
-    care_end_date: Optional[date] = None
-    funding_source: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -81,8 +74,7 @@ class ClientUpdateSchema(BaseModel):
     # Assignment
     assigned_worker_id: Optional[UUID] = None
 
-    # Care & Medical
-    service_type: Optional[ServiceType] = None
+    # Medical
     medical_conditions: Optional[str] = None
     allergies: Optional[str] = None
     medications: Optional[str] = None
@@ -93,14 +85,8 @@ class ClientUpdateSchema(BaseModel):
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
 
-    # Requested Schedule
-    requested_schedule: Optional[dict] = None
-
     # Administrative
     status: Optional[ClientStatus] = None
-    care_start_date: Optional[date] = None
-    care_end_date: Optional[date] = None
-    funding_source: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -126,8 +112,7 @@ class ClientResponse(BaseModel):
     assigned_worker_id: Optional[UUID]
     assigned_worker: Optional[AssignedWorkerResponse]
 
-    # Care & Medical
-    service_type: ServiceType
+    # Medical
     medical_conditions: Optional[str]
     allergies: Optional[str]
     medications: Optional[str]
@@ -138,15 +123,15 @@ class ClientResponse(BaseModel):
     emergency_contact_phone: str
     emergency_contact_relationship: str
 
-    # Requested Schedule
-    requested_schedule: Optional[dict]
-
     # Administrative
     status: ClientStatus
-    care_start_date: date
-    care_end_date: Optional[date]
-    funding_source: Optional[str]
     notes: Optional[str]
+
+    # Derived from authorizations (not stored on the client)
+    service_types: list[ServiceType] = []
+    care_start: Optional[date] = None
+    care_end: Optional[date] = None
+    coverage: AuthorizationCoverage = AuthorizationCoverage.covered
 
     # Metadata
     created_at: Optional[datetime]

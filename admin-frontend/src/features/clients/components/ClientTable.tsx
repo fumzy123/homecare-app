@@ -29,10 +29,12 @@ const columns = [
     header: 'Status',
     cell: ({ getValue }) => <ClientStatusBadge status={getValue()} />,
   }),
-  columnHelper.accessor('service_type', {
+  columnHelper.accessor('service_types', {
     header: 'Service',
     cell: ({ getValue }) => (
-      <span className="text-gray-600">{SERVICE_TYPE_LABELS[getValue()]}</span>
+      <span className="text-gray-600">
+        {getValue().map((t) => SERVICE_TYPE_LABELS[t]).join(', ') || '—'}
+      </span>
     ),
   }),
   columnHelper.display({
@@ -50,17 +52,16 @@ const columns = [
       <span className="text-gray-600">{getValue() ?? '—'}</span>
     ),
   }),
-  columnHelper.accessor('care_start_date', {
+  columnHelper.accessor('care_start', {
     header: 'Care Start',
-    cell: ({ getValue }) => (
-      <span className="text-gray-600">
-        {new Date(getValue()).toLocaleDateString('en-CA', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        })}
-      </span>
-    ),
+    cell: ({ getValue }) => {
+      const v = getValue()
+      return (
+        <span className="text-gray-600">
+          {v ? new Date(v).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+        </span>
+      )
+    },
   }),
   columnHelper.display({
     id: 'worker',

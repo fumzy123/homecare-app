@@ -182,14 +182,20 @@ function ClientRow({ client, index }: { client: Client; index: number }) {
           {[client.city, client.province, client.postal_code].filter(Boolean).join(', ')}
         </p>
       </div>
-      <div className="px-4 py-3.5">
-        <Tag variant="default">{SERVICE_TYPE_LABELS[client.service_type] ?? client.service_type}</Tag>
+      <div className="px-4 py-3.5 flex flex-wrap gap-1">
+        {client.service_types.length > 0
+          ? client.service_types.map((t) => (
+              <Tag key={t} variant="default">{SERVICE_TYPE_LABELS[t] ?? t}</Tag>
+            ))
+          : <span className="font-mono text-[10px] text-ink-soft">—</span>}
       </div>
       <div className="px-4 py-3.5">
         <StatusDot status={client.status} />
       </div>
       <div className="px-4 py-3.5 font-mono text-[11px] text-ink-soft">
-        {new Date(client.care_start_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}
+        {client.care_start
+          ? new Date(client.care_start).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '—'}
       </div>
     </Link>
   )

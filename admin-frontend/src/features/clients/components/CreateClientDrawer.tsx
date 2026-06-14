@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 import { z } from 'zod'
-import { clientsApi, type ClientCreatePayload, type ClientStatus, type ServiceType } from '@/features/clients/api'
+import { clientsApi, type ClientCreatePayload, type ClientStatus } from '@/features/clients/api'
 import { Kicker, DateInput } from '@/shared/components/ui'
 import { validatePhone, formatPhone } from '@/shared/lib/phone'
 
@@ -13,8 +13,6 @@ const schema = z.object({
   city: z.string().min(1, 'Required'),
   province: z.string().min(1, 'Required'),
   postal_code: z.string().min(1, 'Required'),
-  service_type: z.enum(['personal_care', 'companionship', 'respite', 'nursing']),
-  care_start_date: z.string().min(1, 'Required'),
   emergency_contact_name: z.string().min(1, 'Required'),
   emergency_contact_phone: z.string().min(1, 'Required'),
   emergency_contact_relationship: z.string().min(1, 'Required'),
@@ -52,12 +50,11 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
     defaultValues: {
       first_name: '', last_name: '', date_of_birth: '', gender: '',
       phone_number: '', email: '', street: '', city: '', province: '',
-      postal_code: '', service_type: 'personal_care' as ServiceType,
-      care_start_date: '', care_end_date: '', medical_conditions: '',
+      postal_code: '', medical_conditions: '',
       allergies: '', medications: '', special_instructions: '',
       emergency_contact_name: '', emergency_contact_phone: '',
       emergency_contact_relationship: '', status: 'active' as ClientStatus,
-      funding_source: '', notes: '',
+      notes: '',
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -69,9 +66,6 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
         email: value.email || undefined,
         street: value.street, city: value.city,
         province: value.province, postal_code: value.postal_code,
-        service_type: value.service_type,
-        care_start_date: value.care_start_date,
-        care_end_date: value.care_end_date || undefined,
         medical_conditions: value.medical_conditions || undefined,
         allergies: value.allergies || undefined,
         medications: value.medications || undefined,
@@ -80,7 +74,6 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
         emergency_contact_phone: value.emergency_contact_phone,
         emergency_contact_relationship: value.emergency_contact_relationship,
         status: value.status,
-        funding_source: value.funding_source || undefined,
         notes: value.notes || undefined,
       }
       try {
@@ -166,23 +159,13 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
           {/* Care Details */}
           <SectionLabel>Care details</SectionLabel>
 
-          <div className="grid grid-cols-2 gap-3">
-            <form.Field name="service_type" validators={{ onChange: ({ value }) => { const r = schema.shape.service_type.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Service Type <span className="text-orange">*</span></label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ServiceType)} onBlur={field.handleBlur}><option value="personal_care">Personal Care</option><option value="companionship">Companionship</option><option value="respite">Respite</option><option value="nursing">Nursing</option></select><FieldError error={field.state.meta.errors[0]} /></div>)}
-            </form.Field>
-            <form.Field name="status">
-              {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
-            </form.Field>
-          </div>
+          <form.Field name="status">
+            {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
+          </form.Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <form.Field name="care_start_date" validators={{ onChange: ({ value }) => { const r = schema.shape.care_start_date.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Care Start <span className="text-orange">*</span></label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
-            </form.Field>
-            <form.Field name="care_end_date">
-              {(field) => (<div><label className={labelClass}>Care End</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" /></div>)}
-            </form.Field>
-          </div>
+          <p className="font-mono text-[10px] text-ink-soft border border-dashed border-line-soft px-3 py-2">
+            Service type, funder and care hours are set by adding an <b>authorization</b> on the client's Care Hours tab after creation.
+          </p>
 
           <form.Field name="medical_conditions">
             {(field) => (<div><label className={labelClass}>Medical Conditions</label><textarea className={`${inputClass} resize-none`} rows={2} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="Optional" /></div>)}

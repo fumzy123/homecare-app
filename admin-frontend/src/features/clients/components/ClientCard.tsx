@@ -23,7 +23,9 @@ export function ClientCard({ client }: { client: Client }) {
           <p className="truncate font-medium text-gray-900">
             {client.first_name} {client.last_name}
           </p>
-          <p className="truncate text-sm text-gray-500">{SERVICE_TYPE_LABELS[client.service_type]}</p>
+          <p className="truncate text-sm text-gray-500">
+            {client.service_types.map((t) => SERVICE_TYPE_LABELS[t]).join(', ') || '—'}
+          </p>
         </div>
         <div className="ml-auto shrink-0">
           <ClientStatusBadge status={client.status} />
@@ -42,11 +44,13 @@ export function ClientCard({ client }: { client: Client }) {
         <div>
           <p className="text-xs text-gray-400">Care Start</p>
           <p className="text-gray-700">
-            {new Date(client.care_start_date).toLocaleDateString('en-CA', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
+            {client.care_start
+              ? new Date(client.care_start).toLocaleDateString('en-CA', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })
+              : '—'}
           </p>
         </div>
         <div>

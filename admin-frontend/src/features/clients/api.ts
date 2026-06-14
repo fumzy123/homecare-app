@@ -1,9 +1,9 @@
 import { apiClient } from '@/shared/lib/api-client'
-import type { ScheduleMap } from '@/shared/components/AvailabilityGrid'
 import type { NoteEntry } from '@/features/shifts/api'
 
 export type ClientStatus = 'active' | 'on_hold' | 'discharged'
-export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing'
+export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing' | 'homemaking'
+export type AuthorizationCoverage = 'covered' | 'lapsed'
 
 export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
   active: 'Active',
@@ -16,6 +16,7 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   companionship: 'Companionship',
   respite: 'Respite',
   nursing: 'Nursing',
+  homemaking: 'Homemaking',
 }
 
 export interface Client {
@@ -33,7 +34,6 @@ export interface Client {
   org_id: string
   assigned_worker_id: string | null
   assigned_worker: { id: string; first_name: string; last_name: string } | null
-  service_type: ServiceType
   medical_conditions: string | null
   allergies: string | null
   medications: string | null
@@ -42,11 +42,12 @@ export interface Client {
   emergency_contact_phone: string
   emergency_contact_relationship: string
   status: ClientStatus
-  care_start_date: string
-  care_end_date: string | null
-  funding_source: string | null
   notes: string | null
-  requested_schedule: ScheduleMap | null
+  // Derived from authorizations (not stored on the client)
+  service_types: ServiceType[]
+  care_start: string | null
+  care_end: string | null
+  coverage: AuthorizationCoverage
   created_at: string
   updated_at: string | null
 }
@@ -62,7 +63,6 @@ export interface ClientCreatePayload {
   city: string
   province: string
   postal_code: string
-  service_type: ServiceType
   medical_conditions?: string
   allergies?: string
   medications?: string
@@ -71,11 +71,7 @@ export interface ClientCreatePayload {
   emergency_contact_phone: string
   emergency_contact_relationship: string
   status: ClientStatus
-  care_start_date: string
-  care_end_date?: string
-  funding_source?: string
   notes?: string
-  requested_schedule?: ScheduleMap
 }
 
 export interface ClientNoteItem {

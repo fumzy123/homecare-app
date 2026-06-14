@@ -40,6 +40,17 @@ class AuthorizationRepository:
             .all()
         )
 
+    def list_for_org(self, org_id: UUID) -> list[Authorization]:
+        """All authorizations (any status) for an org, with services — used to
+        derive per-client summaries (service types, care dates, coverage) in a
+        single query for client lists."""
+        return (
+            self.db.query(Authorization)
+            .options(selectinload(Authorization.services))
+            .filter(Authorization.org_id == org_id)
+            .all()
+        )
+
     def list_active_for_client(self, client_id: UUID, org_id: UUID, on_date: date) -> list[Authorization]:
         """Authorizations in effect on `on_date`: not cancelled, not superseded,
         and the date falls within the covering window."""

@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Date, DateTime, ForeignKey, Enum, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
-from app.core.enums import ClientStatus, ServiceType
+from app.core.enums import ClientStatus
 import uuid
 
 class Client(Base):
@@ -29,8 +29,7 @@ class Client(Base):
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     assigned_worker_id = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
 
-    # Care & Medical
-    service_type = Column(Enum(ServiceType), nullable=False)
+    # Medical
     medical_conditions = Column(Text, nullable=True)
     allergies = Column(Text, nullable=True)
     medications = Column(Text, nullable=True)
@@ -41,14 +40,8 @@ class Client(Base):
     emergency_contact_phone = Column(String, nullable=False)
     emergency_contact_relationship = Column(String, nullable=False)
 
-    # Requested Schedule
-    requested_schedule = Column(JSONB, nullable=True)
-
     # Administrative
     status = Column(Enum(ClientStatus), nullable=False, default=ClientStatus.active)
-    care_start_date = Column(Date, nullable=False)
-    care_end_date = Column(Date, nullable=True)
-    funding_source = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
 
     # Metadata

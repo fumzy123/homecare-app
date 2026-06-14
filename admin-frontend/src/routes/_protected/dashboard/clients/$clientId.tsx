@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { clientsApi } from '@/features/clients/api'
+import { clientsApi, SERVICE_TYPE_LABELS } from '@/features/clients/api'
 import { Avatar } from '@/shared/components/ui'
 import { PostPlacementDrawer } from '@/features/placements/components/PostPlacementDrawer'
 
@@ -73,9 +73,11 @@ function ClientLayout() {
             {client.first_name}<br />
             <em>{client.last_name}</em>
           </h1>
-          <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mt-2">
-            {client.service_type.replace(/_/g, ' ')}
-          </p>
+          {client.service_types.length > 0 && (
+            <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mt-2">
+              {client.service_types.map((t) => SERVICE_TYPE_LABELS[t]).join(' · ')}
+            </p>
+          )}
           <span className={`mt-3 inline-block font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border ${
             client.status === 'active'     ? 'bg-ink text-cream border-ink' :
             client.status === 'on_hold'    ? 'border-ink text-ink-soft' :
@@ -110,14 +112,16 @@ function ClientLayout() {
             <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Location</p>
             <p className="text-[13px]">{client.city}, {client.province}</p>
           </div>
-          <div>
-            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Care Start</p>
-            <p className="text-[13px]">{format(new Date(client.care_start_date), 'yyyy-MM-dd')}</p>
-          </div>
-          {client.funding_source && (
+          {client.care_start && (
             <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Funding</p>
-              <p className="text-[13px]">{client.funding_source}</p>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Care Start</p>
+              <p className="text-[13px]">{format(new Date(client.care_start), 'yyyy-MM-dd')}</p>
+            </div>
+          )}
+          {client.coverage === 'lapsed' && (
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-orange mb-0.5">⚠ Coverage</p>
+              <p className="text-[13px] text-orange">No active authorization</p>
             </div>
           )}
         </div>

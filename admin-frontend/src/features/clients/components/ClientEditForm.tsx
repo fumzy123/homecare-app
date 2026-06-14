@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
-import { clientsApi, type ClientStatus, type ServiceType } from '@/features/clients/api'
-import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
+import { clientsApi, type ClientStatus } from '@/features/clients/api'
 import { Kicker, DateInput } from '@/shared/components/ui'
 import { validatePhone, formatPhone } from '@/shared/lib/phone'
 
@@ -18,9 +17,6 @@ const schema = z.object({
   city:                           z.string().min(1, 'Required'),
   province:                       z.string().min(1, 'Required'),
   postal_code:                    z.string().min(1, 'Required'),
-  service_type:                   z.enum(['personal_care', 'companionship', 'respite', 'nursing']),
-  care_start_date:                z.string().min(1, 'Required'),
-  care_end_date:                  z.string().optional(),
   medical_conditions:             z.string().optional(),
   allergies:                      z.string().optional(),
   medications:                    z.string().optional(),
@@ -29,7 +25,6 @@ const schema = z.object({
   emergency_contact_phone:        z.string().min(1, 'Required'),
   emergency_contact_relationship: z.string().min(1, 'Required'),
   status:                         z.enum(['active', 'on_hold', 'discharged']),
-  funding_source:                 z.string().optional(),
   notes:                          z.string().optional(),
 })
 
@@ -67,9 +62,6 @@ export function ClientEditForm({ clientId, client }: { clientId: string; client:
       city:                           client.city,
       province:                       client.province,
       postal_code:                    client.postal_code,
-      service_type:                   client.service_type,
-      care_start_date:                client.care_start_date,
-      care_end_date:                  client.care_end_date ?? '',
       medical_conditions:             client.medical_conditions ?? '',
       allergies:                      client.allergies ?? '',
       medications:                    client.medications ?? '',
@@ -78,9 +70,7 @@ export function ClientEditForm({ clientId, client }: { clientId: string; client:
       emergency_contact_phone:        client.emergency_contact_phone,
       emergency_contact_relationship: client.emergency_contact_relationship,
       status:                         client.status,
-      funding_source:                 client.funding_source ?? '',
       notes:                          client.notes ?? '',
-      requested_schedule:             (client.requested_schedule ?? {}) as ScheduleMap,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -90,14 +80,11 @@ export function ClientEditForm({ clientId, client }: { clientId: string; client:
           gender:               value.gender || undefined,
           phone_number:         value.phone_number || undefined,
           email:                value.email || undefined,
-          care_end_date:        value.care_end_date || undefined,
           medical_conditions:   value.medical_conditions || undefined,
           allergies:            value.allergies || undefined,
           medications:          value.medications || undefined,
           special_instructions: value.special_instructions || undefined,
-          funding_source:       value.funding_source || undefined,
           notes:                value.notes || undefined,
-          requested_schedule:   Object.keys(value.requested_schedule).length > 0 ? value.requested_schedule : undefined,
         })
         queryClient.invalidateQueries({ queryKey: ['clients'] })
         queryClient.invalidateQueries({ queryKey: ['client', clientId] })
@@ -185,25 +172,12 @@ export function ClientEditForm({ clientId, client }: { clientId: string; client:
       <section className="border border-ink bg-paper">
         <div className="px-6 py-4 border-b border-ink"><Kicker>Care details</Kicker></div>
         <div className="px-6 py-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <form.Field name="service_type" validators={{ onChange: ({ value }) => validate(schema.shape.service_type, value) }}>
-              {(field) => (<div><label className={labelClass}>Service Type</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ServiceType)} onBlur={field.handleBlur}><option value="personal_care">Personal Care</option><option value="companionship">Companionship</option><option value="respite">Respite</option><option value="nursing">Nursing</option></select><FieldError error={field.state.meta.errors[0]} /></div>)}
-            </form.Field>
-            <form.Field name="status">
-              {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
-            </form.Field>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <form.Field name="care_start_date" validators={{ onChange: ({ value }) => validate(schema.shape.care_start_date, value) }}>
-              {(field) => (<div><label className={labelClass}>Care Start</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
-            </form.Field>
-            <form.Field name="care_end_date">
-              {(field) => (<div><label className={labelClass}>Care End</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" /></div>)}
-            </form.Field>
-          </div>
-          <form.Field name="funding_source">
-            {(field) => (<div><label className={labelClass}>Funding Source</label><input className={inputClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="e.g. CLBC, Private" /></div>)}
+          <form.Field name="status">
+            {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
           </form.Field>
+          <p className="font-mono text-[10px] text-ink-soft border border-dashed border-line-soft px-3 py-2">
+            Service type, funder, care hours and schedule are managed via <b>authorizations</b> on the Care Hours tab.
+          </p>
           {(['medical_conditions', 'allergies', 'medications', 'special_instructions'] as const).map((name) => (
             <form.Field key={name} name={name}>
               {(field) => (
@@ -237,17 +211,6 @@ export function ClientEditForm({ clientId, client }: { clientId: string; client:
             </form.Field>
           </div>
           {footer}
-        </div>
-      </section>
-
-      {/* Requested Schedule */}
-      <section className="border border-ink bg-paper">
-        <div className="px-6 py-4 border-b border-ink"><Kicker>Requested schedule</Kicker></div>
-        <div className="px-6 py-6">
-          <form.Field name="requested_schedule">
-            {(field) => (<AvailabilityGrid value={field.state.value} onChange={(v) => field.handleChange(v)} />)}
-          </form.Field>
-          <div className="mt-4">{footer}</div>
         </div>
       </section>
     </form>
