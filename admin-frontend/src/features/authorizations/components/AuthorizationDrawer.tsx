@@ -187,25 +187,30 @@ export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
             <label className={labelClass}>Authorized Services</label>
             <div className="flex flex-col gap-2">
               {services.map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <select
-                    className={selectClass + ' flex-1'}
-                    value={s.service_type}
-                    onChange={(e) => updateService(i, { service_type: e.target.value as ServiceType })}
-                  >
-                    {SERVICE_TYPES.map((t) => (
-                      <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>
-                    ))}
-                  </select>
+                <div key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_auto] items-center gap-2">
+                  <div className="relative min-w-0">
+                    <select
+                      className={selectClass + ' w-full pr-7'}
+                      value={s.service_type}
+                      onChange={(e) => updateService(i, { service_type: e.target.value as ServiceType })}
+                    >
+                      {SERVICE_TYPES.map((t) => (
+                        <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[9px] text-ink-soft">▾</span>
+                  </div>
                   <input
-                    className={inputClass + ' w-20'}
+                    className="w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink"
                     type="number" min="0" step="0.5" placeholder="hrs"
                     value={s.hours}
                     onChange={(e) => updateService(i, { hours: e.target.value })}
                   />
-                  {services.length > 1 && (
+                  {services.length > 1 ? (
                     <button type="button" onClick={() => removeService(i)}
                       className="font-mono text-[16px] text-ink-soft hover:text-orange leading-none px-1">×</button>
+                  ) : (
+                    <span className="w-[1.25rem]" />
                   )}
                 </div>
               ))}
