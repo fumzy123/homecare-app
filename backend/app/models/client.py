@@ -59,3 +59,11 @@ class Client(Base):
     # Relationships
     organization = relationship("Organization", back_populates="clients")
     assigned_worker = relationship("Employment")
+    authorizations = relationship(
+        "Authorization", foreign_keys="Authorization.client_id",
+        cascade="all, delete-orphan",
+    )
+    care_schedule_blocks = relationship(
+        "CareScheduleBlock", foreign_keys="CareScheduleBlock.client_id",
+        cascade="all, delete-orphan",
+    )

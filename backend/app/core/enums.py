@@ -18,6 +18,40 @@ class ServiceType(str, enum.Enum):
     companionship = "companionship"
     respite = "respite"
     nursing = "nursing"
+    homemaking = "homemaking"
+
+
+class HoursPeriod(str, enum.Enum):
+    per_week = "per_week"
+    bi_weekly = "bi_weekly"
+    per_month = "per_month"
+
+
+class WeekDay(str, enum.Enum):
+    MO = "MO"
+    TU = "TU"
+    WE = "WE"
+    TH = "TH"
+    FR = "FR"
+    SA = "SA"
+    SU = "SU"
+
+
+class AuthorizationStatus(str, enum.Enum):
+    """Derived/display only — never stored. Computed from covering dates,
+    cancelled_at, and the supersede chain."""
+    pending = "pending"
+    active = "active"
+    expired = "expired"
+    superseded = "superseded"
+    cancelled = "cancelled"
+
+
+class AuthorizationCoverage(str, enum.Enum):
+    """Derived. Whether an active client is currently covered by an
+    active authorization."""
+    covered = "covered"
+    lapsed = "lapsed"
 
 class EmploymentType(str, enum.Enum):
     full_time = "full_time"
