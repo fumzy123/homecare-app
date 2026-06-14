@@ -109,20 +109,34 @@ export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[460px] flex-col bg-paper border-l border-ink">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>{amends ? 'Amend Authorization' : 'New Authorization'}</Kicker>
-          <button onClick={onClose} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
-        </div>
+      <div className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
 
-        {amends && (
-          <p className="px-6 py-2 bg-cream-2 border-b border-line-soft font-mono text-[10px] text-ink-soft">
-            Supersedes {amends.authorization_number} — the previous authorization stays on record.
-          </p>
-        )}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-12 pointer-events-none">
+        <div className="pointer-events-auto relative flex w-full max-w-[620px] max-h-full flex-col bg-paper border border-ink">
 
-        <form className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5" onSubmit={handleSubmit}>
+          {/* Aesthetic corner brackets */}
+          <div className="absolute top-3 left-3 w-2 h-2 border-t border-l border-ink pointer-events-none" />
+          <div className="absolute top-3 right-3 w-2 h-2 border-t border-r border-ink pointer-events-none" />
+          <div className="absolute bottom-3 left-3 w-2 h-2 border-b border-l border-ink pointer-events-none" />
+          <div className="absolute bottom-3 right-3 w-2 h-2 border-b border-r border-ink pointer-events-none" />
+
+          {/* Header */}
+          <div className="relative flex flex-col px-8 pt-8 pb-5 border-b-[2px] border-dashed border-line-soft">
+            <button onClick={onClose} className="absolute top-6 right-8 font-mono text-[22px] text-ink-soft hover:text-ink leading-none">×</button>
+            <Kicker className="mb-2 tracking-[0.1em]">{amends ? 'Amend' : 'New'} · Authorization</Kicker>
+            <h2 className="font-serif italic text-[28px] leading-none tracking-tight text-ink">
+              {amends ? 'Amend Authorization' : 'New Authorization'}
+            </h2>
+          </div>
+
+          {amends && (
+            <p className="px-8 py-2 bg-cream-2 border-b border-line-soft font-mono text-[10px] text-ink-soft">
+              Supersedes {amends.authorization_number} — the previous authorization stays on record.
+            </p>
+          )}
+
+          <form className="flex flex-1 flex-col min-h-0" onSubmit={handleSubmit}>
+            <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-5 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div>
             <label className={labelClass}>Funder</label>
             <input className={inputClass} value={funder} onChange={(e) => setFunder(e.target.value)}
@@ -227,21 +241,24 @@ export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
             <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
-          {serverError && (
-            <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
-          )}
+              {serverError && (
+                <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
+              )}
+            </div>
 
-          <div className="flex gap-3 pt-2 border-t border-ink mt-2">
-            <button type="submit" disabled={isPending}
-              className="flex-1 bg-ink text-cream px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] hover:bg-orange transition-colors disabled:opacity-40">
-              {isPending ? 'Saving…' : amends ? 'Save Amendment' : 'Add Authorization'}
-            </button>
-            <button type="button" onClick={onClose}
-              className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] border border-ink text-ink-soft hover:text-ink hover:bg-cream-2 transition-colors">
-              Cancel
-            </button>
-          </div>
-        </form>
+            {/* Footer */}
+            <div className="border-t-[2px] border-dashed border-line-soft px-8 py-5 flex justify-end gap-3">
+              <button type="button" onClick={onClose}
+                className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={isPending}
+                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
+                {isPending ? 'Saving…' : amends ? 'Save Amendment' : 'Add Authorization'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </>
   )
