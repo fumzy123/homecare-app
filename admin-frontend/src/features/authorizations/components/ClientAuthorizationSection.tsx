@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Tag, ProgressBar } from '@/shared/components/ui'
+import { Tag } from '@/shared/components/ui'
 import {
   useClientAuthorizations,
   useAuthorizationCompliance,
   useCancelAuthorization,
 } from '../hooks/useAuthorizations'
-import type { Authorization, ServiceCompliance, AuthorizationCompliance } from '../api'
+import type { Authorization, AuthorizationCompliance } from '../api'
 import { SERVICE_TYPE_LABELS, HOURS_PERIOD_LABELS, STATUS_TAG } from '../constants'
 import { AuthorizationDrawer } from './AuthorizationDrawer'
 
@@ -26,35 +26,6 @@ function CoverageAlert({ compliance }: { compliance: AuthorizationCompliance }) 
       <p className="text-[13px] text-ink">
         This active client has no current authorization. Renew with the funder to stay compliant.
       </p>
-    </div>
-  )
-}
-
-// ── Compliance indicator (planned vs authorized, per service) ─────────────────
-
-function ComplianceRow({ s }: { s: ServiceCompliance }) {
-  const exceeded   = s.status === 'exceeded'
-  const variant    = exceeded ? 'orange' : s.status === 'approaching' ? 'orange' : 'mint'
-  const pct        = s.authorized_biweekly > 0 ? (s.planned_biweekly / s.authorized_biweekly) * 100 : 0
-  const noAuth     = s.authorized_biweekly === 0
-
-  return (
-    <div className="px-4 py-3">
-      <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-[13px]">{SERVICE_TYPE_LABELS[s.service_type]}</span>
-        <span className={`font-mono text-[11px] ${exceeded ? 'text-orange font-bold' : 'text-ink-soft'}`}>
-          {fmtHours(s.planned_biweekly)} / {noAuth ? '—' : fmtHours(s.authorized_biweekly)}h
-          <span className="text-[9px] tracking-[0.08em] uppercase ml-1.5">bi-weekly</span>
-        </span>
-      </div>
-      <ProgressBar value={pct} variant={variant} />
-      {exceeded && (
-        <p className="mt-1 font-mono text-[10px] text-orange">
-          {noAuth
-            ? 'No hours authorized for this service'
-            : `Exceeds authorization by ${fmtHours(s.planned_biweekly - s.authorized_biweekly)}h`}
-        </p>
-      )}
     </div>
   )
 }
@@ -183,18 +154,6 @@ export function ClientAuthorizationSection({ clientId }: { clientId: string }) {
       </div>
 
       {compliance && <CoverageAlert compliance={compliance} />}
-
-      {/* Compliance — planned care vs authorized envelope */}
-      {compliance && compliance.services.length > 0 && (
-        <div className="border border-ink bg-paper">
-          <div className="px-5 py-3 border-b border-ink">
-            <p className={labelClass}>Planned vs Authorized</p>
-          </div>
-          <div className="divide-y divide-dashed divide-line-soft">
-            {compliance.services.map((s) => <ComplianceRow key={s.service_type} s={s} />)}
-          </div>
-        </div>
-      )}
 
       {/* Authorizations */}
       {isLoading ? (
