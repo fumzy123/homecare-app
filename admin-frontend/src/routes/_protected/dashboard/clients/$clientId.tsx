@@ -2,11 +2,9 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { clientsApi, SERVICE_TYPE_LABELS } from '@/features/clients/api'
+import { clientsApi } from '@/features/clients/api'
 import { Avatar } from '@/shared/components/ui'
 import { PostPlacementDrawer } from '@/features/placements/components/PostPlacementDrawer'
-import { useClientAuthorizations } from '@/features/authorizations/hooks/useAuthorizations'
-import { ActiveAuthChip } from '@/features/authorizations/components/ActiveAuthChip'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')({
   component: ClientLayout,
@@ -56,7 +54,6 @@ function ClientLayout() {
     queryKey: ['client', clientId],
     queryFn: () => clientsApi.getClient(clientId),
   })
-  const { data: authorizations = [] } = useClientAuthorizations(clientId)
 
   // Edit page renders its own full-page layout — skip the rail/tab wrapper
   if (isEditMode) return <Outlet />
@@ -90,20 +87,12 @@ function ClientLayout() {
             {client.first_name}<br />
             <em>{client.last_name}</em>
           </h1>
-          <div className="flex flex-wrap gap-1.5 mt-3 items-center">
+          <div className="mt-3">
             <span className={`inline-flex items-center font-mono text-[9px] tracking-[0.08em] uppercase whitespace-nowrap px-2.5 py-1 border ${statusPill.cls}`}>
               {statusPill.label}
             </span>
-            {client.service_types.map((t) => (
-              <span key={t} className="inline-flex items-center whitespace-nowrap px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] border border-line-soft bg-paper text-ink-soft">
-                {SERVICE_TYPE_LABELS[t]}
-              </span>
-            ))}
           </div>
         </div>
-
-        {/* persistent funding context */}
-        <ActiveAuthChip clientId={clientId} authorizations={authorizations} />
 
         <div className="space-y-3.5">
           {age !== null && (
