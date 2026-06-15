@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
-import { StatCard, PeriodToggle, Kicker } from '@/shared/components/ui'
+import { StatCard, Kicker } from '@/shared/components/ui'
 import { PERIODS, getDateRangeLabel, weekNum, type Period } from '@/features/shifts/utils/period'
 import { useClientShiftStats, useClientShifts, useUpcomingVisits } from '../hooks/useClientVisits'
 import { useClientAuthorizations, useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
@@ -69,9 +69,21 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
 
   return (
     <div className="p-8 flex flex-col gap-[22px]">
-      {/* Period toggle */}
+      {/* Period toggle — single segmented control */}
       <div className="flex items-center justify-between">
-        <PeriodToggle options={PERIODS} value={period} onChange={setPeriod} />
+        <div className="flex border border-ink">
+          {PERIODS.map(({ key, label }, i) => (
+            <button
+              key={key}
+              onClick={() => setPeriod(key)}
+              className={`px-3 py-1.5 font-mono text-[10px] tracking-[0.06em] uppercase whitespace-nowrap transition-colors ${
+                i ? 'border-l border-ink' : ''
+              } ${period === key ? 'bg-ink text-cream' : 'text-ink-soft hover:bg-cream-2'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <span className="font-mono text-[11px] text-ink-soft">{getDateRangeLabel(period)} · WK {weekNum}</span>
       </div>
 
@@ -122,8 +134,8 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
           <div className="px-6 py-4 border-b border-ink flex items-center justify-between">
             <Kicker leader>Active authorization</Kicker>
             {auth
-              ? <span className="font-mono text-[9px] tracking-[0.08em] uppercase px-2 py-1 bg-mint text-ink border border-ink">● Active</span>
-              : <span className="font-mono text-[9px] tracking-[0.08em] uppercase px-2 py-1 border border-orange text-orange">● None</span>}
+              ? <span className="inline-flex items-center font-mono text-[9px] tracking-[0.08em] uppercase whitespace-nowrap px-2 py-1 bg-mint text-ink border border-ink">● Active</span>
+              : <span className="inline-flex items-center font-mono text-[9px] tracking-[0.08em] uppercase whitespace-nowrap px-2 py-1 border border-orange text-orange">● None</span>}
           </div>
 
           {auth ? (

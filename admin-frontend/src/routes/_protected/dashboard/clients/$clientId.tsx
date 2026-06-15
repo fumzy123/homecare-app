@@ -91,11 +91,11 @@ function ClientLayout() {
             <em>{client.last_name}</em>
           </h1>
           <div className="flex flex-wrap gap-1.5 mt-3 items-center">
-            <span className={`font-mono text-[9px] tracking-[0.08em] uppercase px-2.5 py-1 border ${statusPill.cls}`}>
+            <span className={`inline-flex items-center font-mono text-[9px] tracking-[0.08em] uppercase whitespace-nowrap px-2.5 py-1 border ${statusPill.cls}`}>
               {statusPill.label}
             </span>
             {client.service_types.map((t) => (
-              <span key={t} className="inline-flex items-center px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] border border-line-soft bg-paper text-ink-soft">
+              <span key={t} className="inline-flex items-center whitespace-nowrap px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em] border border-line-soft bg-paper text-ink-soft">
                 {SERVICE_TYPE_LABELS[t]}
               </span>
             ))}
