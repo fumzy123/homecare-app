@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import { Tag } from '@/shared/components/ui'
 import type { Authorization } from '../api'
-import { HOURS_PERIOD_LABELS, SERVICE_TYPE_LABELS } from '../constants'
+import { SERVICE_TYPE_LABELS } from '../constants'
 import { totalAuthorizedHours, periodNoun, fmtHours, endsRelLabel } from '../utils'
 
 /**
@@ -60,13 +60,21 @@ export function ActiveAuthHero({
       <div className="grid grid-cols-[1.2fr_1fr]">
         {/* left: funder document */}
         <div className="px-6 py-5 border-r border-line-soft">
-          <div className="flex items-baseline justify-between">
-            <p className="font-serif text-[26px] leading-none">{auth.funder}</p>
-            <span className="font-mono text-[11px] text-ink-soft">{auth.authorization_number}</span>
+          <p className="font-serif text-[26px] leading-none">{auth.funder}</p>
+
+          <div className="flex gap-7 mt-3.5">
+            <div>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Authorization #</p>
+              <p className="font-mono text-[12.5px] mt-1">{auth.authorization_number}</p>
+            </div>
+            {auth.funder_file_number && (
+              <div>
+                <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">File #</p>
+                <p className="font-mono text-[12.5px] mt-1">{auth.funder_file_number}</p>
+              </div>
+            )}
           </div>
-          <p className="font-mono text-[11px] text-muted mt-1.5">
-            {auth.funder_file_number ? `File #${auth.funder_file_number} · ` : ''}{HOURS_PERIOD_LABELS[auth.hours_period]}
-          </p>
+
           <div className="mt-4">
             <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Covering period</p>
             <p className="font-mono text-[12.5px] mt-1">
