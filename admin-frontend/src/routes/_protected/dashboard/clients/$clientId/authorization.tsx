@@ -57,7 +57,6 @@ function ClientAuthorization() {
         <>
           <ActiveAuthHero
             auth={auth}
-            compliance={compliance}
             onAmend={(a) => setForm({ amends: a })}
             onCancel={cancel}
             cancelling={cancelling}

@@ -1,33 +1,29 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { Tag } from '@/shared/components/ui'
-import type { Authorization, AuthorizationCompliance } from '../api'
+import type { Authorization } from '../api'
 import { HOURS_PERIOD_LABELS, SERVICE_TYPE_LABELS } from '../constants'
-import { totalAuthorizedHours, periodNoun, fmtHours } from '../utils'
+import { totalAuthorizedHours, periodNoun, fmtHours, endsRelLabel } from '../utils'
 
 /**
  * The active authorization, pinned at the top of the tab as the heaviest
- * element. Left column = the funder document; right column = live planned-vs-
- * authorized bars per service (over the bi-weekly window).
+ * element. Left column = the funder document (who/when); right column = the
+ * authorized-hours breakdown (per service + total). This card states only what
+ * the funder authorized — the plan-vs-authorization check lives in the care plan.
  */
 export function ActiveAuthHero({
   auth,
-  compliance,
   onAmend,
   onCancel,
   cancelling,
 }: {
   auth: Authorization
-  compliance?: AuthorizationCompliance
   onAmend: (a: Authorization) => void
   onCancel: (id: string) => void
   cancelling: boolean
 }) {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const total = totalAuthorizedHours(auth)
-
-  const byService = new Map((compliance?.services ?? []).map((c) => [c.service_type, c]))
-  const allCompliant = (compliance?.services ?? []).every((c) => c.status !== 'exceeded')
 
   return (
     <div className="border border-ink bg-paper">
@@ -71,52 +67,35 @@ export function ActiveAuthHero({
           <p className="font-mono text-[11px] text-muted mt-1.5">
             {auth.funder_file_number ? `File #${auth.funder_file_number} · ` : ''}{HOURS_PERIOD_LABELS[auth.hours_period]}
           </p>
-          <div className="flex gap-7 mt-4">
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Covering period</p>
-              <p className="font-mono text-[12.5px] mt-1">
-                {format(new Date(auth.covering_start), 'MMM d, yyyy')} → {auth.covering_end ? format(new Date(auth.covering_end), 'MMM d, yyyy') : 'open-ended'}
-              </p>
-            </div>
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Authorized total</p>
-              <p className="font-serif text-[18px] mt-0.5">
-                {fmtHours(total)}h <span className="font-mono text-[10px] text-muted">/ {periodNoun(auth.hours_period)}</span>
-              </p>
-            </div>
+          <div className="mt-4">
+            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Covering period</p>
+            <p className="font-mono text-[12.5px] mt-1">
+              {format(new Date(auth.covering_start), 'MMM d, yyyy')} → {auth.covering_end ? format(new Date(auth.covering_end), 'MMM d, yyyy') : 'open-ended'}
+            </p>
+            <p className="font-mono text-[9px] tracking-[0.04em] uppercase text-mint-dark mt-1">{endsRelLabel(auth)}</p>
           </div>
           {auth.notes && <p className="text-[12px] text-ink-soft italic mt-4">{auth.notes}</p>}
         </div>
 
-        {/* right: live per-service utilization */}
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Planned vs authorized</p>
-            <span className={`font-mono text-[9px] tracking-[0.04em] uppercase ${allCompliant ? 'text-mint-dark' : 'text-orange'}`}>
-              ● {allCompliant ? 'Compliant' : 'Over cap'}
-            </span>
+        {/* right: authorized hours breakdown */}
+        <div className="px-6 py-5">
+          <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-3">Authorized hours</p>
+          <div className="flex flex-col gap-2.5">
+            {auth.services.map((s) => (
+              <div key={s.id} className="flex items-baseline justify-between">
+                <span className="text-[13px]">{SERVICE_TYPE_LABELS[s.service_type]}</span>
+                <span className="font-mono text-[11px] text-ink-soft">
+                  <strong className="text-ink">{fmtHours(s.authorized_hours)}h</strong> / {periodNoun(auth.hours_period)}
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="flex flex-col gap-3">
-            {auth.services.map((s) => {
-              const c = byService.get(s.service_type)
-              const authBi = c?.authorized_biweekly ?? s.authorized_hours
-              const planned = c?.planned_biweekly ?? 0
-              const over = planned > authBi + 1e-9
-              const pct = authBi > 0 ? Math.min(100, (planned / authBi) * 100) : 0
-              return (
-                <div key={s.id}>
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <span className="text-[12px]">{SERVICE_TYPE_LABELS[s.service_type]}</span>
-                    <span className="font-mono text-[10.5px] text-ink-soft">
-                      {fmtHours(planned)}h <span className="text-muted">/ {fmtHours(authBi)}h</span>
-                    </span>
-                  </div>
-                  <div className="bar" style={{ height: 7 }}>
-                    <span className={`bar-fill ${over ? 'bar-fill-orange' : 'bar-fill-mint'}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              )
-            })}
+          <div className="border-t border-dashed border-line-soft my-3" />
+          <div className="flex items-baseline justify-between">
+            <span className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Authorized total</span>
+            <span className="font-serif text-[18px]">
+              {fmtHours(total)}h <span className="font-mono text-[10px] text-muted">/ {periodNoun(auth.hours_period)}</span>
+            </span>
           </div>
         </div>
       </div>
