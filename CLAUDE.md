@@ -266,6 +266,48 @@ Frontend catches this and displays the localized times to the admin.
 
 ---
 
+## The Care Chain — Authorization → Plan → Delivery
+
+Three objects sit at three levels: **entitlement → demand → supply**. The
+client's weekly care plan is the linchpin — it's the only artifact that must
+satisfy both the funder's cap *and* the agency's labor supply at once.
+
+| Layer | What it is | Owner | Unit |
+|---|---|---|---|
+| **Authorization hours** | The funder's cap, per service | Health institution / funder | Per service, normalized to the **bi-weekly** payment window |
+| **Client care plan** | Recurring weekly care blocks (day/time/service) — `CareScheduleBlock` | Agency | **Weekly** (×2 to compare bi-weekly) |
+| **Worker availability** | When a worker can work + `max_hours_per_week` | Worker / agency | Weekly grid |
+
+### The relationships
+- **Authorization → Care plan = a ceiling (enforced, hard).** Planned hours per
+  service must stay ≤ authorized hours. Enforced in the Weekly Schedule
+  (`CarePlanBlock`): `Within cap / Over cap` pills, and **Save is blocked over
+  cap**. Units differ (auth = bi-weekly, plan = weekly), so the plan is
+  normalized `weekly × 2` before comparing. This is why the authorization card
+  shows *only* authorized hours — comparing plan-vs-auth in place mixes units.
+- **Care plan → Worker availability = staffing feasibility.** The plan is
+  *demand* (when/what care is needed); availability is *capacity* (who can cover
+  it). A worker can take a block only if available, under max hours, and not
+  double-booked. Enforced today: **double-booking** (409
+  `WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK`). Overtime/availability are
+  softer (overtime prevention is backlog; availability is an input to *who you'd
+  pick*, not a hard gate yet).
+- **Authorization ↔ Worker availability = no direct link.** They only meet
+  through the care plan in the middle.
+
+### Two compliance moments (only the first is built)
+1. **Plan-time** — planned vs authorized. Hard block at save. ✅ built.
+2. **Delivery-time** — *actually delivered* care vs authorized ("did we stay
+   within the funding?"). This is the `Delivered` figure on the Overview
+   utilization meter and the future warn-with-override check on real shifts
+   (Phase 3). **Delivered care should be measured from Electronic Visit
+   Verification (EVV)** — real check-in/check-out at the point of care (GPS
+   arrival/departure, mobile Phase 8) — *not* from scheduled shift durations.
+   Until EVV lands, `Delivered` is an approximation derived from completed
+   shifts and should be treated as provisional.
+
+---
+
 ## MVP Scope — Home Care Agency Admin
 
 ### 1. Profile Management
