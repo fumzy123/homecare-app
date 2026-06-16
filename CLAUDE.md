@@ -275,25 +275,46 @@ satisfy both the funder's cap *and* the agency's labor supply at once.
 | Layer | What it is | Owner | Unit |
 |---|---|---|---|
 | **Authorization hours** | The funder's cap, per service | Health institution / funder | Per service, normalized to the **bi-weekly** payment window |
-| **Client care plan** | Recurring weekly care blocks (day/time/service) — `CareScheduleBlock` | Agency | **Weekly** (×2 to compare bi-weekly) |
-| **Worker availability** | When a worker can work + `max_hours_per_week` | Worker / agency | Weekly grid |
+| **Weekly care plan** | Recurring weekly care entries (day/time/service) — `WeeklyCarePlanEntry` | Agency | **Weekly** (×2 to compare bi-weekly) |
+| **Worker availability** | Recurring weekly windows a worker can work — `WorkerAvailabilityEntry` (+ `max_hours_per_week`) | Worker / agency | Weekly interval entries |
+
+### Vocabulary — one name per concept, FE → BE → DB
+
+The scheduling concepts use **one consistent name at every layer** so a new dev
+never meets two names for one thing. The row-level noun is always **entry**.
+
+| Concept | Frontend | Backend (model / service) | DB table | Route |
+|---|---|---|---|---|
+| Funder entitlement | `Authorization` | `Authorization` | `authorizations` | `/clients/{id}/authorizations` |
+| Client's weekly care plan | `WeeklyCarePlanEntry`, `WeeklyCarePlanEditor` | `WeeklyCarePlanEntry` / `WeeklyCarePlanService` | `weekly_care_plan_entries` | `/clients/{id}/care-plan` |
+| Worker availability | `AvailabilityEntry`, `WorkerAvailabilityEditor` | `WorkerAvailabilityEntry` / `WorkerAvailabilityService` | `worker_availability_entries` | `/org-members/{id}/availability` |
+| Scheduled care | `Shift` | `Shift` | `shifts` | `/shifts` |
+| Delivered care | (Attended shift — see Phase 8 EVV) | `Shift` (completed) | `shifts` | — |
+
+The weekly care plan has **no parent row** — it *is* the set of
+`WeeklyCarePlanEntry` rows for a client. For a **funded** client the tab is the
+**Authorized Weekly Care Plan** (capped by the funder); for a **self-pay** client
+it is simply the **Weekly Care Plan** (no cap, compliance off). Same route
+(`/care-plan`) and same editor for both — only the label and `enforceCompliance`
+differ. See [[project_org_member_architecture]] for the worker side.
 
 ### The relationships
-- **Authorization → Care plan = a ceiling (enforced, hard).** Planned hours per
-  service must stay ≤ authorized hours. Enforced in the Weekly Schedule
-  (`CarePlanBlock`): `Within cap / Over cap` pills, and **Save is blocked over
-  cap**. Units differ (auth = bi-weekly, plan = weekly), so the plan is
-  normalized `weekly × 2` before comparing. This is why the authorization card
-  shows *only* authorized hours — comparing plan-vs-auth in place mixes units.
-- **Care plan → Worker availability = staffing feasibility.** The plan is
+- **Authorization → Weekly care plan = a ceiling (enforced, hard).** Planned
+  hours per service must stay ≤ authorized hours. Enforced in the
+  `WeeklyCarePlanEditor` (funded clients only): `Within cap / Over cap` pills,
+  and **Save is blocked over cap**. Units differ (auth = bi-weekly, plan =
+  weekly), so the plan is normalized `weekly × 2` before comparing. This is why
+  the authorization card shows *only* authorized hours — comparing plan-vs-auth
+  in place mixes units.
+- **Weekly care plan → Worker availability = staffing feasibility.** The plan is
   *demand* (when/what care is needed); availability is *capacity* (who can cover
-  it). A worker can take a block only if available, under max hours, and not
+  it). A worker can take an entry only if available, under max hours, and not
   double-booked. Enforced today: **double-booking** (409
   `WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK`). Overtime/availability are
   softer (overtime prevention is backlog; availability is an input to *who you'd
   pick*, not a hard gate yet).
 - **Authorization ↔ Worker availability = no direct link.** They only meet
-  through the care plan in the middle.
+  through the weekly care plan in the middle.
 
 ### Two compliance moments (only the first is built)
 1. **Plan-time** — planned vs authorized. Hard block at save. ✅ built.

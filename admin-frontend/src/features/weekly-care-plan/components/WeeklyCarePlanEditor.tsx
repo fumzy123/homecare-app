@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import { TimeInput, Kicker } from '@/shared/components/ui'
-import { useCareSchedule, useSaveCareSchedule } from '../hooks/useCareSchedule'
-import { useAuthorizationCompliance } from '../hooks/useAuthorizations'
-import { WEEKDAYS, SERVICE_TYPES, SERVICE_TYPE_LABELS } from '../constants'
-import { fmtHours } from '../utils'
-import type { CareScheduleBlockInput, ServiceType, WeekDay } from '../api'
+import { useWeeklyCarePlan, useSaveWeeklyCarePlan } from '../hooks/useWeeklyCarePlan'
+import { useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
+import { WEEKDAYS, SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
+import { fmtHours } from '@/features/authorizations/utils'
+import type { WeeklyCarePlanEntryInput } from '../api'
+import type { ServiceType, WeekDay } from '@/features/authorizations/api'
 
 const selectClass = 'w-full bg-paper border border-ink px-2 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink appearance-none'
 
 interface Row { day_of_week: WeekDay; start_time: string; end_time: string; service_type: ServiceType }
 
-function blockHours(start: string, end: string): number {
+function entryHours(start: string, end: string): number {
   if (!start || !end) return 0
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
@@ -34,26 +35,27 @@ function CompliancePill({ over }: { over: boolean }) {
 }
 
 /**
- * The agency's weekly delivery plan, built directly beneath the authorization
- * hero. Per-service compliance is computed live (planned bi-weekly vs the
- * authorized cap) and saving is hard-blocked while any service is over cap.
+ * The client's weekly care plan — the recurring entries of care we intend to
+ * deliver. When `enforceCompliance` is set (funded clients), per-service
+ * compliance is computed live (planned bi-weekly vs the authorized cap) and
+ * saving is hard-blocked while any service is over cap.
  */
-export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
-  const { data: blocks } = useCareSchedule(clientId)
+export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
+  const { data: entries } = useWeeklyCarePlan(clientId)
   const { data: compliance } = useAuthorizationCompliance(clientId)
-  const { mutateAsync: save, isPending } = useSaveCareSchedule(clientId)
+  const { mutateAsync: save, isPending } = useSaveWeeklyCarePlan(clientId)
 
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    if (blocks) {
-      setRows(blocks.map((b) => ({
-        day_of_week: b.day_of_week, start_time: b.start_time, end_time: b.end_time, service_type: b.service_type,
+    if (entries) {
+      setRows(entries.map((e) => ({
+        day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
       })))
     }
-  }, [blocks])
+  }, [entries])
 
   function update(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
@@ -71,7 +73,7 @@ export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId
   // Live planned hours (bi-weekly) per service from the current rows.
   const plannedBiweekly = new Map<ServiceType, number>()
   for (const r of rows) {
-    plannedBiweekly.set(r.service_type, (plannedBiweekly.get(r.service_type) ?? 0) + blockHours(r.start_time, r.end_time) * 2)
+    plannedBiweekly.set(r.service_type, (plannedBiweekly.get(r.service_type) ?? 0) + entryHours(r.start_time, r.end_time) * 2)
   }
   const authorizedBiweekly = new Map<ServiceType, number>(
     (compliance?.services ?? []).map((s) => [s.service_type, s.authorized_biweekly]),
@@ -91,7 +93,7 @@ export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId
   async function handleSave() {
     setError(null)
     setSaved(false)
-    const payload: CareScheduleBlockInput[] = rows.map((r) => ({
+    const payload: WeeklyCarePlanEntryInput[] = rows.map((r) => ({
       day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time, service_type: r.service_type,
     }))
     try {
@@ -108,9 +110,9 @@ export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId
       <div className="flex items-center justify-between px-6 py-4 border-b border-line-soft gap-4">
         <div>
           <Kicker leader className="mb-1.5">
-            {enforceCompliance ? 'Care plan — delivers against the active authorization' : 'Care plan — recurring weekly care'}
+            {enforceCompliance ? 'Weekly care plan — capped by the active authorization' : 'Weekly care plan — recurring weekly care'}
           </Kicker>
-          <h3 className="font-serif text-[22px] tracking-[-0.02em]">Weekly schedule</h3>
+          <h3 className="font-serif text-[22px] tracking-[-0.02em]">Weekly care plan</h3>
         </div>
         {enforceCompliance && (
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -133,12 +135,12 @@ export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId
 
       {rows.length === 0 && (
         <p className="px-6 py-6 font-mono text-[10px] text-muted tracking-wide text-center">
-          NO BLOCKS YET — ADD WHEN CARE TIMES ARE KNOWN
+          NO ENTRIES YET — ADD WHEN CARE TIMES ARE KNOWN
         </p>
       )}
 
       {rows.map((r, i) => {
-        const hrs = blockHours(r.start_time, r.end_time)
+        const hrs = entryHours(r.start_time, r.end_time)
         return (
           <div key={i} className={`grid grid-cols-[90px_130px_130px_1fr_56px_40px] items-center ${i ? 'border-t border-dashed border-line-soft' : ''}`}>
             <div className="px-3 py-2.5">
@@ -164,7 +166,7 @@ export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId
       {/* footer */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-line-soft gap-4">
         <button type="button" onClick={addRow}
-          className="font-mono text-[10px] tracking-[0.06em] uppercase text-ink-soft hover:text-ink">＋ Add block</button>
+          className="font-mono text-[10px] tracking-[0.06em] uppercase text-ink-soft hover:text-ink">＋ Add entry</button>
         <div className="flex items-center gap-4">
           {saved && <span className="font-mono text-[10px] text-ink-soft">✓ Saved</span>}
           {error && <span className="font-mono text-[10px] text-orange">{error}</span>}

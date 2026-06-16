@@ -71,21 +71,6 @@ export interface AuthorizationCompliance {
   services: ServiceCompliance[]
 }
 
-export interface CareScheduleBlock {
-  id: string
-  day_of_week: WeekDay
-  start_time: string
-  end_time: string
-  service_type: ServiceType
-}
-
-export interface CareScheduleBlockInput {
-  day_of_week: WeekDay
-  start_time: string
-  end_time: string
-  service_type: ServiceType
-}
-
 export const authorizationsApi = {
   list: async (clientId: string): Promise<Authorization[]> => {
     const { data } = await apiClient.get(`/api/clients/${clientId}/authorizations`)
@@ -104,16 +89,6 @@ export const authorizationsApi = {
 
   compliance: async (clientId: string): Promise<AuthorizationCompliance> => {
     const { data } = await apiClient.get(`/api/clients/${clientId}/authorization-compliance`)
-    return data
-  },
-
-  getCareSchedule: async (clientId: string): Promise<CareScheduleBlock[]> => {
-    const { data } = await apiClient.get(`/api/clients/${clientId}/care-schedule`)
-    return data
-  },
-
-  putCareSchedule: async (clientId: string, blocks: CareScheduleBlockInput[]): Promise<CareScheduleBlock[]> => {
-    const { data } = await apiClient.put(`/api/clients/${clientId}/care-schedule`, { blocks })
     return data
   },
 }

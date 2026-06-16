@@ -61,7 +61,7 @@ def _profile_response(person: Person, employment: Employment) -> dict:
         "postal_code":   person.postal_code,
         "availability":           [
             {"id": b.id, "day_of_week": b.day_of_week, "start_time": b.start_time, "end_time": b.end_time}
-            for b in sorted(person.availability_blocks, key=lambda x: (x.day_of_week.value, x.start_time))
+            for b in sorted(person.availability_entries, key=lambda x: (x.day_of_week.value, x.start_time))
         ],
         "max_hours_per_week":     employment.max_hours_per_week,
         "pet_tolerance":          person.pet_tolerance,

@@ -60,7 +60,7 @@ class Client(Base):
         "Authorization", back_populates="client",
         foreign_keys="Authorization.client_id", cascade="all, delete-orphan",
     )
-    care_schedule_blocks = relationship(
-        "CareScheduleBlock", back_populates="client",
-        foreign_keys="CareScheduleBlock.client_id", cascade="all, delete-orphan",
+    weekly_care_plan_entries = relationship(
+        "WeeklyCarePlanEntry", back_populates="client",
+        foreign_keys="WeeklyCarePlanEntry.client_id", cascade="all, delete-orphan",
     )

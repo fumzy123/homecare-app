@@ -7,38 +7,38 @@ import {
   useCancelAuthorization,
 } from '@/features/authorizations/hooks/useAuthorizations'
 import { ActiveAuthHero } from '@/features/authorizations/components/ActiveAuthHero'
-import { CarePlanBlock } from '@/features/authorizations/components/CarePlanBlock'
 import { AuthHistory } from '@/features/authorizations/components/AuthHistory'
 import { AuthorizationDrawer } from '@/features/authorizations/components/AuthorizationDrawer'
 import { activeAuthorization } from '@/features/authorizations/utils'
+import { WeeklyCarePlanEditor } from '@/features/weekly-care-plan/components/WeeklyCarePlanEditor'
 import { useClient } from '@/features/clients/hooks/useClients'
 import type { Authorization } from '@/features/authorizations/api'
 
-export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/authorization')({
-  component: ClientAuthorization,
+export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/care-plan')({
+  component: ClientCarePlan,
 })
 
-function ClientAuthorization() {
+function ClientCarePlan() {
   const { clientId } = Route.useParams()
   const { data: client } = useClient(clientId)
 
-  // Self-pay clients have no authorization — this tab is just their weekly schedule.
+  // Self-pay clients have no authorization — this tab is just their weekly care plan.
   if (client && client.care_arrangement !== 'funded') {
     return (
       <div className="p-8 flex flex-col gap-[22px]">
         <div>
           <Kicker leader className="mb-2">The client's recurring weekly care</Kicker>
-          <h2 className="font-serif text-[28px] tracking-[-0.02em]">Weekly schedule</h2>
+          <h2 className="font-serif text-[28px] tracking-[-0.02em]">Weekly care plan</h2>
         </div>
-        <CarePlanBlock clientId={clientId} enforceCompliance={false} />
+        <WeeklyCarePlanEditor clientId={clientId} enforceCompliance={false} />
       </div>
     )
   }
 
-  return <FundedAuthorization clientId={clientId} />
+  return <FundedCarePlan clientId={clientId} />
 }
 
-function FundedAuthorization({ clientId }: { clientId: string }) {
+function FundedCarePlan({ clientId }: { clientId: string }) {
   const { data: authorizations = [], isLoading } = useClientAuthorizations(clientId)
   const { data: compliance } = useAuthorizationCompliance(clientId)
   const { mutate: cancel, isPending: cancelling } = useCancelAuthorization(clientId)
@@ -81,7 +81,7 @@ function FundedAuthorization({ clientId }: { clientId: string }) {
             onCancel={cancel}
             cancelling={cancelling}
           />
-          <CarePlanBlock clientId={clientId} />
+          <WeeklyCarePlanEditor clientId={clientId} />
           <AuthHistory authorizations={authorizations} />
         </>
       ) : (

@@ -7,12 +7,13 @@ from app.models.base import Base
 from app.core.enums import WeekDay
 
 
-class WorkerAvailabilityBlock(Base):
-    """A single recurring weekly window a worker is available to work — concrete
-    (day + start/end time), so it can be compared directly against a care block
-    or shift to decide whether the worker can cover it. Availability lives on the
-    Person (it follows the worker across employments)."""
-    __tablename__ = "worker_availability_blocks"
+class WorkerAvailabilityEntry(Base):
+    """A single entry in a worker's weekly availability — one recurring window
+    they can work (day + start/end time), concrete enough to compare directly
+    against a weekly care plan entry or shift to decide whether the worker can
+    cover it. Availability lives on the Person (it follows the worker across
+    employments)."""
+    __tablename__ = "worker_availability_entries"
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     person_id   = Column(UUID(as_uuid=True), ForeignKey("persons.id", ondelete="CASCADE"),
@@ -22,4 +23,4 @@ class WorkerAvailabilityBlock(Base):
     end_time    = Column(Time, nullable=False)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
-    person = relationship("Person", foreign_keys=[person_id], back_populates="availability_blocks")
+    person = relationship("Person", foreign_keys=[person_id], back_populates="availability_entries")

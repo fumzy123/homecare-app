@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { orgMembersApi, type AvailabilityBlockInput, type WeekDay } from '../api'
+import { orgMembersApi, type AvailabilityEntryInput, type WeekDay } from '../api'
 
 export function useWorkerAvailability(memberId: string) {
   return useQuery({
@@ -12,7 +12,7 @@ export function useWorkerAvailability(memberId: string) {
 export function useSaveWorkerAvailability(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (blocks: AvailabilityBlockInput[]) => orgMembersApi.putAvailability(memberId, blocks),
+    mutationFn: (entries: AvailabilityEntryInput[]) => orgMembersApi.putAvailability(memberId, entries),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['worker-availability', memberId] })
       qc.invalidateQueries({ queryKey: ['worker', memberId] })

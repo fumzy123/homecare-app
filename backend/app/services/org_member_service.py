@@ -19,7 +19,7 @@ _DEFAULT_HOURS: dict[EmploymentType, int] = {
 
 # Fields that belong to Person vs Employment — used to split update payloads.
 # Availability is no longer here — it's edited via the dedicated /availability
-# sub-resource (worker_availability_blocks), not the big member update.
+# sub-resource (worker_availability_entries), not the big member update.
 _PERSON_FIELDS = {
     "first_name", "last_name", "phone_number", "gender", "date_of_birth",
     "street", "city", "province", "postal_code", "languages",
@@ -49,8 +49,8 @@ def _flat_response(employment: Employment) -> dict:
         "province":      person.province,
         "postal_code":   person.postal_code,
         "availability":  sorted(
-            person.availability_blocks,
-            key=lambda b: (b.day_of_week.value, b.start_time),
+            person.availability_entries,
+            key=lambda e: (e.day_of_week.value, e.start_time),
         ),
         "languages":     person.languages,
         "pet_tolerance": person.pet_tolerance,

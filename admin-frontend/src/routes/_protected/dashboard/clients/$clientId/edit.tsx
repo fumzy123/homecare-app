@@ -441,9 +441,9 @@ function ClientEditForm({ client }: { client: Client }) {
                   Care start: {client.care_start ? format(new Date(client.care_start), 'yyyy-MM-dd') : '—'}
                 </span>
               </div>
-              <Link to="/dashboard/clients/$clientId/authorization" params={{ clientId: client.id } as never}
+              <Link to="/dashboard/clients/$clientId/care-plan" params={{ clientId: client.id } as never}
                 className="inline-flex mt-2.5 font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink">
-                {funded ? 'Manage in Authorization tab →' : 'Manage in Schedule tab →'}
+                {funded ? 'Manage in Authorized Weekly Care Plan tab →' : 'Manage in Weekly Care Plan tab →'}
               </Link>
             </div>
 

@@ -6,7 +6,7 @@ import { PERIODS, getDateRangeLabel, weekNum, type Period } from '@/features/shi
 import { useClientShiftStats, useClientShifts, useUpcomingVisits } from '../hooks/useClientVisits'
 import { useClient } from '../hooks/useClients'
 import { useClientAuthorizations, useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
-import { useCareSchedule } from '@/features/authorizations/hooks/useCareSchedule'
+import { useWeeklyCarePlan } from '@/features/weekly-care-plan/hooks/useWeeklyCarePlan'
 import { SERVICE_TYPE_LABELS, HOURS_PERIOD_LABELS } from '@/features/authorizations/constants'
 import { activeAuthorization, endsRelLabel, fmtHours } from '@/features/authorizations/utils'
 import type { ShiftOccurrence } from '@/features/shifts/api'
@@ -22,7 +22,7 @@ function UtilMeter({ authorized, planned, delivered }: { authorized: number; pla
   const max = Math.max(authorized, planned, delivered, 1)
   const rows: [string, number, string, string][] = [
     ['Authorized', authorized, 'bg-ink',       'bi-weekly cap'],
-    ['Planned',    planned,    'bg-mint-dark', 'care-plan blocks'],
+    ['Planned',    planned,    'bg-mint-dark', 'care-plan entries'],
     ['Delivered',  delivered,  'bg-orange',    'completed visits'],
   ]
   const compliant = planned <= authorized + 1e-9
@@ -58,7 +58,7 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
   const { data: upcoming = [] }      = useUpcomingVisits(clientId)
   const { data: authorizations = [] } = useClientAuthorizations(clientId)
   const { data: compliance }         = useAuthorizationCompliance(clientId)
-  const { data: blocks = [] }        = useCareSchedule(clientId)
+  const { data: planEntries = [] }   = useWeeklyCarePlan(clientId)
 
   const funded = client?.care_arrangement === 'funded'
   const auth = activeAuthorization(authorizations)
@@ -124,7 +124,7 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
       <div className={`grid ${funded ? 'grid-cols-4' : 'grid-cols-3'} border border-ink bg-paper`}>
         <StatCard label="Upcoming"    value={upcomingCount}              sub="scheduled visits" size="sm" className="border-r border-line-soft" />
         <StatCard label="Delivered"   value={`${delivered.toFixed(1)}h`} sub="this period"      size="sm" className="border-r border-line-soft" />
-        <StatCard label="Plan / wk"   value={`${fmtHours(planPerWeek)}h`} sub={`${blocks.length} block${blocks.length === 1 ? '' : 's'}`} size="sm" className={funded ? 'border-r border-line-soft' : ''} />
+        <StatCard label="Plan / wk"   value={`${fmtHours(planPerWeek)}h`} sub={`${planEntries.length} entr${planEntries.length === 1 ? 'y' : 'ies'}`} size="sm" className={funded ? 'border-r border-line-soft' : ''} />
         {funded && (
           <StatCard label="Utilization" value={`${utilization}%`} sub="of authorized" size="sm" valueColor="text-orange" />
         )}
@@ -178,7 +178,7 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
                 </div>
                 <span className="font-mono text-[9px] tracking-[0.04em] uppercase text-mint-dark whitespace-nowrap">{endsRelLabel(auth)}</span>
               </div>
-              <Link to="/dashboard/clients/$clientId/authorization" params={{ clientId } as never}
+              <Link to="/dashboard/clients/$clientId/care-plan" params={{ clientId } as never}
                 className="font-mono text-[10px] tracking-[0.06em] uppercase text-ink hover:text-orange flex items-center gap-1.5">
                 Manage authorizations →
               </Link>
@@ -187,7 +187,7 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
             <div className="px-6 py-8 text-center">
               <p className="font-serif text-[18px] mb-1">No authorization</p>
               <p className="font-mono text-[10px] text-muted tracking-wide mb-4">THIS CLIENT HAS NO ACTIVE FUNDING</p>
-              <Link to="/dashboard/clients/$clientId/authorization" params={{ clientId } as never}
+              <Link to="/dashboard/clients/$clientId/care-plan" params={{ clientId } as never}
                 className="inline-flex rounded-full border border-ink px-4 py-2 font-mono text-[11px] hover:bg-ink hover:text-cream transition-colors">
                 ＋ Add authorization
               </Link>

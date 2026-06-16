@@ -5,7 +5,7 @@ from datetime import time
 from app.db.session import get_db
 from app.schemas.invitation import AcceptInvitationSchema
 from app.schemas.org_member import OrgMemberResponse, OrgMemberUpdateSchema, OrgMemberSelfUpdateSchema
-from app.schemas.worker_availability import AvailabilityBlockResponse, AvailabilityPutSchema
+from app.schemas.worker_availability import AvailabilityEntryResponse, AvailabilityPutSchema
 from app.services.org_member_service import OrgMemberService, _flat_response
 from app.services.worker_availability_service import WorkerAvailabilityService
 from app.services.org_service import OrgService
@@ -126,7 +126,7 @@ async def update_self(
 # ─────────────────────────────────────────
 # 5b. Worker availability (interval blocks) — read + replace
 # ─────────────────────────────────────────
-@router.get("/{member_id}/availability", response_model=List[AvailabilityBlockResponse])
+@router.get("/{member_id}/availability", response_model=List[AvailabilityEntryResponse])
 async def get_member_availability(
     member_id: str,
     svc: WorkerAvailabilityService = Depends(get_worker_availability_service),
@@ -134,7 +134,7 @@ async def get_member_availability(
     return svc.get_for_member(member_id)
 
 
-@router.put("/{member_id}/availability", response_model=List[AvailabilityBlockResponse])
+@router.put("/{member_id}/availability", response_model=List[AvailabilityEntryResponse])
 async def put_member_availability(
     member_id: str,
     payload: AvailabilityPutSchema,

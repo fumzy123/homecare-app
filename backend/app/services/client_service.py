@@ -11,7 +11,7 @@ from app.services.org_service import OrgService
 from app.repositories.client_repository import ClientRepository
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.authorization_repository import AuthorizationRepository
-from app.repositories.care_schedule_repository import CareScheduleRepository
+from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
 import uuid
 
 
@@ -23,7 +23,7 @@ class ClientService:
         self.client_repo = ClientRepository(db)
         self.shift_repo = ShiftRepository(db)
         self.auth_repo = AuthorizationRepository(db)
-        self.schedule_repo = CareScheduleRepository(db)
+        self.plan_repo = WeeklyCarePlanRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
 
     # ── Derived authorization summary (service types, care dates, coverage) ────
@@ -64,7 +64,7 @@ class ClientService:
             return None
         auths = self.auth_repo.list_for_client(client.id, self.org_id)
         superseded = {a.supersedes_id for a in auths if a.supersedes_id}
-        plan = self.schedule_repo.service_types_by_client([client.id]).get(client.id, set())
+        plan = self.plan_repo.service_types_by_client([client.id]).get(client.id, set())
         return self._derive(client, auths, superseded, date.today(), plan)
 
     def _attach_many(self, clients: list[Client]) -> list[Client]:
@@ -73,7 +73,7 @@ class ClientService:
         for a in all_auths:
             by_client[a.client_id].append(a)
         superseded = {a.supersedes_id for a in all_auths if a.supersedes_id}
-        plans = self.schedule_repo.service_types_by_client([c.id for c in clients])
+        plans = self.plan_repo.service_types_by_client([c.id for c in clients])
         today = date.today()
         for c in clients:
             self._derive(c, by_client.get(c.id, []), superseded, today, plans.get(c.id, set()))

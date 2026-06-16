@@ -3,14 +3,14 @@ import { apiClient } from '@/shared/lib/api-client'
 export type EmploymentType = 'full_time' | 'part_time'
 export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
 
-export interface AvailabilityBlock {
+export interface AvailabilityEntry {
   id: string
   day_of_week: WeekDay
   start_time: string  // "HH:MM" or "HH:MM:SS"
   end_time: string
 }
 
-export interface AvailabilityBlockInput {
+export interface AvailabilityEntryInput {
   day_of_week: WeekDay
   start_time: string  // "HH:MM"
   end_time: string
@@ -39,7 +39,7 @@ export interface OrgMember {
   city: string | null
   province: string | null
   postal_code: string | null
-  availability: AvailabilityBlock[]
+  availability: AvailabilityEntry[]
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
   emergency_contact_relationship: string | null
@@ -123,13 +123,13 @@ export const orgMembersApi = {
     await apiClient.delete(`/api/org-members/${memberId}`)
   },
 
-  getAvailability: async (memberId: string): Promise<AvailabilityBlock[]> => {
+  getAvailability: async (memberId: string): Promise<AvailabilityEntry[]> => {
     const { data } = await apiClient.get(`/api/org-members/${memberId}/availability`)
     return data
   },
 
-  putAvailability: async (memberId: string, blocks: AvailabilityBlockInput[]): Promise<AvailabilityBlock[]> => {
-    const { data } = await apiClient.put(`/api/org-members/${memberId}/availability`, { blocks })
+  putAvailability: async (memberId: string, entries: AvailabilityEntryInput[]): Promise<AvailabilityEntry[]> => {
+    const { data } = await apiClient.put(`/api/org-members/${memberId}/availability`, { entries })
     return data
   },
 

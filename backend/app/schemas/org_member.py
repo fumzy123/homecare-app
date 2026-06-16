@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus
-from app.schemas.worker_availability import AvailabilityBlockResponse
+from app.schemas.worker_availability import AvailabilityEntryResponse
 
 
 class OrgMemberResponse(BaseModel):
@@ -27,7 +27,7 @@ class OrgMemberResponse(BaseModel):
     city: Optional[str]
     province: Optional[str]
     postal_code: Optional[str]
-    availability: List[AvailabilityBlockResponse] = []
+    availability: List[AvailabilityEntryResponse] = []
     languages: Optional[List[str]]
     pet_tolerance: Optional[str]
     preferred_client_types: Optional[List[str]]

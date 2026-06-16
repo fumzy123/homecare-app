@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TimeInput } from '@/shared/components/ui'
 import { useWorkerAvailability, useSaveWorkerAvailability } from '../hooks/useWorkerAvailability'
-import type { WeekDay, AvailabilityBlockInput } from '../api'
+import type { WeekDay, AvailabilityEntryInput } from '../api'
 
 const DAYS: { key: WeekDay; label: string }[] = [
   { key: 'MO', label: 'Mon' }, { key: 'TU', label: 'Tue' }, { key: 'WE', label: 'Wed' },
@@ -73,7 +73,7 @@ export function WorkerAvailabilityEditor({ memberId }: { memberId: string }) {
       setError('Each window must end after it starts.'); return
     }
     try {
-      await save(rows.map<AvailabilityBlockInput>((r) => ({ day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time })))
+      await save(rows.map<AvailabilityEntryInput>((r) => ({ day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time })))
       setSaved(true)
     } catch (err) {
       setError(errorMessage(err))

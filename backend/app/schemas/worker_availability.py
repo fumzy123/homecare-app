@@ -4,7 +4,7 @@ from uuid import UUID
 from app.core.enums import WeekDay
 
 
-class AvailabilityBlockInput(BaseModel):
+class AvailabilityEntryInput(BaseModel):
     day_of_week: WeekDay
     start_time: time
     end_time: time
@@ -16,7 +16,7 @@ class AvailabilityBlockInput(BaseModel):
         return self
 
 
-class AvailabilityBlockResponse(BaseModel):
+class AvailabilityEntryResponse(BaseModel):
     id: UUID
     day_of_week: WeekDay
     start_time: time
@@ -26,15 +26,15 @@ class AvailabilityBlockResponse(BaseModel):
 
 
 class AvailabilityPutSchema(BaseModel):
-    blocks: list[AvailabilityBlockInput]
+    entries: list[AvailabilityEntryInput]
 
     @model_validator(mode="after")
     def no_overlaps(self):
-        by_day: dict[WeekDay, list[AvailabilityBlockInput]] = {}
-        for b in self.blocks:
-            by_day.setdefault(b.day_of_week, []).append(b)
-        for day_blocks in by_day.values():
-            ordered = sorted(day_blocks, key=lambda b: b.start_time)
+        by_day: dict[WeekDay, list[AvailabilityEntryInput]] = {}
+        for e in self.entries:
+            by_day.setdefault(e.day_of_week, []).append(e)
+        for day_entries in by_day.values():
+            ordered = sorted(day_entries, key=lambda e: e.start_time)
             for prev, nxt in zip(ordered, ordered[1:]):
                 if nxt.start_time < prev.end_time:
                     raise ValueError("availability windows on the same day must not overlap")

@@ -15,7 +15,7 @@ export function ActiveAuthChip({ clientId, authorizations }: { clientId: string;
   if (!auth) {
     return (
       <Link
-        to="/dashboard/clients/$clientId/authorization"
+        to="/dashboard/clients/$clientId/care-plan"
         params={{ clientId } as never}
         className="block border border-dashed border-line-soft bg-paper px-3 py-3 hover:border-ink transition-colors"
       >
@@ -36,7 +36,7 @@ export function ActiveAuthChip({ clientId, authorizations }: { clientId: string;
 
   return (
     <Link
-      to="/dashboard/clients/$clientId/authorization"
+      to="/dashboard/clients/$clientId/care-plan"
       params={{ clientId } as never}
       className="block border border-ink bg-paper px-3 py-3 hover:bg-cream-2 transition-colors"
     >
