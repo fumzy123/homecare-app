@@ -1,7 +1,20 @@
 import { apiClient } from '@/shared/lib/api-client'
-import type { ScheduleMap } from '@/shared/components/AvailabilityGrid'
 
 export type EmploymentType = 'full_time' | 'part_time'
+export type WeekDay = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
+
+export interface AvailabilityBlock {
+  id: string
+  day_of_week: WeekDay
+  start_time: string  // "HH:MM" or "HH:MM:SS"
+  end_time: string
+}
+
+export interface AvailabilityBlockInput {
+  day_of_week: WeekDay
+  start_time: string  // "HH:MM"
+  end_time: string
+}
 
 export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
   full_time: 'Full-time',
@@ -26,7 +39,7 @@ export interface OrgMember {
   city: string | null
   province: string | null
   postal_code: string | null
-  availability: ScheduleMap | null
+  availability: AvailabilityBlock[]
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
   emergency_contact_relationship: string | null
@@ -50,7 +63,6 @@ export interface OrgMemberUpdatePayload {
   city?: string
   province?: string
   postal_code?: string
-  availability?: ScheduleMap
   emergency_contact_name?: string
   emergency_contact_phone?: string
   emergency_contact_relationship?: string
@@ -109,6 +121,24 @@ export const orgMembersApi = {
 
   deleteOrgMember: async (memberId: string): Promise<void> => {
     await apiClient.delete(`/api/org-members/${memberId}`)
+  },
+
+  getAvailability: async (memberId: string): Promise<AvailabilityBlock[]> => {
+    const { data } = await apiClient.get(`/api/org-members/${memberId}/availability`)
+    return data
+  },
+
+  putAvailability: async (memberId: string, blocks: AvailabilityBlockInput[]): Promise<AvailabilityBlock[]> => {
+    const { data } = await apiClient.put(`/api/org-members/${memberId}/availability`, { blocks })
+    return data
+  },
+
+  // Employment ids whose recurring availability covers the given block.
+  getAvailableMembers: async (day: WeekDay, start: string, end: string): Promise<string[]> => {
+    const { data } = await apiClient.get('/api/org-members/available', {
+      params: { day, start, end },
+    })
+    return data
   },
 
   listCredentials: async (memberId: string): Promise<WorkerCredential[]> => {

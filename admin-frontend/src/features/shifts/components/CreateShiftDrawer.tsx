@@ -1,10 +1,11 @@
-import { useForm } from '@tanstack/react-form'
+import { useForm, useStore } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
 import { useState, useRef } from 'react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
-import { orgMembersApi } from '@/features/org-members/api'
+import { orgMembersApi, type WeekDay } from '@/features/org-members/api'
+import { useAvailableMembers } from '@/features/org-members/hooks/useWorkerAvailability'
 import { clientsApi } from '@/features/clients/api'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
@@ -188,6 +189,20 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
     },
   })
 
+  // Advisory: does the picked worker's recurring availability cover this block?
+  // getDay(): 0=Sun. Only meaningful for a same-day block (no overnight wrap).
+  const WEEKDAY_CODES: WeekDay[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
+  const watchDate   = useStore(form.store, (s) => s.values.date)
+  const watchStart  = useStore(form.store, (s) => s.values.start_time)
+  const watchEnd    = useStore(form.store, (s) => s.values.end_time)
+  const watchWorker = useStore(form.store, (s) => s.values.worker_id)
+  const sameDayBlock = !!watchDate && !!watchStart && !!watchEnd && watchStart < watchEnd
+  const matchDay = sameDayBlock ? WEEKDAY_CODES[new Date(`${watchDate}T00:00`).getDay()] : null
+  const { data: availableIds = [] } = useAvailableMembers(
+    matchDay, sameDayBlock ? watchStart : null, sameDayBlock ? watchEnd : null,
+  )
+  const selectedAvailable = availableIds.includes(watchWorker)
+
   function handleApproveOverride() {
     setPendingOverride(null)
     overrideRef.current = true
@@ -262,6 +277,13 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
                 </select>
                 <FieldError error={field.state.meta.errors[0]} />
+                {field.state.value && sameDayBlock && (
+                  <p className={`mt-1 font-mono text-[10px] ${selectedAvailable ? 'text-mint-dark' : 'text-orange'}`}>
+                    {selectedAvailable
+                      ? '✓ Within their stated availability'
+                      : '⚠ Outside their stated availability — you can still schedule'}
+                  </p>
+                )}
               </div>
             )}
           </form.Field>

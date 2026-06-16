@@ -3,7 +3,7 @@ import { useForm } from '@tanstack/react-form'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { orgMembersApi, type OrgMember, type EmploymentType, EMPLOYMENT_TYPE_LABELS } from '@/features/org-members/api'
-import { AvailabilityGrid, type ScheduleMap } from '@/shared/components/AvailabilityGrid'
+import { WorkerAvailabilityEditor } from '@/features/org-members/components/WorkerAvailabilityEditor'
 import { Avatar, DateInput, Kicker } from '@/shared/components/ui'
 import { WorkerDocumentsTab } from '@/features/workers/components/WorkerDocumentsTab'
 import { WorkerDangerZone } from '@/features/workers/components/WorkerDangerZone'
@@ -153,7 +153,6 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
       employment_type:                (worker.employment_type ?? '') as EmploymentType | '',
       max_hours_per_week:             worker.max_hours_per_week?.toString() ?? '',
       has_vehicle:                    worker.has_vehicle ?? false,
-      availability:                   (worker.availability ?? {}) as ScheduleMap,
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -177,7 +176,6 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
           employment_type:                (value.employment_type as EmploymentType) || undefined,
           max_hours_per_week:             isNaN(maxHours as number) ? undefined : maxHours,
           has_vehicle:                    value.has_vehicle,
-          availability:                   Object.keys(value.availability).length > 0 ? value.availability : undefined,
         })
         queryClient.invalidateQueries({ queryKey: ['worker', worker.id] })
         queryClient.invalidateQueries({ queryKey: ['workers'] })
@@ -553,11 +551,7 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
 
             <div className="border-t border-dashed border-line-soft pt-[18px]">
               <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-muted mb-[14px]">Weekly availability</p>
-              <form.Field name="availability">
-                {(field) => (
-                  <AvailabilityGrid value={field.state.value} onChange={(v) => field.handleChange(v)} />
-                )}
-              </form.Field>
+              <WorkerAvailabilityEditor memberId={worker.id} />
             </div>
           </FormCard>
 

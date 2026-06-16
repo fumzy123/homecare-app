@@ -14,6 +14,7 @@ from app.models.admin_notification import AdminNotificationRead as AdminNotifica
 from app.models.authorization import Authorization as Authorization
 from app.models.authorization import AuthorizationService as AuthorizationService
 from app.models.care_schedule import CareScheduleBlock as CareScheduleBlock
+from app.models.worker_availability import WorkerAvailabilityBlock as WorkerAvailabilityBlock
 
 # IMPORTANT: Whenever you create a new model (like Client or Worker),
 # you MUST import it into this file so Alembic knows it exists!
