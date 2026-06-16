@@ -4,6 +4,7 @@ import type { NoteEntry } from '@/features/shifts/api'
 export type ClientStatus = 'active' | 'on_hold' | 'discharged'
 export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing' | 'homemaking'
 export type AuthorizationCoverage = 'covered' | 'lapsed'
+export type CareArrangement = 'self_pay' | 'funded'
 
 export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
   active: 'Active',
@@ -42,6 +43,7 @@ export interface Client {
   emergency_contact_phone: string
   emergency_contact_relationship: string
   status: ClientStatus
+  care_arrangement: CareArrangement
   notes: string | null
   // Derived from authorizations (not stored on the client)
   service_types: ServiceType[]
@@ -71,6 +73,7 @@ export interface ClientCreatePayload {
   emergency_contact_phone: string
   emergency_contact_relationship: string
   status: ClientStatus
+  care_arrangement?: CareArrangement
   notes?: string
 }
 

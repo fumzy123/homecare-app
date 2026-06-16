@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { StatCard, Kicker } from '@/shared/components/ui'
 import { PERIODS, getDateRangeLabel, weekNum, type Period } from '@/features/shifts/utils/period'
 import { useClientShiftStats, useClientShifts, useUpcomingVisits } from '../hooks/useClientVisits'
+import { useClient } from '../hooks/useClients'
 import { useClientAuthorizations, useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
 import { useCareSchedule } from '@/features/authorizations/hooks/useCareSchedule'
 import { SERVICE_TYPE_LABELS, HOURS_PERIOD_LABELS } from '@/features/authorizations/constants'
@@ -51,6 +52,7 @@ function UtilMeter({ authorized, planned, delivered }: { authorized: number; pla
 export function ClientOverviewTab({ clientId }: { clientId: string }) {
   const [period, setPeriod] = useState<Period>('this_week')
 
+  const { data: client }             = useClient(clientId)
   const { data: stats }              = useClientShiftStats(clientId, period)
   const { data: shifts = [] }        = useClientShifts(clientId, period)
   const { data: upcoming = [] }      = useUpcomingVisits(clientId)
@@ -58,6 +60,7 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
   const { data: compliance }         = useAuthorizationCompliance(clientId)
   const { data: blocks = [] }        = useCareSchedule(clientId)
 
+  const funded = client?.care_arrangement === 'funded'
   const auth = activeAuthorization(authorizations)
 
   const delivered     = completedHours(shifts)
@@ -66,6 +69,36 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
   const planPerWeek   = plannedBi / 2
   const utilization   = authorizedBi > 0 ? Math.round((delivered / authorizedBi) * 100) : 0
   const upcomingCount = (stats?.scheduled ?? 0) + (stats?.in_progress ?? 0)
+
+  const upcomingCard = (
+    <div className="border border-ink bg-paper px-6 py-5">
+      <div className="flex items-baseline justify-between mb-3.5">
+        <h3 className="font-serif text-[22px] tracking-[-0.02em]">Upcoming visits</h3>
+        <Link to="/dashboard/clients/$clientId/visits" params={{ clientId } as never}
+          className="font-mono text-[10px] tracking-[0.04em] uppercase text-ink-soft hover:text-ink">View all →</Link>
+      </div>
+      {upcoming.length === 0 ? (
+        <p className="font-mono text-[10px] text-muted tracking-wide py-4 text-center">NO UPCOMING VISITS SCHEDULED</p>
+      ) : (
+        <div className="flex flex-col">
+          {upcoming.slice(0, 6).map((v, i) => {
+            const hrs = (new Date(v.end_time).getTime() - new Date(v.start_time).getTime()) / 3_600_000
+            return (
+              <div key={`${v.shift_id}-${v.date}`}
+                className={`grid grid-cols-[1.1fr_1.4fr_1.2fr_0.5fr] items-center py-3 ${i ? 'border-t border-dashed border-line-soft' : ''}`}>
+                <span className="font-mono text-[11px]">{format(new Date(v.date), 'EEE MMM d')}</span>
+                <span className="text-[13px]">{v.worker.first_name} {v.worker.last_name}</span>
+                <span className="font-mono text-[11px] text-ink-soft">
+                  {format(new Date(v.start_time), 'HH:mm')} – {format(new Date(v.end_time), 'HH:mm')}
+                </span>
+                <span className="font-mono text-[11px] text-right">{fmtHours(hrs)}h</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div className="p-8 flex flex-col gap-[22px]">
@@ -87,46 +120,25 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
         <span className="font-mono text-[11px] text-ink-soft">{getDateRangeLabel(period)} · WK {weekNum}</span>
       </div>
 
-      {/* Stat strip */}
-      <div className="grid grid-cols-4 border border-ink bg-paper">
+      {/* Stat strip — Utilization only applies to funded clients */}
+      <div className={`grid ${funded ? 'grid-cols-4' : 'grid-cols-3'} border border-ink bg-paper`}>
         <StatCard label="Upcoming"    value={upcomingCount}              sub="scheduled visits" size="sm" className="border-r border-line-soft" />
         <StatCard label="Delivered"   value={`${delivered.toFixed(1)}h`} sub="this period"      size="sm" className="border-r border-line-soft" />
-        <StatCard label="Plan / wk"   value={`${fmtHours(planPerWeek)}h`} sub={`${blocks.length} block${blocks.length === 1 ? '' : 's'}`} size="sm" className="border-r border-line-soft" />
-        <StatCard label="Utilization" value={`${utilization}%`}          sub="of authorized"    size="sm" valueColor="text-orange" />
+        <StatCard label="Plan / wk"   value={`${fmtHours(planPerWeek)}h`} sub={`${blocks.length} block${blocks.length === 1 ? '' : 's'}`} size="sm" className={funded ? 'border-r border-line-soft' : ''} />
+        {funded && (
+          <StatCard label="Utilization" value={`${utilization}%`} sub="of authorized" size="sm" valueColor="text-orange" />
+        )}
       </div>
 
+      {/* Self-pay clients have no funder/utilization story — show the schedule only */}
+      {!funded ? (
+        upcomingCard
+      ) : (
       <div className="grid grid-cols-[1.5fr_1fr] gap-[22px] items-start">
         {/* Left: utilization + upcoming visits */}
         <div className="flex flex-col gap-[22px]">
           <UtilMeter authorized={authorizedBi} planned={plannedBi} delivered={delivered} />
-
-          <div className="border border-ink bg-paper px-6 py-5">
-            <div className="flex items-baseline justify-between mb-3.5">
-              <h3 className="font-serif text-[22px] tracking-[-0.02em]">Upcoming visits</h3>
-              <Link to="/dashboard/clients/$clientId/visits" params={{ clientId } as never}
-                className="font-mono text-[10px] tracking-[0.04em] uppercase text-ink-soft hover:text-ink">View all →</Link>
-            </div>
-            {upcoming.length === 0 ? (
-              <p className="font-mono text-[10px] text-muted tracking-wide py-4 text-center">NO UPCOMING VISITS SCHEDULED</p>
-            ) : (
-              <div className="flex flex-col">
-                {upcoming.slice(0, 6).map((v, i) => {
-                  const hrs = (new Date(v.end_time).getTime() - new Date(v.start_time).getTime()) / 3_600_000
-                  return (
-                    <div key={`${v.shift_id}-${v.date}`}
-                      className={`grid grid-cols-[1.1fr_1.4fr_1.2fr_0.5fr] items-center py-3 ${i ? 'border-t border-dashed border-line-soft' : ''}`}>
-                      <span className="font-mono text-[11px]">{format(new Date(v.date), 'EEE MMM d')}</span>
-                      <span className="text-[13px]">{v.worker.first_name} {v.worker.last_name}</span>
-                      <span className="font-mono text-[11px] text-ink-soft">
-                        {format(new Date(v.start_time), 'HH:mm')} – {format(new Date(v.end_time), 'HH:mm')}
-                      </span>
-                      <span className="font-mono text-[11px] text-right">{fmtHours(hrs)}h</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {upcomingCard}
         </div>
 
         {/* Right: active authorization summary */}
@@ -183,6 +195,7 @@ export function ClientOverviewTab({ clientId }: { clientId: string }) {
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }

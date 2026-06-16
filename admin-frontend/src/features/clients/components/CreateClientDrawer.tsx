@@ -1,9 +1,10 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 import { z } from 'zod'
-import { clientsApi, type ClientCreatePayload, type ClientStatus } from '@/features/clients/api'
+import { clientsApi, type ClientCreatePayload, type ClientStatus, type CareArrangement } from '@/features/clients/api'
 import { Kicker, DateInput } from '@/shared/components/ui'
 import { validatePhone, formatPhone } from '@/shared/lib/phone'
+import { useOrganization } from '@/features/organization/hooks/useOrganization'
 
 const schema = z.object({
   first_name: z.string().min(1, 'Required'),
@@ -45,6 +46,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerProps) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const { data: org } = useOrganization()
+  const usesAuthorizations = org?.uses_authorizations ?? false
 
   const form = useForm({
     defaultValues: {
@@ -54,6 +57,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
       allergies: '', medications: '', special_instructions: '',
       emergency_contact_name: '', emergency_contact_phone: '',
       emergency_contact_relationship: '', status: 'active' as ClientStatus,
+      care_arrangement: 'self_pay' as CareArrangement,
       notes: '',
     },
     onSubmit: async ({ value }) => {
@@ -74,6 +78,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
         emergency_contact_phone: value.emergency_contact_phone,
         emergency_contact_relationship: value.emergency_contact_relationship,
         status: value.status,
+        care_arrangement: value.care_arrangement,
         notes: value.notes || undefined,
       }
       try {
@@ -84,6 +89,13 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
       }
     },
   })
+
+  // A funded-mode org defaults new clients to funded; self-pay orgs stay self-pay.
+  const [arrangementInit, setArrangementInit] = useState(false)
+  if (org && !arrangementInit) {
+    if (usesAuthorizations) form.setFieldValue('care_arrangement', 'funded')
+    setArrangementInit(true)
+  }
 
   return (
     <>
@@ -163,9 +175,29 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
             {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
           </form.Field>
 
-          <p className="font-mono text-[10px] text-ink-soft border border-dashed border-line-soft px-3 py-2">
-            Service type, funder and care hours are set by adding an <b>authorization</b> on the client's Care Hours tab after creation.
-          </p>
+          {usesAuthorizations && (
+            <form.Field name="care_arrangement">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Care arrangement</label>
+                  <select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as CareArrangement)}>
+                    <option value="self_pay">Self-pay — agency schedules directly</option>
+                    <option value="funded">Funded — governed by a funder authorization</option>
+                  </select>
+                </div>
+              )}
+            </form.Field>
+          )}
+
+          <form.Subscribe selector={(s) => s.values.care_arrangement}>
+            {(arrangement) => (
+              <p className="font-mono text-[10px] text-ink-soft border border-dashed border-line-soft px-3 py-2">
+                {arrangement === 'funded'
+                  ? <>Service types &amp; hours come from the funder <b>authorization</b> you add on the client's Authorization tab after creation.</>
+                  : <>This client is scheduled directly — set up their <b>weekly schedule</b> on the client's Schedule tab after creation.</>}
+              </p>
+            )}
+          </form.Subscribe>
 
           <form.Field name="medical_conditions">
             {(field) => (<div><label className={labelClass}>Medical Conditions</label><textarea className={`${inputClass} resize-none`} rows={2} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="Optional" /></div>)}

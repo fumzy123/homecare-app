@@ -38,7 +38,7 @@ function CompliancePill({ over }: { over: boolean }) {
  * hero. Per-service compliance is computed live (planned bi-weekly vs the
  * authorized cap) and saving is hard-blocked while any service is over cap.
  */
-export function CarePlanBlock({ clientId }: { clientId: string }) {
+export function CarePlanBlock({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
   const { data: blocks } = useCareSchedule(clientId)
   const { data: compliance } = useAuthorizationCompliance(clientId)
   const { mutateAsync: save, isPending } = useSaveCareSchedule(clientId)
@@ -85,7 +85,8 @@ export function CarePlanBlock({ clientId }: { clientId: string }) {
   const overplanned = pillServices.filter(
     (st) => (plannedBiweekly.get(st) ?? 0) > (authorizedBiweekly.get(st) ?? 0) + 1e-9,
   )
-  const anyOver = overplanned.length > 0
+  // Self-pay clients have no funder cap — never flag over cap or block saving.
+  const anyOver = enforceCompliance && overplanned.length > 0
 
   async function handleSave() {
     setError(null)
@@ -106,17 +107,21 @@ export function CarePlanBlock({ clientId }: { clientId: string }) {
       {/* header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-line-soft gap-4">
         <div>
-          <Kicker leader className="mb-1.5">Care plan — delivers against the active authorization</Kicker>
+          <Kicker leader className="mb-1.5">
+            {enforceCompliance ? 'Care plan — delivers against the active authorization' : 'Care plan — recurring weekly care'}
+          </Kicker>
           <h3 className="font-serif text-[22px] tracking-[-0.02em]">Weekly schedule</h3>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {pillServices.map((st) => (
-            <span key={st} className="inline-flex items-center gap-1.5">
-              <span className="font-mono text-[9.5px] text-ink-soft">{SERVICE_TYPE_LABELS[st].split(' ')[0]}</span>
-              <CompliancePill over={(plannedBiweekly.get(st) ?? 0) > (authorizedBiweekly.get(st) ?? 0) + 1e-9} />
-            </span>
-          ))}
-        </div>
+        {enforceCompliance && (
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {pillServices.map((st) => (
+              <span key={st} className="inline-flex items-center gap-1.5">
+                <span className="font-mono text-[9.5px] text-ink-soft">{SERVICE_TYPE_LABELS[st].split(' ')[0]}</span>
+                <CompliancePill over={(plannedBiweekly.get(st) ?? 0) > (authorizedBiweekly.get(st) ?? 0) + 1e-9} />
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* table header */}
@@ -163,9 +168,11 @@ export function CarePlanBlock({ clientId }: { clientId: string }) {
         <div className="flex items-center gap-4">
           {saved && <span className="font-mono text-[10px] text-ink-soft">✓ Saved</span>}
           {error && <span className="font-mono text-[10px] text-orange">{error}</span>}
-          <span className={`font-mono text-[10px] tracking-[0.04em] uppercase ${anyOver ? 'text-orange' : 'text-mint-dark'}`}>
-            ● {anyOver ? `Over cap on ${overplanned.length} service${overplanned.length === 1 ? '' : 's'}` : 'Within cap'}
-          </span>
+          {enforceCompliance && (
+            <span className={`font-mono text-[10px] tracking-[0.04em] uppercase ${anyOver ? 'text-orange' : 'text-mint-dark'}`}>
+              ● {anyOver ? `Over cap on ${overplanned.length} service${overplanned.length === 1 ? '' : 's'}` : 'Within cap'}
+            </span>
+          )}
           <button onClick={handleSave} disabled={isPending || anyOver}
             className="rounded-full border border-ink bg-ink text-cream px-4 py-2 font-mono text-[11px] tracking-[0.03em] hover:bg-orange hover:border-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {isPending ? 'Saving…' : 'Save plan'}

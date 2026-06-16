@@ -160,6 +160,7 @@ function ClientEditForm({ client }: { client: Client }) {
   })
 
   const initials = `${client.first_name[0] ?? ''}${client.last_name[0] ?? ''}`.toUpperCase()
+  const funded = client.care_arrangement === 'funded'
 
   function scrollTo(id: SectionId) {
     sectionEls.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -245,11 +246,13 @@ function ClientEditForm({ client }: { client: Client }) {
             ))}
           </div>
 
-          {/* Boundary note: funding lives elsewhere */}
+          {/* Boundary note: care planning lives elsewhere */}
           <div className="mt-[18px] px-3 py-3 border border-dashed border-line-soft bg-paper">
             <p className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft mb-1.5">Not edited here</p>
             <p className="text-[11.5px] text-ink-soft leading-[1.5]">
-              Authorizations &amp; the care plan are managed in the <strong>Authorization</strong> tab — they follow the funder's lifecycle, not the profile's.
+              {funded
+                ? <>Authorizations &amp; the care plan are managed in the <strong>Authorization</strong> tab — they follow the funder's lifecycle, not the profile's.</>
+                : <>The weekly care schedule is managed in the <strong>Schedule</strong> tab, not on the profile.</>}
             </p>
           </div>
         </div>
@@ -414,12 +417,16 @@ function ClientEditForm({ client }: { client: Client }) {
 
           {/* ── 04 Care profile ────────────────────────────────────── */}
           <FormCard id="care" num="04" kicker="What care looks like" title="Care profile"
-            helper="The services this client receives and when care began. Hours come from the authorization, not from here."
+            helper={funded
+              ? 'The services this client receives and when care began. Hours come from the authorization, not from here.'
+              : 'The services this client receives and when care began. Service types follow the weekly schedule.'}
             cardRef={(el) => { sectionEls.current.care = el }}>
 
-            {/* Derived from authorizations — read only */}
+            {/* Derived — read only */}
             <div className="border border-dashed border-line-soft bg-cream-2 px-4 py-3.5 mb-[22px]">
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-2.5">From the active authorization</p>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-2.5">
+                {funded ? 'From the active authorization' : 'From the weekly schedule'}
+              </p>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex flex-wrap gap-1.5">
                   {client.service_types.length > 0 ? client.service_types.map((t) => (
@@ -427,7 +434,7 @@ function ClientEditForm({ client }: { client: Client }) {
                       {SERVICE_TYPE_LABELS[t]}
                     </span>
                   )) : (
-                    <span className="font-mono text-[10px] text-muted">No services authorized yet</span>
+                    <span className="font-mono text-[10px] text-muted">{funded ? 'No services authorized yet' : 'No care scheduled yet'}</span>
                   )}
                 </div>
                 <span className="font-mono text-[10px] text-ink-soft">
@@ -436,7 +443,7 @@ function ClientEditForm({ client }: { client: Client }) {
               </div>
               <Link to="/dashboard/clients/$clientId/authorization" params={{ clientId: client.id } as never}
                 className="inline-flex mt-2.5 font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink">
-                Manage in Authorization tab →
+                {funded ? 'Manage in Authorization tab →' : 'Manage in Schedule tab →'}
               </Link>
             </div>
 

@@ -10,19 +10,20 @@ export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')(
   component: ClientLayout,
 })
 
-const TABS = [
-  { label: 'Overview',      to: '/dashboard/clients/$clientId' },
-  { label: 'Authorization', to: '/dashboard/clients/$clientId/authorization' },
-  { label: 'Visits',        to: '/dashboard/clients/$clientId/visits' },
-  { label: 'Notes',         to: '/dashboard/clients/$clientId/notes' },
-] as const
-
-function ClientTabNav({ clientId }: { clientId: string }) {
+function ClientTabNav({ clientId, funded }: { clientId: string; funded: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const base = `/dashboard/clients/${clientId}`
+  // The middle tab is the same route for both modes — only the label differs:
+  // funded clients manage an authorization; self-pay clients just a schedule.
+  const tabs = [
+    { label: 'Overview',                          to: '/dashboard/clients/$clientId' },
+    { label: funded ? 'Authorization' : 'Schedule', to: '/dashboard/clients/$clientId/authorization' },
+    { label: 'Visits',                            to: '/dashboard/clients/$clientId/visits' },
+    { label: 'Notes',                             to: '/dashboard/clients/$clientId/notes' },
+  ] as const
   return (
     <div className="flex border-b border-ink bg-cream px-8">
-      {TABS.map(({ label, to }) => {
+      {tabs.map(({ label, to }) => {
         const href = to.replace('$clientId', clientId)
         const active = href === base
           ? pathname === base || pathname === `${base}/`
@@ -147,7 +148,7 @@ function ClientLayout() {
 
       {/* ── Right: Tab nav + content ── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <ClientTabNav clientId={clientId} />
+        <ClientTabNav clientId={clientId} funded={client.care_arrangement === 'funded'} />
         <Outlet />
       </div>
     </div>

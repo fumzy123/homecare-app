@@ -2,6 +2,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.core.exceptions import AppError
+from app.core.enums import CareArrangement
 from app.models.client import Client
 from app.models.care_schedule import CareScheduleBlock
 from app.repositories.care_schedule_repository import CareScheduleRepository
@@ -23,7 +24,7 @@ class CareScheduleService:
         self.org_id = OrgService.get_user_org_id(current_user, db)
 
     def get_for_client(self, client_id: UUID) -> list[CareScheduleBlockResponse]:
-        self._assert_client_in_org(client_id)
+        self._get_client(client_id)
         return [
             CareScheduleBlockResponse.model_validate(b)
             for b in self.repo.list_for_client(client_id)
@@ -32,21 +33,23 @@ class CareScheduleService:
     def replace_for_client(
         self, client_id: UUID, payload: CareSchedulePutSchema
     ) -> list[CareScheduleBlockResponse]:
-        self._assert_client_in_org(client_id)
+        client = self._get_client(client_id)
 
-        # Hard block: the proposed plan must fit within active authorizations.
-        compliance = self.compliance.evaluate_blocks(client_id, self.org_id, payload.blocks)
-        exceeded = [s for s in compliance.services if s.status == "exceeded"]
-        if exceeded:
-            detail = "; ".join(
-                f"{s.service_type.value}: {s.planned_biweekly}h planned vs {s.authorized_biweekly}h authorized"
-                for s in exceeded
-            )
-            raise AppError(
-                status_code=400,
-                code="AUTHORIZATION_EXCEEDED",
-                message=f"Care schedule exceeds authorized hours — {detail}",
-            )
+        # Compliance is a funded-client rule only. Self-pay clients schedule
+        # freely — there is no funder cap to comply with.
+        if client.care_arrangement == CareArrangement.funded:
+            compliance = self.compliance.evaluate_blocks(client_id, self.org_id, payload.blocks)
+            exceeded = [s for s in compliance.services if s.status == "exceeded"]
+            if exceeded:
+                detail = "; ".join(
+                    f"{s.service_type.value}: {s.planned_biweekly}h planned vs {s.authorized_biweekly}h authorized"
+                    for s in exceeded
+                )
+                raise AppError(
+                    status_code=400,
+                    code="AUTHORIZATION_EXCEEDED",
+                    message=f"Care schedule exceeds authorized hours — {detail}",
+                )
 
         try:
             blocks = [
@@ -67,11 +70,12 @@ class CareScheduleService:
 
         return [CareScheduleBlockResponse.model_validate(b) for b in self.repo.list_for_client(client_id)]
 
-    def _assert_client_in_org(self, client_id: UUID) -> None:
-        exists = (
-            self.db.query(Client.id)
+    def _get_client(self, client_id: UUID) -> Client:
+        client = (
+            self.db.query(Client)
             .filter(Client.id == client_id, Client.org_id == self.org_id)
             .first()
         )
-        if not exists:
+        if not client:
             raise AppError(status_code=404, code="NOT_FOUND", message="Client not found")
+        return client

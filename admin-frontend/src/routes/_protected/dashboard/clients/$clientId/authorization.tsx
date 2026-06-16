@@ -11,6 +11,7 @@ import { CarePlanBlock } from '@/features/authorizations/components/CarePlanBloc
 import { AuthHistory } from '@/features/authorizations/components/AuthHistory'
 import { AuthorizationDrawer } from '@/features/authorizations/components/AuthorizationDrawer'
 import { activeAuthorization } from '@/features/authorizations/utils'
+import { useClient } from '@/features/clients/hooks/useClients'
 import type { Authorization } from '@/features/authorizations/api'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/authorization')({
@@ -19,6 +20,25 @@ export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/au
 
 function ClientAuthorization() {
   const { clientId } = Route.useParams()
+  const { data: client } = useClient(clientId)
+
+  // Self-pay clients have no authorization — this tab is just their weekly schedule.
+  if (client && client.care_arrangement !== 'funded') {
+    return (
+      <div className="p-8 flex flex-col gap-[22px]">
+        <div>
+          <Kicker leader className="mb-2">The client's recurring weekly care</Kicker>
+          <h2 className="font-serif text-[28px] tracking-[-0.02em]">Weekly schedule</h2>
+        </div>
+        <CarePlanBlock clientId={clientId} enforceCompliance={false} />
+      </div>
+    )
+  }
+
+  return <FundedAuthorization clientId={clientId} />
+}
+
+function FundedAuthorization({ clientId }: { clientId: string }) {
   const { data: authorizations = [], isLoading } = useClientAuthorizations(clientId)
   const { data: compliance } = useAuthorizationCompliance(clientId)
   const { mutate: cancel, isPending: cancelling } = useCancelAuthorization(clientId)

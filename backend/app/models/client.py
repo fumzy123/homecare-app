@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
-from app.core.enums import ClientStatus
+from app.core.enums import ClientStatus, CareArrangement
 import uuid
 
 class Client(Base):
@@ -42,6 +42,10 @@ class Client(Base):
 
     # Administrative
     status = Column(Enum(ClientStatus), nullable=False, default=ClientStatus.active)
+    care_arrangement = Column(
+        Enum(CareArrangement), nullable=False, default=CareArrangement.self_pay,
+        server_default=CareArrangement.self_pay.value,
+    )
     notes = Column(Text, nullable=True)
 
     # Metadata
