@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
-from app.core.enums import ShiftStatus
+from app.core.enums import ShiftStatus, ServiceType
 import uuid
 
 
@@ -19,6 +19,11 @@ class Shift(Base):
     worker_id = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
     created_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
+
+    # Which service this shift delivers — nullable so admins can still schedule
+    # freely (and legacy shifts predate it). Lets delivered/scheduled care roll
+    # up per service, alongside the per-service authorization and care plan.
+    service_type = Column(Enum(ServiceType), nullable=True)
 
     # Shift timing
     start_time = Column(DateTime(timezone=False), nullable=False)

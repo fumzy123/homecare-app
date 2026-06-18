@@ -2,7 +2,7 @@ from pydantic import BaseModel, model_validator
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
-from app.core.enums import ShiftCompletionStatus
+from app.core.enums import ShiftCompletionStatus, ServiceType
 
 
 # ─────────────────────────────────────────
@@ -28,6 +28,7 @@ class ShiftCreateSchema(BaseModel):
     client_id:            UUID
     start_time:           datetime
     end_time:             datetime
+    service_type:         ServiceType | None = None
     location:             str | None = None   # defaults to client's address in the service
     notes:                str | None = None
     recurrence:           RecurrenceSchema | None = None  # absent = single shift
@@ -117,6 +118,7 @@ class ShiftEditFromSchema(BaseModel):
     new_end_time:         datetime | None = None
     worker_id:            UUID | None = None
     client_id:            UUID | None = None
+    service_type:         ServiceType | None = None
     location:             str | None = None
     recurrence_end_date:  date | None = None
     recurrence:           RecurrenceSchema | None = None
@@ -201,6 +203,7 @@ class ShiftOccurrenceResponse(BaseModel):
     completion_status:       ShiftCompletionStatus
     is_modification:         bool
     is_recurring:            bool
+    service_type:            ServiceType | None
     worker:                  WorkerSummary
     client:                  ClientSummary
     location:                str | None
@@ -231,6 +234,7 @@ class ShiftMasterResponse(BaseModel):
     recurrence_rule:     str | None
     recurrence_end_date: date | None
     status:              str
+    service_type:        ServiceType | None
     location:            str | None
     notes:               str | None
     created_at:          datetime

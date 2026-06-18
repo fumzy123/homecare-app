@@ -19,8 +19,8 @@ function ClientTabNav({ clientId, funded }: { clientId: string; funded: boolean 
   const tabs = [
     { label: 'Overview',                                                  to: '/dashboard/clients/$clientId' },
     { label: funded ? 'Authorized Weekly Care Plan' : 'Weekly Care Plan', to: '/dashboard/clients/$clientId/care-plan' },
-    { label: 'Visits',                                                    to: '/dashboard/clients/$clientId/visits' },
-    { label: 'Notes',                                                     to: '/dashboard/clients/$clientId/notes' },
+    { label: 'Care Metrics',                                              to: '/dashboard/clients/$clientId/visits' },
+    { label: 'Progress Notes',                                            to: '/dashboard/clients/$clientId/notes' },
   ] as const
   return (
     <div className="flex border-b border-ink bg-cream px-8">

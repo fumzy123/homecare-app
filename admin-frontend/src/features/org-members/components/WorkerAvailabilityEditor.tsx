@@ -4,9 +4,9 @@ import { useWorkerAvailability, useSaveWorkerAvailability } from '../hooks/useWo
 import type { WeekDay, AvailabilityEntryInput } from '../api'
 
 const DAYS: { key: WeekDay; label: string }[] = [
-  { key: 'MO', label: 'Mon' }, { key: 'TU', label: 'Tue' }, { key: 'WE', label: 'Wed' },
-  { key: 'TH', label: 'Thu' }, { key: 'FR', label: 'Fri' }, { key: 'SA', label: 'Sat' },
-  { key: 'SU', label: 'Sun' },
+  { key: 'SU', label: 'Sun' }, { key: 'MO', label: 'Mon' }, { key: 'TU', label: 'Tue' },
+  { key: 'WE', label: 'Wed' }, { key: 'TH', label: 'Thu' }, { key: 'FR', label: 'Fri' },
+  { key: 'SA', label: 'Sat' },
 ]
 
 // Friendly buckets persisted as canonical time ranges, so storage is always intervals.
@@ -106,7 +106,7 @@ export function WorkerAvailabilityEditor({ memberId }: { memberId: string }) {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th className="w-28 pb-2" />
+                <th className="w-40 pb-2" />
                 {DAYS.map((d) => (
                   <th key={d.key} className="pb-2 text-center font-mono text-[10px] tracking-[0.08em] text-ink-soft">{d.label}</th>
                 ))}
@@ -115,7 +115,7 @@ export function WorkerAvailabilityEditor({ memberId }: { memberId: string }) {
             <tbody>
               {BUCKETS.map((b) => (
                 <tr key={b.key}>
-                  <td className="py-1.5 pr-3">
+                  <td className="py-1.5 pr-3 whitespace-nowrap">
                     <span className="font-mono text-[10px] tracking-[0.05em] text-ink-soft">{b.label}</span>
                     <span className="font-mono text-[9px] text-muted ml-1">{b.hint}</span>
                   </td>

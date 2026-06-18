@@ -296,6 +296,7 @@ class ShiftService:
             completion_status=effective_status,
             is_modification=mod is not None,
             is_recurring=shift.is_recurring,
+            service_type=shift.service_type,
             worker=WorkerSummary(
                 id=worker.id,
                 first_name=worker.person.first_name,
@@ -388,6 +389,7 @@ class ShiftService:
                 created_by=self.current_employment_id,
                 start_time=payload.start_time,
                 end_time=payload.end_time,
+                service_type=payload.service_type,
                 is_recurring=is_recurring,
                 recurrence_rule=recurrence_rule,
                 recurrence_end_date=recurrence_end_date,
@@ -859,6 +861,8 @@ class ShiftService:
                     shift.worker_id = payload.worker_id
                 if payload.client_id:
                     shift.client_id = payload.client_id
+                if payload.service_type is not None:
+                    shift.service_type = payload.service_type
                 if payload.location is not None:
                     shift.location = payload.location
                 if payload.recurrence_end_date is not None:
@@ -950,6 +954,7 @@ class ShiftService:
                 created_by=self.current_employment_id,
                 start_time=new_start,
                 end_time=new_end,
+                service_type=payload.service_type if payload.service_type is not None else shift.service_type,
                 is_recurring=shift.is_recurring,
                 recurrence_rule=new_rule,
                 recurrence_end_date=new_end_date,

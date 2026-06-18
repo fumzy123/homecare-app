@@ -7,6 +7,8 @@ import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_
 import { orgMembersApi, type WeekDay } from '@/features/org-members/api'
 import { useAvailableMembers } from '@/features/org-members/hooks/useWorkerAvailability'
 import { clientsApi } from '@/features/clients/api'
+import { SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
+import type { ServiceType } from '@/features/authorizations/api'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
 
@@ -112,8 +114,9 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
 
   const form = useForm({
     defaultValues: {
-      worker_id:  '',
-      client_id:  '',
+      worker_id:    '',
+      client_id:    '',
+      service_type: '' as '' | ServiceType,
       date:       defaultDate,
       start_time: defaultStartTime,
       end_time:   defaultEndTime,
@@ -142,6 +145,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
           client_id:  value.client_id,
           start_time: startISO,
           end_time:   endISO,
+          service_type: value.service_type || undefined,
           location:   location || undefined,
           notes:      value.notes || undefined,
           recurrence: isRecurring
@@ -306,6 +310,20 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                 </select>
                 <FieldError error={field.state.meta.errors[0]} />
+              </div>
+            )}
+          </form.Field>
+
+          {/* Service */}
+          <form.Field name="service_type">
+            {(field) => (
+              <div>
+                <label className={labelClass}>Service <span className="text-muted normal-case">(optional)</span></label>
+                <select className={selectClass} value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value as '' | ServiceType)}>
+                  <option value="">No specific service</option>
+                  {SERVICE_TYPES.map((t) => <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>)}
+                </select>
               </div>
             )}
           </form.Field>

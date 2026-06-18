@@ -1,4 +1,5 @@
 import { apiClient } from '@/shared/lib/api-client'
+import type { ServiceType } from '@/features/authorizations/api'
 
 export type RecurrenceFrequency = 'daily' | 'weekly'
 export type DayOfWeek = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
@@ -37,6 +38,7 @@ export interface ShiftOccurrence {
   completion_status: string
   is_modification: boolean
   is_recurring: boolean
+  service_type: ServiceType | null
   worker: ShiftWorker
   client: ShiftClient
   location: string | null
@@ -51,6 +53,7 @@ export interface ShiftCreatePayload {
   client_id: string
   start_time: string   // ISO datetime
   end_time: string     // ISO datetime
+  service_type?: ServiceType
   location?: string    // defaults to client address on the backend
   notes?: string
   recurrence?: {
