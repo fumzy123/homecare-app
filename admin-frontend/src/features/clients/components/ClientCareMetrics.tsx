@@ -1,62 +1,24 @@
-import { useMemo, useState } from 'react'
-import { StatCard, PeriodToggle, DateInput } from '@/shared/components/ui'
-import { CARE_METRIC_PERIODS, getDateRange, getDateRangeLabel, type Period } from '@/features/shifts/utils/period'
+import { StatCard } from '@/shared/components/ui'
 import { SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import type { ServiceType } from '@/features/authorizations/api'
 import { useClientCareMetrics } from '../hooks/useCareMetrics'
+import { usePeriodRange } from '../hooks/usePeriodRange'
+import { PeriodRangeControl } from './PeriodRangeControl'
 import { ClientShiftsTable } from './ClientShiftsTable'
-
-type Mode = Period | 'custom'
-
-const TOGGLE_OPTIONS = [...CARE_METRIC_PERIODS, { key: 'custom' as const, label: 'Custom' }]
-
-const PERIOD_PHRASE: Record<Period, string> = {
-  this_week:  'this week',
-  this_month: 'this month',
-  last_90:    'last 90 days',
-  this_year:  'this year',
-  all_time:   'all time',
-}
-
-const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 
 function serviceLabel(s: ServiceType | null): string {
   return s ? SERVICE_TYPE_LABELS[s] : 'Unspecified'
 }
 
 export function ClientCareMetrics({ clientId }: { clientId: string }) {
-  const [mode, setMode] = useState<Mode>('this_month')
-  const preset = getDateRange('this_month')
-  const [customFrom, setCustomFrom] = useState(preset.from)
-  const [customTo, setCustomTo] = useState(preset.to)
-
-  const { from, to, rangeLabel } = useMemo(() => {
-    if (mode === 'custom') return { from: customFrom, to: customTo, rangeLabel: `${customFrom} → ${customTo}` }
-    return { ...getDateRange(mode), rangeLabel: getDateRangeLabel(mode) }
-  }, [mode, customFrom, customTo])
+  const period = usePeriodRange('this_month')
+  const { from, to, periodLabel } = period
 
   const { data: metrics, isLoading } = useClientCareMetrics(clientId, from, to)
 
   return (
     <div className="p-10 space-y-8">
-      {/* Period control */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <PeriodToggle options={TOGGLE_OPTIONS} value={mode} onChange={(v) => setMode(v as Mode)} />
-        <span className="font-mono text-[11px] text-ink-soft">{rangeLabel}</span>
-      </div>
-
-      {mode === 'custom' && (
-        <div className="flex flex-wrap items-end gap-4 border border-line-soft bg-paper px-5 py-4">
-          <div>
-            <label className={labelClass}>From</label>
-            <DateInput value={customFrom} onChange={setCustomFrom} />
-          </div>
-          <div>
-            <label className={labelClass}>To</label>
-            <DateInput value={customTo} min={customFrom} onChange={setCustomTo} />
-          </div>
-        </div>
-      )}
+      <PeriodRangeControl p={period} />
 
       {/* Headline cards */}
       <div className="grid grid-cols-2 gap-0 border border-ink bg-paper">
@@ -109,8 +71,7 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
       </div>
 
       {/* All shifts in the selected period — click to open */}
-      <ClientShiftsTable clientId={clientId} from={from} to={to}
-        periodLabel={mode === 'custom' ? 'selected range' : PERIOD_PHRASE[mode]} />
+      <ClientShiftsTable clientId={clientId} from={from} to={to} periodLabel={periodLabel} />
     </div>
   )
 }

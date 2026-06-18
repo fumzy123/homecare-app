@@ -114,9 +114,12 @@ export const clientsApi = {
     await apiClient.delete(`/api/clients/${clientId}`)
   },
 
-  getNotes: async (clientId: string, year?: number): Promise<ClientNoteItem[]> => {
+  getNotes: async (clientId: string, from?: string, to?: string): Promise<ClientNoteItem[]> => {
     const { data } = await apiClient.get(`/api/clients/${clientId}/notes`, {
-      params: year ? { year } : undefined,
+      params: {
+        ...(from ? { from_date: from } : {}),
+        ...(to ? { to_date: to } : {}),
+      },
     })
     return data
   },

@@ -1,5 +1,4 @@
 from datetime import date
-from sqlalchemy import extract
 from sqlalchemy.orm import Session
 from app.models.progress_note import ProgressNote
 from app.models.shift import Shift
@@ -84,7 +83,8 @@ class ProgressNoteRepository:
         self,
         client_id,
         org_id,
-        year: int | None = None,
+        from_date=None,
+        to_date=None,
     ) -> list[tuple[ProgressNote, Employment]]:
         query = (
             self.db.query(ProgressNote, Employment)
@@ -95,8 +95,10 @@ class ProgressNoteRepository:
                 Shift.org_id == org_id,
             )
         )
-        if year:
-            query = query.filter(extract("year", ProgressNote.occurrence_date) == year)
+        if from_date:
+            query = query.filter(ProgressNote.occurrence_date >= from_date)
+        if to_date:
+            query = query.filter(ProgressNote.occurrence_date <= to_date)
         return query.order_by(ProgressNote.occurrence_date.desc()).all()
 
     def add(self, note: ProgressNote) -> None:

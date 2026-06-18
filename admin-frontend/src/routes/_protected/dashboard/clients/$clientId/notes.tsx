@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 import { clientsApi } from '@/features/clients/api'
 import { ProgressNoteCard } from '@/features/clients/components/ProgressNoteCard'
-import { YearSelector } from '@/shared/components/ui'
+import { PeriodRangeControl } from '@/features/clients/components/PeriodRangeControl'
+import { usePeriodRange } from '@/features/clients/hooks/usePeriodRange'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/notes')({
   component: ClientNotes,
@@ -11,22 +11,22 @@ export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/no
 
 function ClientNotes() {
   const { clientId } = Route.useParams()
-  const currentYear  = new Date().getFullYear()
-  const [year, setYear] = useState(currentYear)
+  const period = usePeriodRange('this_month')
+  const { from, to, periodLabel } = period
 
   const { data: notes = [], isLoading } = useQuery({
-    queryKey: ['client-notes', clientId, year],
-    queryFn:  () => clientsApi.getNotes(clientId, year),
+    queryKey: ['client-notes', clientId, from, to],
+    queryFn:  () => clientsApi.getNotes(clientId, from, to),
   })
 
   return (
     <div className="p-10 space-y-8">
-      <YearSelector year={year} onChange={setYear} />
+      <PeriodRangeControl p={period} />
 
       <div className="border border-ink bg-paper">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
           <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
-            Progress notes <span className="italic text-muted">{year}</span>
+            Progress notes <span className="italic text-muted">{periodLabel}</span>
           </h2>
           <span className="font-mono text-[11px] text-ink-soft">
             <span className="text-ink font-bold">{notes.length}</span>{' '}
@@ -37,7 +37,7 @@ function ClientNotes() {
         {isLoading ? (
           <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">LOADING…</p>
         ) : notes.length === 0 ? (
-          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO PROGRESS NOTES FOR {year}</p>
+          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO PROGRESS NOTES IN THIS PERIOD</p>
         ) : (
           <div className="divide-y divide-dashed divide-line-soft">
             {notes.map((note) => (
