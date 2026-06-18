@@ -164,8 +164,45 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     return format(dt, 'yyyy-MM-dd')
   }
 
+  const statusChanged = () => completionStatus !== shift.completion_status
+
+  // Structural = anything that reschedules/reassigns the shift (and so needs the
+  // recurring scope choice + conflict/overtime checks). Status and notes are not
+  // structural — they're recorded per occurrence.
+  function structuralChanged() {
+    return (
+      workerId !== shift.worker.id ||
+      clientId !== shift.client.id ||
+      date !== format(start, 'yyyy-MM-dd') ||
+      endDate !== format(end, 'yyyy-MM-dd') ||
+      startTime !== format(start, 'HH:mm') ||
+      endTime !== format(end, 'HH:mm') ||
+      location !== (shift.location ?? '') ||
+      recurrenceEndDate !== (shift.recurrence_end_date ?? '') ||
+      recurrenceChanged()
+    )
+  }
+
+  // Apply status (and notes) to THIS occurrence only — no times, so the backend
+  // skips the conflict/overtime checks meant for rescheduling.
+  function applyOccurrenceStatus() {
+    const fields = { completion_status: completionStatus, notes: notes || undefined }
+    return shift.is_modification
+      ? shiftsApi.updateModification(shift.shift_id, shift.date, fields)
+      : shiftsApi.createModification(shift.shift_id, { original_date: shift.date, ...fields })
+  }
+
   function handleSave() {
     setEditError(null)
+
+    // Status/notes-only change → record it on this occurrence directly. No scope
+    // modal, no scheduling checks.
+    if (!structuralChanged()) {
+      if (!statusChanged() && notes === (shift.notes ?? '')) { setIsEditing(false); return }
+      saveMutation.mutate(applyOccurrenceStatus)
+      return
+    }
+
     if (shift.is_recurring) {
       setShowSaveModal(true)
     } else {
@@ -175,11 +212,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
           start_time: `${date}T${startTime}:00`, end_time: `${endDate}T${endTime}:00`,
           location: location || undefined, notes: notes || undefined,
         })
-        if (completionStatus !== shift.completion_status) {
-          await shiftsApi.createModification(shift.shift_id, {
-            original_date: shift.date, completion_status: completionStatus,
-          })
-        }
+        if (statusChanged()) await applyOccurrenceStatus()
       })
     }
   }
@@ -238,14 +271,18 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         override_hours_check: override,
       }))
     } else {
-      saveMutation.mutate(() => shiftsApi.updateShift(shift.shift_id, {
-        worker_id: workerId, client_id: clientId,
-        start_time: startISO, end_time: endISO,
-        location: location || undefined,
-        recurrence_end_date: recurrenceEndDate || undefined,
-        recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
-        notes: notes || undefined,
-      }))
+      saveMutation.mutate(async () => {
+        await shiftsApi.updateShift(shift.shift_id, {
+          worker_id: workerId, client_id: clientId,
+          start_time: startISO, end_time: endISO,
+          location: location || undefined,
+          recurrence_end_date: recurrenceEndDate || undefined,
+          recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
+          notes: notes || undefined,
+        })
+        // Status is per-occurrence — apply it to this one even on a series-wide edit.
+        if (statusChanged()) await applyOccurrenceStatus()
+      })
     }
   }
 
