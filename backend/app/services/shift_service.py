@@ -504,6 +504,71 @@ class ShiftService:
         }
 
     # ─────────────────────────────────────────
+    # 2c. Care metrics — scheduled vs delivered, with per-service breakdown
+    # ─────────────────────────────────────────
+    async def get_care_metrics(
+        self,
+        from_date: date,
+        to_date: date,
+        worker_id: str | None = None,
+        client_id: str | None = None,
+    ) -> dict:
+        """Period totals of scheduled care (every non-cancelled occurrence) vs
+        delivered care (completed occurrences), broken down per service. Delivered
+        is provisional — derived from completed shifts until EVV lands."""
+        try:
+            occurrences = await self.get_shifts(from_date, to_date, worker_id, client_id)
+
+            def hours(o) -> float:
+                return (o.end_time - o.start_time).total_seconds() / 3600.0
+
+            # service_type value (or None) → running tallies
+            buckets: dict = {}
+            sched_shifts = sched_hours = deliv_shifts = deliv_hours = 0.0
+            for o in occurrences:
+                svc = o.service_type.value if o.service_type else None
+                b = buckets.setdefault(svc, {
+                    "scheduled_shifts": 0, "scheduled_hours": 0.0,
+                    "delivered_shifts": 0, "delivered_hours": 0.0,
+                })
+                h = hours(o)
+                b["scheduled_shifts"] += 1
+                b["scheduled_hours"] += h
+                sched_shifts += 1
+                sched_hours += h
+                if o.completion_status == ShiftCompletionStatus.completed:
+                    b["delivered_shifts"] += 1
+                    b["delivered_hours"] += h
+                    deliv_shifts += 1
+                    deliv_hours += h
+
+            # Named services first (alphabetical), Unspecified (None) last.
+            ordered = sorted(buckets.keys(), key=lambda s: (s is None, s or ""))
+            by_service = [
+                {
+                    "service_type": svc,
+                    "scheduled_shifts": buckets[svc]["scheduled_shifts"],
+                    "scheduled_hours": round(buckets[svc]["scheduled_hours"], 2),
+                    "delivered_shifts": buckets[svc]["delivered_shifts"],
+                    "delivered_hours": round(buckets[svc]["delivered_hours"], 2),
+                }
+                for svc in ordered
+            ]
+
+            return {
+                "scheduled_shifts": int(sched_shifts),
+                "scheduled_hours": round(sched_hours, 2),
+                "delivered_shifts": int(deliv_shifts),
+                "delivered_hours": round(deliv_hours, 2),
+                "by_service": by_service,
+            }
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
     # ─────────────────────────────────────────
     async def get_shifts(

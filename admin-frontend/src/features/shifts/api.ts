@@ -120,6 +120,24 @@ export interface ShiftStats {
   total: number
 }
 
+// ─── Care metrics ───────────────────────────────────────────────────────────
+
+export interface ServiceCareMetric {
+  service_type: ServiceType | null
+  scheduled_shifts: number
+  scheduled_hours: number
+  delivered_shifts: number
+  delivered_hours: number
+}
+
+export interface CareMetrics {
+  scheduled_shifts: number
+  scheduled_hours: number
+  delivered_shifts: number
+  delivered_hours: number
+  by_service: ServiceCareMetric[]
+}
+
 // ─── Calendar shape ───────────────────────────────────────────────────────────
 
 // Shape react-big-calendar expects
@@ -183,6 +201,23 @@ export const shiftsApi = {
     clientId?: string,
   ): Promise<ShiftStats> => {
     const { data } = await apiClient.get('/api/shifts/stats', {
+      params: {
+        from_date: fromDate,
+        to_date: toDate,
+        ...(workerId ? { worker_id: workerId } : {}),
+        ...(clientId ? { client_id: clientId } : {}),
+      },
+    })
+    return data
+  },
+
+  getCareMetrics: async (
+    fromDate: string,
+    toDate: string,
+    workerId?: string,
+    clientId?: string,
+  ): Promise<CareMetrics> => {
+    const { data } = await apiClient.get('/api/shifts/care-metrics', {
       params: {
         from_date: fromDate,
         to_date: toDate,

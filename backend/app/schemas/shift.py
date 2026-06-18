@@ -223,6 +223,25 @@ class ShiftStatsResponse(BaseModel):
     total: int
 
 
+# Returned by GET /shifts/care-metrics — scheduled vs delivered over a period.
+# "Scheduled" = every non-cancelled occurrence in range; "Delivered" = completed
+# occurrences (provisional — from completed shifts until EVV lands).
+class ServiceCareMetric(BaseModel):
+    service_type:     ServiceType | None
+    scheduled_shifts: int
+    scheduled_hours:  float
+    delivered_shifts: int
+    delivered_hours:  float
+
+
+class CareMetricsResponse(BaseModel):
+    scheduled_shifts: int
+    scheduled_hours:  float
+    delivered_shifts: int
+    delivered_hours:  float
+    by_service:       list[ServiceCareMetric]
+
+
 # Returned by GET /shifts/{id} — the master record
 class ShiftMasterResponse(BaseModel):
     id:                  UUID
