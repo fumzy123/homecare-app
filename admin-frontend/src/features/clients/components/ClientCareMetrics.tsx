@@ -10,6 +10,14 @@ type Mode = Period | 'custom'
 
 const TOGGLE_OPTIONS = [...CARE_METRIC_PERIODS, { key: 'custom' as const, label: 'Custom' }]
 
+const PERIOD_PHRASE: Record<Period, string> = {
+  this_week:  'this week',
+  this_month: 'this month',
+  last_90:    'last 90 days',
+  this_year:  'this year',
+  all_time:   'all time',
+}
+
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 
 function serviceLabel(s: ServiceType | null): string {
@@ -34,13 +42,14 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
       {/* Header + period control */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-1.5">Care metrics</p>
           <h2 className="font-serif text-[28px] tracking-[-0.02em] leading-none">
             Scheduled vs delivered
           </h2>
-          <p className="font-mono text-[10px] text-muted mt-1.5">{rangeLabel}</p>
+          <div className="mt-3">
+            <PeriodToggle options={TOGGLE_OPTIONS} value={mode} onChange={(v) => setMode(v as Mode)} />
+          </div>
         </div>
-        <PeriodToggle options={TOGGLE_OPTIONS} value={mode} onChange={(v) => setMode(v as Mode)} />
+        <span className="font-mono text-[11px] text-ink-soft">{rangeLabel}</span>
       </div>
 
       {mode === 'custom' && (
@@ -107,7 +116,8 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
       </div>
 
       {/* All shifts in the selected period — click to open */}
-      <ClientShiftsTable clientId={clientId} from={from} to={to} />
+      <ClientShiftsTable clientId={clientId} from={from} to={to}
+        periodLabel={mode === 'custom' ? 'selected range' : PERIOD_PHRASE[mode]} />
     </div>
   )
 }

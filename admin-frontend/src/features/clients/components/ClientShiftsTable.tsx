@@ -7,7 +7,7 @@ import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawe
 import { sumHours } from '@/features/shifts/utils/aggregations'
 
 /** All of a client's shifts over a date range — click a row to open the shift. */
-export function ClientShiftsTable({ clientId, from, to }: { clientId: string; from: string; to: string }) {
+export function ClientShiftsTable({ clientId, from, to, periodLabel }: { clientId: string; from: string; to: string; periodLabel?: string }) {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
   const { data: shifts = [], isLoading } = useQuery({
@@ -22,7 +22,9 @@ export function ClientShiftsTable({ clientId, from, to }: { clientId: string; fr
     <>
       <div className="border border-ink bg-paper">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <h2 className="font-serif text-[22px] leading-none tracking-[-0.02em]">Shifts</h2>
+          <h2 className="font-serif text-[22px] leading-none tracking-[-0.02em]">
+            Care visits{periodLabel && <span className="italic text-muted"> {periodLabel}</span>}
+          </h2>
           <span className="font-mono text-[11px] text-ink-soft">
             <span className="text-ink font-bold">{periodHrs}</span>h total
           </span>
