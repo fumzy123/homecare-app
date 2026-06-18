@@ -447,7 +447,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
           {hasPlan && sameDayBlock && (
             <p className={`-mt-2 font-mono text-[10px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}>
               {matchedPlanEntry
-                ? `✓ This shift matches the client's weekly care plan (${SERVICE_TYPE_LABELS[matchedPlanEntry.service_type]}).`
+                ? "✓ This shift matches the client's weekly care plan."
                 : "⚠ This shift you are about to create falls outside the client's weekly care plan — you can still schedule it if you want."}
             </p>
           )}
