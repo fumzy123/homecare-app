@@ -39,16 +39,9 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
 
   return (
     <div className="p-10 space-y-8">
-      {/* Header + period control */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="font-serif text-[28px] tracking-[-0.02em] leading-none">
-            Scheduled vs delivered
-          </h2>
-          <div className="mt-3">
-            <PeriodToggle options={TOGGLE_OPTIONS} value={mode} onChange={(v) => setMode(v as Mode)} />
-          </div>
-        </div>
+      {/* Period control */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <PeriodToggle options={TOGGLE_OPTIONS} value={mode} onChange={(v) => setMode(v as Mode)} />
         <span className="font-mono text-[11px] text-ink-soft">{rangeLabel}</span>
       </div>
 

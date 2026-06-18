@@ -9,25 +9,42 @@ import { sumHours } from '@/features/shifts/utils/aggregations'
 /** All of a client's shifts over a date range — click a row to open the shift. */
 export function ClientShiftsTable({ clientId, from, to, periodLabel }: { clientId: string; from: string; to: string; periodLabel?: string }) {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
+  const [filterStatus, setFilterStatus]   = useState('')
 
   const { data: shifts = [], isLoading } = useQuery({
     queryKey: ['shifts', from, to, '', clientId],
     queryFn:  () => shiftsApi.listShifts(from, to, undefined, clientId),
   })
 
-  const periodHrs = Math.round(sumHours(shifts))
-  const sorted    = [...shifts].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+  const filtered  = shifts.filter((s) => !filterStatus || s.completion_status === filterStatus)
+  const periodHrs = Math.round(sumHours(filtered))
+  const sorted    = [...filtered].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
 
   return (
     <>
       <div className="border border-ink bg-paper">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <h2 className="font-serif text-[22px] leading-none tracking-[-0.02em]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-ink gap-4">
+          <h2 className="font-serif text-[22px] leading-none tracking-[-0.02em] shrink-0">
             Care visits{periodLabel && <span className="italic text-muted"> {periodLabel}</span>}
           </h2>
-          <span className="font-mono text-[11px] text-ink-soft">
-            <span className="text-ink font-bold">{periodHrs}</span>h total
-          </span>
+          <div className="flex items-center gap-4">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-cream border border-ink px-2 py-1 font-mono text-[10px] tracking-[0.05em] uppercase text-ink focus:outline-none"
+            >
+              <option value="">All statuses</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="no_show">No Show</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="dropped">Dropped</option>
+            </select>
+            <span className="font-mono text-[11px] text-ink-soft whitespace-nowrap">
+              <span className="text-ink font-bold">{periodHrs}</span>h total
+            </span>
+          </div>
         </div>
 
         {isLoading ? (
