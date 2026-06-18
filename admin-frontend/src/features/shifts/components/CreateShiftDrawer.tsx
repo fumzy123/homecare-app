@@ -1,11 +1,12 @@
 import { useForm, useStore } from '@tanstack/react-form'
 import { useQuery } from '@tanstack/react-query'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { orgMembersApi, type WeekDay } from '@/features/org-members/api'
-import { useAvailableMembers } from '@/features/org-members/hooks/useWorkerAvailability'
+import { useAvailableMembers, useWorkerAvailability } from '@/features/org-members/hooks/useWorkerAvailability'
+import { useWeeklyCarePlan } from '@/features/weekly-care-plan/hooks/useWeeklyCarePlan'
 import { clientsApi } from '@/features/clients/api'
 import { SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import type { ServiceType } from '@/features/authorizations/api'
@@ -200,12 +201,33 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
   const watchStart  = useStore(form.store, (s) => s.values.start_time)
   const watchEnd    = useStore(form.store, (s) => s.values.end_time)
   const watchWorker = useStore(form.store, (s) => s.values.worker_id)
+  const watchClient = useStore(form.store, (s) => s.values.client_id)
   const sameDayBlock = !!watchDate && !!watchStart && !!watchEnd && watchStart < watchEnd
   const matchDay = sameDayBlock ? WEEKDAY_CODES[new Date(`${watchDate}T00:00`).getDay()] : null
   const { data: availableIds = [] } = useAvailableMembers(
     matchDay, sameDayBlock ? watchStart : null, sameDayBlock ? watchEnd : null,
   )
   const selectedAvailable = availableIds.includes(watchWorker)
+
+  // Soft checks (advisory only — never block). Each is silent unless the
+  // underlying data exists: no availability set / no care plan → no banner.
+  const { data: workerAvailability = [] } = useWorkerAvailability(watchWorker)
+  const { data: planEntries = [] } = useWeeklyCarePlan(watchClient)
+  const hasAvailabilitySet = workerAvailability.length > 0
+
+  const hhmm = (t: string) => t.slice(0, 5)
+  const matchedPlanEntry = sameDayBlock && matchDay
+    ? planEntries.find((e) => e.day_of_week === matchDay && hhmm(e.start_time) <= watchStart && hhmm(e.end_time) >= watchEnd) ?? null
+    : null
+  const hasPlan = planEntries.length > 0
+
+  // Pre-fill the service from the matched plan entry, unless the admin set one.
+  useEffect(() => {
+    if (matchedPlanEntry && !form.state.values.service_type) {
+      form.setFieldValue('service_type', matchedPlanEntry.service_type)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedPlanEntry?.service_type])
 
   function handleApproveOverride() {
     setPendingOverride(null)
@@ -281,7 +303,7 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
                 </select>
                 <FieldError error={field.state.meta.errors[0]} />
-                {field.state.value && sameDayBlock && (
+                {field.state.value && sameDayBlock && hasAvailabilitySet && (
                   <p className={`mt-1 font-mono text-[10px] ${selectedAvailable ? 'text-mint-dark' : 'text-orange'}`}>
                     {selectedAvailable
                       ? '✓ Within their stated availability'
@@ -324,6 +346,13 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   <option value="">No specific service</option>
                   {SERVICE_TYPES.map((t) => <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>)}
                 </select>
+                {hasPlan && sameDayBlock && (
+                  <p className={`mt-1 font-mono text-[10px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}>
+                    {matchedPlanEntry
+                      ? `✓ Matches the weekly care plan (${SERVICE_TYPE_LABELS[matchedPlanEntry.service_type]})`
+                      : '⚠ Outside the weekly care plan — you can still schedule'}
+                  </p>
+                )}
               </div>
             )}
           </form.Field>
