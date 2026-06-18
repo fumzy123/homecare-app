@@ -726,15 +726,16 @@ class ShiftService:
             existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
 
             if existing:
-                updates = payload.model_dump(exclude_unset=True, exclude={"original_date"})
+                updates = payload.model_dump(exclude_unset=True, exclude={"original_date", "override_hours_check"})
                 for field, value in updates.items():
                     setattr(existing, field, value)
                 if payload.completion_status == ShiftCompletionStatus.cancelled and not existing.cancelled_at:
                     existing.cancelled_at = datetime.now(timezone.utc)
             else:
+                dump = payload.model_dump(exclude={"override_hours_check"})
                 existing = ShiftModification(
                     shift_id=shift_id,
-                    **payload.model_dump(),
+                    **dump,
                 )
                 if payload.completion_status == ShiftCompletionStatus.cancelled:
                     existing.cancelled_at = datetime.now(timezone.utc)
@@ -807,7 +808,7 @@ class ShiftService:
                             details=cap_violations,
                         )
 
-            updates = payload.model_dump(exclude_unset=True)
+            updates = payload.model_dump(exclude_unset=True, exclude={"override_hours_check"})
             for field, value in updates.items():
                 setattr(mod, field, value)
 
