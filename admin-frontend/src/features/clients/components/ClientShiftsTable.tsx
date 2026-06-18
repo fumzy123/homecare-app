@@ -5,24 +5,10 @@ import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftStatusBadge } from '@/shared/components/ui'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { sumHours } from '@/features/shifts/utils/aggregations'
-import { type Period, getDateRange } from '@/features/shifts/utils/period'
 
-const PERIOD_TITLE: Record<Period, string> = {
-  this_week:  'this week',
-  this_month: 'this month',
-  last_90:    'last 3 months',
-  this_year:  'this year',
-  all_time:   'all time',
-}
-
-interface ClientVisitHistoryProps {
-  clientId: string
-  period: Period
-}
-
-export function ClientVisitHistory({ clientId, period }: ClientVisitHistoryProps) {
+/** All of a client's shifts over a date range — click a row to open the shift. */
+export function ClientShiftsTable({ clientId, from, to }: { clientId: string; from: string; to: string }) {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
-  const { from, to } = getDateRange(period)
 
   const { data: shifts = [], isLoading } = useQuery({
     queryKey: ['shifts', from, to, '', clientId],
@@ -36,9 +22,7 @@ export function ClientVisitHistory({ clientId, period }: ClientVisitHistoryProps
     <>
       <div className="border border-ink bg-paper">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <h2 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
-            Visits <span className="italic text-muted">{PERIOD_TITLE[period]}</span>
-          </h2>
+          <h2 className="font-serif text-[22px] leading-none tracking-[-0.02em]">Shifts</h2>
           <span className="font-mono text-[11px] text-ink-soft">
             <span className="text-ink font-bold">{periodHrs}</span>h total
           </span>
@@ -47,11 +31,11 @@ export function ClientVisitHistory({ clientId, period }: ClientVisitHistoryProps
         {isLoading ? (
           <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">LOADING…</p>
         ) : sorted.length === 0 ? (
-          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO VISITS IN THIS PERIOD</p>
+          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO SHIFTS IN THIS PERIOD</p>
         ) : (
           <div className="px-6 py-5">
             <div className="grid grid-cols-5 gap-6 pb-2 border-b border-ink">
-              {['Date', 'Worker', 'Time', 'Hours', 'Status'].map(h => (
+              {['Date', 'Worker', 'Time', 'Hours', 'Status'].map((h) => (
                 <p key={h} className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">{h}</p>
               ))}
             </div>

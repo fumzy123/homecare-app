@@ -1,11 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { ClientOverviewTab } from '@/features/clients/components/ClientOverviewTab'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// The client landing tab is Care Metrics — there is no separate Overview.
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/')({
-  component: ClientOverview,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/dashboard/clients/$clientId/visits', params })
+  },
 })
-
-function ClientOverview() {
-  const { clientId } = Route.useParams()
-  return <ClientOverviewTab clientId={clientId} />
-}

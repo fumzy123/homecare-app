@@ -4,6 +4,7 @@ import { CARE_METRIC_PERIODS, getDateRange, getDateRangeLabel, type Period } fro
 import { SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import type { ServiceType } from '@/features/authorizations/api'
 import { useClientCareMetrics } from '../hooks/useCareMetrics'
+import { ClientShiftsTable } from './ClientShiftsTable'
 
 type Mode = Period | 'custom'
 
@@ -104,6 +105,9 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
           ))
         )}
       </div>
+
+      {/* All shifts in the selected period — click to open */}
+      <ClientShiftsTable clientId={clientId} from={from} to={to} />
     </div>
   )
 }

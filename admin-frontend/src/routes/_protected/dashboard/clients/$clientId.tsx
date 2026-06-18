@@ -12,23 +12,19 @@ export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')(
 
 function ClientTabNav({ clientId, funded }: { clientId: string; funded: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const base = `/dashboard/clients/${clientId}`
-  // The middle tab is the same route for both modes — only the label differs:
-  // funded clients manage an authorized weekly care plan; self-pay clients a
-  // plain weekly care plan.
+  // Care Metrics is the landing tab (no Overview). The care-plan tab is the same
+  // route for both modes — only the label differs: funded clients manage an
+  // authorized weekly care plan; self-pay clients a plain weekly care plan.
   const tabs = [
-    { label: 'Overview',                                                  to: '/dashboard/clients/$clientId' },
-    { label: funded ? 'Authorized Weekly Care Plan' : 'Weekly Care Plan', to: '/dashboard/clients/$clientId/care-plan' },
     { label: 'Care Metrics',                                              to: '/dashboard/clients/$clientId/visits' },
     { label: 'Progress Notes',                                            to: '/dashboard/clients/$clientId/notes' },
+    { label: funded ? 'Authorized Weekly Care Plan' : 'Weekly Care Plan', to: '/dashboard/clients/$clientId/care-plan' },
   ] as const
   return (
     <div className="flex border-b border-ink bg-cream px-8">
       {tabs.map(({ label, to }) => {
         const href = to.replace('$clientId', clientId)
-        const active = href === base
-          ? pathname === base || pathname === `${base}/`
-          : pathname === href
+        const active = pathname === href
         return (
           <Link
             key={label}
