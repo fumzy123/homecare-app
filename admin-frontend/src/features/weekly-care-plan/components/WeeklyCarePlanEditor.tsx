@@ -90,6 +90,8 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   // Self-pay clients have no funder cap — never flag over cap or block saving.
   const anyOver = enforceCompliance && overplanned.length > 0
 
+  const totalWeeklyHours = rows.reduce((sum, r) => sum + entryHours(r.start_time, r.end_time), 0)
+
   async function handleSave() {
     setError(null)
     setSaved(false)
@@ -167,14 +169,18 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
       <div className="flex items-center justify-between px-6 py-4 border-t border-line-soft gap-4">
         <button type="button" onClick={addRow}
           className="font-mono text-[10px] tracking-[0.06em] uppercase text-ink-soft hover:text-ink">＋ Add entry</button>
+
+        <div className="flex items-baseline gap-2">
+          <span className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft">Weekly total</span>
+          <span className="font-serif text-[24px] leading-none tracking-[-0.02em]">{fmtHours(totalWeeklyHours)}h</span>
+          {enforceCompliance && (
+            <span className="font-mono text-[10px] text-muted">· {fmtHours(totalWeeklyHours * 2)}h bi-weekly</span>
+          )}
+        </div>
+
         <div className="flex items-center gap-4">
           {saved && <span className="font-mono text-[10px] text-ink-soft">✓ Saved</span>}
           {error && <span className="font-mono text-[10px] text-orange">{error}</span>}
-          {enforceCompliance && (
-            <span className={`font-mono text-[10px] tracking-[0.04em] uppercase ${anyOver ? 'text-orange' : 'text-mint-dark'}`}>
-              ● {anyOver ? `Over cap on ${overplanned.length} service${overplanned.length === 1 ? '' : 's'}` : 'Within cap'}
-            </span>
-          )}
           <button onClick={handleSave} disabled={isPending || anyOver}
             className="rounded-full border border-ink bg-ink text-cream px-4 py-2 font-mono text-[11px] tracking-[0.03em] hover:bg-orange hover:border-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             {isPending ? 'Saving…' : 'Save plan'}
