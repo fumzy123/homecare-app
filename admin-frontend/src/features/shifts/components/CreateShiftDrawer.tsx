@@ -346,13 +346,6 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
                   <option value="">No specific service</option>
                   {SERVICE_TYPES.map((t) => <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>)}
                 </select>
-                {hasPlan && sameDayBlock && (
-                  <p className={`mt-1 font-mono text-[10px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}>
-                    {matchedPlanEntry
-                      ? `✓ Matches the weekly care plan (${SERVICE_TYPE_LABELS[matchedPlanEntry.service_type]})`
-                      : '⚠ Outside the weekly care plan — you can still schedule'}
-                  </p>
-                )}
               </div>
             )}
           </form.Field>
@@ -449,6 +442,15 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
               )}
             </form.Field>
           </div>
+
+          {/* Care-plan match — relates to the day + time above */}
+          {hasPlan && sameDayBlock && (
+            <p className={`-mt-2 font-mono text-[10px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}>
+              {matchedPlanEntry
+                ? `✓ Matches the weekly care plan (${SERVICE_TYPE_LABELS[matchedPlanEntry.service_type]})`
+                : '⚠ Outside the weekly care plan — you can still schedule'}
+            </p>
+          )}
 
           {/* Notes */}
           <form.Field name="notes">
