@@ -1,11 +1,17 @@
+from datetime import date, time, timedelta
+from types import SimpleNamespace
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
-from app.core.enums import PlacementStatus, WeekDay, ServiceType
+from app.core.enums import PlacementStatus, WeekDay, ServiceType, CareArrangement
 from app.repositories.placement_repository import PlacementRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
+from app.repositories.worker_availability_repository import WorkerAvailabilityRepository
+from app.repositories.authorization_repository import AuthorizationRepository
+from app.domain.scheduling import SchedulingChecker, weekly_entries_to_time_blocks
+from app.domain.availability import availability_covers_care_plan
 from app.services.notification_service import NotificationService
 from app.schemas.placement import (
     PlacementCreateSchema,
@@ -13,6 +19,7 @@ from app.schemas.placement import (
     PlacementDetailResponse,
     WorkerPlacementResponse,
     InterestWorkerSummary,
+    InterestEligibility,
 )
 
 # Labels used to render the care-plan snapshot text frozen onto a placement.
@@ -40,6 +47,9 @@ class PlacementService:
         self.repo = PlacementRepository(db)
         self.client_repo = ClientRepository(db)
         self.plan_repo = WeeklyCarePlanRepository(db)
+        self.availability_repo = WorkerAvailabilityRepository(db)
+        self.auth_repo = AuthorizationRepository(db)
+        self.checker = SchedulingChecker(db, org_id)
         employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
         if not employment:
             raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
@@ -280,7 +290,78 @@ class PlacementService:
             interest_count=len(p.interests),
         )
 
+    # ── Eligibility (computed on read) ─────────────────────────────────────────
+
+    @staticmethod
+    def _parse_snapshot(snapshot) -> list:
+        """Inflate the JSON care-plan snapshot into objects the domain rules accept."""
+        out = []
+        for d in snapshot or []:
+            out.append(SimpleNamespace(
+                day_of_week=WeekDay(d["day_of_week"]),
+                start_time=time.fromisoformat(d["start_time"]),
+                end_time=time.fromisoformat(d["end_time"]),
+                service_type=ServiceType(d["service_type"]),
+            ))
+        return out
+
+    def _funded_covering_end(self, client, today: date):
+        """The active authorization's covering end for a funded client. None when
+        self-pay, open-ended, or no active authorization — i.e. no hard end date."""
+        if client.care_arrangement != CareArrangement.funded:
+            return None
+        auths = self.auth_repo.list_active_for_client(client.id, self.org_id, today)
+        ends = [a.covering_end for a in auths]
+        if not ends or any(e is None for e in ends):
+            return None
+        return max(ends)
+
+    def _check_horizon(self, client, today: date) -> date:
+        """How far ahead to project the plan when checking conflicts/hours — the
+        funded end date if sooner, else a one-year cap (matches the recurring
+        conflict window used in shift creation)."""
+        cap = today + timedelta(days=365)
+        end = self._funded_covering_end(client, today)
+        return end if (end and end < cap) else cap
+
+    def _eligibility_for(self, employment, snapshot_entries, client, today: date) -> InterestEligibility:
+        """Run the three gates for one interested worker against the snapshot."""
+        avail = self.availability_repo.list_for_person(employment.person_id)
+        match = availability_covers_care_plan(avail, snapshot_entries)
+
+        blocks = weekly_entries_to_time_blocks(snapshot_entries, today, self._check_horizon(client, today))
+        conflicts = self.checker.find_conflicts(employment.id, blocks)
+        overtime, cap = self.checker.find_hours_violations(employment.id, blocks)
+
+        availability_ok = match.covered
+        no_conflicts = not conflicts
+        within_hours = not overtime and not cap
+
+        reasons: list[str] = []
+        if not availability_ok:
+            days = ", ".join(_WEEKDAY_LABELS[e.day_of_week] for e in match.uncovered)
+            reasons.append(f"Availability doesn't cover the care plan ({days})")
+        if not no_conflicts:
+            c = conflicts[0]
+            reasons.append(f"Already scheduled: {c['client_name']} on {c['date']}")
+        if overtime:
+            o = overtime[0]
+            reasons.append(f"Would exceed the 40h overtime limit ({o['total_hours']}h the week of {o['week_start']})")
+        if cap:
+            v = cap[0]
+            reasons.append(f"Would exceed their {v['max_hours']}h/week cap ({v['total_hours']}h the week of {v['week_start']})")
+
+        return InterestEligibility(
+            availability_ok=availability_ok,
+            no_conflicts=no_conflicts,
+            within_hours=within_hours,
+            all_clear=availability_ok and no_conflicts and within_hours,
+            reasons=reasons,
+        )
+
     def _to_detail(self, p) -> PlacementDetailResponse:
+        snapshot_entries = self._parse_snapshot(p.care_plan_snapshot)
+        today = date.today()
         interests = [
             InterestWorkerSummary(
                 employment_id=i.employment_id,
@@ -288,6 +369,10 @@ class PlacementService:
                 last_name=i.employment.person.last_name,
                 created_at=i.created_at,
                 note=i.note,
+                eligibility=(
+                    self._eligibility_for(i.employment, snapshot_entries, p.client, today)
+                    if snapshot_entries else None
+                ),
             )
             for i in p.interests
         ]

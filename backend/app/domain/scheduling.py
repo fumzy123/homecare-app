@@ -11,10 +11,37 @@ rules — they used to live as private methods on `ShiftService`.
 from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
 from sqlalchemy.orm import Session
-from app.core.enums import ShiftCompletionStatus
+from app.core.enums import ShiftCompletionStatus, WeekDay
 from app.models.shift import Shift
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.employment_repository import EmploymentRepository
+
+
+# Map our WeekDay enum to Python's date.weekday() index (Mon=0 … Sun=6).
+WEEKDAY_INDEX = {
+    WeekDay.MO: 0, WeekDay.TU: 1, WeekDay.WE: 2, WeekDay.TH: 3,
+    WeekDay.FR: 4, WeekDay.SA: 5, WeekDay.SU: 6,
+}
+
+
+def weekly_entries_to_time_blocks(entries, start_date: date, end_date: date) -> list[tuple[date, datetime, datetime]]:
+    """Project recurring weekly entries (each exposing day_of_week / start_time /
+    end_time) into concrete (date, start, end) blocks across [start_date, end_date].
+
+    Used to feed availability-agnostic checks (conflicts, hours) from a weekly
+    care plan, and shared by placement eligibility and fill-time generation."""
+    by_weekday: dict[int, list] = {}
+    for e in entries:
+        by_weekday.setdefault(WEEKDAY_INDEX[e.day_of_week], []).append(e)
+
+    blocks: list[tuple[date, datetime, datetime]] = []
+    d = start_date
+    step = timedelta(days=1)
+    while d <= end_date:
+        for e in by_weekday.get(d.weekday(), []):
+            blocks.append((d, datetime.combine(d, e.start_time), datetime.combine(d, e.end_time)))
+        d += step
+    return blocks
 
 
 # ── Occurrence math (pure, no I/O) ────────────────────────────────────────────

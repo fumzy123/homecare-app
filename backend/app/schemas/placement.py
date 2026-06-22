@@ -24,12 +24,23 @@ class PlacementFillSchema(BaseModel):
     employment_id: UUID   # the worker being selected
 
 
+class InterestEligibility(BaseModel):
+    """Whether this worker can actually be assigned the placement's care plan —
+    computed fresh on read. Fill is gated on `all_clear`."""
+    availability_ok: bool
+    no_conflicts:    bool
+    within_hours:    bool
+    all_clear:       bool
+    reasons:         list[str]   # human-readable blockers (empty when all_clear)
+
+
 class InterestWorkerSummary(BaseModel):
     employment_id: UUID
     first_name:    str
     last_name:     str
     created_at:    datetime
     note:          str | None
+    eligibility:   InterestEligibility | None = None
 
     model_config = {"from_attributes": True}
 

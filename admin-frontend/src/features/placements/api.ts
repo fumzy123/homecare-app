@@ -2,12 +2,21 @@ import { apiClient } from '@/shared/lib/api-client'
 
 export type PlacementStatus = 'open' | 'filled' | 'closed'
 
+export interface InterestEligibility {
+  availability_ok: boolean
+  no_conflicts: boolean
+  within_hours: boolean
+  all_clear: boolean
+  reasons: string[]
+}
+
 export interface InterestWorkerSummary {
   employment_id: string
   first_name: string
   last_name: string
   created_at: string
   note: string | null
+  eligibility: InterestEligibility | null
 }
 
 export interface Placement {

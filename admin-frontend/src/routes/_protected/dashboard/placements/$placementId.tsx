@@ -156,12 +156,6 @@ function PlacementDetailPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-0 border border-ink">
-            {/* Header */}
-            <div className={`grid ${isOpen ? 'grid-cols-[2fr_2fr_1fr_120px]' : 'grid-cols-[2fr_2fr_1fr]'} bg-cream-2 border-b border-ink`}>
-              {['Worker', 'Note', 'Expressed Interest', ...(isOpen ? [''] : [])].map((h) => (
-                <div key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">{h}</div>
-              ))}
-            </div>
             {placement.interests.map((interest, i) => (
               <InterestRow
                 key={interest.employment_id}
@@ -176,6 +170,15 @@ function PlacementDetailPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function Check({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.04em]">
+      <span className={ok ? 'text-mint-dark' : 'text-orange'}>{ok ? '✓' : '✕'}</span>
+      <span className={ok ? 'text-ink-soft' : 'text-ink'}>{label}</span>
+    </span>
   )
 }
 
@@ -194,28 +197,61 @@ function InterestRow({
 }) {
   const color    = AVATAR_COLORS[index % AVATAR_COLORS.length]
   const initials = `${interest.first_name[0] ?? ''}${interest.last_name[0] ?? ''}`.toUpperCase()
+  const elig     = interest.eligibility
+  const canFill  = !!elig?.all_clear
 
   return (
-    <div className={`grid ${isOpen ? 'grid-cols-[2fr_2fr_1fr_120px]' : 'grid-cols-[2fr_2fr_1fr]'} items-center hover:bg-cream-2 transition-colors ${index > 0 ? 'border-t border-dashed border-line-soft' : ''}`}>
-      <div className="px-4 py-3 flex items-center gap-3">
+    <div className={`flex items-start justify-between gap-6 px-5 py-4 hover:bg-cream-2 transition-colors ${index > 0 ? 'border-t border-dashed border-line-soft' : ''}`}>
+      {/* Worker + note */}
+      <div className="flex items-start gap-3 min-w-0 flex-1">
         <Avatar initials={initials} color={color} size="sm" />
-        <p className="text-[13px] font-medium">{interest.first_name} {interest.last_name}</p>
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium">{interest.first_name} {interest.last_name}</p>
+          <p className="font-mono text-[10px] text-muted mt-0.5">
+            Interested {formatDistanceToNow(new Date(interest.created_at), { addSuffix: true })}
+          </p>
+          {interest.note && (
+            <p className="font-mono text-[11px] text-ink-soft italic mt-1.5 line-clamp-2">“{interest.note}”</p>
+          )}
+        </div>
       </div>
-      <div className="px-4 py-3 font-mono text-[11px] text-ink-soft line-clamp-2">
-        {interest.note ?? <span className="opacity-40">—</span>}
+
+      {/* Eligibility checklist */}
+      <div className="shrink-0 w-[260px]">
+        {elig ? (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <Check ok={elig.availability_ok} label="Availability covers the plan" />
+              <Check ok={elig.no_conflicts}    label="No scheduling conflicts" />
+              <Check ok={elig.within_hours}    label="Within weekly hours" />
+            </div>
+            {elig.reasons.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-0.5">
+                {elig.reasons.map((r, i) => (
+                  <li key={i} className="font-mono text-[10px] text-orange leading-snug">— {r}</li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="font-mono text-[10px] text-muted">No care plan to schedule</p>
+        )}
       </div>
-      <div className="px-4 py-3 font-mono text-[10px] text-ink-soft">
-        {formatDistanceToNow(new Date(interest.created_at), { addSuffix: true })}
-      </div>
+
+      {/* Fill */}
       {isOpen && (
-        <div className="px-4 py-3">
+        <div className="shrink-0 w-[130px] text-right">
           <button
             onClick={() => onFill(interest.employment_id)}
-            disabled={filling}
-            className="bg-ink text-cream px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={filling || !canFill}
+            title={canFill ? undefined : 'All checks must pass before filling'}
+            className="bg-ink text-cream px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-orange transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {filling ? '…' : 'Fill Placement'}
           </button>
+          {!canFill && (
+            <p className="font-mono text-[9px] text-muted mt-1.5 leading-snug">Resolve checks to assign</p>
+          )}
         </div>
       )}
     </div>
