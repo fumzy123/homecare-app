@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, credentials, notifications, compliance, placements, authorizations
+from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, credentials, notifications, compliance, placements, authorizations, weekly_care_plan
 
 router = APIRouter(prefix="/api")
 
@@ -18,3 +18,4 @@ router.include_router(compliance.router)
 router.include_router(notifications.router)
 router.include_router(placements.router)
 router.include_router(authorizations.router)
+router.include_router(weekly_care_plan.router)

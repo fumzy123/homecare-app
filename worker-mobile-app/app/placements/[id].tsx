@@ -99,18 +99,35 @@ export default function PlacementDetailScreen() {
           )}
         </View>
 
-        {/* Location */}
-        <View className="mb-5 rounded-xl border border-cream-2 bg-paper p-4">
-          <Text className={labelClass}>Location</Text>
-          <Text className="font-sans text-base font-semibold text-ink">{placement.masked_location}</Text>
-          <Text className="mt-1 font-mono text-xs text-muted">
-            Full address shared once placement is filled
+        {/* Client */}
+        <View className="mb-4">
+          <Text className={labelClass}>Client</Text>
+          <Text className="font-serif-semibold text-2xl text-ink leading-tight">
+            {placement.client_first_name} {placement.client_last_name}
           </Text>
         </View>
 
-        {/* Shift description */}
+        {/* Address */}
+        <View className="mb-5 rounded-xl border border-cream-2 bg-paper p-4">
+          <Text className={labelClass}>Address</Text>
+          <Text className="font-sans text-base font-semibold text-ink">{placement.masked_location}</Text>
+        </View>
+
+        {/* Start date */}
+        {placement.start_date ? (
+          <View className="mb-4">
+            <Text className={labelClass}>Starts</Text>
+            <Text className="font-sans text-base font-semibold text-ink">
+              {new Date(placement.start_date + 'T00:00:00').toLocaleDateString(undefined, {
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+              })}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Weekly care plan */}
         <View className="mb-4">
-          <Text className={labelClass}>Shift Details</Text>
+          <Text className={labelClass}>Weekly Care Plan</Text>
           <Text className="font-sans text-sm text-ink leading-relaxed">{placement.shift_description}</Text>
         </View>
 

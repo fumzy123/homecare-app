@@ -27,7 +27,8 @@ class Person(Base):
     postal_code = Column(String, nullable=True)
 
     # Scheduling & preferences
-    availability = Column(JSONB, nullable=True)
+    # NOTE: availability is now modelled as interval rows in
+    # worker_availability_entries (see Person.availability_entries), not a JSON grid.
     languages = Column(JSONB, nullable=True)
     pet_tolerance = Column(String, nullable=True)
     preferred_client_types = Column(JSONB, nullable=True)
@@ -44,3 +45,7 @@ class Person(Base):
     # Relationships
     employments = relationship("Employment", back_populates="person")
     credentials = relationship("Credential", back_populates="person", foreign_keys="[Credential.person_id]")
+    availability_entries = relationship(
+        "WorkerAvailabilityEntry", back_populates="person",
+        foreign_keys="WorkerAvailabilityEntry.person_id", cascade="all, delete-orphan",
+    )

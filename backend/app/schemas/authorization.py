@@ -89,3 +89,18 @@ class AuthorizationComplianceResponse(BaseModel):
     client_id: UUID
     coverage:  AuthorizationCoverage
     services:  list[ServiceCompliance]
+
+
+# ── Expiry reminders (read-model) ─────────────────────────────────────────────
+
+class ExpiringAuthorizationResponse(BaseModel):
+    """An active authorization nearing the end of its covering window. Computed
+    live on read (no scheduler) — mirrors the compliance-document expiry feed."""
+    authorization_id:     UUID
+    client_id:            UUID
+    client_first_name:    str
+    client_last_name:     str
+    funder:               str
+    authorization_number: str
+    covering_end:         date
+    days_remaining:       int

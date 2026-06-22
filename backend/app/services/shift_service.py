@@ -22,6 +22,12 @@ from app.schemas.shift import (
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
+from app.domain.scheduling import (
+    SchedulingChecker,
+    expand_occurrences,
+    timeblock_for_occurrence,
+    iso_week_range,
+)
 
 
 class ShiftService:
@@ -40,6 +46,7 @@ class ShiftService:
         self.current_employment_id = current_employment.id
         self.current_member_role = current_employment.role
         self.current_employment = current_employment
+        self.checker = SchedulingChecker(self.db, self.org_id)
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -56,122 +63,6 @@ class ShiftService:
         # weekly
         days = ",".join(recurrence.days_of_week)
         return f"FREQ=WEEKLY;BYDAY={days}"
-
-    @staticmethod
-    def _expand_occurrences(shift: Shift, from_date: date, to_date: date) -> list[date]:
-        """Return all occurrence dates for a shift within the given date range."""
-        if not shift.is_recurring:
-            shift_date = shift.start_time.date()
-            if from_date <= shift_date <= to_date:
-                return [shift_date]
-            return []
-
-        rule_str = shift.recurrence_rule
-        effective_end = shift.recurrence_end_date or to_date
-        cap = min(to_date, effective_end)
-
-        rule = rrulestr(rule_str, dtstart=shift.start_time)
-        occurrences = rule.between(
-            datetime.combine(from_date, time.min),
-            datetime.combine(cap, time.max),
-            inc=True,
-        )
-        return [dt.date() for dt in occurrences]
-
-    @staticmethod
-    def _shift_has_occurrence_on(shift: Shift, target_date: date) -> bool:
-        """Does this shift have an occurrence on target_date?"""
-        if not shift.is_recurring:
-            return shift.start_time.date() == target_date
-
-        end_bound = shift.recurrence_end_date
-        if end_bound and target_date > end_bound:
-            return False
-
-        rule = rrulestr(shift.recurrence_rule, dtstart=shift.start_time)
-        matches = rule.between(
-            datetime.combine(target_date, time.min),
-            datetime.combine(target_date, time.max),
-            inc=True,
-        )
-        return len(matches) > 0
-
-    @staticmethod
-    def _get_timeblock_for_shift_occurrence_on_date(
-        shift: Shift,
-        target_date: date,
-        shift_mod_map: dict,
-    ) -> tuple[datetime, datetime] | None:
-        """Return the (start, end) time block for an occurrence on target_date, or None if cancelled."""
-        mod = shift_mod_map.get(target_date)
-
-        if mod and mod.completion_status == ShiftCompletionStatus.cancelled:
-            return None
-
-        if mod and mod.new_start_time and mod.new_end_time:
-            return (mod.new_start_time, mod.new_end_time)
-
-        duration = shift.end_time - shift.start_time
-        start = datetime.combine(target_date, shift.start_time.timetz())
-        end = start + duration
-        return (start, end)
-
-    @staticmethod
-    def _times_overlap(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
-        """Do two time windows overlap?"""
-        return start_a < end_b and end_a > start_b
-
-    def _find_scheduling_conflicts(
-        self,
-        worker_id,
-        proposed_time_blocks: list[tuple[date, datetime, datetime]],
-        exclude_shift_id=None,
-    ) -> list[dict]:
-        """Check proposed_time_blocks against all existing shifts for the worker. Returns conflicts."""
-        if not proposed_time_blocks:
-            return []
-
-        existing_shifts = self.shift_repo.get_active_shifts_for_conflict_check(worker_id, self.org_id)
-
-        if exclude_shift_id:
-            existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
-
-        conflicts = []
-        for existing_shift in existing_shifts:
-            shift_mod_map = {m.original_date: m for m in existing_shift.modifications}
-
-            for target_date, proposed_start, proposed_end in proposed_time_blocks:
-                if not self._shift_has_occurrence_on(existing_shift, target_date):
-                    continue
-
-                timeblock = self._get_timeblock_for_shift_occurrence_on_date(
-                    existing_shift, target_date, shift_mod_map
-                )
-                if timeblock is None:
-                    continue
-
-                existing_start, existing_end = timeblock
-                if self._times_overlap(proposed_start, proposed_end, existing_start, existing_end):
-                    client = existing_shift.client
-                    client_name = f"{client.first_name} {client.last_name}" if client else "Unknown Client"
-                    conflicts.append({
-                        "date": target_date.isoformat(),
-                        "start": existing_start.isoformat(),
-                        "end": existing_end.isoformat(),
-                        "client_name": client_name,
-                        "shift_id": str(existing_shift.id),
-                    })
-
-        return conflicts
-
-    @staticmethod
-    def _iso_week_range(d: date) -> tuple[date, date]:
-        """Return the (Sunday, Saturday) calendar week range containing d."""
-        sunday = d - timedelta(days=d.isoweekday() % 7)
-        saturday = sunday + timedelta(days=6)
-        return (sunday, saturday)
-
-    _OVERTIME_THRESHOLD = 40.0
 
     def _can_approve_overtime(self) -> bool:
         return self.current_member_role in OVERTIME_APPROVERS
@@ -194,68 +85,6 @@ class ShiftService:
             message=f"{first['worker_name']} would require overtime approval for the week of {first['week_start']}.",
             details=violations,
         )
-
-    def _find_hours_violations(
-        self,
-        worker_id,
-        proposed_time_blocks: list[tuple[date, datetime, datetime]],
-        exclude_shift_id=None,
-    ) -> tuple[list[dict], list[dict]]:
-        """Return (overtime_violations, cap_violations) for the proposed blocks.
-
-        overtime_violations — weeks where existing + proposed > 40 h (statutory overtime).
-        cap_violations      — weeks where existing + proposed > worker's personal cap,
-                              but only when that cap is below 40 h (part-time sub-threshold).
-
-        Returns ([], []) when proposed_time_blocks is empty.
-        Overtime is checked regardless of whether a personal cap is set.
-        """
-        if not proposed_time_blocks:
-            return [], []
-
-        worker = self.employment_repo.get_active_by_id_and_org(worker_id, self.org_id)
-        cap = worker.max_hours_per_week
-
-        proposed_by_week: dict[tuple[date, date], float] = {}
-        for occ_date, start, end in proposed_time_blocks:
-            week = self._iso_week_range(occ_date)
-            proposed_by_week[week] = proposed_by_week.get(week, 0.0) + (end - start).total_seconds() / 3600.0
-
-        existing_shifts = self.shift_repo.get_active_shifts_for_conflict_check(worker_id, self.org_id)
-        if exclude_shift_id:
-            existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
-
-        overtime_violations: list[dict] = []
-        cap_violations: list[dict] = []
-
-        for (week_sun, week_sat), proposed_hours in proposed_by_week.items():
-            existing_hours = 0.0
-            for shift in existing_shifts:
-                mod_map = {m.original_date: m for m in shift.modifications}
-                for occ_date in self._expand_occurrences(shift, week_sun, week_sat):
-                    timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
-                    if timeblock is None:
-                        continue
-                    s, e = timeblock
-                    existing_hours += (e - s).total_seconds() / 3600.0
-
-            total = existing_hours + proposed_hours
-            base = {
-                "week_start":     week_sun.isoformat(),
-                "week_end":       week_sat.isoformat(),
-                "worker_id":      str(worker.id),
-                "worker_name":    f"{worker.person.first_name} {worker.person.last_name}",
-                "current_hours":  round(existing_hours, 2),
-                "proposed_hours": round(proposed_hours, 2),
-                "total_hours":    round(total, 2),
-            }
-
-            if total > self._OVERTIME_THRESHOLD:
-                overtime_violations.append({**base, "overtime_threshold": self._OVERTIME_THRESHOLD})
-            elif cap is not None and cap > 0 and cap < self._OVERTIME_THRESHOLD and total > cap:
-                cap_violations.append({**base, "max_hours": cap})
-
-        return overtime_violations, cap_violations
 
     @staticmethod
     def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
@@ -296,6 +125,7 @@ class ShiftService:
             completion_status=effective_status,
             is_modification=mod is not None,
             is_recurring=shift.is_recurring,
+            service_type=shift.service_type,
             worker=WorkerSummary(
                 id=worker.id,
                 first_name=worker.person.first_name,
@@ -336,7 +166,7 @@ class ShiftService:
                 duration = payload.end_time - payload.start_time
                 proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
 
-            conflicts = self._find_scheduling_conflicts(
+            conflicts = self.checker.find_conflicts(
                 worker_id=payload.worker_id,
                 proposed_time_blocks=proposed_time_blocks,
             )
@@ -357,7 +187,7 @@ class ShiftService:
                 )
 
             if not payload.override_hours_check:
-                overtime_violations, cap_violations = self._find_hours_violations(
+                overtime_violations, cap_violations = self.checker.find_hours_violations(
                     worker_id=payload.worker_id,
                     proposed_time_blocks=proposed_time_blocks,
                 )
@@ -388,6 +218,7 @@ class ShiftService:
                 created_by=self.current_employment_id,
                 start_time=payload.start_time,
                 end_time=payload.end_time,
+                service_type=payload.service_type,
                 is_recurring=is_recurring,
                 recurrence_rule=recurrence_rule,
                 recurrence_end_date=recurrence_end_date,
@@ -423,7 +254,7 @@ class ShiftService:
 
             for shift in shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
-                occurrences = self._expand_occurrences(shift, from_date, to_date)
+                occurrences = expand_occurrences(shift, from_date, to_date)
 
                 for occ_date in occurrences:
                     mod = mod_map.get(occ_date)
@@ -447,8 +278,8 @@ class ShiftService:
         hours = 0.0
         for shift in shifts:
             mod_map = {m.original_date: m for m in shift.modifications}
-            for occ_date in self._expand_occurrences(shift, from_date, to_date):
-                timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
+            for occ_date in expand_occurrences(shift, from_date, to_date):
+                timeblock = timeblock_for_occurrence(shift, occ_date, mod_map)
                 if timeblock is None:
                     continue
                 start, end = timeblock
@@ -463,12 +294,12 @@ class ShiftService:
         week_hours: dict[tuple[date, date], float] = {}
         for shift in shifts:
             mod_map = {m.original_date: m for m in shift.modifications}
-            for occ_date in self._expand_occurrences(shift, from_date, to_date):
-                timeblock = self._get_timeblock_for_shift_occurrence_on_date(shift, occ_date, mod_map)
+            for occ_date in expand_occurrences(shift, from_date, to_date):
+                timeblock = timeblock_for_occurrence(shift, occ_date, mod_map)
                 if timeblock is None:
                     continue
                 start, end = timeblock
-                week_key = self._iso_week_range(occ_date)
+                week_key = iso_week_range(occ_date)
                 week_hours[week_key] = week_hours.get(week_key, 0.0) + (end - start).total_seconds() / 3600.0
 
         overtime = sum(max(0.0, h - weekly_cap) for h in week_hours.values())
@@ -476,7 +307,7 @@ class ShiftService:
 
     async def get_worker_stats(self, worker_id: str) -> dict:
         today = date.today()
-        week_sun, week_sat = self._iso_week_range(today)
+        week_sun, week_sat = iso_week_range(today)
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
@@ -502,6 +333,71 @@ class ShiftService:
         }
 
     # ─────────────────────────────────────────
+    # 2c. Care metrics — scheduled vs delivered, with per-service breakdown
+    # ─────────────────────────────────────────
+    async def get_care_metrics(
+        self,
+        from_date: date,
+        to_date: date,
+        worker_id: str | None = None,
+        client_id: str | None = None,
+    ) -> dict:
+        """Period totals of scheduled care (every non-cancelled occurrence) vs
+        delivered care (completed occurrences), broken down per service. Delivered
+        is provisional — derived from completed shifts until EVV lands."""
+        try:
+            occurrences = await self.get_shifts(from_date, to_date, worker_id, client_id)
+
+            def hours(o) -> float:
+                return (o.end_time - o.start_time).total_seconds() / 3600.0
+
+            # service_type value (or None) → running tallies
+            buckets: dict = {}
+            sched_shifts = sched_hours = deliv_shifts = deliv_hours = 0.0
+            for o in occurrences:
+                svc = o.service_type.value if o.service_type else None
+                b = buckets.setdefault(svc, {
+                    "scheduled_shifts": 0, "scheduled_hours": 0.0,
+                    "delivered_shifts": 0, "delivered_hours": 0.0,
+                })
+                h = hours(o)
+                b["scheduled_shifts"] += 1
+                b["scheduled_hours"] += h
+                sched_shifts += 1
+                sched_hours += h
+                if o.completion_status == ShiftCompletionStatus.completed:
+                    b["delivered_shifts"] += 1
+                    b["delivered_hours"] += h
+                    deliv_shifts += 1
+                    deliv_hours += h
+
+            # Named services first (alphabetical), Unspecified (None) last.
+            ordered = sorted(buckets.keys(), key=lambda s: (s is None, s or ""))
+            by_service = [
+                {
+                    "service_type": svc,
+                    "scheduled_shifts": buckets[svc]["scheduled_shifts"],
+                    "scheduled_hours": round(buckets[svc]["scheduled_hours"], 2),
+                    "delivered_shifts": buckets[svc]["delivered_shifts"],
+                    "delivered_hours": round(buckets[svc]["delivered_hours"], 2),
+                }
+                for svc in ordered
+            ]
+
+            return {
+                "scheduled_shifts": int(sched_shifts),
+                "scheduled_hours": round(sched_hours, 2),
+                "delivered_shifts": int(deliv_shifts),
+                "delivered_hours": round(deliv_hours, 2),
+                "by_service": by_service,
+            }
+
+        except AppError:
+            raise
+        except Exception as e:
+            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    # ─────────────────────────────────────────
     # 2. Get expanded occurrences for a date range
     # ─────────────────────────────────────────
     async def get_shifts(
@@ -518,7 +414,7 @@ class ShiftService:
             results = []
             for shift in shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
-                occurrences = self._expand_occurrences(shift, from_date, to_date)
+                occurrences = expand_occurrences(shift, from_date, to_date)
 
                 for occurrence_date in occurrences:
                     mod = mod_map.get(occurrence_date)
@@ -618,7 +514,7 @@ class ShiftService:
                     payload.original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or (new_start + duration)
-                conflicts = self._find_scheduling_conflicts(
+                conflicts = self.checker.find_conflicts(
                     worker_id=master.worker_id,
                     proposed_time_blocks=[(payload.original_date, new_start, new_end)],
                     exclude_shift_id=shift_id,
@@ -640,7 +536,7 @@ class ShiftService:
                     )
 
                 if not payload.override_hours_check:
-                    overtime_violations, cap_violations = self._find_hours_violations(
+                    overtime_violations, cap_violations = self.checker.find_hours_violations(
                         worker_id=master.worker_id,
                         proposed_time_blocks=[(payload.original_date, new_start, new_end)],
                         exclude_shift_id=shift_id,
@@ -659,15 +555,16 @@ class ShiftService:
             existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
 
             if existing:
-                updates = payload.model_dump(exclude_unset=True, exclude={"original_date"})
+                updates = payload.model_dump(exclude_unset=True, exclude={"original_date", "override_hours_check"})
                 for field, value in updates.items():
                     setattr(existing, field, value)
                 if payload.completion_status == ShiftCompletionStatus.cancelled and not existing.cancelled_at:
                     existing.cancelled_at = datetime.now(timezone.utc)
             else:
+                dump = payload.model_dump(exclude={"override_hours_check"})
                 existing = ShiftModification(
                     shift_id=shift_id,
-                    **payload.model_dump(),
+                    **dump,
                 )
                 if payload.completion_status == ShiftCompletionStatus.cancelled:
                     existing.cancelled_at = datetime.now(timezone.utc)
@@ -702,7 +599,7 @@ class ShiftService:
                     original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or mod.new_end_time or (new_start + duration)
-                conflicts = self._find_scheduling_conflicts(
+                conflicts = self.checker.find_conflicts(
                     worker_id=master.worker_id,
                     proposed_time_blocks=[(original_date, new_start, new_end)],
                     exclude_shift_id=shift_id,
@@ -724,7 +621,7 @@ class ShiftService:
                     )
 
                 if not payload.override_hours_check:
-                    overtime_violations, cap_violations = self._find_hours_violations(
+                    overtime_violations, cap_violations = self.checker.find_hours_violations(
                         worker_id=master.worker_id,
                         proposed_time_blocks=[(original_date, new_start, new_end)],
                         exclude_shift_id=shift_id,
@@ -740,7 +637,7 @@ class ShiftService:
                             details=cap_violations,
                         )
 
-            updates = payload.model_dump(exclude_unset=True)
+            updates = payload.model_dump(exclude_unset=True, exclude={"override_hours_check"})
             for field, value in updates.items():
                 setattr(mod, field, value)
 
@@ -810,7 +707,7 @@ class ShiftService:
                 else:
                     proposed_time_blocks = [(new_start_time.date(), new_start_time, new_end_time)]
 
-                conflicts = self._find_scheduling_conflicts(
+                conflicts = self.checker.find_conflicts(
                     worker_id=new_worker_id,
                     proposed_time_blocks=proposed_time_blocks,
                     exclude_shift_id=shift_id,
@@ -832,7 +729,7 @@ class ShiftService:
                     )
 
                 if not payload.override_hours_check:
-                    overtime_violations, cap_violations = self._find_hours_violations(
+                    overtime_violations, cap_violations = self.checker.find_hours_violations(
                         worker_id=new_worker_id,
                         proposed_time_blocks=proposed_time_blocks,
                         exclude_shift_id=shift_id,
@@ -859,6 +756,8 @@ class ShiftService:
                     shift.worker_id = payload.worker_id
                 if payload.client_id:
                     shift.client_id = payload.client_id
+                if payload.service_type is not None:
+                    shift.service_type = payload.service_type
                 if payload.location is not None:
                     shift.location = payload.location
                 if payload.recurrence_end_date is not None:
@@ -902,7 +801,7 @@ class ShiftService:
             else:
                 proposed_time_blocks = [(new_start.date(), new_start, new_end)]
 
-            conflicts = self._find_scheduling_conflicts(
+            conflicts = self.checker.find_conflicts(
                 worker_id=new_worker_id,
                 proposed_time_blocks=proposed_time_blocks,
                 exclude_shift_id=shift_id,
@@ -917,7 +816,7 @@ class ShiftService:
                 )
 
             if not payload.override_hours_check:
-                overtime_violations, cap_violations = self._find_hours_violations(
+                overtime_violations, cap_violations = self.checker.find_hours_violations(
                     worker_id=new_worker_id,
                     proposed_time_blocks=proposed_time_blocks,
                     exclude_shift_id=shift_id,
@@ -950,6 +849,7 @@ class ShiftService:
                 created_by=self.current_employment_id,
                 start_time=new_start,
                 end_time=new_end,
+                service_type=payload.service_type if payload.service_type is not None else shift.service_type,
                 is_recurring=shift.is_recurring,
                 recurrence_rule=new_rule,
                 recurrence_end_date=new_end_date,

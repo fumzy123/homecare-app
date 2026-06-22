@@ -4,15 +4,14 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
 from app.services.authorization_service import AuthorizationService
-from app.services.care_schedule_service import CareScheduleService
 from app.services.authorization_compliance_service import AuthorizationComplianceService
 from app.services.org_service import OrgService
 from app.schemas.authorization import (
     AuthorizationCreateSchema,
     AuthorizationResponse,
     AuthorizationComplianceResponse,
+    ExpiringAuthorizationResponse,
 )
-from app.schemas.care_schedule import CareSchedulePutSchema, CareScheduleBlockResponse
 
 router = APIRouter(tags=["Authorizations"])
 
@@ -22,13 +21,6 @@ def get_authorization_service(
     db: Session = Depends(get_db),
 ) -> AuthorizationService:
     return AuthorizationService(db, current_user)
-
-
-def get_care_schedule_service(
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
-) -> CareScheduleService:
-    return CareScheduleService(db, current_user)
 
 
 # ── Authorizations (nested under a client) ────────────────────────────────────
@@ -50,6 +42,15 @@ async def create_client_authorization(
     return service.create(client_id, payload)
 
 
+@router.get("/authorizations/expiring", response_model=list[ExpiringAuthorizationResponse])
+async def list_expiring_authorizations(
+    within_days: int = 15,
+    service: AuthorizationService = Depends(get_authorization_service),
+):
+    """Org-wide feed of active authorizations expiring within `within_days`."""
+    return service.get_expiring(within_days)
+
+
 @router.get("/authorizations/{authorization_id}", response_model=AuthorizationResponse)
 async def get_authorization(
     authorization_id: UUID,
@@ -66,26 +67,7 @@ async def cancel_authorization(
     return service.cancel(authorization_id)
 
 
-# ── Care schedule ─────────────────────────────────────────────────────────────
-
-@router.get("/clients/{client_id}/care-schedule", response_model=list[CareScheduleBlockResponse])
-async def get_care_schedule(
-    client_id: UUID,
-    service: CareScheduleService = Depends(get_care_schedule_service),
-):
-    return service.get_for_client(client_id)
-
-
-@router.put("/clients/{client_id}/care-schedule", response_model=list[CareScheduleBlockResponse])
-async def put_care_schedule(
-    client_id: UUID,
-    payload: CareSchedulePutSchema,
-    service: CareScheduleService = Depends(get_care_schedule_service),
-):
-    return service.replace_for_client(client_id, payload)
-
-
-# ── Compliance ────────────────────────────────────────────────────────────────
+# ── Compliance (planned weekly care plan vs authorized) ───────────────────────
 
 @router.get("/clients/{client_id}/authorization-compliance", response_model=AuthorizationComplianceResponse)
 async def get_authorization_compliance(

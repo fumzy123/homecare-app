@@ -2,7 +2,7 @@ from datetime import date
 from uuid import UUID
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
-from app.core.enums import AuthorizationStatus
+from app.core.enums import AuthorizationStatus, CareArrangement
 from app.core.exceptions import AppError
 from app.models.authorization import Authorization, AuthorizationService as AuthorizationServiceModel
 from app.models.client import Client
@@ -12,6 +12,7 @@ from app.schemas.authorization import (
     AuthorizationCreateSchema,
     AuthorizationResponse,
     AuthorizationServiceResponse,
+    ExpiringAuthorizationResponse,
 )
 
 
@@ -41,6 +42,45 @@ class AuthorizationService:
     def get(self, authorization_id: UUID) -> AuthorizationResponse:
         auth = self._get_or_404(authorization_id)
         return self._to_response(auth, self.repo.is_superseded(auth.id), date.today())
+
+    def get_expiring(self, within_days: int = 15) -> list[ExpiringAuthorizationResponse]:
+        """Active authorizations whose covering window ends within `within_days`.
+
+        Read-model: days-to-expiry is computed live, like the compliance-document
+        feed — no scheduler, nothing persisted. Only counts authorizations that
+        are actually in force right now: not cancelled, not superseded, inside
+        their covering window, on a funded (non-deleted) client, with a bounded
+        covering_end (open-ended authorizations never expire)."""
+        today = date.today()
+        auths = self.repo.list_for_org_with_client(self.org_id)
+        superseded = {a.supersedes_id for a in auths if a.supersedes_id}
+
+        result: list[ExpiringAuthorizationResponse] = []
+        for a in auths:
+            if a.cancelled_at is not None or a.id in superseded or a.covering_end is None:
+                continue
+            client = a.client
+            if client is None or client.deleted_at is not None:
+                continue
+            if client.care_arrangement != CareArrangement.funded:
+                continue
+            if not (a.covering_start <= today <= a.covering_end):
+                continue
+            days_remaining = (a.covering_end - today).days
+            if days_remaining > within_days:
+                continue
+            result.append(ExpiringAuthorizationResponse(
+                authorization_id=a.id,
+                client_id=a.client_id,
+                client_first_name=client.first_name,
+                client_last_name=client.last_name,
+                funder=a.funder,
+                authorization_number=a.authorization_number,
+                covering_end=a.covering_end,
+                days_remaining=days_remaining,
+            ))
+        result.sort(key=lambda r: r.days_remaining)
+        return result
 
     # ── Writes ────────────────────────────────────────────────────────────────
 

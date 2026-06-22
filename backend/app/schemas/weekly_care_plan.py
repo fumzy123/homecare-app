@@ -4,7 +4,7 @@ from pydantic import BaseModel, model_validator
 from app.core.enums import WeekDay, ServiceType
 
 
-class CareScheduleBlockInput(BaseModel):
+class WeeklyCarePlanEntryInput(BaseModel):
     day_of_week:  WeekDay
     start_time:   time
     end_time:     time
@@ -17,7 +17,7 @@ class CareScheduleBlockInput(BaseModel):
         return self
 
 
-class CareScheduleBlockResponse(BaseModel):
+class WeeklyCarePlanEntryResponse(BaseModel):
     id:           UUID
     day_of_week:  WeekDay
     start_time:   time
@@ -27,5 +27,5 @@ class CareScheduleBlockResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class CareSchedulePutSchema(BaseModel):
-    blocks: list[CareScheduleBlockInput]
+class WeeklyCarePlanPutSchema(BaseModel):
+    entries: list[WeeklyCarePlanEntryInput]

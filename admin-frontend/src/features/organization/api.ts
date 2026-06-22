@@ -5,6 +5,7 @@ export interface Organization {
   name: string
   owner_id: string
   is_active: boolean
+  uses_authorizations: boolean
   legal_name:      string | null
   business_number: string | null
   street:          string | null
@@ -24,6 +25,7 @@ export interface OrganizationUpdatePayload {
   city?:            string
   province?:        string
   postal_code?:     string
+  uses_authorizations?: boolean
 }
 
 export const organizationApi = {

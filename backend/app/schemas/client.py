@@ -2,7 +2,7 @@ from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
-from app.core.enums import ClientStatus, ServiceType, AuthorizationCoverage
+from app.core.enums import ClientStatus, ServiceType, AuthorizationCoverage, CareArrangement
 
 
 class AssignedWorkerResponse(BaseModel):
@@ -53,6 +53,8 @@ class ClientCreateSchema(BaseModel):
 
     # Administrative
     status: ClientStatus = ClientStatus.active
+    # None → resolve from the org's default (funded if the org uses authorizations).
+    care_arrangement: Optional[CareArrangement] = None
     notes: Optional[str] = None
 
 
@@ -87,6 +89,7 @@ class ClientUpdateSchema(BaseModel):
 
     # Administrative
     status: Optional[ClientStatus] = None
+    care_arrangement: Optional[CareArrangement] = None
     notes: Optional[str] = None
 
 
@@ -125,6 +128,7 @@ class ClientResponse(BaseModel):
 
     # Administrative
     status: ClientStatus
+    care_arrangement: CareArrangement
     notes: Optional[str]
 
     # Derived from authorizations (not stored on the client)

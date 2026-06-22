@@ -1,12 +1,22 @@
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, getWeek } from 'date-fns'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, getWeek } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 
-export type Period = 'this_week' | 'this_month' | 'last_90' | 'all_time'
+export type Period = 'this_week' | 'this_month' | 'last_90' | 'this_year' | 'all_time'
 
+// Default toggle set (kept unchanged for existing stat sections).
 export const PERIODS: { key: Period; label: string }[] = [
   { key: 'this_week',  label: 'This week'     },
   { key: 'this_month', label: 'This month'    },
   { key: 'last_90',    label: 'Last 3 months' },
+  { key: 'all_time',   label: 'All time'      },
+]
+
+// Fuller set used by Care Metrics, which also offers a custom range alongside.
+export const CARE_METRIC_PERIODS: { key: Period; label: string }[] = [
+  { key: 'this_week',  label: 'This week'     },
+  { key: 'this_month', label: 'This month'    },
+  { key: 'last_90',    label: 'Last 90 days'  },
+  { key: 'this_year',  label: 'This year'     },
   { key: 'all_time',   label: 'All time'      },
 ]
 
@@ -23,6 +33,7 @@ export function getDateRange(period: Period): { from: string; to: string } {
     case 'this_week':  return { from: weekStart, to: weekEnd }
     case 'this_month': return { from: monthStart, to: monthEnd }
     case 'last_90':    return { from: format(subDays(now, 90), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') }
+    case 'this_year':  return { from: format(startOfYear(now), 'yyyy-MM-dd'), to: format(endOfYear(now), 'yyyy-MM-dd') }
     case 'all_time':   return { from: '2020-01-01', to: '2030-12-31' }
   }
 }
@@ -44,6 +55,8 @@ export function getDateRangeLabel(period: Period): string {
         return `${format(from, 'MMM d')} – ${format(now, 'MMM d, yyyy')}`
       return `${format(from, 'MMM d, yyyy')} – ${format(now, 'MMM d, yyyy')}`
     }
+    case 'this_year':
+      return format(now, 'yyyy')
     case 'all_time':
       return 'All time'
   }

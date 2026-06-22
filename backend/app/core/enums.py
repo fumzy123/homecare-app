@@ -53,6 +53,14 @@ class AuthorizationCoverage(str, enum.Enum):
     covered = "covered"
     lapsed = "lapsed"
 
+
+class CareArrangement(str, enum.Enum):
+    """How a client's care is funded/governed.
+    - self_pay: the agency schedules directly; no funder authorization, no caps.
+    - funded: care is governed by a funder authorization; compliance applies."""
+    self_pay = "self_pay"
+    funded = "funded"
+
 class EmploymentType(str, enum.Enum):
     full_time = "full_time"
     part_time = "part_time"

@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { clientsApi, SERVICE_TYPE_LABELS } from '@/features/clients/api'
+import { clientsApi } from '@/features/clients/api'
 import { Avatar } from '@/shared/components/ui'
 import { PostPlacementDrawer } from '@/features/placements/components/PostPlacementDrawer'
 
@@ -10,19 +10,21 @@ export const Route = createFileRoute('/_protected/dashboard/clients/$clientId')(
   component: ClientLayout,
 })
 
-const TABS = [
-  { label: 'Visits',      to: '/dashboard/clients/$clientId' },
-  { label: 'Notes',       to: '/dashboard/clients/$clientId/notes' },
-  { label: 'Care Hours',  to: '/dashboard/clients/$clientId/care-hours' },
-] as const
-
-function ClientTabNav({ clientId }: { clientId: string }) {
+function ClientTabNav({ clientId, funded }: { clientId: string; funded: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  // Care Metrics is the landing tab (no Overview). The care-plan tab is the same
+  // route for both modes — only the label differs: funded clients manage an
+  // authorized weekly care plan; self-pay clients a plain weekly care plan.
+  const tabs = [
+    { label: 'Care Metrics',                                              to: '/dashboard/clients/$clientId/visits' },
+    { label: 'Progress Notes',                                            to: '/dashboard/clients/$clientId/notes' },
+    { label: funded ? 'Authorized Weekly Care Plan' : 'Weekly Care Plan', to: '/dashboard/clients/$clientId/care-plan' },
+  ] as const
   return (
     <div className="flex border-b border-ink bg-cream px-8">
-      {TABS.map(({ label, to }) => {
+      {tabs.map(({ label, to }) => {
         const href = to.replace('$clientId', clientId)
-        const active = pathname === href || (label === 'Visits' && pathname === href.replace(/\/$/, ''))
+        const active = pathname === href
         return (
           <Link
             key={label}
@@ -43,11 +45,16 @@ function ClientTabNav({ clientId }: { clientId: string }) {
 function ClientLayout() {
   const { clientId } = Route.useParams()
   const [showPlacementDrawer, setShowPlacementDrawer] = useState(false)
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const isEditMode = pathname === `/dashboard/clients/${clientId}/edit`
 
   const { data: client, isLoading, isError } = useQuery({
     queryKey: ['client', clientId],
     queryFn: () => clientsApi.getClient(clientId),
   })
+
+  // Edit page renders its own full-page layout — skip the rail/tab wrapper
+  if (isEditMode) return <Outlet />
 
   if (isLoading) return <div className="p-8 font-mono text-[11px] text-muted">Loading…</div>
   if (isError || !client) return <div className="p-8 font-mono text-[11px] text-orange">Client not found.</div>
@@ -57,11 +64,16 @@ function ClientLayout() {
     ? new Date().getFullYear() - new Date(client.date_of_birth).getFullYear()
     : null
 
+  const statusPill =
+    client.status === 'active'   ? { cls: 'bg-mint text-ink border-ink', label: '● Active' } :
+    client.status === 'on_hold'  ? { cls: 'border-ink text-ink-soft bg-paper', label: 'On Hold' } :
+                                   { cls: 'border-line-soft text-muted bg-paper', label: 'Discharged' }
+
   return (
     <div className="flex min-h-full bg-cream">
 
-      {/* ── Left: Profile card ── */}
-      <div className="w-72 shrink-0 border-r border-ink flex flex-col p-8 gap-6 sticky top-0 overflow-hidden" style={{ height: '100vh' }}>
+      {/* ── Left: Profile rail ── */}
+      <div className="w-72 shrink-0 border-r border-ink flex flex-col p-8 gap-[22px] sticky top-0 overflow-y-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ height: '100vh' }}>
 
         <Link to="/dashboard/clients" className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink">
           ← Clients
@@ -73,23 +85,14 @@ function ClientLayout() {
             {client.first_name}<br />
             <em>{client.last_name}</em>
           </h1>
-          {client.service_types.length > 0 && (
-            <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mt-2">
-              {client.service_types.map((t) => SERVICE_TYPE_LABELS[t]).join(' · ')}
-            </p>
-          )}
-          <span className={`mt-3 inline-block font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border ${
-            client.status === 'active'     ? 'bg-ink text-cream border-ink' :
-            client.status === 'on_hold'    ? 'border-ink text-ink-soft' :
-                                             'border-line-soft text-muted'
-          }`}>
-            {client.status === 'on_hold' ? 'On Hold' : client.status.charAt(0).toUpperCase() + client.status.slice(1)}
-          </span>
+          <div className="mt-3">
+            <span className={`inline-flex items-center font-mono text-[9px] tracking-[0.08em] uppercase whitespace-nowrap px-2.5 py-1 border ${statusPill.cls}`}>
+              {statusPill.label}
+            </span>
+          </div>
         </div>
 
-        <div className="border-t border-ink" />
-
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {age !== null && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Age</p>
@@ -99,13 +102,7 @@ function ClientLayout() {
           {client.phone_number && (
             <div>
               <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Phone</p>
-              <p className="text-[13px]">{client.phone_number}</p>
-            </div>
-          )}
-          {client.email && (
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Email</p>
-              <p className="text-[12px] break-all">{client.email}</p>
+              <p className="text-[13px] font-mono">{client.phone_number}</p>
             </div>
           )}
           <div>
@@ -114,14 +111,8 @@ function ClientLayout() {
           </div>
           {client.care_start && (
             <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Care Start</p>
-              <p className="text-[13px]">{format(new Date(client.care_start), 'yyyy-MM-dd')}</p>
-            </div>
-          )}
-          {client.coverage === 'lapsed' && (
-            <div>
-              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-orange mb-0.5">⚠ Coverage</p>
-              <p className="text-[13px] text-orange">No active authorization</p>
+              <p className="font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-0.5">Care start</p>
+              <p className="text-[13px] font-mono">{format(new Date(client.care_start), 'yyyy-MM-dd')}</p>
             </div>
           )}
         </div>
@@ -131,9 +122,9 @@ function ClientLayout() {
         <Link
           to="/dashboard/clients/$clientId/edit"
           params={{ clientId } as never}
-          className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink"
+          className="flex items-center justify-center gap-2 rounded-full border border-ink px-4 py-2 font-mono text-[12px] tracking-[0.03em] hover:bg-ink hover:text-cream transition-colors"
         >
-          Edit →
+          Edit profile →
         </Link>
 
         <button
@@ -154,7 +145,7 @@ function ClientLayout() {
 
       {/* ── Right: Tab nav + content ── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <ClientTabNav clientId={clientId} />
+        <ClientTabNav clientId={clientId} funded={client.care_arrangement === 'funded'} />
         <Outlet />
       </div>
     </div>

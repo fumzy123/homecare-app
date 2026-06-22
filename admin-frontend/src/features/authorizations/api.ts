@@ -71,19 +71,15 @@ export interface AuthorizationCompliance {
   services: ServiceCompliance[]
 }
 
-export interface CareScheduleBlock {
-  id: string
-  day_of_week: WeekDay
-  start_time: string
-  end_time: string
-  service_type: ServiceType
-}
-
-export interface CareScheduleBlockInput {
-  day_of_week: WeekDay
-  start_time: string
-  end_time: string
-  service_type: ServiceType
+export interface ExpiringAuthorization {
+  authorization_id: string
+  client_id: string
+  client_first_name: string
+  client_last_name: string
+  funder: string
+  authorization_number: string
+  covering_end: string
+  days_remaining: number
 }
 
 export const authorizationsApi = {
@@ -107,13 +103,10 @@ export const authorizationsApi = {
     return data
   },
 
-  getCareSchedule: async (clientId: string): Promise<CareScheduleBlock[]> => {
-    const { data } = await apiClient.get(`/api/clients/${clientId}/care-schedule`)
-    return data
-  },
-
-  putCareSchedule: async (clientId: string, blocks: CareScheduleBlockInput[]): Promise<CareScheduleBlock[]> => {
-    const { data } = await apiClient.put(`/api/clients/${clientId}/care-schedule`, { blocks })
+  expiring: async (withinDays = 15): Promise<ExpiringAuthorization[]> => {
+    const { data } = await apiClient.get('/api/authorizations/expiring', {
+      params: { within_days: withinDays },
+    })
     return data
   },
 }

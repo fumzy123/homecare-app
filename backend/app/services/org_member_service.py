@@ -17,10 +17,12 @@ _DEFAULT_HOURS: dict[EmploymentType, int] = {
     # casual has no default cap
 }
 
-# Fields that belong to Person vs Employment — used to split update payloads
+# Fields that belong to Person vs Employment — used to split update payloads.
+# Availability is no longer here — it's edited via the dedicated /availability
+# sub-resource (worker_availability_entries), not the big member update.
 _PERSON_FIELDS = {
     "first_name", "last_name", "phone_number", "gender", "date_of_birth",
-    "street", "city", "province", "postal_code", "availability", "languages",
+    "street", "city", "province", "postal_code", "languages",
     "pet_tolerance", "preferred_client_types",
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship",
 }
@@ -46,7 +48,10 @@ def _flat_response(employment: Employment) -> dict:
         "city":          person.city,
         "province":      person.province,
         "postal_code":   person.postal_code,
-        "availability":  person.availability,
+        "availability":  sorted(
+            person.availability_entries,
+            key=lambda e: (e.day_of_week.value, e.start_time),
+        ),
         "languages":     person.languages,
         "pet_tolerance": person.pet_tolerance,
         "preferred_client_types":         person.preferred_client_types,

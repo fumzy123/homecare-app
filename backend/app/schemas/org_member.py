@@ -1,9 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus
+from app.schemas.worker_availability import AvailabilityEntryResponse
 
 
 class OrgMemberResponse(BaseModel):
@@ -26,7 +27,7 @@ class OrgMemberResponse(BaseModel):
     city: Optional[str]
     province: Optional[str]
     postal_code: Optional[str]
-    availability: Optional[Any]
+    availability: List[AvailabilityEntryResponse] = []
     languages: Optional[List[str]]
     pet_tolerance: Optional[str]
     preferred_client_types: Optional[List[str]]
@@ -58,7 +59,6 @@ class OrgMemberUpdateSchema(BaseModel):
     city: Optional[str] = None
     province: Optional[str] = None
     postal_code: Optional[str] = None
-    availability: Optional[dict] = None
     languages: Optional[List[str]] = None
     pet_tolerance: Optional[str] = None
     preferred_client_types: Optional[List[str]] = None

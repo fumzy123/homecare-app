@@ -18,6 +18,8 @@ class PlacementRepository:
         shift_description: str,
         masked_location: str,
         requirements: str | None,
+        start_date=None,
+        care_plan_snapshot: list | None = None,
     ) -> Placement:
         placement = Placement(
             org_id=org_id,
@@ -26,6 +28,8 @@ class PlacementRepository:
             shift_description=shift_description,
             masked_location=masked_location,
             requirements=requirements,
+            start_date=start_date,
+            care_plan_snapshot=care_plan_snapshot,
             status=PlacementStatus.open,
         )
         self.db.add(placement)

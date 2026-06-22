@@ -16,6 +16,7 @@ from app.schemas.shift import (
     ShiftModificationUpdateSchema,
     ShiftOccurrenceResponse,
     ShiftStatsResponse,
+    CareMetricsResponse,
     ShiftUpdateSchema,
     OvertimeApprovalRequestSchema,
     OvertimeApproveSchema,
@@ -147,6 +148,20 @@ async def get_shift_stats(
     shift_service: ShiftService = Depends(get_shift_service),
 ):
     return await shift_service.get_stats(from_date, to_date, worker_id, client_id)
+
+
+# ─────────────────────────────────────────
+# 2b. Care metrics — scheduled vs delivered, per service
+# ─────────────────────────────────────────
+@router.get("/care-metrics", response_model=CareMetricsResponse)
+async def get_care_metrics(
+    from_date: date = Query(..., description="Start of date range (YYYY-MM-DD)"),
+    to_date: date = Query(..., description="End of date range (YYYY-MM-DD)"),
+    worker_id: str | None = Query(default=None),
+    client_id: str | None = Query(default=None),
+    shift_service: ShiftService = Depends(get_shift_service),
+):
+    return await shift_service.get_care_metrics(from_date, to_date, worker_id, client_id)
 
 
 # ─────────────────────────────────────────

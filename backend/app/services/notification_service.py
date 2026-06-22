@@ -115,6 +115,7 @@ class NotificationService:
         placement_id: UUID,
         admin_id: UUID,
         client_id: UUID,
+        client_name: str,
         masked_location: str,
         shift_description: str,
         requirements: str | None,
@@ -125,6 +126,7 @@ class NotificationService:
             type=NotificationType.placement_created,
             payload={
                 "placement_id": str(placement_id),
+                "client_name": client_name,
                 "masked_location": masked_location,
                 "shift_description": shift_description,
                 "requirements": requirements,

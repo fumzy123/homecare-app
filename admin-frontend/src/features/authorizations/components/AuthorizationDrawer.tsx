@@ -31,7 +31,7 @@ export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
 
   const [funder, setFunder]                 = useState(amends?.funder ?? '')
   const [fileNumber, setFileNumber]         = useState(amends?.funder_file_number ?? '')
-  const [authNumber, setAuthNumber]         = useState(amends ? '' : '')
+  const [authNumber, setAuthNumber]         = useState(amends?.authorization_number ?? '')
   const [coveringStart, setCoveringStart]   = useState(amends?.covering_start ?? '')
   const [coveringEnd, setCoveringEnd]       = useState(amends?.covering_end ?? '')
   const [dateIssued, setDateIssued]         = useState(amends?.date_issued ?? '')
@@ -147,12 +147,12 @@ export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
             <div>
               <label className={labelClass}>Authorization #</label>
               <input className={inputClass} value={authNumber} onChange={(e) => setAuthNumber(e.target.value)}
-                placeholder="R-ES-1372537" />
+                placeholder="e.g. R-ES-1372537" />
             </div>
             <div>
               <label className={labelClass}>Funder File #</label>
               <input className={inputClass} value={fileNumber} onChange={(e) => setFileNumber(e.target.value)}
-                placeholder="431576" />
+                placeholder="e.g. 431576" />
             </div>
           </div>
 
@@ -226,7 +226,7 @@ export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
             <div>
               <label className={labelClass}>Authorized By <span className="opacity-40">(optional)</span></label>
               <input className={inputClass} value={authorizedBy} onChange={(e) => setAuthorizedBy(e.target.value)}
-                placeholder="Lois Hussey" />
+                placeholder="e.g. Lois Hussey" />
             </div>
             <div>
               <label className={labelClass}>Contribution $/mo <span className="opacity-40">(optional)</span></label>

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Kicker } from '@/shared/components/ui'
+import { Card, Kicker } from '@/shared/components/ui'
 import { useExpiringCredentials } from '../hooks/useExpiringCredentials'
 import { DOCUMENT_LABELS } from '../constants'
 
@@ -12,14 +12,25 @@ function urgencyColor(days: number) {
 export function ComplianceAlertsPanel() {
   const { data: expiring = [] } = useExpiringCredentials()
 
-  if (expiring.length === 0) return null
+  if (expiring.length === 0) {
+    return (
+      <Card className="p-6">
+        <Kicker className="mb-2">E / Compliance</Kicker>
+        <div className="font-serif text-[22px] leading-none mt-2 mb-1">All credentials valid</div>
+        <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTION NEEDED</p>
+      </Card>
+    )
+  }
 
   return (
-    <div>
-      <Kicker leader className="mb-3.5">
-        Compliance alerts — {expiring.length} expiring within 30 days
-      </Kicker>
-      <div className="border border-ink bg-paper">
+    <Card className="p-0">
+      <div className="px-6 py-5 border-b border-ink">
+        <Kicker className="mb-1">E / Compliance</Kicker>
+        <h3 className="font-serif text-[22px] leading-none mt-2">
+          Expiring soon <span className="italic text-muted">— {expiring.length} within 30 days</span>
+        </h3>
+      </div>
+      <div>
         {expiring.map((c, i) => (
           <Link
             key={c.id}
@@ -46,6 +57,6 @@ export function ComplianceAlertsPanel() {
           </Link>
         ))}
       </div>
-    </div>
+    </Card>
   )
 }

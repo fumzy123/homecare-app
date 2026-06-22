@@ -91,7 +91,7 @@ function PlacementsPage() {
           <div className="flex flex-col gap-0 border border-ink">
             {/* Table header */}
             <div className="grid grid-cols-[2fr_1.5fr_2fr_80px_80px_100px] bg-cream-2 border-b border-ink">
-              {['Client', 'Location', 'Shift', 'Interest', 'Posted', 'Status'].map((h) => (
+              {['Client', 'Address', 'Care plan', 'Interest', 'Posted', 'Status'].map((h) => (
                 <div key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
                   {h}
                 </div>
@@ -110,7 +110,7 @@ function PlacementsPage() {
                     <p className="text-[13px] font-medium">{p.client_first_name} {p.client_last_name}</p>
                   </div>
                   <div className="px-4 py-3 font-mono text-[11px] text-ink-soft truncate">{p.masked_location}</div>
-                  <div className="px-4 py-3 font-mono text-[11px] text-ink-soft line-clamp-2 leading-snug">{p.shift_description}</div>
+                  <div className="px-4 py-3 font-mono text-[11px] text-ink-soft line-clamp-2 leading-snug whitespace-pre-line">{p.shift_description}</div>
                   <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{p.interest_count}</div>
                   <div className="px-4 py-3 font-mono text-[10px] text-ink-soft">
                     {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}

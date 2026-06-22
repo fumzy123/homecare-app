@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.enums import HoursPeriod, ServiceType, ClientStatus, AuthorizationCoverage
 from app.models.client import Client
 from app.repositories.authorization_repository import AuthorizationRepository
-from app.repositories.care_schedule_repository import CareScheduleRepository
+from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
 from app.schemas.authorization import ServiceCompliance, AuthorizationComplianceResponse
 
 # A planned service is "approaching" its cap at this fraction of authorized hours.
@@ -20,26 +20,26 @@ class AuthorizationComplianceService:
     def __init__(self, db: Session):
         self.db = db
         self.auth_repo = AuthorizationRepository(db)
-        self.schedule_repo = CareScheduleRepository(db)
+        self.plan_repo = WeeklyCarePlanRepository(db)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def check(self, client_id: UUID, org_id: UUID, on_date: date | None = None) -> AuthorizationComplianceResponse:
-        """Compliance of the client's *persisted* care schedule."""
-        blocks = self.schedule_repo.list_for_client(client_id)
-        return self._evaluate(client_id, org_id, blocks, on_date)
+        """Compliance of the client's *persisted* weekly care plan."""
+        entries = self.plan_repo.list_for_client(client_id)
+        return self._evaluate(client_id, org_id, entries, on_date)
 
-    def evaluate_blocks(
-        self, client_id: UUID, org_id: UUID, blocks, on_date: date | None = None
+    def evaluate_entries(
+        self, client_id: UUID, org_id: UUID, entries, on_date: date | None = None
     ) -> AuthorizationComplianceResponse:
-        """Compliance of a *proposed* set of blocks (ORM rows or input schemas —
-        anything with service_type / start_time / end_time). Used to hard-block
-        an over-plan before it is saved."""
-        return self._evaluate(client_id, org_id, blocks, on_date)
+        """Compliance of a *proposed* set of plan entries (ORM rows or input
+        schemas — anything with service_type / start_time / end_time). Used to
+        hard-block an over-plan before it is saved."""
+        return self._evaluate(client_id, org_id, entries, on_date)
 
     # ── Internals ─────────────────────────────────────────────────────────────
 
-    def _evaluate(self, client_id, org_id, blocks, on_date) -> AuthorizationComplianceResponse:
+    def _evaluate(self, client_id, org_id, entries, on_date) -> AuthorizationComplianceResponse:
         today = on_date or date.today()
         active = self.auth_repo.list_active_for_client(client_id, org_id, today)
 
@@ -49,10 +49,10 @@ class AuthorizationComplianceService:
             for svc in auth.services:
                 authorized[svc.service_type] += self._to_biweekly(float(svc.authorized_hours), auth.hours_period)
 
-        # Planned hours per service — the schedule is a weekly pattern, so ×2.
+        # Planned hours per service — the care plan is a weekly pattern, so ×2.
         planned_weekly: dict[ServiceType, float] = defaultdict(float)
-        for b in blocks:
-            planned_weekly[b.service_type] += self._block_hours(b.start_time, b.end_time)
+        for e in entries:
+            planned_weekly[e.service_type] += self._entry_hours(e.start_time, e.end_time)
 
         services: list[ServiceCompliance] = []
         for st in sorted(set(authorized) | set(planned_weekly), key=lambda s: s.value):
@@ -88,7 +88,7 @@ class AuthorizationComplianceService:
         return hours  # bi_weekly
 
     @staticmethod
-    def _block_hours(start: time, end: time) -> float:
+    def _entry_hours(start: time, end: time) -> float:
         start_s = start.hour * 3600 + start.minute * 60 + start.second
         end_s = end.hour * 3600 + end.minute * 60 + end.second
         return max(0.0, (end_s - start_s) / 3600.0)

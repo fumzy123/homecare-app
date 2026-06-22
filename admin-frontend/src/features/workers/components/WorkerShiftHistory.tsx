@@ -10,6 +10,7 @@ const PERIOD_TITLE: Record<Period, string> = {
   this_week:  'this week',
   this_month: 'this month',
   last_90:    'last 3 months',
+  this_year:  'this year',
   all_time:   'all time',
 }
 

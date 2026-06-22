@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Boolean
+from sqlalchemy import Column, String, DateTime, Boolean, false
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -12,6 +12,10 @@ class Organization(Base):
     name = Column(String, nullable=False)
     owner_id = Column(UUID(as_uuid=True), nullable=False)
     is_active = Column(Boolean, default=True)
+
+    # Whether this agency operates under funder authorizations (regulated care).
+    # When False the app is a plain scheduler — authorization UI stays hidden.
+    uses_authorizations = Column(Boolean, nullable=False, default=False, server_default=false())
 
     # Legal identity
     legal_name      = Column(String, nullable=True)

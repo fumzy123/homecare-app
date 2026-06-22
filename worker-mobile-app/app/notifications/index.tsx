@@ -20,10 +20,12 @@ function timeAgo(iso: string): string {
 
 function notificationTitle(n: WorkerNotification): string {
   const loc = n.payload.masked_location as string | undefined;
+  const client = n.payload.client_name as string | undefined;
   const suffix = loc ? ` — ${loc}` : '';
   switch (n.type) {
     case 'placement_created':
-      return `New placement available${suffix}`;
+      // Lead with the client's name so the worker knows who they'd take on.
+      return client ? `New placement available — ${client}` : `New placement available${suffix}`;
     case 'placement_filled':
       return `You've been selected for the placement${suffix}`;
     case 'placement_closed':
