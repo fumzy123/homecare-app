@@ -75,6 +75,7 @@ class PlacementService:
                 placement_id=placement.id,
                 admin_id=self.employment_id,
                 client_id=payload.client_id,
+                client_name=f"{client.first_name} {client.last_name}",
                 masked_location=location,
                 shift_description=care_plan,
                 requirements=payload.requirements,
@@ -96,9 +97,16 @@ class PlacementService:
         """Full client address shown to workers (street included)."""
         return f"{client.street}, {client.city}, {client.province} {client.postal_code}"
 
+    @staticmethod
+    def _fmt_time(t) -> str:
+        """12-hour, human label: 9am, 7pm, 9:30am."""
+        suffix = "am" if t.hour < 12 else "pm"
+        hour12 = t.hour % 12 or 12
+        return f"{hour12}:{t.minute:02d}{suffix}" if t.minute else f"{hour12}{suffix}"
+
     def _format_care_plan(self, client_id: UUID) -> str:
         """Render the client's weekly care plan as a frozen text block, e.g.
-        "Mon · 09:00–12:00 · Personal Care"."""
+        "Mon · 9am–7pm · Personal Care"."""
         entries = self.plan_repo.list_for_client(client_id)
         if not entries:
             return "No weekly care plan has been set for this client yet."
@@ -108,7 +116,7 @@ class PlacementService:
         )
         lines = [
             f"{_WEEKDAY_LABELS.get(e.day_of_week, e.day_of_week.value)} · "
-            f"{e.start_time.strftime('%H:%M')}–{e.end_time.strftime('%H:%M')} · "
+            f"{self._fmt_time(e.start_time)}–{self._fmt_time(e.end_time)} · "
             f"{_SERVICE_LABELS.get(e.service_type, e.service_type.value)}"
             for e in ordered
         ]
@@ -203,6 +211,8 @@ class PlacementService:
         return WorkerPlacementResponse(
             id=placement.id,
             status=placement.status,
+            client_first_name=placement.client.first_name,
+            client_last_name=placement.client.last_name,
             masked_location=placement.masked_location,
             shift_description=placement.shift_description,
             requirements=placement.requirements,

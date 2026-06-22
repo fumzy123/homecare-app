@@ -99,6 +99,14 @@ export default function PlacementDetailScreen() {
           )}
         </View>
 
+        {/* Client */}
+        <View className="mb-4">
+          <Text className={labelClass}>Client</Text>
+          <Text className="font-serif-semibold text-2xl text-ink leading-tight">
+            {placement.client_first_name} {placement.client_last_name}
+          </Text>
+        </View>
+
         {/* Address */}
         <View className="mb-5 rounded-xl border border-cream-2 bg-paper p-4">
           <Text className={labelClass}>Address</Text>

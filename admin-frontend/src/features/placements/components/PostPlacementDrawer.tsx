@@ -23,7 +23,13 @@ const labelClass  = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-
 const inputClass  = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink resize-none'
 const selectClass = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink appearance-none'
 
-const hhmm = (t: string) => t.slice(0, 5)
+// 12-hour label matching the snapshot a worker sees: 9am, 7pm, 9:30am.
+const fmtTime = (t: string) => {
+  const [h, m] = t.split(':').map(Number)
+  const suffix = h < 12 ? 'am' : 'pm'
+  const hour12 = h % 12 || 12
+  return m ? `${hour12}:${String(m).padStart(2, '0')}${suffix}` : `${hour12}${suffix}`
+}
 
 export function PostPlacementDrawer({
   clients,
@@ -135,7 +141,7 @@ export function PostPlacementDrawer({
                     className={`grid grid-cols-[44px_1fr_auto] items-center gap-3 px-3 py-2 ${i ? 'border-t border-dashed border-line-soft' : ''}`}
                   >
                     <span className="font-mono text-[11px] font-semibold text-ink">{WEEKDAY_LABELS[e.day_of_week]}</span>
-                    <span className="font-mono text-[11px] text-ink-soft">{hhmm(e.start_time)}–{hhmm(e.end_time)}</span>
+                    <span className="font-mono text-[11px] text-ink-soft">{fmtTime(e.start_time)}–{fmtTime(e.end_time)}</span>
                     <span className="font-mono text-[10px] tracking-[0.04em] uppercase text-ink-soft">{SERVICE_TYPE_LABELS[e.service_type]}</span>
                   </div>
                 ))}

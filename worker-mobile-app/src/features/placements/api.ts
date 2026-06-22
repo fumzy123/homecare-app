@@ -5,6 +5,8 @@ export type PlacementStatus = 'open' | 'filled' | 'closed';
 export interface WorkerPlacement {
   id: string;
   status: PlacementStatus;
+  client_first_name: string;
+  client_last_name: string;
   masked_location: string;
   shift_description: string;
   requirements: string | null;

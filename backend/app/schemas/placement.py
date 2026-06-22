@@ -60,6 +60,8 @@ class PlacementDetailResponse(PlacementResponse):
 class WorkerPlacementResponse(BaseModel):
     id:                UUID
     status:            PlacementStatus
+    client_first_name: str
+    client_last_name:  str
     masked_location:   str
     shift_description: str
     requirements:      str | None
