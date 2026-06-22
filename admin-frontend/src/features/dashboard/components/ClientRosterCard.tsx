@@ -24,7 +24,7 @@ export function ClientRosterCard({ clients, weekShifts }: ClientRosterCardProps)
   return (
     <Card variant="cream" className="p-0">
       <div className="px-6 py-5 border-b border-ink">
-        <Kicker className="mb-1">E / Clients by hours</Kicker>
+        <Kicker className="mb-1">F / Clients by hours</Kicker>
         <h3 className="font-serif text-[24px] leading-none mt-2 tracking-[-0.02em]">Active client roster</h3>
       </div>
       <div>

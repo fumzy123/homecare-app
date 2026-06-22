@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Kicker } from '@/shared/components/ui'
+import { Card, Kicker } from '@/shared/components/ui'
 import { useExpiringAuthorizations } from '../hooks/useAuthorizations'
 
 function urgencyColor(days: number) {
@@ -16,14 +16,25 @@ function urgencyColor(days: number) {
 export function AuthorizationsExpiringPanel() {
   const { data: expiring = [] } = useExpiringAuthorizations()
 
-  if (expiring.length === 0) return null
+  if (expiring.length === 0) {
+    return (
+      <Card className="p-6 h-full">
+        <Kicker className="mb-2">D / Authorizations</Kicker>
+        <div className="font-serif text-[22px] leading-none mt-2 mb-1">All authorizations valid</div>
+        <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTION NEEDED</p>
+      </Card>
+    )
+  }
 
   return (
-    <div>
-      <Kicker leader className="mb-3.5">
-        Authorizations expiring — {expiring.length} within 15 days
-      </Kicker>
-      <div className="border border-ink bg-paper">
+    <Card className="p-0">
+      <div className="px-6 py-5 border-b border-ink">
+        <Kicker className="mb-1">D / Authorizations</Kicker>
+        <h3 className="font-serif text-[22px] leading-none mt-2">
+          Expiring soon <span className="italic text-muted">— {expiring.length} within 15 days</span>
+        </h3>
+      </div>
+      <div>
         {expiring.map((a, i) => (
           <Link
             key={a.authorization_id}
@@ -50,6 +61,6 @@ export function AuthorizationsExpiringPanel() {
           </Link>
         ))}
       </div>
-    </div>
+    </Card>
   )
 }

@@ -95,9 +95,13 @@ function DashboardPage() {
       </section>
 
       {/* ── Compliance & authorization alerts ── */}
-      <section className="px-10 max-md:px-4 mb-8 grid grid-cols-2 max-md:grid-cols-1 gap-6 items-start">
-        <ComplianceAlertsPanel />
-        <AuthorizationsExpiringPanel />
+      <section className="px-10 max-md:px-4 mb-8 grid grid-cols-3 max-md:grid-cols-1 gap-6 items-start">
+        <div className="col-span-2 max-md:col-span-1">
+          <AuthorizationsExpiringPanel />
+        </div>
+        <div>
+          <ComplianceAlertsPanel />
+        </div>
       </section>
 
       {/* ── Client roster ── */}
