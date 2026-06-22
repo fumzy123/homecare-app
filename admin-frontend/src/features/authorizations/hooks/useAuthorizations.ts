@@ -9,6 +9,13 @@ export function useClientAuthorizations(clientId: string) {
   })
 }
 
+export function useExpiringAuthorizations() {
+  return useQuery({
+    queryKey: ['expiring-authorizations'],
+    queryFn: () => authorizationsApi.expiring(15),
+  })
+}
+
 export function useAuthorizationCompliance(clientId: string) {
   return useQuery({
     queryKey: ['authorization-compliance', clientId],

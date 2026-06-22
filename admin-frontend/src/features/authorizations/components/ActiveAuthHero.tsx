@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { Tag } from '@/shared/components/ui'
 import type { Authorization } from '../api'
 import { SERVICE_TYPE_LABELS } from '../constants'
-import { totalAuthorizedHours, periodNoun, fmtHours, endsRelLabel } from '../utils'
+import { totalAuthorizedHours, periodNoun, fmtHours, endsRelLabel, daysUntil } from '../utils'
 
 /**
  * The active authorization, pinned at the top of the tab as the heaviest
@@ -25,6 +25,11 @@ export function ActiveAuthHero({
   const [confirmCancel, setConfirmCancel] = useState(false)
   const total = totalAuthorizedHours(auth)
 
+  // Expiry nudge — only when the funder's window has a near-term end date.
+  const daysToExpiry = auth.covering_end ? daysUntil(auth.covering_end) : null
+  const expiringSoon = daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 15
+  const expiryLabel = daysToExpiry === 0 ? 'Expires today' : `Expires in ${daysToExpiry} day${daysToExpiry === 1 ? '' : 's'}`
+
   return (
     <div className="border border-ink bg-paper">
       {/* header bar */}
@@ -32,6 +37,14 @@ export function ActiveAuthHero({
         <div className="flex items-center gap-3">
           <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-ink-soft">Active authorization</span>
           <Tag variant="mint">● Active</Tag>
+          {expiringSoon && (
+            <span className={`inline-flex items-center gap-1.5 font-mono text-[9px] tracking-[0.06em] uppercase px-2 py-0.5 border ${
+              daysToExpiry! <= 7 ? 'border-orange bg-orange-soft text-orange' : 'border-amber-600 text-amber-600'
+            }`}>
+              <span className="dot" style={{ background: daysToExpiry! <= 7 ? 'var(--color-orange)' : '#d97706' }} />
+              {expiryLabel}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2.5">
           <button onClick={() => onAmend(auth)}

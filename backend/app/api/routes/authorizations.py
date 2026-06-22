@@ -10,6 +10,7 @@ from app.schemas.authorization import (
     AuthorizationCreateSchema,
     AuthorizationResponse,
     AuthorizationComplianceResponse,
+    ExpiringAuthorizationResponse,
 )
 
 router = APIRouter(tags=["Authorizations"])
@@ -39,6 +40,15 @@ async def create_client_authorization(
     service: AuthorizationService = Depends(get_authorization_service),
 ):
     return service.create(client_id, payload)
+
+
+@router.get("/authorizations/expiring", response_model=list[ExpiringAuthorizationResponse])
+async def list_expiring_authorizations(
+    within_days: int = 15,
+    service: AuthorizationService = Depends(get_authorization_service),
+):
+    """Org-wide feed of active authorizations expiring within `within_days`."""
+    return service.get_expiring(within_days)
 
 
 @router.get("/authorizations/{authorization_id}", response_model=AuthorizationResponse)

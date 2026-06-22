@@ -71,6 +71,17 @@ export interface AuthorizationCompliance {
   services: ServiceCompliance[]
 }
 
+export interface ExpiringAuthorization {
+  authorization_id: string
+  client_id: string
+  client_first_name: string
+  client_last_name: string
+  funder: string
+  authorization_number: string
+  covering_end: string
+  days_remaining: number
+}
+
 export const authorizationsApi = {
   list: async (clientId: string): Promise<Authorization[]> => {
     const { data } = await apiClient.get(`/api/clients/${clientId}/authorizations`)
@@ -89,6 +100,13 @@ export const authorizationsApi = {
 
   compliance: async (clientId: string): Promise<AuthorizationCompliance> => {
     const { data } = await apiClient.get(`/api/clients/${clientId}/authorization-compliance`)
+    return data
+  },
+
+  expiring: async (withinDays = 15): Promise<ExpiringAuthorization[]> => {
+    const { data } = await apiClient.get('/api/authorizations/expiring', {
+      params: { within_days: withinDays },
+    })
     return data
   },
 }

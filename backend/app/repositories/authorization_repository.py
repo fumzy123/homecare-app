@@ -51,6 +51,16 @@ class AuthorizationRepository:
             .all()
         )
 
+    def list_for_org_with_client(self, org_id: UUID) -> list[Authorization]:
+        """All authorizations for an org with their client joined — used to
+        derive the org-wide expiry feed. Services are not needed here."""
+        return (
+            self.db.query(Authorization)
+            .options(joinedload(Authorization.client))
+            .filter(Authorization.org_id == org_id)
+            .all()
+        )
+
     def list_active_for_client(self, client_id: UUID, org_id: UUID, on_date: date) -> list[Authorization]:
         """Authorizations in effect on `on_date`: not cancelled, not superseded,
         and the date falls within the covering window."""

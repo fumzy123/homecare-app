@@ -13,6 +13,7 @@ import { DroppedShiftsAlert } from '@/features/dashboard/components/DroppedShift
 import { WorkerUtilizationCard } from '@/features/dashboard/components/WorkerUtilizationCard'
 import { ClientRosterCard } from '@/features/dashboard/components/ClientRosterCard'
 import { ComplianceAlertsPanel } from '@/features/workers/components/ComplianceAlertsPanel'
+import { AuthorizationsExpiringPanel } from '@/features/authorizations/components/AuthorizationsExpiringPanel'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
@@ -93,9 +94,10 @@ function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Compliance alerts ── */}
-      <section className="px-10 max-md:px-4 mb-8">
+      {/* ── Compliance & authorization alerts ── */}
+      <section className="px-10 max-md:px-4 mb-8 grid grid-cols-2 max-md:grid-cols-1 gap-6 items-start">
         <ComplianceAlertsPanel />
+        <AuthorizationsExpiringPanel />
       </section>
 
       {/* ── Client roster ── */}
