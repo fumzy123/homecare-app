@@ -47,7 +47,7 @@ function PlacementDetailPage() {
         onSuccess: () =>
           toast(
             `Schedule created for ${worker?.first_name ?? ''} ${worker?.last_name ?? ''}`.trim(),
-            { label: 'View schedule', to: '/dashboard/shifts' },
+            { label: 'View schedule', to: '/dashboard/shifts', search: { worker: employmentId } },
           ),
         onError: (err) => setError(serverMessage(err) ?? 'Failed to fill placement.'),
       },

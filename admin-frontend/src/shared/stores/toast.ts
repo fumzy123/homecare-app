@@ -5,6 +5,7 @@ export interface ToastAction {
   label: string
   to: string
   params?: Record<string, string>
+  search?: Record<string, string>
 }
 
 export interface Toast {

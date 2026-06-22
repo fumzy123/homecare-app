@@ -25,6 +25,7 @@ export function Toaster() {
               <Link
                 to={t.action.to as never}
                 params={t.action.params as never}
+                search={t.action.search as never}
                 onClick={() => dismiss(t.id)}
                 className="inline-block mt-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-orange hover:underline underline-offset-2"
               >
