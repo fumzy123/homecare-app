@@ -16,7 +16,10 @@ function getClientAge(dateOfBirth: string): number {
   return age;
 }
 
-function formatFocus(serviceType: string, medicalConditions: string | null): string | null {
+function formatFocus(serviceType: string | undefined | null, medicalConditions: string | null): string | null {
+  if (!serviceType) {
+    return medicalConditions || null;
+  }
   const service = serviceType
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
