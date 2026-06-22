@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 from pydantic import BaseModel
 from app.core.enums import PlacementStatus
@@ -7,8 +7,9 @@ from app.core.enums import PlacementStatus
 class PlacementCreateSchema(BaseModel):
     # The address and weekly care plan shown on a placement are snapshotted from
     # the client at post time (see PlacementService.create_placement) — the admin
-    # only chooses the client and adds optional requirements.
+    # chooses the client, when care starts, and optional requirements.
     client_id:    UUID
+    start_date:   date
     requirements: str | None = None
 
 
@@ -55,6 +56,7 @@ class PlacementResponse(BaseModel):
     shift_description: str
     requirements:      str | None
     masked_location:   str
+    start_date:        date | None
     status:            PlacementStatus
     filled_by:         UUID | None
     resolved_at:       datetime | None
@@ -76,6 +78,7 @@ class WorkerPlacementResponse(BaseModel):
     masked_location:   str
     shift_description: str
     requirements:      str | None
+    start_date:        date | None
     created_at:        datetime
     has_interest:      bool
 

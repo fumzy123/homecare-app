@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Kicker } from '@/shared/components/ui'
+import { Kicker, DateInput } from '@/shared/components/ui'
 import { useClient } from '@/features/clients/hooks/useClients'
 import { useWeeklyCarePlan } from '@/features/weekly-care-plan/hooks/useWeeklyCarePlan'
 import { WEEKDAY_LABELS, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
@@ -38,6 +38,7 @@ export function PostPlacementDrawer({
   onSuccess,
 }: PostPlacementDrawerProps) {
   const [clientId, setClientId]       = useState(preselectedClientId ?? '')
+  const [startDate, setStartDate]     = useState(() => new Date().toISOString().slice(0, 10))
   const [requirements, setRequirements] = useState('')
   const [serverError, setServerError] = useState<string | null>(null)
   const { mutateAsync: createPlacement, isPending } = useCreatePlacement()
@@ -52,10 +53,11 @@ export function PostPlacementDrawer({
     : null
 
   async function handleSubmit() {
-    if (!clientId) return
+    if (!clientId || !startDate) return
     setServerError(null)
     const payload: PlacementCreatePayload = {
       client_id: clientId,
+      start_date: startDate,
       ...(requirements ? { requirements } : {}),
     }
     try {
@@ -149,6 +151,15 @@ export function PostPlacementDrawer({
             )}
           </div>
 
+          {/* Care starts */}
+          <div>
+            <label className={labelClass}>Care starts</label>
+            <p className="font-mono text-[9px] text-ink-soft mb-1.5">
+              When the shifts begin — shown to workers and used to schedule on fill
+            </p>
+            <DateInput value={startDate} min={new Date().toISOString().slice(0, 10)} onChange={setStartDate} />
+          </div>
+
           {/* Requirements */}
           <div>
             <label htmlFor="requirements" className={labelClass}>Requirements <span className="opacity-40">(optional)</span></label>
@@ -174,7 +185,7 @@ export function PostPlacementDrawer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isPending || !clientId}
+            disabled={isPending || !clientId || !startDate}
             className="flex-1 bg-ink text-cream px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] hover:bg-orange hover:border-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isPending ? 'Posting…' : 'Post Placement'}

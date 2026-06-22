@@ -10,6 +10,7 @@ export interface WorkerPlacement {
   masked_location: string;
   shift_description: string;
   requirements: string | null;
+  start_date: string | null;
   created_at: string;
   has_interest: boolean;
 }

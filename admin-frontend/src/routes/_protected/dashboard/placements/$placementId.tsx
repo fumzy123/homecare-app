@@ -91,6 +91,12 @@ function PlacementDetailPage() {
               <p className="text-[13px] leading-snug">{placement.requirements}</p>
             </div>
           )}
+          {placement.start_date && (
+            <div>
+              <p className={labelClass}>Starts</p>
+              <p className="text-[13px]">{format(new Date(placement.start_date + 'T00:00:00'), 'MMM d, yyyy')}</p>
+            </div>
+          )}
           <div>
             <p className={labelClass}>Posted</p>
             <p className="text-[13px]">{format(new Date(placement.created_at), 'MMM d, yyyy')}</p>
@@ -166,6 +172,7 @@ function PlacementDetailPage() {
                 interest={interest}
                 index={i}
                 isOpen={isOpen}
+                filledBy={placement.filled_by}
                 filling={filling}
                 onFill={handleFill}
               />
@@ -195,19 +202,22 @@ function InterestRow({
   interest,
   index,
   isOpen,
+  filledBy,
   filling,
   onFill,
 }: {
   interest: InterestWorkerSummary
   index: number
   isOpen: boolean
+  filledBy: string | null
   filling: boolean
   onFill: (id: string) => void
 }) {
-  const color    = AVATAR_COLORS[index % AVATAR_COLORS.length]
-  const initials = `${interest.first_name[0] ?? ''}${interest.last_name[0] ?? ''}`.toUpperCase()
-  const elig     = interest.eligibility
-  const canFill  = !!elig?.all_clear
+  const color      = AVATAR_COLORS[index % AVATAR_COLORS.length]
+  const initials   = `${interest.first_name[0] ?? ''}${interest.last_name[0] ?? ''}`.toUpperCase()
+  const elig       = interest.eligibility
+  const canFill    = !!elig?.all_clear
+  const isAssigned = !isOpen && filledBy === interest.employment_id
 
   return (
     <div className={`flex items-start justify-between gap-6 px-5 py-4 hover:bg-cream-2 transition-colors ${index > 0 ? 'border-t border-dashed border-line-soft' : ''}`}>
@@ -225,44 +235,53 @@ function InterestRow({
         </div>
       </div>
 
-      {/* Eligibility checklist */}
-      <div className="shrink-0 w-[360px]">
-        {elig ? (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <Check ok={elig.availability_ok} label="Worker's availability meets client's care plan"
-                     to="/dashboard/workers/$workerId/edit" workerId={interest.employment_id} />
-              <Check ok={elig.no_conflicts}    label="No scheduling conflicts"
-                     to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
-              <Check ok={elig.within_hours}    label="Within weekly hours"
-                     to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
-            </div>
-            {elig.reasons.length > 0 && (
-              <ul className="mt-2 flex flex-col gap-0.5">
-                {elig.reasons.map((r, i) => (
-                  <li key={i} className="font-mono text-[10px] text-orange leading-snug">— {r}</li>
-                ))}
-              </ul>
+      {/* Open: eligibility checklist. Resolved: only mark who was assigned. */}
+      {isOpen ? (
+        <>
+          <div className="shrink-0 w-[360px]">
+            {elig ? (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Check ok={elig.availability_ok} label="Worker's availability meets client's care plan"
+                         to="/dashboard/workers/$workerId/edit" workerId={interest.employment_id} />
+                  <Check ok={elig.no_conflicts}    label="No scheduling conflicts"
+                         to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
+                  <Check ok={elig.within_hours}    label="Within weekly hours"
+                         to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
+                </div>
+                {elig.reasons.length > 0 && (
+                  <ul className="mt-2 flex flex-col gap-0.5">
+                    {elig.reasons.map((r, i) => (
+                      <li key={i} className="font-mono text-[10px] text-orange leading-snug">— {r}</li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p className="font-mono text-[10px] text-muted">No care plan to schedule</p>
             )}
-          </>
-        ) : (
-          <p className="font-mono text-[10px] text-muted">No care plan to schedule</p>
-        )}
-      </div>
+          </div>
 
-      {/* Fill */}
-      {isOpen && (
-        <div className="shrink-0 w-[130px] text-right">
-          <button
-            onClick={() => onFill(interest.employment_id)}
-            disabled={filling || !canFill}
-            title={canFill ? undefined : 'All checks must pass before filling'}
-            className="bg-ink text-cream px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-orange transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            {filling ? '…' : 'Fill Placement'}
-          </button>
-          {!canFill && (
-            <p className="font-mono text-[9px] text-muted mt-1.5 leading-snug">Resolve checks to assign</p>
+          <div className="shrink-0 w-[130px] text-right">
+            <button
+              onClick={() => onFill(interest.employment_id)}
+              disabled={filling || !canFill}
+              title={canFill ? undefined : 'All checks must pass before filling'}
+              className="bg-ink text-cream px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-orange transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {filling ? '…' : 'Fill Placement'}
+            </button>
+            {!canFill && (
+              <p className="font-mono text-[9px] text-muted mt-1.5 leading-snug">Resolve checks to assign</p>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="shrink-0">
+          {isAssigned ? (
+            <Tag variant="mint">✓ Assigned</Tag>
+          ) : (
+            <span className="font-mono text-[10px] text-muted">Not selected</span>
           )}
         </div>
       )}

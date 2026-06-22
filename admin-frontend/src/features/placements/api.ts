@@ -29,6 +29,7 @@ export interface Placement {
   shift_description: string
   requirements: string | null
   masked_location: string
+  start_date: string | null
   status: PlacementStatus
   filled_by: string | null
   resolved_at: string | null
@@ -42,6 +43,7 @@ export interface PlacementDetail extends Placement {
 
 export interface PlacementCreatePayload {
   client_id: string
+  start_date: string
   requirements?: string
 }
 

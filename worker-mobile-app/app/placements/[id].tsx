@@ -113,6 +113,18 @@ export default function PlacementDetailScreen() {
           <Text className="font-sans text-base font-semibold text-ink">{placement.masked_location}</Text>
         </View>
 
+        {/* Start date */}
+        {placement.start_date ? (
+          <View className="mb-4">
+            <Text className={labelClass}>Starts</Text>
+            <Text className="font-sans text-base font-semibold text-ink">
+              {new Date(placement.start_date + 'T00:00:00').toLocaleDateString(undefined, {
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+              })}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Weekly care plan */}
         <View className="mb-4">
           <Text className={labelClass}>Weekly Care Plan</Text>

@@ -80,6 +80,7 @@ class PlacementService:
                 shift_description=care_plan,
                 masked_location=location,
                 requirements=payload.requirements,
+                start_date=payload.start_date,
                 care_plan_snapshot=snapshot,
             )
 
@@ -175,7 +176,8 @@ class PlacementService:
         if not snapshot_entries:
             raise AppError(status_code=400, code="NO_CARE_PLAN",
                            message="This placement has no weekly care plan to schedule.")
-        eligibility = self._eligibility_for(chosen.employment, snapshot_entries, client, today)
+        effective_start = self._effective_start(placement, today)
+        eligibility = self._eligibility_for(chosen.employment, snapshot_entries, client, effective_start, today)
         if not eligibility.all_clear:
             raise AppError(status_code=409, code="WORKER_NOT_ELIGIBLE",
                            message="Worker can't be assigned: " + "; ".join(eligibility.reasons),
@@ -183,7 +185,7 @@ class PlacementService:
 
         # Generate the schedule from the snapshot — one recurring shift per
         # (start, end, service) group, all assigned to the chosen worker.
-        shifts = self._generate_shifts(placement, employment_id, snapshot_entries, client, today)
+        shifts = self._generate_shifts(placement, employment_id, snapshot_entries, client, effective_start, today)
 
         others = [i.employment_id for i in placement.interests if i.employment_id != employment_id]
         try:
@@ -263,6 +265,7 @@ class PlacementService:
             masked_location=placement.masked_location,
             shift_description=placement.shift_description,
             requirements=placement.requirements,
+            start_date=placement.start_date,
             created_at=placement.created_at,
             has_interest=has_interest,
         )
@@ -308,6 +311,7 @@ class PlacementService:
             shift_description=p.shift_description,
             requirements=p.requirements,
             masked_location=p.masked_location,
+            start_date=p.start_date,
             status=p.status,
             filled_by=p.filled_by,
             resolved_at=p.resolved_at,
@@ -341,20 +345,26 @@ class PlacementService:
             return None
         return max(ends)
 
-    def _check_horizon(self, client, today: date) -> date:
+    @staticmethod
+    def _effective_start(p, today: date) -> date:
+        """The date care actually starts when generating/checking — the placement's
+        advertised start, never earlier than today (so we never schedule the past)."""
+        return max(p.start_date or today, today)
+
+    def _check_horizon(self, client, base_date: date, today: date) -> date:
         """How far ahead to project the plan when checking conflicts/hours — the
-        funded end date if sooner, else a one-year cap (matches the recurring
-        conflict window used in shift creation)."""
-        cap = today + timedelta(days=365)
+        funded end date if sooner, else a one-year cap from the start (matches the
+        recurring conflict window used in shift creation)."""
+        cap = base_date + timedelta(days=365)
         end = self._funded_covering_end(client, today)
         return end if (end and end < cap) else cap
 
-    def _eligibility_for(self, employment, snapshot_entries, client, today: date) -> InterestEligibility:
+    def _eligibility_for(self, employment, snapshot_entries, client, effective_start: date, today: date) -> InterestEligibility:
         """Run the three gates for one interested worker against the snapshot."""
         avail = self.availability_repo.list_for_person(employment.person_id)
         match = availability_covers_care_plan(avail, snapshot_entries)
 
-        blocks = weekly_entries_to_time_blocks(snapshot_entries, today, self._check_horizon(client, today))
+        blocks = weekly_entries_to_time_blocks(snapshot_entries, effective_start, self._check_horizon(client, effective_start, today))
         conflicts = self.checker.find_conflicts(employment.id, blocks)
         overtime, cap = self.checker.find_hours_violations(employment.id, blocks)
 
@@ -400,9 +410,10 @@ class PlacementService:
             d += timedelta(days=1)
         return start_from
 
-    def _generate_shifts(self, placement, worker_id, snapshot_entries, client, today: date) -> list:
+    def _generate_shifts(self, placement, worker_id, snapshot_entries, client, effective_start: date, today: date) -> list:
         """One recurring shift per (start, end, service) group; BYDAY lists the
-        group's weekdays. Ends at the funded covering_end, else open-ended."""
+        group's weekdays. First occurrence on/after the start date; ends at the
+        funded covering_end, else open-ended."""
         covering_end = self._funded_covering_end(client, today)
         location = self._format_address(client)
 
@@ -412,7 +423,7 @@ class PlacementService:
 
         shifts = []
         for (start_t, end_t, service), days in groups.items():
-            first = self._first_occurrence_date(days, today)
+            first = self._first_occurrence_date(days, effective_start)
             byday = ",".join(d.value for d in sorted(days, key=lambda x: WEEKDAY_INDEX[x]))
             shifts.append(Shift(
                 org_id=self.org_id,
@@ -430,8 +441,13 @@ class PlacementService:
         return shifts
 
     def _to_detail(self, p) -> PlacementDetailResponse:
+        # Eligibility is a pre-assignment decision aid — only meaningful while the
+        # placement is open. Once filled/closed the question is settled (and the
+        # generated shifts would otherwise show up as "conflicts"), so skip it.
         snapshot_entries = self._parse_snapshot(p.care_plan_snapshot)
         today = date.today()
+        show_eligibility = p.status == PlacementStatus.open and bool(snapshot_entries)
+        effective_start = self._effective_start(p, today)
         interests = [
             InterestWorkerSummary(
                 employment_id=i.employment_id,
@@ -440,8 +456,8 @@ class PlacementService:
                 created_at=i.created_at,
                 note=i.note,
                 eligibility=(
-                    self._eligibility_for(i.employment, snapshot_entries, p.client, today)
-                    if snapshot_entries else None
+                    self._eligibility_for(i.employment, snapshot_entries, p.client, effective_start, today)
+                    if show_eligibility else None
                 ),
             )
             for i in p.interests
@@ -456,6 +472,7 @@ class PlacementService:
             shift_description=p.shift_description,
             requirements=p.requirements,
             masked_location=p.masked_location,
+            start_date=p.start_date,
             status=p.status,
             filled_by=p.filled_by,
             resolved_at=p.resolved_at,
