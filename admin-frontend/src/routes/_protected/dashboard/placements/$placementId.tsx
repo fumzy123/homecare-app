@@ -177,12 +177,17 @@ function PlacementDetailPage() {
   )
 }
 
-function Check({ ok, label }: { ok: boolean; label: string }) {
+function Check({ ok, label, to, workerId }: { ok: boolean; label: string; to: string; workerId: string }) {
   return (
-    <span className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.04em]">
+    <Link
+      to={to}
+      params={{ workerId } as never}
+      title="Open the worker's profile to check"
+      className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.04em] hover:underline underline-offset-2"
+    >
       <span className={ok ? 'text-mint-dark' : 'text-orange'}>{ok ? '✓' : '✕'}</span>
       <span className={ok ? 'text-ink-soft' : 'text-ink'}>{label}</span>
-    </span>
+    </Link>
   )
 }
 
@@ -225,9 +230,12 @@ function InterestRow({
         {elig ? (
           <>
             <div className="flex flex-col gap-1.5">
-              <Check ok={elig.availability_ok} label="Availability covers the plan" />
-              <Check ok={elig.no_conflicts}    label="No scheduling conflicts" />
-              <Check ok={elig.within_hours}    label="Within weekly hours" />
+              <Check ok={elig.availability_ok} label="Availability covers the plan"
+                     to="/dashboard/workers/$workerId/edit" workerId={interest.employment_id} />
+              <Check ok={elig.no_conflicts}    label="No scheduling conflicts"
+                     to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
+              <Check ok={elig.within_hours}    label="Within weekly hours"
+                     to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
             </div>
             {elig.reasons.length > 0 && (
               <ul className="mt-2 flex flex-col gap-0.5">

@@ -364,8 +364,11 @@ class PlacementService:
 
         reasons: list[str] = []
         if not availability_ok:
-            days = ", ".join(_WEEKDAY_LABELS[e.day_of_week] for e in match.uncovered)
-            reasons.append(f"Availability doesn't cover the care plan ({days})")
+            if not avail:
+                reasons.append("Worker's availability isn't set on their profile")
+            else:
+                days = ", ".join(_WEEKDAY_LABELS[e.day_of_week] for e in match.uncovered)
+                reasons.append(f"Availability is set but doesn't cover the care plan ({days})")
         if not no_conflicts:
             c = conflicts[0]
             reasons.append(f"Already scheduled: {c['client_name']} on {c['date']}")

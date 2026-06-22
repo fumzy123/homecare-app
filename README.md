@@ -95,7 +95,7 @@ If you must test over Wi-Fi and it's blocking traffic, you can tunnel your servi
    - `npx localtunnel --port 8000`
    - `npx localtunnel --port 54321`
 2. Update your `worker-mobile-app/.env.local` to use the two public `loca.lt` URLs generated above.
-3. Start Expo with a tunnel: `npx expo start --tunnel` *(Note: If this crashes with a TypeError, wait 60 seconds and try again, as the free tunneling service has strict rate limits).*
+3. Start Expo with a tunnel: `npx expo start --tunnel --clear ` *(Note: If this crashes with a TypeError, wait 60 seconds and try again, as the free tunneling service has strict rate limits).*
 
 ---
 
