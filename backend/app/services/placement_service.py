@@ -55,7 +55,9 @@ class PlacementService:
         if not client:
             raise AppError(status_code=404, code="NOT_FOUND", message="Client not found")
         location = self._format_address(client)
-        care_plan = self._format_care_plan(payload.client_id)
+        entries = self.plan_repo.list_for_client(payload.client_id)
+        care_plan = self._format_care_plan(entries)
+        snapshot = [self._entry_to_snapshot(e) for e in entries]
 
         try:
             placement = self.repo.create(
@@ -65,6 +67,7 @@ class PlacementService:
                 shift_description=care_plan,
                 masked_location=location,
                 requirements=payload.requirements,
+                care_plan_snapshot=snapshot,
             )
 
             # Notify all workers in the same transaction: if the fan-out fails,
@@ -104,10 +107,19 @@ class PlacementService:
         hour12 = t.hour % 12 or 12
         return f"{hour12}:{t.minute:02d}{suffix}" if t.minute else f"{hour12}{suffix}"
 
-    def _format_care_plan(self, client_id: UUID) -> str:
+    @staticmethod
+    def _entry_to_snapshot(e) -> dict:
+        """Serialize one care-plan entry for the frozen JSON snapshot."""
+        return {
+            "day_of_week":  e.day_of_week.value,
+            "start_time":   e.start_time.isoformat(),
+            "end_time":     e.end_time.isoformat(),
+            "service_type": e.service_type.value,
+        }
+
+    def _format_care_plan(self, entries) -> str:
         """Render the client's weekly care plan as a frozen text block, e.g.
         "Mon · 9am–7pm · Personal Care"."""
-        entries = self.plan_repo.list_for_client(client_id)
         if not entries:
             return "No weekly care plan has been set for this client yet."
         ordered = sorted(
