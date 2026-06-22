@@ -33,7 +33,26 @@ def availability_covers_care_plan(
     uncovered = []
     for entry in care_plan_entries:
         windows = by_day.get(entry.day_of_week, [])
-        if not any(w.start_time <= entry.start_time and entry.end_time <= w.end_time for w in windows):
+        if not windows:
+            uncovered.append(entry)
+            continue
+            
+        # Merge overlapping/contiguous windows
+        sorted_windows = sorted(windows, key=lambda w: w.start_time)
+        merged = []
+        c_start = sorted_windows[0].start_time
+        c_end = sorted_windows[0].end_time
+        for w in sorted_windows[1:]:
+            if w.start_time <= c_end:
+                c_end = max(c_end, w.end_time)
+            else:
+                merged.append((c_start, c_end))
+                c_start = w.start_time
+                c_end = w.end_time
+        merged.append((c_start, c_end))
+
+        # Check if any merged window fully covers the entry
+        if not any(m_start <= entry.start_time and entry.end_time <= m_end for m_start, m_end in merged):
             uncovered.append(entry)
 
     return AvailabilityMatch(covered=not uncovered, uncovered=uncovered)

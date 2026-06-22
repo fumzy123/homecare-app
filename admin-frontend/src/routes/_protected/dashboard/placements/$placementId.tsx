@@ -186,7 +186,7 @@ function Check({ ok, label, to, workerId }: { ok: boolean; label: string; to: st
       className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.04em] hover:underline underline-offset-2"
     >
       <span className={ok ? 'text-mint-dark' : 'text-orange'}>{ok ? '✓' : '✕'}</span>
-      <span className={ok ? 'text-ink-soft' : 'text-ink'}>{label}</span>
+      <span className={`whitespace-nowrap ${ok ? 'text-ink-soft' : 'text-ink'}`}>{label}</span>
     </Link>
   )
 }
@@ -226,11 +226,11 @@ function InterestRow({
       </div>
 
       {/* Eligibility checklist */}
-      <div className="shrink-0 w-[260px]">
+      <div className="shrink-0 w-[360px]">
         {elig ? (
           <>
             <div className="flex flex-col gap-1.5">
-              <Check ok={elig.availability_ok} label="Availability covers the plan"
+              <Check ok={elig.availability_ok} label="Worker's availability meets client's care plan"
                      to="/dashboard/workers/$workerId/edit" workerId={interest.employment_id} />
               <Check ok={elig.no_conflicts}    label="No scheduling conflicts"
                      to="/dashboard/workers/$workerId" workerId={interest.employment_id} />
