@@ -1,9 +1,11 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
-from app.core.enums import PlacementStatus
+from app.core.enums import PlacementStatus, WeekDay, ServiceType
 from app.repositories.placement_repository import PlacementRepository
 from app.repositories.organization_repository import OrganizationRepository
+from app.repositories.client_repository import ClientRepository
+from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
 from app.services.notification_service import NotificationService
 from app.schemas.placement import (
     PlacementCreateSchema,
@@ -13,6 +15,22 @@ from app.schemas.placement import (
     InterestWorkerSummary,
 )
 
+# Labels used to render the care-plan snapshot text frozen onto a placement.
+_WEEKDAY_LABELS = {
+    WeekDay.MO: "Mon", WeekDay.TU: "Tue", WeekDay.WE: "Wed", WeekDay.TH: "Thu",
+    WeekDay.FR: "Fri", WeekDay.SA: "Sat", WeekDay.SU: "Sun",
+}
+_WEEKDAY_ORDER = {d: i for i, d in enumerate(
+    [WeekDay.MO, WeekDay.TU, WeekDay.WE, WeekDay.TH, WeekDay.FR, WeekDay.SA, WeekDay.SU]
+)}
+_SERVICE_LABELS = {
+    ServiceType.personal_care: "Personal Care",
+    ServiceType.companionship: "Companionship",
+    ServiceType.respite:       "Respite",
+    ServiceType.nursing:       "Nursing",
+    ServiceType.homemaking:    "Homemaking",
+}
+
 
 class PlacementService:
     def __init__(self, db: Session, current_user, org_id: UUID):
@@ -20,6 +38,8 @@ class PlacementService:
         self.current_user = current_user
         self.org_id = org_id
         self.repo = PlacementRepository(db)
+        self.client_repo = ClientRepository(db)
+        self.plan_repo = WeeklyCarePlanRepository(db)
         employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
         if not employment:
             raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
@@ -28,13 +48,22 @@ class PlacementService:
     # ── Admin actions ─────────────────────────────────────────────────────────
 
     def create_placement(self, payload: PlacementCreateSchema) -> PlacementDetailResponse:
+        # The address and weekly care plan are snapshotted from the client now,
+        # so the opportunity a worker sees stays exactly what was advertised even
+        # if the client's plan or address later changes.
+        client = self.client_repo.get_active_client(payload.client_id, self.org_id)
+        if not client:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Client not found")
+        location = self._format_address(client)
+        care_plan = self._format_care_plan(payload.client_id)
+
         try:
             placement = self.repo.create(
                 org_id=self.org_id,
                 client_id=payload.client_id,
                 created_by=self.employment_id,
-                shift_description=payload.shift_description,
-                masked_location=payload.masked_location,
+                shift_description=care_plan,
+                masked_location=location,
                 requirements=payload.requirements,
             )
 
@@ -46,8 +75,8 @@ class PlacementService:
                 placement_id=placement.id,
                 admin_id=self.employment_id,
                 client_id=payload.client_id,
-                masked_location=payload.masked_location,
-                shift_description=payload.shift_description,
+                masked_location=location,
+                shift_description=care_plan,
                 requirements=payload.requirements,
                 commit=False,
             )
@@ -59,6 +88,31 @@ class PlacementService:
 
         self.db.refresh(placement)
         return self._to_detail(placement)
+
+    # ── Snapshot builders ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _format_address(client) -> str:
+        """Full client address shown to workers (street included)."""
+        return f"{client.street}, {client.city}, {client.province} {client.postal_code}"
+
+    def _format_care_plan(self, client_id: UUID) -> str:
+        """Render the client's weekly care plan as a frozen text block, e.g.
+        "Mon · 09:00–12:00 · Personal Care"."""
+        entries = self.plan_repo.list_for_client(client_id)
+        if not entries:
+            return "No weekly care plan has been set for this client yet."
+        ordered = sorted(
+            entries,
+            key=lambda e: (_WEEKDAY_ORDER.get(e.day_of_week, 99), e.start_time),
+        )
+        lines = [
+            f"{_WEEKDAY_LABELS.get(e.day_of_week, e.day_of_week.value)} · "
+            f"{e.start_time.strftime('%H:%M')}–{e.end_time.strftime('%H:%M')} · "
+            f"{_SERVICE_LABELS.get(e.service_type, e.service_type.value)}"
+            for e in ordered
+        ]
+        return "\n".join(lines)
 
     def list_placements(self, status: PlacementStatus | None = None) -> list[PlacementResponse]:
         placements = self.repo.list_for_org(self.org_id, status)

@@ -33,9 +33,7 @@ export interface PlacementDetail extends Placement {
 
 export interface PlacementCreatePayload {
   client_id: string
-  shift_description: string
   requirements?: string
-  masked_location: string
 }
 
 export interface PlacementFillPayload {

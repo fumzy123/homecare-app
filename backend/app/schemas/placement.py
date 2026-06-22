@@ -5,10 +5,11 @@ from app.core.enums import PlacementStatus
 
 
 class PlacementCreateSchema(BaseModel):
-    client_id:         UUID
-    shift_description: str
-    requirements:      str | None = None
-    masked_location:   str
+    # The address and weekly care plan shown on a placement are snapshotted from
+    # the client at post time (see PlacementService.create_placement) — the admin
+    # only chooses the client and adds optional requirements.
+    client_id:    UUID
+    requirements: str | None = None
 
 
 class PlacementCloseSchema(BaseModel):

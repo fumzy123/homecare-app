@@ -74,12 +74,12 @@ function PlacementDetailPage() {
 
         <div className="space-y-4">
           <div>
-            <p className={labelClass}>Area</p>
+            <p className={labelClass}>Address</p>
             <p className="text-[13px]">{placement.masked_location}</p>
           </div>
           <div>
-            <p className={labelClass}>Shift</p>
-            <p className="text-[13px] leading-snug">{placement.shift_description}</p>
+            <p className={labelClass}>Weekly care plan</p>
+            <p className="text-[13px] leading-snug whitespace-pre-line">{placement.shift_description}</p>
           </div>
           {placement.requirements && (
             <div>

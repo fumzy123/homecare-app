@@ -99,18 +99,15 @@ export default function PlacementDetailScreen() {
           )}
         </View>
 
-        {/* Location */}
+        {/* Address */}
         <View className="mb-5 rounded-xl border border-cream-2 bg-paper p-4">
-          <Text className={labelClass}>Location</Text>
+          <Text className={labelClass}>Address</Text>
           <Text className="font-sans text-base font-semibold text-ink">{placement.masked_location}</Text>
-          <Text className="mt-1 font-mono text-xs text-muted">
-            Full address shared once placement is filled
-          </Text>
         </View>
 
-        {/* Shift description */}
+        {/* Weekly care plan */}
         <View className="mb-4">
-          <Text className={labelClass}>Shift Details</Text>
+          <Text className={labelClass}>Weekly Care Plan</Text>
           <Text className="font-sans text-sm text-ink leading-relaxed">{placement.shift_description}</Text>
         </View>
 
