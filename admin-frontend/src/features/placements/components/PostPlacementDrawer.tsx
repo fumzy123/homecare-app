@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Kicker, DateInput } from '@/shared/components/ui'
+import { toast } from '@/shared/stores/toast'
 import { useClient } from '@/features/clients/hooks/useClients'
 import { useWeeklyCarePlan } from '@/features/weekly-care-plan/hooks/useWeeklyCarePlan'
 import { WEEKDAY_LABELS, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
@@ -61,7 +62,12 @@ export function PostPlacementDrawer({
       ...(requirements ? { requirements } : {}),
     }
     try {
-      await createPlacement(payload)
+      const created = await createPlacement(payload)
+      toast(`Placement posted for ${created.client_first_name} ${created.client_last_name}`, {
+        label: 'View placement',
+        to: '/dashboard/placements/$placementId',
+        params: { placementId: created.id },
+      })
       onSuccess?.()
       onClose()
     } catch {

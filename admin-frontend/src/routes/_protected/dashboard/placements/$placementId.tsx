@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { Tag, Kicker, Avatar } from '@/shared/components/ui'
 import { usePlacement, useFillPlacement, useClosePlacement } from '@/features/placements/hooks/usePlacements'
+import { toast } from '@/shared/stores/toast'
 import type { PlacementStatus, InterestWorkerSummary } from '@/features/placements/api'
 
 export const Route = createFileRoute('/_protected/dashboard/placements/$placementId')({
@@ -39,9 +40,17 @@ function PlacementDetailPage() {
 
   function handleFill(employmentId: string) {
     setError(null)
+    const worker = placement!.interests.find((i) => i.employment_id === employmentId)
     fill(
       { id: placement!.id, payload: { employment_id: employmentId } },
-      { onError: (err) => setError(serverMessage(err) ?? 'Failed to fill placement.') },
+      {
+        onSuccess: () =>
+          toast(
+            `Schedule created for ${worker?.first_name ?? ''} ${worker?.last_name ?? ''}`.trim(),
+            { label: 'View schedule', to: '/dashboard/shifts' },
+          ),
+        onError: (err) => setError(serverMessage(err) ?? 'Failed to fill placement.'),
+      },
     )
   }
 
