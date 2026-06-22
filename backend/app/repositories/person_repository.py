@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from app.models.person import Person
-from app.core.exceptions import AppError
 
 
 class PersonRepository:
