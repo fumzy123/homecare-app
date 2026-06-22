@@ -61,6 +61,26 @@ Router → Service → Repository → Database
 - **Service** — Business logic and transaction ownership. Class-based with `__init__(self, db, current_user)` that instantiates the repo and resolves shared context (e.g. `self.org_id`) once. Owns `db.commit()` and `db.rollback()`.
 - **Repository** — Data access only. Takes `db: Session` in `__init__`. Named methods replace all raw `db.query()` calls. Never commits.
 
+### Domain layer (`app/domain/`) — shared business rules
+
+Some business rules don't belong to a single service — they're pure logic about
+the *problem* (home-care scheduling), shared by multiple services. Those live in
+`app/domain/`, **below** the service layer (the request path is still
+Router → Service → Repository; services delegate *into* domain, the same way they
+call repositories). A domain object is **not** a `Service`: no router factory, no
+transactions, no `current_user`. Two kinds:
+
+- **Pure functions** — data in, decision out, no I/O. E.g.
+  `domain/availability.py::availability_covers_care_plan(availability, care_plan)`;
+  the occurrence/RRULE math in `domain/scheduling.py` (`expand_occurrences`,
+  `timeblock_for_occurrence`, `iso_week_range`, `weekly_entries_to_time_blocks`).
+- **Repository-backed collaborators** — read-only, `__init__(self, db, org_id)`,
+  no commits. E.g. `domain/scheduling.py::SchedulingChecker` (`find_conflicts`,
+  `find_hours_violations`), used by both `ShiftService` and `PlacementService`.
+
+Rule of thumb: if logic is reused across services and needs no transaction/identity,
+it's domain — name it by capability, **not** with a `_service` suffix.
+
 ### Service naming conventions
 
 Each service class names its repo attribute after its domain:

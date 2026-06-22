@@ -19,6 +19,10 @@ const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-i
 
 const AVATAR_COLORS = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'] as const
 
+function serverMessage(err: unknown): string | undefined {
+  return (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
+}
+
 function PlacementDetailPage() {
   const { placementId } = Route.useParams()
   const { data: placement, isLoading, isError } = usePlacement(placementId)
@@ -37,7 +41,7 @@ function PlacementDetailPage() {
     setError(null)
     fill(
       { id: placement!.id, payload: { employment_id: employmentId } },
-      { onError: () => setError('Failed to fill placement.') },
+      { onError: (err) => setError(serverMessage(err) ?? 'Failed to fill placement.') },
     )
   }
 

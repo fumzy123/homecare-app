@@ -1,16 +1,18 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.core.exceptions import AppError
 from app.core.enums import PlacementStatus, WeekDay, ServiceType, CareArrangement
+from app.models.shift import Shift
 from app.repositories.placement_repository import PlacementRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
 from app.repositories.worker_availability_repository import WorkerAvailabilityRepository
 from app.repositories.authorization_repository import AuthorizationRepository
-from app.domain.scheduling import SchedulingChecker, weekly_entries_to_time_blocks
+from app.repositories.shift_repository import ShiftRepository
+from app.domain.scheduling import SchedulingChecker, weekly_entries_to_time_blocks, WEEKDAY_INDEX
 from app.domain.availability import availability_covers_care_plan
 from app.services.notification_service import NotificationService
 from app.schemas.placement import (
@@ -49,6 +51,7 @@ class PlacementService:
         self.plan_repo = WeeklyCarePlanRepository(db)
         self.availability_repo = WorkerAvailabilityRepository(db)
         self.auth_repo = AuthorizationRepository(db)
+        self.shift_repo = ShiftRepository(db)
         self.checker = SchedulingChecker(db, org_id)
         employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
         if not employment:
@@ -158,12 +161,34 @@ class PlacementService:
             raise AppError(status_code=400, code="PLACEMENT_NOT_OPEN",
                            message="Placement is no longer open")
         # Only a worker who actually expressed interest can be selected.
-        if not self.repo.get_interest(placement_id, employment_id):
+        chosen = next((i for i in placement.interests if str(i.employment_id) == str(employment_id)), None)
+        if not chosen:
             raise AppError(status_code=400, code="WORKER_NOT_INTERESTED",
                            message="That worker has not expressed interest in this placement")
 
+        # Gate: the worker must still pass every check against the frozen snapshot.
+        # Re-run server-side (never trust the client) and abort the whole fill if
+        # anything fails — no shifts are created.
+        today = date.today()
+        client = placement.client
+        snapshot_entries = self._parse_snapshot(placement.care_plan_snapshot)
+        if not snapshot_entries:
+            raise AppError(status_code=400, code="NO_CARE_PLAN",
+                           message="This placement has no weekly care plan to schedule.")
+        eligibility = self._eligibility_for(chosen.employment, snapshot_entries, client, today)
+        if not eligibility.all_clear:
+            raise AppError(status_code=409, code="WORKER_NOT_ELIGIBLE",
+                           message="Worker can't be assigned: " + "; ".join(eligibility.reasons),
+                           details=eligibility.reasons)
+
+        # Generate the schedule from the snapshot — one recurring shift per
+        # (start, end, service) group, all assigned to the chosen worker.
+        shifts = self._generate_shifts(placement, employment_id, snapshot_entries, client, today)
+
         others = [i.employment_id for i in placement.interests if i.employment_id != employment_id]
         try:
+            for shift in shifts:
+                self.shift_repo.add(shift)
             self.repo.fill(placement, employment_id)
 
             notification_svc = NotificationService(self.db, current_user_id=self.employment_id)
@@ -358,6 +383,48 @@ class PlacementService:
             all_clear=availability_ok and no_conflicts and within_hours,
             reasons=reasons,
         )
+
+    # ── Fill-time schedule generation ──────────────────────────────────────────
+
+    @staticmethod
+    def _first_occurrence_date(days, start_from: date) -> date:
+        """Earliest date on/after start_from whose weekday is one of `days`."""
+        wanted = {WEEKDAY_INDEX[d] for d in days}
+        d = start_from
+        for _ in range(7):
+            if d.weekday() in wanted:
+                return d
+            d += timedelta(days=1)
+        return start_from
+
+    def _generate_shifts(self, placement, worker_id, snapshot_entries, client, today: date) -> list:
+        """One recurring shift per (start, end, service) group; BYDAY lists the
+        group's weekdays. Ends at the funded covering_end, else open-ended."""
+        covering_end = self._funded_covering_end(client, today)
+        location = self._format_address(client)
+
+        groups: dict = {}
+        for e in snapshot_entries:
+            groups.setdefault((e.start_time, e.end_time, e.service_type), []).append(e.day_of_week)
+
+        shifts = []
+        for (start_t, end_t, service), days in groups.items():
+            first = self._first_occurrence_date(days, today)
+            byday = ",".join(d.value for d in sorted(days, key=lambda x: WEEKDAY_INDEX[x]))
+            shifts.append(Shift(
+                org_id=self.org_id,
+                worker_id=worker_id,
+                client_id=placement.client_id,
+                created_by=self.employment_id,
+                service_type=service,
+                start_time=datetime.combine(first, start_t),
+                end_time=datetime.combine(first, end_t),
+                is_recurring=True,
+                recurrence_rule=f"FREQ=WEEKLY;BYDAY={byday}",
+                recurrence_end_date=covering_end,
+                location=location,
+            ))
+        return shifts
 
     def _to_detail(self, p) -> PlacementDetailResponse:
         snapshot_entries = self._parse_snapshot(p.care_plan_snapshot)
