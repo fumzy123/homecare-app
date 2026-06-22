@@ -264,6 +264,18 @@ Frontend catches this and displays the localized times to the admin.
 - Overtime prevention (max hours/week, approval by owner/manager)
 - Push notification to workers when a new client is dispatched
 
+### Scaling prep (do before running >1 backend process/replica)
+The APScheduler instance lives **in-process** (see `app/main.py` `lifespan`). With
+more than one web worker/replica, each process starts its own scheduler and every
+job (e.g. `mark_shifts_completed`) runs N times in parallel → duplicate work/races.
+Before scaling horizontally, do one of:
+- Run the scheduler in a **dedicated single process** (split it out of the web
+  workers), **or**
+- Add a **shared jobstore + locking** (e.g. `SQLAlchemyJobStore`) / leader election
+  so a job is claimed once across instances.
+Until then jobs must stay **idempotent + self-healing** (own DB session, re-scan a
+lookback window, skip already-finalized rows) — see `app/jobs/shift_completion.py`.
+
 ---
 
 ## The Care Chain — Authorization → Plan → Delivery
