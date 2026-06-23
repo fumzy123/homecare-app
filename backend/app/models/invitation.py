@@ -14,14 +14,11 @@ class Invitation(Base):
     role = Column(Enum(OrgMemberRole), nullable=False)
     employment_type = Column(Enum(EmploymentType), nullable=True)
 
-    # Who sent it and which org it belongs to
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
-    invited_by = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
+    invited_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
 
-    # Supabase auth user ID created by invite_user_by_email — needed to
-    # clean up auth.users when the invitation is revoked.
+    # Supabase auth user ID created by invite_user_by_email
     supabase_user_id = Column(UUID(as_uuid=True), nullable=True)
 
-    # Lifecycle timestamps
     invited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     accepted_at = Column(DateTime(timezone=True), nullable=True)

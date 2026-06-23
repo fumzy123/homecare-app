@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.security import get_current_user
 from app.core.exceptions import AppError
-from app.models.org_member import OrgMember
+from app.models.person import Person
+from app.models.employment import Employment
 from app.models.organization import Organization
 
 router = APIRouter(prefix="/legal", tags=["Legal"])
@@ -23,19 +24,28 @@ class AcceptTermsPayload(BaseModel):
     version: str
 
 
+def _resolve_org(current_user, db: Session) -> Organization:
+    person = db.query(Person).filter(Person.supabase_user_id == current_user.id).first()
+    if not person:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
+    employment = db.query(Employment).filter(
+        Employment.person_id == person.id,
+        Employment.deleted_at.is_(None),
+    ).first()
+    if not employment:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
+    org = db.query(Organization).filter(Organization.id == employment.org_id).first()
+    if not org:
+        raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
+    return org
+
+
 @router.get("/status", response_model=TermsStatusResponse)
 async def get_terms_status(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-    if not member:
-        raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
-
-    org = db.query(Organization).filter(Organization.id == member.org_id).first()
-    if not org:
-        raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
-
+    org = _resolve_org(current_user, db)
     accepted = org.terms_accepted_version == CURRENT_TERMS_VERSION
     return TermsStatusResponse(
         accepted=accepted,
@@ -53,14 +63,7 @@ async def accept_terms(
     if payload.version != CURRENT_TERMS_VERSION:
         raise AppError(status_code=400, code="INVALID_VERSION", message="Terms version mismatch")
 
-    member = db.query(OrgMember).filter(OrgMember.id == current_user.id).first()
-    if not member:
-        raise AppError(status_code=404, code="NOT_FOUND", message="Member not found")
-
-    org = db.query(Organization).filter(Organization.id == member.org_id).first()
-    if not org:
-        raise AppError(status_code=404, code="NOT_FOUND", message="Organization not found")
-
+    org = _resolve_org(current_user, db)
     org.terms_accepted_at = datetime.now(timezone.utc)
     org.terms_accepted_version = CURRENT_TERMS_VERSION
     db.commit()

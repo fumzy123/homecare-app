@@ -133,16 +133,17 @@ function computeOvertimeMap(occurrences: ShiftOccurrence[]): Map<string, number>
 interface ShiftCalendarProps {
   showNewShiftDrawer?: boolean
   onNewShiftDrawerClose?: () => void
+  initialWorkerId?: string
 }
 
-export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClose }: ShiftCalendarProps) {
+export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClose, initialWorkerId }: ShiftCalendarProps) {
   const queryClient = useQueryClient()
   const [currentDate, setCurrentDate]     = useState(new Date())
   const [view, setView]                   = useState<View>('week')
   const [showDrawer, setShowDrawer]       = useState(false)
   const [pendingShift, setPendingShift]   = useState<PendingShiftInfo | null>(null)
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
-  const [filterWorkerId, setFilterWorkerId] = useState('')
+  const [filterWorkerId, setFilterWorkerId] = useState(initialWorkerId ?? '')
   const [filterClientId, setFilterClientId] = useState('')
 
   const [prevShowNewShift, setPrevShowNewShift] = useState(showNewShiftDrawer)

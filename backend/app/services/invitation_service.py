@@ -5,7 +5,6 @@ from app.db.supabase import get_supabase_client
 from app.models.invitation import Invitation
 from app.core.exceptions import AppError
 from app.schemas.invitation import CreateInvitationSchema, InvitationResponse, INVITE_EXPIRY_SECONDS
-from app.services.org_service import OrgService
 from app.core.config import settings
 from app.repositories.invitation_repository import InvitationRepository
 import uuid
@@ -35,7 +34,13 @@ class InvitationService:
         self.db = db
         self.current_user = current_user
         self.invitation_repo = InvitationRepository(db)
-        self.org_id = OrgService.get_user_org_id(current_user, db)
+        from app.repositories.organization_repository import OrganizationRepository
+        org_repo = OrganizationRepository(db)
+        current_employment = org_repo.get_active_employment_for_user(current_user.id)
+        if not current_employment:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
+        self.org_id = current_employment.org_id
+        self.current_employment_id = current_employment.id
         self.supabase = get_supabase_client()
 
     async def create_invitation(self, payload: CreateInvitationSchema):
@@ -80,7 +85,7 @@ class InvitationService:
                 role=payload.role,
                 employment_type=payload.employment_type,
                 org_id=self.org_id,
-                invited_by=self.current_user.id,
+                invited_by=self.current_employment_id,
             )
             self.invitation_repo.add(invitation)
             self.invitation_repo.flush()
@@ -189,7 +194,7 @@ class InvitationService:
         )
 
         invitation.invited_at = datetime.now(timezone.utc)
-        invitation.invited_by = self.current_user.id
+        invitation.invited_by = self.current_employment_id
         invitation.supabase_user_id = invite_response.user.id if invite_response and invite_response.user else None
 
         self.db.commit()

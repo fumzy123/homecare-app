@@ -40,6 +40,13 @@ export function AgencySection() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['organization'] }),
   })
 
+  const updateAuthMode = useMutation({
+    mutationFn: (uses: boolean) => organizationApi.updateOrganization({ uses_authorizations: uses }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['organization'] }),
+  })
+
+  const isOwner = user?.role === 'owner'
+
   const readField = (label: string, value: string) => (
     <div>
       <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-2">{label}</p>
@@ -117,6 +124,41 @@ export function AgencySection() {
             className="bg-ink text-cream font-mono text-[10px] tracking-[0.08em] uppercase px-5 py-2 hover:opacity-80 disabled:opacity-40 transition-opacity"
           >
             {updateAddress.isPending ? 'Saving…' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── C · Care & compliance ──────────────────────────────────── */}
+      <div className="border border-ink bg-paper">
+        <div className="px-6 py-4 border-b border-ink">
+          <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">C · Care &amp; compliance</p>
+          <h3 className="font-serif text-[22px] leading-none font-medium mt-1">How you plan care</h3>
+        </div>
+        <div className="px-6 py-6 flex items-start justify-between gap-6">
+          <div className="max-w-[460px]">
+            <p className="font-mono text-[11px] tracking-[0.04em] uppercase text-ink mb-1.5">Funder authorizations</p>
+            <p className="text-[13px] text-ink-soft leading-relaxed">
+              Turn this on if your agency works with health-authority authorizations — you'll be able to record
+              authorized services &amp; hours per client and the care plan will be checked against them. Leave it off
+              to use the app as a straightforward scheduler. New clients default to {org?.uses_authorizations ? <b>funded</b> : <b>self-pay</b>}; you can still change it per client.
+            </p>
+            {!isOwner && (
+              <p className="font-mono text-[9px] tracking-[0.06em] uppercase text-muted mt-2">Only the owner can change this</p>
+            )}
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={org?.uses_authorizations ?? false}
+            disabled={!isOwner || updateAuthMode.isPending || !org}
+            onClick={() => org && updateAuthMode.mutate(!org.uses_authorizations)}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center border transition-colors disabled:opacity-40 ${
+              org?.uses_authorizations ? 'bg-ink border-ink' : 'bg-cream-2 border-line-soft'
+            }`}
+          >
+            <span className={`inline-block h-3 w-3 bg-cream transition-transform ${
+              org?.uses_authorizations ? 'translate-x-5' : 'translate-x-1'
+            }`} />
           </button>
         </div>
       </div>

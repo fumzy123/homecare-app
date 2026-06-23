@@ -34,18 +34,19 @@ class ProgressNoteService:
     async def get_client_notes(
         self,
         client_id: str,
-        year: int | None,
+        from_date: date | None = None,
+        to_date: date | None = None,
     ) -> list[ClientNoteItemResponse]:
         try:
             self.note_repo.get_client(client_id, self.org_id)
-            rows = self.note_repo.get_client_notes_joined(client_id, self.org_id, year)
+            rows = self.note_repo.get_client_notes_joined(client_id, self.org_id, from_date, to_date)
 
             return [
                 ClientNoteItemResponse(
                     shift_id=note.shift_id,
                     occurrence_date=note.occurrence_date,
-                    worker_first_name=worker.first_name,
-                    worker_last_name=worker.last_name,
+                    worker_first_name=worker.person.first_name,
+                    worker_last_name=worker.person.last_name,
                     entries=note.entries,
                     created_at=note.created_at,
                     updated_at=note.updated_at,

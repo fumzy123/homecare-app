@@ -4,40 +4,54 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.models.base import Base
-from app.core.enums import NotificationType
+from app.core.enums import NotificationType, TargetAudience
 
 
-class AdminNotification(Base):
-    __tablename__ = "admin_notifications"
+class Notification(Base):
+    __tablename__ = "notifications"
 
-    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    org_id       = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
-    type         = Column(Enum(NotificationType), nullable=False)
-    worker_id    = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=False)
-    payload      = Column(JSONB, nullable=False, default=dict)
-    requires_action = Column(Boolean, nullable=False, default=False)
-    resolved_at  = Column(DateTime(timezone=True), nullable=True)
-    resolved_by  = Column(UUID(as_uuid=True), ForeignKey("org_members.id"), nullable=True)
-    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id           = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    type             = Column(Enum(NotificationType), nullable=False)
+    target_audience  = Column(Enum(TargetAudience), nullable=False, default=TargetAudience.admins_only)
+    # Who/what the notification is about
+    about_worker_id  = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
+    about_client_id  = Column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=True)
+    # Who triggered it (admin creating placement, worker dropping shift, etc.)
+    triggered_by_id  = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
+    # For individual-targeted notifications only
+    recipient_id     = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
+    payload          = Column(JSONB, nullable=False, default=dict)
+    requires_action  = Column(Boolean, nullable=False, default=False)
+    resolved_at      = Column(DateTime(timezone=True), nullable=True)
+    resolved_by      = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
-    worker       = relationship("OrgMember", foreign_keys=[worker_id])
-    resolver     = relationship("OrgMember", foreign_keys=[resolved_by])
-    reads        = relationship("AdminNotificationRead", back_populates="notification",
-                                cascade="all, delete-orphan")
+    about_worker  = relationship("Employment", foreign_keys=[about_worker_id])
+    triggered_by  = relationship("Employment", foreign_keys=[triggered_by_id])
+    recipient     = relationship("Employment", foreign_keys=[recipient_id])
+    resolver      = relationship("Employment", foreign_keys=[resolved_by])
+    reads         = relationship("NotificationRead", back_populates="notification",
+                                 cascade="all, delete-orphan")
 
 
-class AdminNotificationRead(Base):
-    """One row per (notification, admin). NULL read_at = unread."""
-    __tablename__ = "admin_notification_reads"
+class NotificationRead(Base):
+    """One row per (notification, recipient). NULL read_at = unread."""
+    __tablename__ = "notification_reads"
     __table_args__ = (
-        UniqueConstraint("notification_id", "admin_id", name="uq_notification_read"),
+        UniqueConstraint("notification_id", "recipient_id", name="uq_notification_read"),
     )
 
-    notification_id = Column(UUID(as_uuid=True), ForeignKey("admin_notifications.id",
+    notification_id = Column(UUID(as_uuid=True), ForeignKey("notifications.id",
                              ondelete="CASCADE"), nullable=False, primary_key=True)
-    admin_id        = Column(UUID(as_uuid=True), ForeignKey("org_members.id"),
+    recipient_id    = Column(UUID(as_uuid=True), ForeignKey("employments.id"),
                              nullable=False, primary_key=True)
     read_at         = Column(DateTime(timezone=True), nullable=True)
 
-    notification    = relationship("AdminNotification", back_populates="reads")
-    admin           = relationship("OrgMember", foreign_keys=[admin_id])
+    notification    = relationship("Notification", back_populates="reads")
+    recipient       = relationship("Employment", foreign_keys=[recipient_id])
+
+
+# Backwards-compatibility aliases so any stale import of the old names still resolves.
+AdminNotification = Notification
+AdminNotificationRead = NotificationRead

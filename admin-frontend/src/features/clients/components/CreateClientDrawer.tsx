@@ -1,9 +1,10 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
 import { z } from 'zod'
-import { clientsApi, type ClientCreatePayload, type ClientStatus, type ServiceType } from '@/features/clients/api'
+import { clientsApi, type ClientCreatePayload, type ClientStatus, type CareArrangement } from '@/features/clients/api'
 import { Kicker, DateInput } from '@/shared/components/ui'
 import { validatePhone, formatPhone } from '@/shared/lib/phone'
+import { useOrganization } from '@/features/organization/hooks/useOrganization'
 
 const schema = z.object({
   first_name: z.string().min(1, 'Required'),
@@ -13,8 +14,6 @@ const schema = z.object({
   city: z.string().min(1, 'Required'),
   province: z.string().min(1, 'Required'),
   postal_code: z.string().min(1, 'Required'),
-  service_type: z.enum(['personal_care', 'companionship', 'respite', 'nursing']),
-  care_start_date: z.string().min(1, 'Required'),
   emergency_contact_name: z.string().min(1, 'Required'),
   emergency_contact_phone: z.string().min(1, 'Required'),
   emergency_contact_relationship: z.string().min(1, 'Required'),
@@ -47,17 +46,19 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerProps) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const { data: org } = useOrganization()
+  const usesAuthorizations = org?.uses_authorizations ?? false
 
   const form = useForm({
     defaultValues: {
       first_name: '', last_name: '', date_of_birth: '', gender: '',
       phone_number: '', email: '', street: '', city: '', province: '',
-      postal_code: '', service_type: 'personal_care' as ServiceType,
-      care_start_date: '', care_end_date: '', medical_conditions: '',
+      postal_code: '', medical_conditions: '',
       allergies: '', medications: '', special_instructions: '',
       emergency_contact_name: '', emergency_contact_phone: '',
       emergency_contact_relationship: '', status: 'active' as ClientStatus,
-      funding_source: '', notes: '',
+      care_arrangement: 'self_pay' as CareArrangement,
+      notes: '',
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
@@ -69,9 +70,6 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
         email: value.email || undefined,
         street: value.street, city: value.city,
         province: value.province, postal_code: value.postal_code,
-        service_type: value.service_type,
-        care_start_date: value.care_start_date,
-        care_end_date: value.care_end_date || undefined,
         medical_conditions: value.medical_conditions || undefined,
         allergies: value.allergies || undefined,
         medications: value.medications || undefined,
@@ -80,7 +78,7 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
         emergency_contact_phone: value.emergency_contact_phone,
         emergency_contact_relationship: value.emergency_contact_relationship,
         status: value.status,
-        funding_source: value.funding_source || undefined,
+        care_arrangement: value.care_arrangement,
         notes: value.notes || undefined,
       }
       try {
@@ -91,6 +89,13 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
       }
     },
   })
+
+  // A funded-mode org defaults new clients to funded; self-pay orgs stay self-pay.
+  const [arrangementInit, setArrangementInit] = useState(false)
+  if (org && !arrangementInit) {
+    if (usesAuthorizations) form.setFieldValue('care_arrangement', 'funded')
+    setArrangementInit(true)
+  }
 
   return (
     <>
@@ -166,23 +171,33 @@ export function CreateClientDrawer({ onClose, onSuccess }: CreateClientDrawerPro
           {/* Care Details */}
           <SectionLabel>Care details</SectionLabel>
 
-          <div className="grid grid-cols-2 gap-3">
-            <form.Field name="service_type" validators={{ onChange: ({ value }) => { const r = schema.shape.service_type.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Service Type <span className="text-orange">*</span></label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ServiceType)} onBlur={field.handleBlur}><option value="personal_care">Personal Care</option><option value="companionship">Companionship</option><option value="respite">Respite</option><option value="nursing">Nursing</option></select><FieldError error={field.state.meta.errors[0]} /></div>)}
-            </form.Field>
-            <form.Field name="status">
-              {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
-            </form.Field>
-          </div>
+          <form.Field name="status">
+            {(field) => (<div><label className={labelClass}>Status</label><select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as ClientStatus)}><option value="active">Active</option><option value="on_hold">On Hold</option><option value="discharged">Discharged</option></select></div>)}
+          </form.Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <form.Field name="care_start_date" validators={{ onChange: ({ value }) => { const r = schema.shape.care_start_date.safeParse(value); return r.success ? undefined : r.error.issues[0].message }}}>
-              {(field) => (<div><label className={labelClass}>Care Start <span className="text-orange">*</span></label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} onBlur={field.handleBlur} className="w-full" /><FieldError error={field.state.meta.errors[0]} /></div>)}
+          {usesAuthorizations && (
+            <form.Field name="care_arrangement">
+              {(field) => (
+                <div>
+                  <label className={labelClass}>Care arrangement</label>
+                  <select className={selectClass} value={field.state.value} onChange={(e) => field.handleChange(e.target.value as CareArrangement)}>
+                    <option value="self_pay">Self-pay — agency schedules directly</option>
+                    <option value="funded">Funded — governed by a funder authorization</option>
+                  </select>
+                </div>
+              )}
             </form.Field>
-            <form.Field name="care_end_date">
-              {(field) => (<div><label className={labelClass}>Care End</label><DateInput value={field.state.value} onChange={(v) => field.handleChange(v)} className="w-full" /></div>)}
-            </form.Field>
-          </div>
+          )}
+
+          <form.Subscribe selector={(s) => s.values.care_arrangement}>
+            {(arrangement) => (
+              <p className="font-mono text-[10px] text-ink-soft border border-dashed border-line-soft px-3 py-2">
+                {arrangement === 'funded'
+                  ? <>Service types &amp; hours come from the funder <b>authorization</b> you add on the client's Authorization tab after creation.</>
+                  : <>This client is scheduled directly — set up their <b>weekly schedule</b> on the client's Schedule tab after creation.</>}
+              </p>
+            )}
+          </form.Subscribe>
 
           <form.Field name="medical_conditions">
             {(field) => (<div><label className={labelClass}>Medical Conditions</label><textarea className={`${inputClass} resize-none`} rows={2} value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} placeholder="Optional" /></div>)}

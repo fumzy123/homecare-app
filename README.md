@@ -31,7 +31,7 @@ You need to create three `.env.local` files by copying the examples provided in 
 1. **Backend:** Copy `backend/.env.example` to `backend/.env.local`.
    *Make sure `SUPABASE_URL` and `DATABASE_URL` point to `host.docker.internal` instead of `127.0.0.1` so the Docker container can reach Supabase on your host machine.*
 2. **Admin Frontend:** Copy `admin-frontend/.env.example` to `admin-frontend/.env.local`.
-3. **Worker Mobile App:** Copy `worker-mobile-app/.env.example` to `worker-mobile-app/.env.local`. *(Note: If testing the mobile app on a physical device, replace `127.0.0.1` with your computer's local Wi-Fi IP address).*
+3. **Worker Mobile App:** Copy `worker-mobile-app/.env.example` to `worker-mobile-app/.env.local`. *(Note: Depending on how you test (Emulator vs Physical Device), you will need to update the URLs in this file. See the troubleshooting section in Step 5 for details).*
 
 ### Step 2: Start the Supabase Foundation
 Start your isolated local database, authentication server, and storage buckets.
@@ -73,8 +73,29 @@ npm run dev
 ```bash
 cd worker-mobile-app
 npm install
-npx expo start --clear
+npx expo start --tunnel
 ```
+
+#### Mobile App on Physical Devices (Network Issues)
+If you are testing on a physical device and see a "Something went wrong" blue screen, or the app cannot reach the backend, it is likely due to your Wi-Fi blocking local connections. Choose one of these solutions:
+
+**Option A: Use an Emulator/Simulator (Recommended)**
+Bypass Wi-Fi entirely. Use `10.0.2.2` (Android Emulator) or `localhost` (iOS Simulator) in your `.env.local`.
+
+**Option B: Android Physical Device via USB**
+Connect your phone via USB with debugging enabled, then map your computer's ports directly to the phone. You can leave `.env.local` as `localhost`:
+```bash
+adb reverse tcp:8000 tcp:8000
+adb reverse tcp:54321 tcp:54321
+```
+
+**Option C: Use localtunnel (For strict Wi-Fi networks)**
+If you must test over Wi-Fi and it's blocking traffic, you can tunnel your services to the public internet:
+1. Open two new terminals and run:
+   - `npx localtunnel --port 8000`
+   - `npx localtunnel --port 54321`
+2. Update your `worker-mobile-app/.env.local` to use the two public `loca.lt` URLs generated above.
+3. Start Expo with a tunnel: `npx expo start --tunnel --clear ` *(Note: If this crashes with a TypeError, wait 60 seconds and try again, as the free tunneling service has strict rate limits).*
 
 ---
 

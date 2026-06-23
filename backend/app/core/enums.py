@@ -18,6 +18,48 @@ class ServiceType(str, enum.Enum):
     companionship = "companionship"
     respite = "respite"
     nursing = "nursing"
+    homemaking = "homemaking"
+
+
+class HoursPeriod(str, enum.Enum):
+    per_week = "per_week"
+    bi_weekly = "bi_weekly"
+    per_month = "per_month"
+
+
+class WeekDay(str, enum.Enum):
+    MO = "MO"
+    TU = "TU"
+    WE = "WE"
+    TH = "TH"
+    FR = "FR"
+    SA = "SA"
+    SU = "SU"
+
+
+class AuthorizationStatus(str, enum.Enum):
+    """Derived/display only — never stored. Computed from covering dates,
+    cancelled_at, and the supersede chain."""
+    pending = "pending"
+    active = "active"
+    expired = "expired"
+    superseded = "superseded"
+    cancelled = "cancelled"
+
+
+class AuthorizationCoverage(str, enum.Enum):
+    """Derived. Whether an active client is currently covered by an
+    active authorization."""
+    covered = "covered"
+    lapsed = "lapsed"
+
+
+class CareArrangement(str, enum.Enum):
+    """How a client's care is funded/governed.
+    - self_pay: the agency schedules directly; no funder authorization, no caps.
+    - funded: care is governed by a funder authorization; compliance applies."""
+    self_pay = "self_pay"
+    funded = "funded"
 
 class EmploymentType(str, enum.Enum):
     full_time = "full_time"
@@ -56,6 +98,20 @@ class NotificationType(str, enum.Enum):
     credential_uploaded          = "credential_uploaded"
     shift_dropped                = "shift_dropped"
     overtime_approval_requested  = "overtime_approval_requested"
+    placement_created            = "placement_created"
+    placement_filled             = "placement_filled"
+    placement_closed             = "placement_closed"
+
+class TargetAudience(str, enum.Enum):
+    admins_only = "admins_only"
+    workers_only = "workers_only"
+    all          = "all"
+    individual   = "individual"
+
+class PlacementStatus(str, enum.Enum):
+    open   = "open"
+    filled = "filled"
+    closed = "closed"
 
 
 # Roles that receive admin notifications. Kept here (not in security.py)

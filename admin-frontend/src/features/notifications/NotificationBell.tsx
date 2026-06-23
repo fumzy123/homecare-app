@@ -3,60 +3,67 @@ import { Bell } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { formatDistanceToNow } from 'date-fns'
 import { useNotifications, useMarkRead } from './hooks'
+import { useOvertimeReviewStore } from './useOvertimeReviewStore'
 import type { Notification, NotificationType } from './api'
+import { DOCUMENT_LABELS } from '@/features/workers/constants'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function notificationTitle(n: Notification): string {
-  const name = `${n.worker_first_name} ${n.worker_last_name}`
+  const workerName = n.about_worker_first_name
+    ? `${n.about_worker_first_name} ${n.about_worker_last_name}`
+    : null
   switch (n.type as NotificationType) {
     case 'credential_uploaded': {
       const label = DOCUMENT_LABELS[n.payload.document_type as string] ?? n.payload.document_type
-      return `${name} uploaded ${label}`
+      return `${workerName} uploaded ${label}`
     }
     case 'profile_updated': {
       const fields = (n.payload.changed_fields as string[]) ?? []
-      return `${name} updated their profile`
+      return `${workerName} updated their profile`
         + (fields.length ? ` (${fields.map((f) => f.replace(/_/g, ' ')).join(', ')})` : '')
     }
     case 'shift_dropped':
-      return `${name} dropped a shift — ${n.payload.client_name ?? ''}`
+      return `${workerName} dropped a shift — ${n.payload.client_name ?? ''}`
+    case 'overtime_approval_requested':
+      return `${n.payload.requesting_member_name ?? 'Someone'} requested overtime for ${workerName}`
+    case 'placement_created':
+      return `New placement available — ${n.payload.masked_location ?? ''}`
     default:
-      return `Update from ${name}`
+      return workerName ? `Update from ${workerName}` : 'New notification'
   }
 }
 
 function notificationDestination(n: Notification): string {
   switch (n.type as NotificationType) {
     case 'credential_uploaded':
-      return `/dashboard/workers/${n.worker_id}/documents`
+      return `/dashboard/workers/${n.about_worker_id}/documents`
     case 'profile_updated':
-      return `/dashboard/workers/${n.worker_id}/edit`
+      return `/dashboard/workers/${n.about_worker_id}/edit`
     case 'shift_dropped':
-      return `/dashboard/workers/${n.worker_id}`
+      return `/dashboard/workers/${n.about_worker_id}`
+    case 'placement_created':
+      return `/dashboard/placements/${n.payload.placement_id}`
     default:
-      return `/dashboard/workers/${n.worker_id}`
+      return n.about_worker_id ? `/dashboard/workers/${n.about_worker_id}` : '/dashboard'
   }
 }
-
-import { DOCUMENT_LABELS } from '@/features/workers/constants'
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function NotificationItem({
   n,
-  onNavigate,
+  onAction,
 }: {
   n: Notification
-  onNavigate: (dest: string, id: string, isUnread: boolean) => void
+  onAction: (n: Notification, isUnread: boolean) => void
 }) {
   const isUnread   = n.read_at === null
   const isResolved = n.resolved_at !== null
-  const dest       = notificationDestination(n)
 
   return (
     <button
-      onClick={() => onNavigate(dest, n.id, isUnread)}
+      onClick={() => onAction(n, isUnread)}
       className={`w-full text-left border-b border-line-faint px-4 py-3 transition-colors hover:bg-cream-2 ${
         isUnread ? 'bg-cream-2' : 'bg-paper'
       }`}
@@ -96,11 +103,12 @@ function NotificationItem({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
-  const [open, setOpen]       = useState(false)
-  const ref                   = useRef<HTMLDivElement>(null)
-  const navigate              = useNavigate()
-  const { data }              = useNotifications()
-  const { mutate: markRead }  = useMarkRead()
+  const [open, setOpen]            = useState(false)
+  const ref                        = useRef<HTMLDivElement>(null)
+  const navigate                   = useNavigate()
+  const { data }                   = useNotifications()
+  const { mutate: markRead }       = useMarkRead()
+  const { open: openOvertimeReview } = useOvertimeReviewStore()
 
   const unread        = data?.unread_count ?? 0
   const actionNeeded  = data?.action_needed_count ?? 0
@@ -116,10 +124,14 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  function handleNavigate(dest: string, id: string, isUnread: boolean) {
+  function handleAction(n: Notification, isUnread: boolean) {
     setOpen(false)
-    if (isUnread) markRead(id)
-    navigate({ to: dest as never })
+    if (isUnread) markRead(n.id)
+    if (n.type === 'overtime_approval_requested') {
+      openOvertimeReview(n)
+      return
+    }
+    navigate({ to: notificationDestination(n) as never })
   }
 
   return (
@@ -168,7 +180,7 @@ export function NotificationBell() {
               </p>
             ) : (
               notifications.map((n) => (
-                <NotificationItem key={n.id} n={n} onNavigate={handleNavigate} />
+                <NotificationItem key={n.id} n={n} onAction={handleAction} />
               ))
             )}
           </div>

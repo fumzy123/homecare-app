@@ -21,7 +21,7 @@ _LOOKBACK_DAYS = 2
 def mark_shifts_completed() -> None:
     db = SessionLocal()
     try:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC — matches DB storage
         window_start = (now - timedelta(days=_LOOKBACK_DAYS)).date()
         window_end = now.date()
 

@@ -5,10 +5,14 @@ import { Kicker, Btn } from '@/shared/components/ui'
 import { ShiftCalendar } from '@/features/shifts/components/ShiftCalendar'
 
 export const Route = createFileRoute('/_protected/dashboard/shifts/')({
+  validateSearch: (search: Record<string, unknown>): { worker?: string } => ({
+    worker: typeof search.worker === 'string' ? search.worker : undefined,
+  }),
   component: ShiftsPage,
 })
 
 function ShiftsPage() {
+  const { worker } = Route.useSearch()
   const [showNewShift, setShowNewShift] = useState(false)
 
   return (
@@ -25,7 +29,7 @@ function ShiftsPage() {
           ＊ New shift
         </Btn>
       </div>
-      <ShiftCalendar showNewShiftDrawer={showNewShift} onNewShiftDrawerClose={() => setShowNewShift(false)} />
+      <ShiftCalendar showNewShiftDrawer={showNewShift} onNewShiftDrawerClose={() => setShowNewShift(false)} initialWorkerId={worker} />
     </div>
   )
 }

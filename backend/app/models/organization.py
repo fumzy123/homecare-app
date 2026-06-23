@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Boolean
+from sqlalchemy import Column, String, DateTime, Boolean, false
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -13,6 +13,10 @@ class Organization(Base):
     owner_id = Column(UUID(as_uuid=True), nullable=False)
     is_active = Column(Boolean, default=True)
 
+    # Whether this agency operates under funder authorizations (regulated care).
+    # When False the app is a plain scheduler — authorization UI stays hidden.
+    uses_authorizations = Column(Boolean, nullable=False, default=False, server_default=false())
+
     # Legal identity
     legal_name      = Column(String, nullable=True)
     business_number = Column(String, nullable=True)
@@ -22,6 +26,8 @@ class Organization(Base):
     city        = Column(String, nullable=True)
     province    = Column(String, nullable=True)
     postal_code = Column(String, nullable=True)
+
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     terms_accepted_version = Column(String, nullable=True)
@@ -33,9 +39,6 @@ class Organization(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships — one org has many users, clients, workers
-    members = relationship("OrgMember", back_populates="organization")
+    # Relationships
+    employments = relationship("Employment", back_populates="organization")
     clients = relationship("Client", back_populates="organization")
-    
-    # ⚠️ Temporarily commented out until you actually create the models!
-    # workers = relationship("Worker", back_populates="organization")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import date
 from app.db.session import get_db
 from app.services.client_service import ClientService
 from app.services.progress_note_service import ProgressNoteService
@@ -86,13 +87,14 @@ async def delete_client(
 
 # ─────────────────────────────────────────
 # 6. List all progress notes for a client
-# Joins ProgressNote → Shift → OrgMember
+# Joins ProgressNote → Shift → Employment → Person
 # so callers get worker identity in one shot
 # ─────────────────────────────────────────
 @router.get("/{client_id}/notes", response_model=List[ClientNoteItemResponse])
 async def get_client_notes(
     client_id: str,
-    year: int = Query(default=None),
+    from_date: date = Query(default=None),
+    to_date: date = Query(default=None),
     note_service: ProgressNoteService = Depends(get_progress_note_service),
 ):
-    return await note_service.get_client_notes(client_id, year)
+    return await note_service.get_client_notes(client_id, from_date, to_date)

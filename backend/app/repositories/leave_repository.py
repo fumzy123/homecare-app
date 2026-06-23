@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import extract
 from app.models.leave_record import LeaveRecord
-from app.models.org_member import OrgMember
+from app.models.employment import Employment
 from app.core.exceptions import AppError
 
 
@@ -9,29 +9,13 @@ class LeaveRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_worker(self, worker_id: str, org_id) -> OrgMember:
-        """Fetch an active org member scoped to an organisation.
-
-        Filters out soft-deleted members via deleted_at IS NULL. Raises
-        AppError with 404 if no matching active member exists — never
-        returns None.
-
-        Args:
-            worker_id: Primary key of the org member to fetch.
-            org_id: Organisation the member must belong to (tenant isolation).
-
-        Returns:
-            The matching OrgMember ORM instance.
-
-        Raises:
-            AppError: If no active member matches worker_id and org_id.
-        """
+    def get_worker(self, worker_id: str, org_id) -> Employment:
         worker = (
-            self.db.query(OrgMember)
+            self.db.query(Employment)
             .filter(
-                OrgMember.id == worker_id,
-                OrgMember.org_id == org_id,
-                OrgMember.deleted_at.is_(None),
+                Employment.id == worker_id,
+                Employment.org_id == org_id,
+                Employment.deleted_at.is_(None),
             )
             .first()
         )

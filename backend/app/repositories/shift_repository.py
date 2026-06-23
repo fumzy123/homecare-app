@@ -2,6 +2,7 @@ from datetime import date, datetime, time, timezone
 from sqlalchemy.orm import Session, joinedload
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
+from app.models.employment import Employment
 from app.models.client import Client
 from app.core.enums import ShiftStatus
 from app.core.exceptions import AppError
@@ -102,7 +103,7 @@ class ShiftRepository:
         query = (
             self.db.query(Shift)
             .options(
-                joinedload(Shift.worker),
+                joinedload(Shift.worker).joinedload(Employment.person),
                 joinedload(Shift.client),
                 joinedload(Shift.modifications),
             )
@@ -132,6 +133,30 @@ class ShiftRepository:
             The matching Client ORM instance, or None if not found.
         """
         return self.db.query(Client).filter(Client.id == client_id).first()
+
+    def get_active_shifts_for_client(self, client_id, org_id) -> list[Shift]:
+        """Fetch all active, non-deleted shifts assigned to a client in an organisation.
+
+        Used during client deletion to find shifts that need to be truncated
+        or cancelled. Does not load relationships — caller only needs scalar fields.
+
+        Args:
+            client_id: Client whose shifts to fetch.
+            org_id: Organisation scope (tenant isolation).
+
+        Returns:
+            List of Shift ORM instances. Returns an empty list if none exist.
+        """
+        return (
+            self.db.query(Shift)
+            .filter(
+                Shift.client_id == client_id,
+                Shift.org_id == org_id,
+                Shift.status == ShiftStatus.active,
+                Shift.deleted_at == None,  # noqa: E711
+            )
+            .all()
+        )
 
     def add(self, shift: Shift) -> None:
         """Stage a new Shift for insertion.

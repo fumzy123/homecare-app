@@ -17,10 +17,13 @@ from app.jobs.shift_completion import mark_shifts_completed
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
 from app.models.organization import Organization             # noqa: F401
-from app.models.org_member import OrgMember                 # noqa: F401
+from app.models.person import Person                        # noqa: F401
+from app.models.employment import Employment                 # noqa: F401
 from app.models.leave_record import LeaveRecord             # noqa: F401
-from app.models.admin_notification import AdminNotification  # noqa: F401
-from app.models.admin_notification import AdminNotificationRead  # noqa: F401
+from app.models.admin_notification import Notification          # noqa: F401
+from app.models.admin_notification import NotificationRead      # noqa: F401
+from app.models.placement import Placement                      # noqa: F401
+from app.models.placement import PlacementInterest              # noqa: F401
 
 from app.api.api import router as api_router
 

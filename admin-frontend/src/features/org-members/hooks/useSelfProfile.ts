@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { orgMembersApi } from '@/features/org-members/api'
-import { useAuthStore } from '@/shared/stores/auth'
+import { apiClient } from '@/shared/lib/api-client'
+import type { OrgMember } from '@/features/org-members/api'
 
 export function useSelfProfile() {
-  const { user } = useAuthStore()
   return useQuery({
-    queryKey: ['org-member-self', user?.id],
-    queryFn:  () => orgMembersApi.getOrgMember(user!.id),
-    enabled:  !!user?.id,
+    queryKey: ['org-member-self'],
+    queryFn:  async (): Promise<OrgMember> => {
+      const { data } = await apiClient.get('/api/org-members/me')
+      return data
+    },
   })
 }

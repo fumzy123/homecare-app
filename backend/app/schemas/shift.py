@@ -28,6 +28,7 @@ class ShiftCreateSchema(BaseModel):
     client_id:            UUID
     start_time:           datetime
     end_time:             datetime
+    service_type:         ServiceType | None = None
     location:             str | None = None   # defaults to client's address in the service
     notes:                str | None = None
     recurrence:           RecurrenceSchema | None = None  # absent = single shift
@@ -117,6 +118,7 @@ class ShiftEditFromSchema(BaseModel):
     new_end_time:         datetime | None = None
     worker_id:            UUID | None = None
     client_id:            UUID | None = None
+    service_type:         ServiceType | None = None
     location:             str | None = None
     recurrence_end_date:  date | None = None
     recurrence:           RecurrenceSchema | None = None
@@ -135,10 +137,37 @@ class ShiftEditFromSchema(BaseModel):
 # POST /shifts/request-overtime-approval
 # ─────────────────────────────────────────
 class OvertimeApprovalRequestSchema(BaseModel):
-    worker_id:   UUID
-    week_start:  str    # YYYY-MM-DD
-    week_end:    str    # YYYY-MM-DD
-    total_hours: float
+    worker_id:    UUID
+    week_start:   str          # YYYY-MM-DD
+    week_end:     str          # YYYY-MM-DD
+    total_hours:  float
+    # Full shift context — present when request originates from CreateShiftDrawer
+    client_id:    UUID | None = None
+    client_name:  str  | None = None
+    start_time:   datetime | None = None
+    end_time:     datetime | None = None
+    is_recurring: bool = False
+    recurrence:   RecurrenceSchema | None = None
+    note:         str  | None = None
+
+
+# ─────────────────────────────────────────
+# POST /shifts/approve-overtime
+# ─────────────────────────────────────────
+class OvertimeApproveSchema(BaseModel):
+    notification_id: UUID
+    start_time:      datetime | None = None        # manager override
+    end_time:        datetime | None = None        # manager override
+    is_recurring:    bool | None = None            # None = use notification payload value
+    recurrence:      RecurrenceSchema | None = None
+
+
+# ─────────────────────────────────────────
+# POST /shifts/reject-overtime
+# ─────────────────────────────────────────
+class OvertimeRejectSchema(BaseModel):
+    notification_id: UUID
+    reason:          str | None = None
 
 
 # ─────────────────────────────────────────
@@ -160,7 +189,6 @@ class ClientSummary(BaseModel):
     date_of_birth:      date
     street:             str
     city:               str
-    service_type:       ServiceType
     medical_conditions: str | None
     model_config = {"from_attributes": True}
 
@@ -175,6 +203,7 @@ class ShiftOccurrenceResponse(BaseModel):
     completion_status:       ShiftCompletionStatus
     is_modification:         bool
     is_recurring:            bool
+    service_type:            ServiceType | None
     worker:                  WorkerSummary
     client:                  ClientSummary
     location:                str | None
@@ -194,6 +223,25 @@ class ShiftStatsResponse(BaseModel):
     total: int
 
 
+# Returned by GET /shifts/care-metrics — scheduled vs delivered over a period.
+# "Scheduled" = every non-cancelled occurrence in range; "Delivered" = completed
+# occurrences (provisional — from completed shifts until EVV lands).
+class ServiceCareMetric(BaseModel):
+    service_type:     ServiceType | None
+    scheduled_shifts: int
+    scheduled_hours:  float
+    delivered_shifts: int
+    delivered_hours:  float
+
+
+class CareMetricsResponse(BaseModel):
+    scheduled_shifts: int
+    scheduled_hours:  float
+    delivered_shifts: int
+    delivered_hours:  float
+    by_service:       list[ServiceCareMetric]
+
+
 # Returned by GET /shifts/{id} — the master record
 class ShiftMasterResponse(BaseModel):
     id:                  UUID
@@ -205,6 +253,7 @@ class ShiftMasterResponse(BaseModel):
     recurrence_rule:     str | None
     recurrence_end_date: date | None
     status:              str
+    service_type:        ServiceType | None
     location:            str | None
     notes:               str | None
     created_at:          datetime

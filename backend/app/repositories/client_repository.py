@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from app.models.client import Client
+from app.models.employment import Employment
 from app.core.enums import ClientStatus
 from app.core.exceptions import AppError
 
@@ -27,7 +28,7 @@ class ClientRepository:
         """
         client = (
             self.db.query(Client)
-            .options(joinedload(Client.assigned_worker))
+            .options(joinedload(Client.assigned_worker).joinedload(Employment.person))
             .filter(
                 Client.id == client_id,
                 Client.org_id == org_id,
@@ -55,7 +56,7 @@ class ClientRepository:
         """
         return (
             self.db.query(Client)
-            .options(joinedload(Client.assigned_worker))
+            .options(joinedload(Client.assigned_worker).joinedload(Employment.person))
             .filter(Client.id == client_id)
             .first()
         )
@@ -76,7 +77,7 @@ class ClientRepository:
         """
         query = (
             self.db.query(Client)
-            .options(joinedload(Client.assigned_worker))
+            .options(joinedload(Client.assigned_worker).joinedload(Employment.person))
             .filter(
                 Client.org_id == org_id,
                 Client.deleted_at == None,  # noqa: E711
