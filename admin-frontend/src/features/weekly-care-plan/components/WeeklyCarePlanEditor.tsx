@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { TimeInput, Kicker, ProgressBar } from '@/shared/components/ui'
 import { useWeeklyCarePlan, useSaveWeeklyCarePlan } from '../hooks/useWeeklyCarePlan'
 import { useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
@@ -51,13 +51,16 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
-    if (entries) {
-      setRows(entries.map((e) => ({
-        day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
-      })))
-    }
-  }, [entries])
+  // Seed the editable rows from the loaded plan. Done during render (not in an
+  // effect) so it can't cascade an extra render; re-seeds whenever the query
+  // returns a new array reference (initial load or after a save/refetch).
+  const [seededFrom, setSeededFrom] = useState<typeof entries>(undefined)
+  if (entries && entries !== seededFrom) {
+    setSeededFrom(entries)
+    setRows(entries.map((e) => ({
+      day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
+    })))
+  }
 
   function update(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))

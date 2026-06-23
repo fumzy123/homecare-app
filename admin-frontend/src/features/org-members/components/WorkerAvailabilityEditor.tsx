@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { TimeInput } from '@/shared/components/ui'
 import { useWorkerAvailability, useSaveWorkerAvailability } from '../hooks/useWorkerAvailability'
 import type { WeekDay, AvailabilityEntryInput } from '../api'
@@ -37,11 +37,13 @@ export function WorkerAvailabilityEditor({ memberId }: { memberId: string }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (blocks) {
-      setRows(blocks.map((b) => ({ day_of_week: b.day_of_week, start_time: hhmm(b.start_time), end_time: hhmm(b.end_time) })))
-    }
-  }, [blocks])
+  // Seed editable rows from the loaded availability. Done during render (not in
+  // an effect) to avoid a cascading re-render; re-seeds on each new query result.
+  const [seededFrom, setSeededFrom] = useState<typeof blocks>(undefined)
+  if (blocks && blocks !== seededFrom) {
+    setSeededFrom(blocks)
+    setRows(blocks.map((b) => ({ day_of_week: b.day_of_week, start_time: hhmm(b.start_time), end_time: hhmm(b.end_time) })))
+  }
 
   const touch = () => setSaved(false)
 

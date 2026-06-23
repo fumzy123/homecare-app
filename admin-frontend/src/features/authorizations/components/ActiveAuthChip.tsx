@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import type { Authorization } from '../api'
 import { HOURS_PERIOD_LABELS } from '../constants'
-import { activeAuthorization, totalAuthorizedHours, endsRelLabel } from '../utils'
+import { activeAuthorization, totalAuthorizedHours, endsRelLabel, daysUntil } from '../utils'
 
 /**
  * Persistent funding context in the client rail. Shows the single active
@@ -28,11 +28,8 @@ export function ActiveAuthChip({ clientId, authorizations }: { clientId: string;
   }
 
   const total = totalAuthorizedHours(auth)
-  const expiring = auth.covering_end != null && (() => {
-    const d = new Date(auth.covering_end)
-    const days = Math.round((d.getTime() - Date.now()) / 86_400_000)
-    return days >= 0 && days <= 30
-  })()
+  const daysLeft = auth.covering_end != null ? daysUntil(auth.covering_end) : null
+  const expiring = daysLeft != null && daysLeft >= 0 && daysLeft <= 30
 
   return (
     <Link

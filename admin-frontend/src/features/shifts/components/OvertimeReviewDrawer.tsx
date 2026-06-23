@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { format, differenceInMinutes } from 'date-fns'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { useOvertimeReviewStore } from '@/features/notifications/useOvertimeReviewStore'
@@ -50,8 +50,12 @@ export function OvertimeReviewDrawer() {
   const { mutate: rejectOvertime,  isPending: rejecting  } = useRejectOvertime()
   const { mutate: markResolved,    isPending: marking    } = useMarkResolved()
 
-  useEffect(() => {
-    if (!notification) return
+  // Reset the edit form whenever a different notification is opened. Done during
+  // render (not in an effect) so the reset doesn't cascade an extra render; the
+  // seededId guard makes it run once per notification.
+  const [seededId, setSeededId] = useState<string | null>(null)
+  if (notification && notification.id !== seededId) {
+    setSeededId(notification.id)
     const p = notification.payload as unknown as OvertimeNotificationPayload
     setMode('default')
     setError(null)
@@ -70,7 +74,7 @@ export function OvertimeReviewDrawer() {
     setEditFrequency((p.recurrence?.frequency as RecurrenceFrequency) ?? 'weekly')
     setEditDaysOfWeek((p.recurrence?.days_of_week as DayOfWeek[]) ?? [])
     setEditRecurrenceEndDate(p.recurrence?.recurrence_end_date ?? '')
-  }, [notification?.id])
+  }
 
   if (!notification) return null
 
