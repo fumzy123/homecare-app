@@ -6,15 +6,15 @@ on:
     paths: ['backend/**']
   pull_request:
     branches: [main]
+    paths: ['backend/**']
 
 jobs:
-  backend-ci:
-    name: Lint, audit & import check for backend
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,20 +26,57 @@ jobs:
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
-      - name: Upgrade pip
-        run: pip install --upgrade pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install CI tools
-        run: pip install ruff pip-audit
+      - name: Install linter
+        run: pip install ruff
 
       - name: Lint
         run: ruff check .
 
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
       - name: Security audit
         run: pip-audit
+
+  build:
+    name: Build & Import Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: App import check
         run: python -c "from app.main import app"
