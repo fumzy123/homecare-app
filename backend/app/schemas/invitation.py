@@ -34,4 +34,3 @@ class InvitationResponse(BaseModel):
     invited_by: uuid.UUID
     invited_at: datetime
     expires_at: datetime  # computed from invited_at — not stored in DB
-    accepted_at: datetime | None

@@ -21,4 +21,3 @@ class Invitation(Base):
     supabase_user_id = Column(UUID(as_uuid=True), nullable=True)
 
     invited_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    accepted_at = Column(DateTime(timezone=True), nullable=True)

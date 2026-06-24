@@ -1,12 +1,9 @@
 import { type Invitation } from '@/features/invitations/api'
 
 export function StatusBadge({ invitation }: { invitation: Invitation }) {
-  const now     = new Date()
-  const expired = !invitation.accepted_at && new Date(invitation.expires_at) < now
+  // Only pending invites exist — accepted ones are deleted on accept.
+  const expired = new Date(invitation.expires_at) < new Date()
 
-  if (invitation.accepted_at) {
-    return <span className="font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border bg-ink text-cream border-ink">Active</span>
-  }
   if (expired) {
     return <span className="font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1 border border-orange text-orange">Expired</span>
   }

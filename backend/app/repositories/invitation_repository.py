@@ -36,10 +36,10 @@ class InvitationRepository:
         ).first()
 
     def get_pending_by_email_and_org(self, email: str, org_id) -> Invitation | None:
+        # Every invitation row is pending — accepted invites are deleted on accept.
         return self.db.query(Invitation).filter(
             Invitation.org_id == org_id,
             Invitation.email == email,
-            Invitation.accepted_at == None,  # noqa: E711
         ).first()
 
     def get_by_id_and_org(self, invitation_id, org_id) -> Invitation:
@@ -52,11 +52,8 @@ class InvitationRepository:
         return invitation
 
     def list_by_org(self, org_id) -> list[Invitation]:
-        return (
-            self.db.query(Invitation)
-            .filter(Invitation.org_id == org_id, Invitation.accepted_at.is_(None))
-            .all()
-        )
+        # All rows are pending invites — accepted ones are deleted on accept.
+        return self.db.query(Invitation).filter(Invitation.org_id == org_id).all()
 
     def add(self, invitation: Invitation) -> None:
         self.db.add(invitation)

@@ -17,7 +17,6 @@ export interface Invitation {
   invited_by: string
   invited_at: string
   expires_at: string  // computed server-side, not stored
-  accepted_at: string | null
 }
 
 export const invitationsApi = {
