@@ -152,7 +152,9 @@ class OrgMemberService:
                 max_hours_per_week=max_hours,
             )
             self.employment_repo.add(employment)
-            invitation.accepted_at = datetime.now(timezone.utc)
+            # The invitation has done its job — consume it. History of the join
+            # lives on the Employment (created_at), not in the invitations table.
+            self.invitation_repo.delete(invitation)
 
             self.db.commit()
             self.db.refresh(employment)

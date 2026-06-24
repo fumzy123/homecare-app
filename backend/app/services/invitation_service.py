@@ -19,7 +19,6 @@ def _to_response(inv: Invitation) -> InvitationResponse:
         invited_by=inv.invited_by,
         invited_at=inv.invited_at,
         expires_at=inv.invited_at + timedelta(seconds=INVITE_EXPIRY_SECONDS),
-        accepted_at=inv.accepted_at,
     )
 
 
@@ -127,14 +126,9 @@ class InvitationService:
 
     async def resend_invitation(self, invitation_id: str):
         try:
+            # Only pending invites exist in the table (accepted ones are deleted),
+            # so any row found here is resendable.
             invitation = self.invitation_repo.get_by_id_and_org(invitation_id, self.org_id)
-
-            if invitation.accepted_at:
-                raise AppError(
-                    status_code=409,
-                    code="ALREADY_ACCEPTED",
-                    message="This invitation has already been accepted",
-                )
 
             org = self.invitation_repo.get_org_by_id(self.org_id)
             org_name = org.name if org else ""
