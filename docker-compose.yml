@@ -12,6 +12,13 @@ services:
     ports:
       - "8000:8000"
 
+    # Map host.docker.internal to the host gateway. Docker Desktop (macOS/Windows)
+    # provides this hostname automatically, but native Linux Docker does not — so
+    # without this, the container can't resolve host.docker.internal (used in
+    # .env.local for the local Supabase stack) and DB/Alembic connections fail.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     # Inject environment variables from this file into the container at runtime.
     # The secrets never touch the image — they're passed in when the container starts.
     env_file:
