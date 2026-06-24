@@ -98,41 +98,35 @@ export function TeamSection() {
 
             {/* Pending invitation rows */}
             {adminInvitations.map((inv) => {
-              const isExpired = !inv.accepted_at && new Date(inv.expires_at) < new Date()
+              const isExpired = new Date(inv.expires_at) < new Date()
               return (
                 <div key={inv.id} className={`grid grid-cols-[2fr_2fr_1fr_60px] items-center px-6 py-3 border-t border-dashed border-line-soft`}>
                   <p className="text-[13px] text-ink-soft italic">{ROLE_LABELS[inv.role] ?? inv.role} invite</p>
                   <p className="font-mono text-[11px] text-ink-soft">{inv.email}</p>
                   <div>
-                    {inv.accepted_at
-                      ? <Tag variant="mint">Accepted</Tag>
-                      : isExpired
+                    {isExpired
                       ? <Tag variant="default" className="opacity-50">Expired</Tag>
                       : <Tag variant="default">Pending</Tag>
                     }
                   </div>
                   <div className="flex items-center gap-2">
-                    {!inv.accepted_at && (
-                      <>
-                        {isExpired && (
-                          <button
-                            onClick={() => resend.mutate(inv.id)}
-                            disabled={resendCooldowns.has(inv.id)}
-                            className="text-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            title={resendCooldowns.has(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
-                          >
-                            <RotateCcw size={13} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => revoke.mutate(inv.id)}
-                          className="text-muted hover:text-orange transition-colors"
-                          title="Revoke"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </>
+                    {isExpired && (
+                      <button
+                        onClick={() => resend.mutate(inv.id)}
+                        disabled={resendCooldowns.has(inv.id)}
+                        className="text-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={resendCooldowns.has(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
+                      >
+                        <RotateCcw size={13} />
+                      </button>
                     )}
+                    <button
+                      onClick={() => revoke.mutate(inv.id)}
+                      className="text-muted hover:text-orange transition-colors"
+                      title="Revoke"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               )

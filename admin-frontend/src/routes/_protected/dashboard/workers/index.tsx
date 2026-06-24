@@ -131,57 +131,48 @@ function WorkersPage() {
               <div className="overflow-x-auto">
                 <Card className="p-0 min-w-[560px]">
                   {/* Table header */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_72px] bg-cream-2 border-b border-ink">
-                    {['Email', 'Role', 'Status', 'Invited', 'Expires', 'Accepted On', ''].map((h, i) => (
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_72px] bg-cream-2 border-b border-ink">
+                    {['Email', 'Role', 'Status', 'Invited', 'Expires', ''].map((h, i) => (
                       <div key={i} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
                         {h}
                       </div>
                     ))}
                   </div>
                   {invitations.map((inv, i) => {
-                    const isExpired = !inv.accepted_at && new Date(inv.expires_at) < new Date()
+                    const isExpired = new Date(inv.expires_at) < new Date()
                     return (
                       <div
                         key={inv.id}
-                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_72px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
+                        className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_72px] items-center hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}
                       >
                         <div className="px-4 py-3 text-[13px]">{inv.email}</div>
                         <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{ROLE_LABELS[inv.role] ?? inv.role}</div>
                         <div className="px-4 py-3">
-                          {inv.accepted_at
-                            ? <Tag variant="mint">Accepted</Tag>
-                            : isExpired
+                          {isExpired
                             ? <Tag variant="default" className="opacity-50">Expired</Tag>
                             : <Tag variant="default">Pending</Tag>
                           }
                         </div>
                         <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.invited_at).toLocaleDateString()}</div>
                         <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">{new Date(inv.expires_at).toLocaleDateString()}</div>
-                        <div className="px-4 py-3 font-mono text-[11px] text-ink-soft">
-                          {inv.accepted_at ? new Date(inv.accepted_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}
-                        </div>
                         <div className="px-4 py-3 flex items-center gap-2">
-                          {!inv.accepted_at && (
-                            <>
-                              {isExpired && (
-                                <button
-                                  onClick={() => resend.mutate(inv.id)}
-                                  disabled={resendCooldowns.has(inv.id)}
-                                  className="text-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title={resendCooldowns.has(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
-                                >
-                                  <RotateCcw size={14} />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => revoke.mutate(inv.id)}
-                                className="text-muted hover:text-orange transition-colors"
-                                title="Revoke"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </>
+                          {isExpired && (
+                            <button
+                              onClick={() => resend.mutate(inv.id)}
+                              disabled={resendCooldowns.has(inv.id)}
+                              className="text-muted hover:text-ink transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title={resendCooldowns.has(inv.id) ? 'Resend available in 5 minutes' : 'Resend invite'}
+                            >
+                              <RotateCcw size={14} />
+                            </button>
                           )}
+                          <button
+                            onClick={() => revoke.mutate(inv.id)}
+                            className="text-muted hover:text-orange transition-colors"
+                            title="Revoke"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
                     )
