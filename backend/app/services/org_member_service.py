@@ -268,7 +268,11 @@ class OrgMemberService:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────
-    # 6. Soft delete a member (admin only)
+    # 6. Deactivate a member (admin only)
+    #
+    # Termination is reversible: we tombstone the employment and BAN (not delete)
+    # the auth user, keeping person.supabase_user_id intact so a rehire can reuse
+    # the same identity. See create_invitation's returning-worker branch.
     # ─────────────────────────────────────────
     async def delete_member(self, member_id: str):
         try:
@@ -278,17 +282,20 @@ class OrgMemberService:
             supabase_user_id = str(person.supabase_user_id) if person.supabase_user_id else None
 
             employment.deleted_at = datetime.now(timezone.utc)
-            person.supabase_user_id = None
+            employment.employment_status = EmploymentStatus.terminated
             self.db.commit()
 
             if supabase_user_id:
                 try:
                     from app.db.supabase import get_supabase_client
-                    get_supabase_client().auth.admin.delete_user(supabase_user_id)
+                    # Ban for ~100 years = effectively permanent until reactivated.
+                    get_supabase_client().auth.admin.update_user_by_id(
+                        supabase_user_id, {"ban_duration": "876000h"}
+                    )
                 except Exception:
                     pass
 
-            return {"message": "Member deleted successfully"}
+            return {"message": "Member deactivated successfully"}
 
         except AppError:
             self.db.rollback()

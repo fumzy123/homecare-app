@@ -25,9 +25,10 @@ export function WorkerDangerZone({ worker }: { worker: OrgMember }) {
       </div>
       <div className="px-7 py-[22px] flex items-center justify-between gap-6">
         <div>
-          <p className="text-[14px] font-medium mb-[3px]">Delete this worker</p>
+          <p className="text-[14px] font-medium mb-[3px]">Deactivate this worker</p>
           <p className="text-[12.5px] text-ink-soft">
-            Permanent and cannot be undone. Removes them from all schedules.
+            Revokes their access and removes them from all schedules. Their record
+            and history are kept — you can bring them back later by re-inviting them.
           </p>
           {deleteError && (
             <p className="font-mono text-[10px] text-orange mt-2">{deleteError}</p>
@@ -42,7 +43,7 @@ export function WorkerDangerZone({ worker }: { worker: OrgMember }) {
                 disabled={deleteMutation.isPending}
                 className="bg-orange text-white px-4 py-2.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
               >
-                {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete'}
+                {deleteMutation.isPending ? 'Deactivating…' : 'Yes, deactivate'}
               </button>
               <button
                 onClick={() => setDeleteConfirm(false)}
@@ -56,7 +57,7 @@ export function WorkerDangerZone({ worker }: { worker: OrgMember }) {
               onClick={() => setDeleteConfirm(true)}
               className="border border-orange text-orange px-4 py-2.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:bg-orange hover:text-white transition-colors"
             >
-              Delete worker
+              Deactivate worker
             </button>
           )}
         </div>

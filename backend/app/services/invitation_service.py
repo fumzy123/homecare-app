@@ -7,6 +7,7 @@ from app.core.exceptions import AppError
 from app.schemas.invitation import CreateInvitationSchema, InvitationResponse, INVITE_EXPIRY_SECONDS
 from app.core.config import settings
 from app.repositories.invitation_repository import InvitationRepository
+from app.repositories.person_repository import PersonRepository
 import uuid
 
 
@@ -33,6 +34,7 @@ class InvitationService:
         self.db = db
         self.current_user = current_user
         self.invitation_repo = InvitationRepository(db)
+        self.person_repo = PersonRepository(db)
         from app.repositories.organization_repository import OrganizationRepository
         org_repo = OrganizationRepository(db)
         current_employment = org_repo.get_active_employment_for_user(current_user.id)
@@ -77,6 +79,12 @@ class InvitationService:
                         message=f"A pending invite already exists for {payload.email}",
                     )
                 return await self._send_and_refresh(existing, org_name)
+
+            # Re-hire: a returning worker still has a Person row (kept on
+            # termination) bound to a now-banned auth user. invite_user_by_email
+            # rejects existing users, so clear that dormant identity first; the
+            # invite below provisions a fresh one and accept rebinds the Person.
+            self._clear_dormant_auth_identity(payload.email)
 
             invitation = Invitation(
                 id=uuid.uuid4(),
@@ -164,7 +172,19 @@ class InvitationService:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
-    # ── internal helper ───────────────────────────────────────────────────────
+    # ── internal helpers ──────────────────────────────────────────────────────
+
+    def _clear_dormant_auth_identity(self, email: str) -> None:
+        """Delete the banned auth user left behind by a prior termination so a
+        fresh invite can be sent. The Person row is kept and reused on accept."""
+        person = self.person_repo.get_by_email(email)
+        if not person or not person.supabase_user_id:
+            return
+        try:
+            self.supabase.auth.admin.delete_user(str(person.supabase_user_id))
+        except Exception:
+            pass
+        person.supabase_user_id = None  # rebound to the new auth user on accept
 
     async def _send_and_refresh(self, invitation: Invitation, org_name: str):
         if invitation.supabase_user_id:
