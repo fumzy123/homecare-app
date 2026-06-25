@@ -131,8 +131,11 @@ class OrgMemberService:
                         code="ALREADY_REGISTERED",
                         message="This invite has already been accepted",
                     )
-                # Re-hire: bind new Supabase user id to existing Person
+                # Re-hire: bind new Supabase user id to existing Person and
+                # refresh their name from the accept-invite form.
                 person.supabase_user_id = self.current_user.id
+                person.first_name = payload.first_name
+                person.last_name = payload.last_name
             else:
                 person = Person(
                     supabase_user_id=self.current_user.id,
@@ -155,6 +158,22 @@ class OrgMemberService:
             # The invitation has done its job — consume it. History of the join
             # lives on the Employment (created_at), not in the invitations table.
             self.invitation_repo.delete(invitation)
+
+            # Sync the name into Supabase Auth user_metadata so the dashboard
+            # "Display name" is populated. The invite token only carried
+            # role/org_id/etc — never the worker's name. Preserve role/org_id so
+            # the rest of the app (which reads them from the JWT) keeps working.
+            from app.db.supabase import get_supabase_client
+            supabase = get_supabase_client()
+            supabase.auth.admin.update_user_by_id(
+                str(self.current_user.id),
+                {"user_metadata": {
+                    "first_name": payload.first_name,
+                    "last_name": payload.last_name,
+                    "role": role,
+                    "org_id": str(org_id),
+                }},
+            )
 
             self.db.commit()
             self.db.refresh(employment)
