@@ -2,8 +2,6 @@
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
 
-import pytest
-
 from app.core.enums import RecurrenceFrequency, ShiftCompletionStatus, WeekDay
 from app.domain.scheduling import (
     WEEKDAY_INDEX,
