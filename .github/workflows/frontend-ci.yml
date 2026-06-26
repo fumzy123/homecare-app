@@ -2,10 +2,10 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
     paths: ['admin-frontend/**']
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 jobs:
   lint:
