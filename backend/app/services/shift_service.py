@@ -1,11 +1,10 @@
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import uuid
-from dateutil.rrule import rrulestr
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.core.enums import ShiftCompletionStatus, ShiftStatus, RecurrenceFrequency, OVERTIME_APPROVERS
+from app.core.enums import ShiftCompletionStatus, ShiftStatus, OVERTIME_APPROVERS
 from app.core.exceptions import AppError
 from app.schemas.shift import (
     ClientSummary,
@@ -23,8 +22,11 @@ from app.repositories.shift_repository import ShiftRepository, ShiftModification
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
 from app.domain.scheduling import (
+    DEFAULT_RECURRENCE_HORIZON_DAYS,
     SchedulingChecker,
+    build_rrule_string,
     expand_occurrences,
+    expand_rule_to_time_blocks,
     timeblock_for_occurrence,
     iso_week_range,
 )
@@ -58,11 +60,7 @@ class ShiftService:
     @staticmethod
     def _build_rrule_string(recurrence) -> str:
         """Convert RecurrenceSchema into an RRULE pattern string."""
-        if recurrence.frequency == RecurrenceFrequency.daily:
-            return "FREQ=DAILY"
-        # weekly
-        days = ",".join(recurrence.days_of_week)
-        return f"FREQ=WEEKLY;BYDAY={days}"
+        return build_rrule_string(recurrence.frequency, recurrence.days_of_week)
 
     def _can_approve_overtime(self) -> bool:
         return self.current_member_role in OVERTIME_APPROVERS
@@ -156,15 +154,9 @@ class ShiftService:
             if not is_recurring:
                 proposed_time_blocks = [(payload.start_time.date(), payload.start_time, payload.end_time)]
             else:
-                cap_date = recurrence_end_date or (payload.start_time.date() + timedelta(days=365))
-                rule = rrulestr(recurrence_rule, dtstart=payload.start_time)
-                occurrences = rule.between(
-                    datetime.combine(payload.start_time.date(), time.min),
-                    datetime.combine(cap_date, time.max),
-                    inc=True,
-                )
+                cap_date = recurrence_end_date or (payload.start_time.date() + timedelta(days=DEFAULT_RECURRENCE_HORIZON_DAYS))
                 duration = payload.end_time - payload.start_time
-                proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
+                proposed_time_blocks = expand_rule_to_time_blocks(recurrence_rule, payload.start_time, duration, cap_date)
 
             conflicts = self.checker.find_conflicts(
                 worker_id=payload.worker_id,
@@ -693,17 +685,11 @@ class ShiftService:
                 new_end_time = payload.new_end_time or shift.end_time
                 new_end_date = payload.recurrence_end_date or shift.recurrence_end_date
 
-                cap_date = new_end_date or (new_start_time.date() + timedelta(days=365))
+                cap_date = new_end_date or (new_start_time.date() + timedelta(days=DEFAULT_RECURRENCE_HORIZON_DAYS))
                 if shift.is_recurring:
                     new_rule = self._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
-                    rule = rrulestr(new_rule, dtstart=new_start_time)
-                    occurrences = rule.between(
-                        datetime.combine(new_start_time.date(), time.min),
-                        datetime.combine(cap_date, time.max),
-                        inc=True,
-                    )
                     duration = new_end_time - new_start_time
-                    proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
+                    proposed_time_blocks = expand_rule_to_time_blocks(new_rule, new_start_time, duration, cap_date)
                 else:
                     proposed_time_blocks = [(new_start_time.date(), new_start_time, new_end_time)]
 
@@ -788,16 +774,10 @@ class ShiftService:
             )
 
             new_worker_id = payload.worker_id or shift.worker_id
-            cap_date = new_end_date or (new_start.date() + timedelta(days=365))
+            cap_date = new_end_date or (new_start.date() + timedelta(days=DEFAULT_RECURRENCE_HORIZON_DAYS))
             if shift.is_recurring:
-                rule = rrulestr(new_rule, dtstart=new_start)
-                occurrences = rule.between(
-                    datetime.combine(new_start.date(), time.min),
-                    datetime.combine(cap_date, time.max),
-                    inc=True,
-                )
                 duration = new_end - new_start
-                proposed_time_blocks = [(occ.date(), occ, occ + duration) for occ in occurrences]
+                proposed_time_blocks = expand_rule_to_time_blocks(new_rule, new_start, duration, cap_date)
             else:
                 proposed_time_blocks = [(new_start.date(), new_start, new_end)]
 
