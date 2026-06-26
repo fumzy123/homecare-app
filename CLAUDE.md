@@ -118,7 +118,14 @@ Roles are `OrgMemberRole` enum: `owner`, `agency_admin`, `home_support_worker`.
 
 ## Frontend Architecture — 4-Layer Component Model
 
-Every React component in `admin-frontend` (and `worker-mobile-app`) must fit one of four layers. When writing or reviewing code, identify the layer first, then enforce the rules for that layer.
+Every React **component** in `admin-frontend` (and `worker-mobile-app`) must fit one of four layers. When writing or reviewing code, identify the layer first, then enforce the rules for that layer.
+
+Two kinds of code are **not components** and therefore sit *outside* the four layers — they live **below** Layer 3 and are imported *into* it, never the other way around:
+
+- **Data-access hooks** — the `useQuery`/`useMutation` wrappers in `src/features/<domain>/hooks/` (see "Custom hooks own all useQuery / useMutation calls" below).
+- **Domain logic** — pure functions (no React, no rendering, no I/O) that encode home-care business rules (see "Domain logic — pure rules below the components" below).
+
+This mirrors the backend exactly: the four component layers are the frontend's `Router → Service` request path; the hooks are its data access; and the domain logic is the frontend twin of `app/domain/`. A component **delegates into** domain logic the same way a Service delegates into `app/domain/`.
 
 ### Layer 1 — Primitives
 **Purpose:** Styling and interaction only. No awareness of domain, data, or app state.
@@ -144,12 +151,23 @@ Every React component in `admin-frontend` (and `worker-mobile-app`) must fit one
 **Rules:** Composes domain components. Controls routing and layout. Handles global providers.
 **Lives in:** `src/routes/`
 
+### Domain logic — pure rules below the components
+
+**Purpose:** Encode home-care business rules as pure functions — data in, decision out. No React, no rendering, no hooks, no API calls. This is the frontend twin of the backend's `app/domain/` layer, and it exists for the same reason: some logic is about the *problem* (cap normalization, over-cap detection, hours math, time formatting), not about any one component.
+**Examples:** `entryHours(start, end)`, `computeOverplanned(rows, compliance)`, the bi-weekly→weekly normalization in the care plan, the localized-times formatter for shift-conflict (409) errors.
+**Rules:** Imports nothing from React. A Layer 3 component imports and *delegates into* it; it never imports a component, hook, or anything that touches the DOM or network. Because it's pure, it's directly unit-testable (Vitest) with no rendering or mocking — this is where the highest-value, cheapest frontend tests live.
+**Lives in:** `src/features/<domain>/<name>.ts` (e.g. `weekly-care-plan/carePlanMath.ts`). Promote to `src/shared/lib/` only when reused across features.
+
+> Rule of thumb (same as the backend): if the logic renders nothing and needs no data fetching, it is **not** a component — pull it out of the Layer 3 component into a domain module and unit-test it there. Logic left inlined inside a component is the frontend equivalent of business logic stuck inside a Service method.
+
 ### File placement rules
 ```
 src/shared/components/ui/      ← Layer 1 (primitives only)
 src/shared/components/         ← Layer 2 (compounds, no data fetching)
 src/shared/components/layout/  ← Layer 4 shell pieces (Sidebar, Topbar — may use auth store)
 src/features/<domain>/components/  ← Layer 3 domain components
+src/features/<domain>/hooks/   ← data-access hooks (useQuery/useMutation wrappers)
+src/features/<domain>/<name>.ts    ← domain logic (pure rules, no React) — e.g. carePlanMath.ts
 src/routes/                    ← Layer 4 pages
 ```
 
