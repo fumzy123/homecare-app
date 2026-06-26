@@ -71,6 +71,11 @@ export const authApi = {
       first_name: payload.first_name,
       last_name: payload.last_name,
     })
+
+    // Step 3: the backend just wrote first_name/last_name (and role/org_id) into
+    // Supabase user_metadata. Refresh the session so the JWT and Zustand store
+    // pick up the new metadata without requiring a re-login.
+    await supabase.auth.refreshSession()
     return data
   },
 }
