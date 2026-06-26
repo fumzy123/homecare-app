@@ -11,7 +11,7 @@ rules — they used to live as private methods on `ShiftService`.
 from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
 from sqlalchemy.orm import Session
-from app.core.enums import ShiftCompletionStatus, WeekDay
+from app.core.enums import RecurrenceFrequency, ShiftCompletionStatus, WeekDay
 from app.models.shift import Shift
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.employment_repository import EmploymentRepository
@@ -42,6 +42,37 @@ def weekly_entries_to_time_blocks(entries, start_date: date, end_date: date) -> 
             blocks.append((d, datetime.combine(d, e.start_time), datetime.combine(d, e.end_time)))
         d += step
     return blocks
+
+
+def build_rrule_string(frequency: RecurrenceFrequency, days_of_week: list[str] | None = None) -> str:
+    """Convert a recurrence frequency + optional day list into an RRULE string."""
+    if frequency == RecurrenceFrequency.daily:
+        return "FREQ=DAILY"
+    days = ",".join(days_of_week or [])
+    return f"FREQ=WEEKLY;BYDAY={days}"
+
+
+def expand_rule_to_time_blocks(
+    rule_str: str,
+    dtstart: datetime,
+    duration: timedelta,
+    cap_date: date,
+) -> list[tuple[date, datetime, datetime]]:
+    """Expand an RRULE string into concrete (date, start, end) time blocks.
+
+    For a recurring shift/entry: given the rule, start datetime, duration, and an
+    upper-bound date, returns every occurrence as a (date, start_dt, end_dt) tuple.
+    """
+    rule = rrulestr(rule_str, dtstart=dtstart)
+    occurrences = rule.between(
+        datetime.combine(dtstart.date(), time.min),
+        datetime.combine(cap_date, time.max),
+        inc=True,
+    )
+    return [(occ.date(), occ, occ + duration) for occ in occurrences]
+
+
+DEFAULT_RECURRENCE_HORIZON_DAYS = 365
 
 
 # ── Occurrence math (pure, no I/O) ────────────────────────────────────────────
