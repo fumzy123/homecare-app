@@ -146,6 +146,31 @@ def iso_week_range(d: date) -> tuple[date, date]:
     return (sunday, saturday)
 
 
+def hours_by_week(
+    shifts, from_date: date, to_date: date,
+) -> dict[tuple[date, date], float]:
+    """Bucket scheduled hours by ISO week across [from_date, to_date].
+
+    For each shift, expands its occurrences in range, resolves the actual time
+    block (honoring modifications, skipping cancellations), and accumulates the
+    duration into the (Sunday, Saturday) week containing the occurrence. Keys are
+    week ranges; values are hours. The single source of truth for "how many hours
+    does this set of shifts add up to" — callers sum the values for a plain total,
+    or compare each week's value against a cap for overtime.
+    """
+    week_hours: dict[tuple[date, date], float] = {}
+    for shift in shifts:
+        mod_map = {m.original_date: m for m in shift.modifications}
+        for occ_date in expand_occurrences(shift, from_date, to_date):
+            timeblock = timeblock_for_occurrence(shift, occ_date, mod_map)
+            if timeblock is None:
+                continue
+            start, end = timeblock
+            week_key = iso_week_range(occ_date)
+            week_hours[week_key] = week_hours.get(week_key, 0.0) + (end - start).total_seconds() / 3600.0
+    return week_hours
+
+
 # ── Repository-backed checks ──────────────────────────────────────────────────
 
 class SchedulingChecker:
@@ -237,15 +262,7 @@ class SchedulingChecker:
         cap_violations: list[dict] = []
 
         for (week_sun, week_sat), proposed_hours in proposed_by_week.items():
-            existing_hours = 0.0
-            for shift in existing_shifts:
-                mod_map = {m.original_date: m for m in shift.modifications}
-                for occ_date in expand_occurrences(shift, week_sun, week_sat):
-                    timeblock = timeblock_for_occurrence(shift, occ_date, mod_map)
-                    if timeblock is None:
-                        continue
-                    s, e = timeblock
-                    existing_hours += (e - s).total_seconds() / 3600.0
+            existing_hours = sum(hours_by_week(existing_shifts, week_sun, week_sat).values())
 
             total = existing_hours + proposed_hours
             base = {
