@@ -3,7 +3,7 @@ from app.db.session import SessionLocal
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus
-from app.services.shift_service import ShiftService
+from app.domain.scheduling import expand_occurrences
 
 
 # Statuses that the job must never overwrite
@@ -37,7 +37,7 @@ def mark_shifts_completed() -> None:
 
         for shift in shifts:
             mod_map = {m.original_date: m for m in shift.modifications}
-            occurrences = ShiftService._expand_occurrences(shift, window_start, window_end)
+            occurrences = expand_occurrences(shift, window_start, window_end)
 
             for occ_date in occurrences:
                 # Reconstruct the occurrence end time to confirm it has actually passed
