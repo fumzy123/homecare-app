@@ -89,7 +89,7 @@ adb reverse tcp:8000 tcp:8000
 adb reverse tcp:54321 tcp:54321
 ```
 
-**Option C: Use localtunnel (For strict Wi-Fi networks) (Go with Option C)**
+**Option C: Use localtunnel (For strict Wi-Fi networks) (Go with Option C. It's the quickest way)**
 If you must test over Wi-Fi and it's blocking traffic, you can tunnel your services to the public internet:
 1. Open two new terminals and run:
    - `npx localtunnel --port 8000`

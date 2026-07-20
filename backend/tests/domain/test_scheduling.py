@@ -8,6 +8,7 @@ from app.domain.scheduling import (
     build_rrule_string,
     expand_occurrences,
     expand_rule_to_time_blocks,
+    hours_by_week,
     iso_week_range,
     shift_has_occurrence_on,
     timeblock_for_occurrence,
@@ -309,3 +310,63 @@ class TestWeeklyEntriesToTimeBlocks:
 
     def test_empty_entries(self):
         assert weekly_entries_to_time_blocks([], date(2026, 1, 1), date(2026, 12, 31)) == []
+
+
+# ── hours_by_week ────────────────────────────────────────────────────────────
+
+def _make_shift_with_mods(start, end, modifications=None, is_recurring=False, rule=None, recurrence_end=None):
+    shift = _make_shift(start, end, is_recurring=is_recurring, rule=rule, recurrence_end=recurrence_end)
+    shift.modifications = modifications or []
+    return shift
+
+
+class TestHoursByWeek:
+    def test_single_shift_one_week(self):
+        shift = _make_shift_with_mods(datetime(2026, 6, 22, 9, 0), datetime(2026, 6, 22, 13, 0))  # Mon, 4h
+        result = hours_by_week([shift], date(2026, 6, 21), date(2026, 6, 27))
+        assert result == {(date(2026, 6, 21), date(2026, 6, 27)): 4.0}
+
+    def test_no_shifts_returns_empty_dict(self):
+        assert hours_by_week([], date(2026, 6, 1), date(2026, 6, 30)) == {}
+
+    def test_shift_out_of_range_excluded(self):
+        shift = _make_shift_with_mods(datetime(2026, 5, 1, 9, 0), datetime(2026, 5, 1, 13, 0))
+        assert hours_by_week([shift], date(2026, 6, 1), date(2026, 6, 30)) == {}
+
+    def test_recurring_shift_buckets_across_weeks(self):
+        shift = _make_shift_with_mods(
+            datetime(2026, 6, 22, 9, 0), datetime(2026, 6, 22, 11, 0),  # Mon, 2h
+            is_recurring=True, rule="FREQ=WEEKLY;BYDAY=MO",
+        )
+        result = hours_by_week([shift], date(2026, 6, 21), date(2026, 7, 4))
+        # Two Mondays: Jun 22 (week of 21st) and Jun 29 (week of 28th)
+        assert result == {
+            (date(2026, 6, 21), date(2026, 6, 27)): 2.0,
+            (date(2026, 6, 28), date(2026, 7, 4)): 2.0,
+        }
+
+    def test_cancelled_occurrence_contributes_zero(self):
+        mod = _make_mod(date(2026, 6, 22), status=ShiftCompletionStatus.cancelled)
+        shift = _make_shift_with_mods(
+            datetime(2026, 6, 22, 9, 0), datetime(2026, 6, 22, 13, 0), modifications=[mod],
+        )
+        assert hours_by_week([shift], date(2026, 6, 21), date(2026, 6, 27)) == {}
+
+    def test_time_override_modification_changes_hours(self):
+        # Default would be 4h; override makes it 2h.
+        mod = _make_mod(
+            date(2026, 6, 22),
+            new_start=datetime(2026, 6, 22, 9, 0),
+            new_end=datetime(2026, 6, 22, 11, 0),
+        )
+        shift = _make_shift_with_mods(
+            datetime(2026, 6, 22, 9, 0), datetime(2026, 6, 22, 13, 0), modifications=[mod],
+        )
+        result = hours_by_week([shift], date(2026, 6, 21), date(2026, 6, 27))
+        assert result == {(date(2026, 6, 21), date(2026, 6, 27)): 2.0}
+
+    def test_multiple_shifts_same_week_sum(self):
+        s1 = _make_shift_with_mods(datetime(2026, 6, 22, 9, 0), datetime(2026, 6, 22, 12, 0))  # 3h
+        s2 = _make_shift_with_mods(datetime(2026, 6, 24, 9, 0), datetime(2026, 6, 24, 14, 0))  # 5h
+        result = hours_by_week([s1, s2], date(2026, 6, 21), date(2026, 6, 27))
+        assert result == {(date(2026, 6, 21), date(2026, 6, 27)): 8.0}

@@ -27,7 +27,7 @@ from app.domain.scheduling import (
     build_rrule_string,
     expand_occurrences,
     expand_rule_to_time_blocks,
-    timeblock_for_occurrence,
+    hours_by_week,
     iso_week_range,
 )
 
@@ -267,33 +267,13 @@ class ShiftService:
     def _calculate_hours_in_range(self, worker_id: str, from_date: date, to_date: date) -> float:
         """Total scheduled hours for a worker between from_date and to_date (inclusive)."""
         shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id=worker_id)
-        hours = 0.0
-        for shift in shifts:
-            mod_map = {m.original_date: m for m in shift.modifications}
-            for occ_date in expand_occurrences(shift, from_date, to_date):
-                timeblock = timeblock_for_occurrence(shift, occ_date, mod_map)
-                if timeblock is None:
-                    continue
-                start, end = timeblock
-                hours += (end - start).total_seconds() / 3600.0
+        hours = sum(hours_by_week(shifts, from_date, to_date).values())
         return round(hours, 2)
 
     def _calculate_overtime_in_range(self, worker_id: str, from_date: date, to_date: date, weekly_cap: int) -> float:
         """Sum of hours exceeding weekly_cap for each ISO week that overlaps from_date..to_date."""
         shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id=worker_id)
-
-        # Accumulate hours per ISO week key
-        week_hours: dict[tuple[date, date], float] = {}
-        for shift in shifts:
-            mod_map = {m.original_date: m for m in shift.modifications}
-            for occ_date in expand_occurrences(shift, from_date, to_date):
-                timeblock = timeblock_for_occurrence(shift, occ_date, mod_map)
-                if timeblock is None:
-                    continue
-                start, end = timeblock
-                week_key = iso_week_range(occ_date)
-                week_hours[week_key] = week_hours.get(week_key, 0.0) + (end - start).total_seconds() / 3600.0
-
+        week_hours = hours_by_week(shifts, from_date, to_date)
         overtime = sum(max(0.0, h - weekly_cap) for h in week_hours.values())
         return round(overtime, 2)
 
