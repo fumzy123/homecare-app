@@ -53,6 +53,7 @@ class ShiftUpdateSchema(BaseModel):
     recurrence:           RecurrenceSchema | None = None
     location:             str | None = None
     notes:                str | None = None
+    override_hours_check: bool = False
 
 
 # ─────────────────────────────────────────
