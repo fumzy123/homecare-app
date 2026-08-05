@@ -17,6 +17,14 @@ __pycache__
 *.pyc
 *.pyo
 
+# Test, type-checker, and linter caches — local-only and sometimes created with
+# permissions that Docker Desktop cannot read from its build context.
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
 # Git history — not needed at runtime.
 .git
 .gitignore
