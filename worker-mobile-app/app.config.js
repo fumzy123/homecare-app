@@ -3,10 +3,10 @@ const IS_STAGING = APP_ENV === 'staging'
 const IS_DEV = APP_ENV === 'development'
 
 const appName = IS_DEV
-  ? 'HomeCare Worker (Dev)'
+  ? 'HomeCare Worker App (Dev)'
   : IS_STAGING
-  ? 'HomeCare Worker (Staging)'
-  : 'HomeCare Worker'
+  ? 'HomeCare Worker App (Staging)'
+  : 'HomeCare Worker App'
 
 const bundleId = IS_DEV
   ? 'com.homecareapp.worker.dev'
@@ -31,7 +31,7 @@ module.exports = {
         'expo-location',
         {
           locationWhenInUsePermission:
-            'Allow HomeCare Worker to use your location to verify visit check-ins.',
+            'Allow HomeCare Worker App to use your location to verify visit check-ins.',
         },
       ],
       [

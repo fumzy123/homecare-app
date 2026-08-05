@@ -7,7 +7,7 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream">
       <View className="flex-1 items-center justify-center px-8">
-        <Kicker className="mb-6">HomeCare Worker</Kicker>
+        <Kicker className="mb-6">HomeCare Worker App</Kicker>
         <Text className="mb-4 text-center font-serif text-5xl leading-tight text-ink">
           Care,{'\n'}Delivered.
         </Text>
