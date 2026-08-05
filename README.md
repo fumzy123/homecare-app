@@ -13,100 +13,228 @@ The repository consists of four main components:
 
 ---
 
-## 🚀 Local Development Setup
+## 🚀 Local Development
 
-To ensure you don't pollute the Staging or Production databases, we run a completely isolated version of the app locally using Docker.
+Local development uses an isolated local Supabase instance so development does
+not modify staging or production data. Run commands from the repository root
+unless a step explicitly changes directories:
+
+```powershell
+cd C:\Users\<you>\path\to\homecare-app
+```
 
 ### Prerequisites
-Before you start, make sure you have the following installed on your machine:
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Must be running)
-- [Node.js & npm](https://nodejs.org/)
-- [Git](https://git-scm.com/)
-- Supabase CLI (installed automatically via `npx` in the steps below)
 
-### Step 1: Environment Variables
-We use `.env.local` files for local development. These files are ignored by Git to keep secrets safe.
-You need to create three `.env.local` files by copying the examples provided in each directory:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be running.
+- [Node.js and npm](https://nodejs.org/) must be installed.
+- Install Expo Go on a physical phone when testing the mobile app.
+- Install and authenticate [ngrok](https://ngrok.com/) when using the physical-phone quick start.
 
-1. **Backend:** Copy `backend/.env.example` to `backend/.env.local`.
-   *Make sure `SUPABASE_URL` and `DATABASE_URL` point to `host.docker.internal` instead of `127.0.0.1` so the Docker container can reach Supabase on your host machine.*
-2. **Admin Frontend:** Copy `admin-frontend/.env.example` to `admin-frontend/.env.local`.
-3. **Worker Mobile App:** Copy `worker-mobile-app/.env.example` to `worker-mobile-app/.env.local`. *(Note: Depending on how you test (Emulator vs Physical Device), you will need to update the URLs in this file. See the troubleshooting section in Step 5 for details).*
+The Supabase CLI is invoked through `npx`; a separate global installation is not
+required.
 
-### Step 2: Start the Supabase Foundation
-Start your isolated local database, authentication server, and storage buckets.
+### What runs locally
 
-```bash
-# In the root directory of the project
+| Process | Purpose | Local address |
+|---|---|---|
+| Supabase API/Auth | Login, JWTs, storage, and data APIs | `http://127.0.0.1:54321` |
+| PostgreSQL | Application database | `127.0.0.1:54322` |
+| Supabase Studio | Local database/auth dashboard | `http://127.0.0.1:54323` |
+| FastAPI | Homecare business API | `http://127.0.0.1:8000` |
+| Vite | Admin web development server | `http://localhost:5173` |
+| Metro | Bundles mobile JavaScript and sends it to Expo Go | address shown by Expo |
+
+`127.0.0.1` and `localhost` always mean "this device." On a physical phone they
+refer to the phone, not the development computer. That is why the physical-phone
+flow below exposes FastAPI and local Supabase through temporary HTTPS tunnels.
+
+### One-time environment setup
+
+Create the ignored local environment files if they do not already exist:
+
+```powershell
+Copy-Item backend\.env.example backend\.env.local
+Copy-Item admin-frontend\.env.example admin-frontend\.env.local
+Copy-Item worker-mobile-app\.env.example worker-mobile-app\.env.local
+```
+
+After `npx supabase start`, run `npx supabase status` to see the local anon key
+and service-role key. Configure `backend/.env.local` for a backend running inside
+Docker:
+
+```env
+SUPABASE_URL=http://host.docker.internal:54321
+SUPABASE_SECRET_KEY=<local service_role key>
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@host.docker.internal:54322/postgres
+FRONTEND_URL=http://localhost:5173
+```
+
+`host.docker.internal` lets the backend container reach Supabase ports exposed on
+the Windows/macOS host. Never put the service-role key in either frontend.
+
+Configure `admin-frontend/.env.local` with the local Supabase anon/publishable key:
+
+```env
+VITE_BACKEND_API_URL=http://127.0.0.1:8000
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=<local anon key>
+```
+
+The mobile URLs depend on whether the app runs on an emulator, over USB, or on a
+physical phone. The physical-phone quick start below sets them after its tunnels
+are created.
+
+## Quick start: backend + admin web
+
+Use this path to run the desktop admin application.
+
+### 1. Start local Supabase
+
+From the repository root:
+
+```powershell
 npx supabase start
-```
-*Note: This will output URLs for your Local Studio Dashboard (usually http://127.0.0.1:54323) where you can view your local database.*
-
-### Step 3: Start the Backend
-Our Python backend runs in a Docker container for seamless development.
-
-```bash
-# In the root directory of the project
-docker compose up -d
+npx supabase status
 ```
 
-### Step 4: Run Database Migrations
-We use Alembic as our single source of truth for the database schema. You must apply the migrations to your empty local Supabase database.
+`supabase start` starts local Docker containers for PostgreSQL, Auth, Storage,
+and Studio. It returns to the prompt after the containers are running.
 
-```bash
-cd backend
-alembic upgrade head
+### 2. Start FastAPI
+
+In a second terminal, from the repository root:
+
+```powershell
+docker compose up --build
 ```
-*(If you do not have Python/Alembic installed locally, you can also run this inside the container: `docker compose exec backend alembic upgrade head`)*
 
-### Step 5: Start the Frontends
-Open two new terminals to run the frontends:
+Keep this terminal running. Verify FastAPI at <http://localhost:8000/docs>.
 
-**Admin Dashboard:**
-```bash
+### 3. Apply database migrations
+
+In a third terminal, from the repository root:
+
+```powershell
+docker compose exec backend alembic upgrade head
+```
+
+Local Compose deliberately starts Uvicorn directly for hot reload and does not
+run `backend/entrypoint.sh`. Therefore local migrations are explicit. Alembic
+checks `alembic_version` and only applies migrations the database is missing, so
+this command is safe when the database is already current.
+
+### 4. Start the admin web app
+
+In another terminal:
+
+```powershell
 cd admin-frontend
 npm install
 npm run dev
 ```
 
-**Mobile App:**
-```bash
+Open <http://localhost:5173>. `npm install` is normally only required after a
+fresh clone or when dependencies change.
+
+## Quick start: backend + mobile on a physical phone
+
+First complete steps 1-3 from the admin quick start so local Supabase, FastAPI,
+and the database schema are ready. Then use the following terminals.
+
+### 4. Expose FastAPI to the phone
+
+```powershell
+ngrok http 8000
+```
+
+Keep ngrok running and copy its current HTTPS forwarding URL, for example
+`https://example.ngrok-free.app`.
+
+### 5. Expose local Supabase Auth/API to the phone
+
+From the repository root in another terminal:
+
+```powershell
+npx localtunnel --port 54321
+```
+
+Keep LocalTunnel running and copy its current `https://...loca.lt` URL. This
+tunnel is separate from the FastAPI tunnel because Supabase and FastAPI listen
+on different ports.
+
+### 6. Update the mobile environment
+
+Set `worker-mobile-app/.env.local` using the two current tunnel URLs and the
+local Supabase anon key from `npx supabase status`:
+
+```env
+EXPO_PUBLIC_BACKEND_API_URL=https://<current-backend>.ngrok-free.app
+EXPO_PUBLIC_SUPABASE_URL=https://<current-supabase>.loca.lt
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<local anon key>
+```
+
+Do not append `/api` to `EXPO_PUBLIC_BACKEND_API_URL`; the mobile API client adds
+it. Tunnel URLs are temporary and normally change when restarted. Old URLs cause
+`Network request failed` or `503 Tunnel Unavailable` errors.
+
+### 7. Start Metro and Expo Go
+
+With the phone and computer on the same Wi-Fi:
+
+```powershell
 cd worker-mobile-app
 npm install
-npx expo start --tunnel
+npx expo start --lan --clear
 ```
 
-#### Mobile App on Physical Devices (Network Issues)
-If you are testing on a physical device and see a "Something went wrong" blue screen, or the app cannot reach the backend, it is likely due to your Wi-Fi blocking local connections. Choose one of these solutions:
+Scan the QR code with Expo Go. Metro runs on the computer, builds the JavaScript
+bundle, sends it to Expo Go, and pushes updates as files change. `--clear`
+rebuilds Metro's cache, so the first bundle may take longer.
 
-**Option A: Use an Emulator/Simulator (Recommended)**
-Bypass Wi-Fi entirely. Use `10.0.2.2` (Android Emulator) or `localhost` (iOS Simulator) in your `.env.local`.
+If the phone cannot reach Metro over the LAN, retry with:
 
-**Option B: Android Physical Device via USB**
-Connect your phone via USB with debugging enabled, then map your computer's ports directly to the phone. You can leave `.env.local` as `localhost`:
-```bash
-adb reverse tcp:8000 tcp:8000
-adb reverse tcp:54321 tcp:54321
+```powershell
+npx expo start --tunnel --clear
 ```
 
-**Option C: Use localtunnel (For strict Wi-Fi networks) (Go with Option C. It's the quickest way)**
-If you must test over Wi-Fi and it's blocking traffic, you can tunnel your services to the public internet:
-1. Open two new terminals and run:
-   - `npx localtunnel --port 8000`
-   - `npx localtunnel --port 54321`
-2. Update your `worker-mobile-app/.env.local` to use the two public `loca.lt` URLs generated above.
-3. Start Expo with a tunnel: `npx expo start --tunnel --clear ` *(Note: If this crashes with a TypeError, wait 60 seconds and try again, as the free tunneling service has strict rate limits).*
+Expo's tunnel only exposes Metro; it does not expose FastAPI or Supabase. Expo
+tunnels can occasionally time out, so prefer `--lan` when both devices are on the
+same Wi-Fi.
 
----
+### Mobile alternatives
 
-## 🛑 Shutting Down
-When you are done working, cleanly shut down your environments to save system resources:
+- **Android emulator:** use `http://10.0.2.2:8000` for FastAPI and
+  `http://10.0.2.2:54321` for Supabase.
+- **iOS simulator:** use `http://localhost:8000` and
+  `http://localhost:54321`.
+- **Android over USB:** run `adb reverse tcp:8000 tcp:8000` and
+  `adb reverse tcp:54321 tcp:54321`, then use `localhost` URLs on the phone.
 
-```bash
-# 1. Stop the backend
+After changing any `EXPO_PUBLIC_*` value, stop Metro with Ctrl+C and restart it;
+Expo reads `.env.local` when Metro starts.
+
+### Troubleshooting
+
+- **`x-localtunnel-status: Tunnel Unavailable`:** restart the affected tunnel,
+  copy its new URL into `worker-mobile-app/.env.local`, and restart Metro.
+- **Backend Docker build cannot read `.pytest_cache`:** test/tool caches are
+  excluded by `backend/.dockerignore`; rebuild the image.
+- **Backend reports missing tables or columns:** run
+  `docker compose exec backend alembic upgrade head`.
+- **Authentication immediately retries an old session:** Expo SecureStore may
+  contain an earlier local Supabase session. Clear the Expo Go project/app data
+  and sign in again after confirming the URL and anon key.
+- **Check local services:** use `npx supabase status`, open Supabase Studio at
+  <http://127.0.0.1:54323>, and open FastAPI docs at
+  <http://localhost:8000/docs>.
+
+## 🛑 Shutting down
+
+Stop Metro, ngrok, LocalTunnel, and foreground Compose processes with Ctrl+C.
+Then, from the repository root:
+
+```powershell
 docker compose down
-
-# 2. Stop Supabase
 npx supabase stop
 ```
 
@@ -116,4 +244,7 @@ If you need to change the database schema (e.g., add a table, change a column, o
 2. Generate an Alembic migration in the `backend/` folder: `alembic revision -m "description_of_change"`
 3. Write your SQLAlchemy operations or raw SQL in the generated file.
 4. Run `alembic upgrade head` to apply it locally.
-5. Commit the migration file. It will automatically be applied to Staging/Prod on the next deployment.
+5. Commit the migration file on a feature branch and merge it through the normal
+   review flow. Deployed backend images run `backend/entrypoint.sh`, which applies
+   `alembic upgrade head` before Uvicorn starts unless the hosting platform
+   overrides the Docker entrypoint.
