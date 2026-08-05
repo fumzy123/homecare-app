@@ -5,6 +5,7 @@ from app.core.exceptions import AppError
 from app.core.enums import CareArrangement
 from app.models.client import Client
 from app.models.weekly_care_plan import WeeklyCarePlanEntry
+from app.repositories.client_repository import ClientRepository
 from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
 from app.services.authorization_compliance_service import AuthorizationComplianceService
 from app.services.org_service import OrgService
@@ -20,7 +21,8 @@ class WeeklyCarePlanService:
     def __init__(self, db: Session, current_user: SupabaseUser):
         self.db = db
         self.current_user = current_user
-        self.repo = WeeklyCarePlanRepository(db)
+        self.client_repo = ClientRepository(db)
+        self.care_plan_repo = WeeklyCarePlanRepository(db)
         self.compliance = AuthorizationComplianceService(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
 
@@ -28,7 +30,7 @@ class WeeklyCarePlanService:
         self._get_client(client_id)
         return [
             WeeklyCarePlanEntryResponse.model_validate(e)
-            for e in self.repo.list_for_client(client_id)
+            for e in self.care_plan_repo.list_for_client(client_id)
         ]
 
     def replace_for_client(
@@ -63,20 +65,16 @@ class WeeklyCarePlanService:
                 )
                 for e in payload.entries
             ]
-            self.repo.replace_for_client(client_id, entries)
+            self.care_plan_repo.replace_for_client(client_id, entries)
             self.db.commit()
         except Exception:
             self.db.rollback()
             raise
 
-        return [WeeklyCarePlanEntryResponse.model_validate(e) for e in self.repo.list_for_client(client_id)]
+        return [
+            WeeklyCarePlanEntryResponse.model_validate(e)
+            for e in self.care_plan_repo.list_for_client(client_id)
+        ]
 
     def _get_client(self, client_id: UUID) -> Client:
-        client = (
-            self.db.query(Client)
-            .filter(Client.id == client_id, Client.org_id == self.org_id)
-            .first()
-        )
-        if not client:
-            raise AppError(status_code=404, code="NOT_FOUND", message="Client not found")
-        return client
+        return self.client_repo.get_active_client(client_id, self.org_id)
