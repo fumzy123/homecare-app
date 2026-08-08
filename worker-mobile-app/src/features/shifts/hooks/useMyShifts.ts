@@ -1,13 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { getMyShifts } from '../api';
-
-// Formats a local Date as YYYY-MM-DD without UTC conversion.
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+import { getMyShiftDetail, getMyShifts } from '../api';
+import { toDateKey } from '../lib/schedule';
 
 export function useMyShifts(fromDate: string, toDate: string) {
   return useQuery({
@@ -17,10 +10,18 @@ export function useMyShifts(fromDate: string, toDate: string) {
 }
 
 export function useTodayShifts() {
-  const today = toDateString(new Date());
+  const today = toDateKey(new Date());
   return useQuery({
     queryKey: ['my-shifts', today, today],
     queryFn: () => getMyShifts(today, today),
     staleTime: 0,
+  });
+}
+
+export function useMyShiftDetail(shiftId: string, occurrenceDate: string) {
+  return useQuery({
+    queryKey: ['my-shift', shiftId, occurrenceDate],
+    queryFn: () => getMyShiftDetail(shiftId, occurrenceDate),
+    enabled: Boolean(shiftId && occurrenceDate),
   });
 }

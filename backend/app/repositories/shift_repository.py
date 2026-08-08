@@ -48,6 +48,32 @@ class ShiftRepository:
             raise AppError(status_code=404, code="NOT_FOUND", message="Shift not found")
         return shift
 
+    def get_active_shift_for_worker(self, shift_id, org_id, worker_id) -> Shift:
+        """Fetch one active shift scoped to both tenant and assigned worker.
+
+        Returning the same not-found error for missing and unassigned shifts
+        prevents workers from discovering other workers' shift identifiers.
+        """
+        shift = (
+            self.db.query(Shift)
+            .options(
+                joinedload(Shift.worker).joinedload(Employment.person),
+                joinedload(Shift.client),
+                joinedload(Shift.modifications),
+            )
+            .filter(
+                Shift.id == shift_id,
+                Shift.org_id == org_id,
+                Shift.worker_id == worker_id,
+                Shift.status == ShiftStatus.active,
+                Shift.deleted_at == None,  # noqa: E711
+            )
+            .first()
+        )
+        if not shift:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Shift occurrence not found")
+        return shift
+
     def get_active_shifts_for_conflict_check(self, worker_id, org_id) -> list[Shift]:
         """Fetch all active, non-deleted shifts assigned to a worker in an organisation.
 

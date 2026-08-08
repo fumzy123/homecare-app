@@ -17,6 +17,7 @@ from app.schemas.shift import (
     ShiftOccurrenceResponse,
     ShiftUpdateSchema,
     WorkerSummary,
+    WorkerShiftDetailResponse,
 )
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
 from app.repositories.organization_repository import OrganizationRepository
@@ -29,6 +30,8 @@ from app.domain.scheduling import (
     expand_rule_to_time_blocks,
     hours_by_week,
     iso_week_range,
+    resolve_effective_occurrence,
+    shift_has_occurrence_on,
 )
 
 
@@ -139,19 +142,7 @@ class ShiftService:
     @staticmethod
     def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
         """Merge master shift data with an optional modification for one occurrence."""
-        if mod and mod.new_start_time:
-            start_time = mod.new_start_time
-        else:
-            delta = shift.end_time - shift.start_time
-            start_time = datetime.combine(occurrence_date, shift.start_time.timetz())
-
-        if mod and mod.new_end_time:
-            end_time = mod.new_end_time
-        else:
-            delta = shift.end_time - shift.start_time
-            end_time = start_time + delta
-
-        effective_status = mod.completion_status if mod else ShiftCompletionStatus.scheduled
+        effective = resolve_effective_occurrence(shift, occurrence_date, mod)
 
         recurrence_frequency    = None
         recurrence_days_of_week = None
@@ -170,12 +161,12 @@ class ShiftService:
             shift_id=shift.id,
             modification_id=mod.id if mod else None,
             date=occurrence_date,
-            start_time=start_time,
-            end_time=end_time,
-            completion_status=effective_status,
+            start_time=effective.start_time,
+            end_time=effective.end_time,
+            completion_status=effective.completion_status,
             is_modification=mod is not None,
             is_recurring=shift.is_recurring,
-            service_type=shift.service_type,
+            service_type=effective.service_type,
             worker=WorkerSummary(
                 id=worker.id,
                 first_name=worker.person.first_name,
@@ -183,8 +174,8 @@ class ShiftService:
                 email=worker.person.email,
             ),
             client=ClientSummary.model_validate(shift.client),
-            location=shift.location,
-            notes=mod.notes if mod else shift.notes,
+            location=effective.location,
+            notes=effective.instructions,
             recurrence_end_date=shift.recurrence_end_date,
             recurrence_frequency=recurrence_frequency,
             recurrence_days_of_week=recurrence_days_of_week,
@@ -432,6 +423,67 @@ class ShiftService:
             raise
         except Exception as e:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+    async def get_current_worker_shifts(
+        self,
+        from_date: date,
+        to_date: date,
+    ) -> list[ShiftOccurrenceResponse]:
+        """Return occurrences for the signed-in worker only."""
+        if to_date < from_date:
+            raise AppError(
+                status_code=400,
+                code="INVALID_DATE_RANGE",
+                message="to_date must be on or after from_date",
+            )
+        if (to_date - from_date).days > 30:
+            raise AppError(
+                status_code=400,
+                code="SHIFT_DATE_RANGE_TOO_LARGE",
+                message="Shift date range cannot exceed 31 days",
+            )
+        return await self.get_shifts(
+            from_date,
+            to_date,
+            worker_id=str(self.current_employment_id),
+        )
+
+    async def get_current_worker_shift_occurrence(
+        self,
+        shift_id: str,
+        occurrence_date: date,
+    ) -> WorkerShiftDetailResponse:
+        """Return one effective occurrence assigned to the signed-in worker."""
+        shift = self.shift_repo.get_active_shift_for_worker(
+            shift_id,
+            self.org_id,
+            self.current_employment_id,
+        )
+        if not shift_has_occurrence_on(shift, occurrence_date):
+            raise AppError(
+                status_code=404,
+                code="NOT_FOUND",
+                message="Shift occurrence not found",
+            )
+
+        modification = next(
+            (m for m in shift.modifications if m.original_date == occurrence_date),
+            None,
+        )
+        effective = resolve_effective_occurrence(shift, occurrence_date, modification)
+        return WorkerShiftDetailResponse(
+            shift_id=effective.shift_id,
+            occurrence_date=effective.occurrence_date,
+            modification_id=effective.modification_id,
+            start_time=effective.start_time,
+            end_time=effective.end_time,
+            completion_status=effective.completion_status,
+            service_type=effective.service_type,
+            client=ClientSummary.model_validate(shift.client),
+            location=effective.location,
+            instructions=effective.instructions,
+            is_modified=effective.is_modified,
+        )
 
     # ─────────────────────────────────────────
     # 3. Get master shift record
