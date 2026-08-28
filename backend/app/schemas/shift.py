@@ -215,6 +215,22 @@ class ShiftOccurrenceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class WorkerShiftDetailResponse(BaseModel):
+    """Effective values for one occurrence assigned to the current worker."""
+
+    shift_id:          UUID
+    occurrence_date:   date
+    modification_id:   UUID | None
+    start_time:        datetime
+    end_time:          datetime
+    completion_status: ShiftCompletionStatus
+    service_type:      ServiceType | None
+    client:            ClientSummary
+    location:          str | None
+    instructions:      str | None
+    is_modified:       bool
+
+
 # Returned by GET /shifts/stats
 class ShiftStatsResponse(BaseModel):
     scheduled: int
