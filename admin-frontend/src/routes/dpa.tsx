@@ -5,13 +5,19 @@ export const Route = createFileRoute('/dpa')({
   component: DpaPage,
 })
 
-const EFFECTIVE_DATE = 'May 1, 2026'
+const EFFECTIVE_DATE = 'Draft dated August 28, 2026'
 
 function DpaPage() {
   return (
     <div className="min-h-screen bg-cream">
       <LegalNav />
       <div className="max-w-3xl mx-auto px-8 py-16">
+
+        <div className="border border-orange bg-orange/5 px-4 py-3 mb-8 font-mono text-[11px] text-orange leading-relaxed">
+          <strong className="uppercase tracking-[0.08em]">Pre-launch draft:</strong>{' '}
+          This DPA is not final and must not be accepted on behalf of customers until its operational
+          details and subprocessors have been confirmed and reviewed.
+        </div>
 
         <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
           Legal · Version {CURRENT_TERMS_VERSION} · Effective {EFFECTIVE_DATE}
@@ -20,7 +26,7 @@ function DpaPage() {
           Data Processing Agreement
         </h1>
         <p className="font-mono text-[12px] text-ink-soft mb-12 leading-relaxed">
-          This Data Processing Agreement ("DPA") forms part of the Terms of Service between [YOUR COMPANY LEGAL NAME]
+          This Data Processing Agreement ("DPA") forms part of the Terms of Service between Home Care Management Software
           ("Processor") and the home care Agency ("Controller") that has accepted those Terms. It governs
           the processing of personal data on the Agency's behalf through the Homecare platform, in accordance
           with applicable Canadian privacy legislation including PIPEDA.
@@ -34,7 +40,7 @@ function DpaPage() {
             is collected and processed (scheduling, care management, payroll).
           </p>
           <p>
-            [YOUR COMPANY LEGAL NAME] acts as the <strong>Processor</strong> — it processes personal data only on
+            Home Care Management Software acts as the <strong>Processor</strong> — it processes personal data only on
             the Controller's documented instructions and solely to provide the Platform services.
           </p>
         </Section>
@@ -74,11 +80,15 @@ function DpaPage() {
 
         <Section number="5" title="Sub-processors">
           <p>The Processor uses the following sub-processors to deliver the Platform:</p>
+          <ul>
+            <li><strong>Supabase:</strong> managed database, authentication, and storage infrastructure</li>
+            <li><strong>Stripe:</strong> subscription and payment processing</li>
+            <li><strong>Production hosting providers:</strong> web application and API hosting</li>
+            <li><strong>Sentry, when enabled:</strong> application error monitoring</li>
+          </ul>
           <Placeholder>
-            List every third-party service that touches personal data. At minimum this includes your
-            hosting provider, your authentication provider (Supabase), and your email delivery provider.
-            For each, specify: name, location, and purpose. You must notify the Controller of any
-            changes to sub-processors.
+            Confirm each provider&apos;s legal entity, processing location, purpose, and contractual safeguards,
+            and add the selected transactional-email provider before launch.
           </Placeholder>
         </Section>
 
@@ -114,10 +124,13 @@ function DpaPage() {
         </Section>
 
         <Section number="9" title="Cross-border Data Transfers">
+          <p>
+            Some subprocessors may process personal data outside Canada. The Processor will remain
+            accountable for personal data transferred to its subprocessors and will use contractual and
+            technical safeguards appropriate to the sensitivity of the information.
+          </p>
           <Placeholder>
-            Specify whether personal data is transferred outside Canada, to which countries, and what
-            safeguards are in place. PIPEDA requires comparable protection when data leaves Canada.
-            If using Supabase (US-based), this is relevant.
+            Confirm production data regions and identify the countries involved before launch.
           </Placeholder>
         </Section>
 
@@ -130,10 +143,12 @@ function DpaPage() {
         </Section>
 
         <Section number="11" title="Governing Law">
-          <Placeholder>
-            Specify governing jurisdiction (recommend matching the Terms of Service) and the process
-            for resolving disputes under this DPA.
-          </Placeholder>
+          <p>
+            This DPA is governed by the laws of the Province of Newfoundland and Labrador and the federal
+            laws of Canada applicable there. Proceedings relating to this DPA will be brought in the courts
+            located in St. John&apos;s, Newfoundland and Labrador, subject to mandatory applicable law.
+          </p>
+          <Placeholder>Confirm this jurisdiction and dispute-resolution language before launch.</Placeholder>
         </Section>
 
         <Section number="12" title="Execution">
