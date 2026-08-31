@@ -5,13 +5,19 @@ export const Route = createFileRoute('/privacy')({
   component: PrivacyPage,
 })
 
-const EFFECTIVE_DATE = 'May 1, 2026'
+const EFFECTIVE_DATE = 'Draft dated August 28, 2026'
 
 function PrivacyPage() {
   return (
     <div className="min-h-screen bg-cream">
       <LegalNav />
       <div className="max-w-3xl mx-auto px-8 py-16">
+
+        <div className="border border-orange bg-orange/5 px-4 py-3 mb-8 font-mono text-[11px] text-orange leading-relaxed">
+          <strong className="uppercase tracking-[0.08em]">Pre-launch draft:</strong>{' '}
+          This policy is not final. Contact information, infrastructure locations, retention periods,
+          and subprocessors must be confirmed before launch.
+        </div>
 
         <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
           Legal · Version {CURRENT_TERMS_VERSION} · Effective {EFFECTIVE_DATE}
@@ -20,7 +26,7 @@ function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="font-mono text-[12px] text-ink-soft mb-12 leading-relaxed">
-          This Privacy Policy explains how [YOUR COMPANY LEGAL NAME] ("we", "us") collects, uses, stores,
+          This Privacy Policy explains how Home Care Management Software ("we", "us") collects, uses, stores,
           and discloses personal information when you use the Homecare platform. We are committed to
           protecting personal information in accordance with applicable Canadian privacy legislation,
           including the Personal Information Protection and Electronic Documents Act (PIPEDA).
@@ -76,17 +82,26 @@ function PrivacyPage() {
         </Section>
 
         <Section number="5" title="Data Storage and Location">
+          <p>
+            The Platform uses third-party cloud infrastructure, including Supabase, to host application
+            data and authentication services. Personal information may be processed or stored outside
+            Newfoundland and Labrador or outside Canada, where it may be subject to the laws of the
+            jurisdiction in which it is processed.
+          </p>
           <Placeholder>
-            Specify where data is stored (region/country), the cloud infrastructure provider (e.g., Supabase/AWS),
-            and whether any data leaves Canada. PIPEDA requires you to inform users if data is transferred
-            outside Canada and to ensure comparable protection exists.
+            Confirm the production hosting regions and all cross-border transfers before launch.
           </Placeholder>
         </Section>
 
         <Section number="6" title="Data Retention">
+          <p>
+            We retain account and operational data while an Agency&apos;s account is active and only as long
+            afterward as reasonably necessary to provide an export, complete account closure, meet legal
+            obligations, resolve disputes, and maintain security records. Agencies may request an export
+            or deletion, subject to legal and contractual retention requirements.
+          </p>
           <Placeholder>
-            Define how long you retain each category of data (active accounts, terminated accounts, deleted records).
-            Include what happens to an Agency's data when they cancel their subscription (export window, deletion timeline).
+            Set final export and deletion timeframes before launch; this draft does not promise a timeframe.
           </Placeholder>
         </Section>
 
@@ -96,9 +111,14 @@ function PrivacyPage() {
             <li><strong>Service providers</strong> who help us operate the Platform (hosting, authentication, email delivery), under data processing agreements</li>
             <li><strong>Legal authorities</strong> when required by law or court order</li>
           </ul>
+          <p>
+            Current service categories include Supabase for database and authentication, Stripe for
+            subscription payments, the production web and API hosting providers, and Sentry when error
+            monitoring is enabled. Payment-card details are processed by Stripe and are not stored directly
+            by the Platform.
+          </p>
           <Placeholder>
-            List all third-party processors you use (e.g., Supabase, hosting provider, email provider).
-            PIPEDA requires you to take steps to ensure they provide comparable protection.
+            Insert the final legal names and locations of every production subprocessor before launch.
           </Placeholder>
         </Section>
 
@@ -108,10 +128,13 @@ function PrivacyPage() {
             authentication controls, and access restrictions to protect personal information against
             unauthorised access, disclosure, or misuse.
           </p>
+          <p>
+            Controls include authenticated access, role-based permissions, organization-level separation
+            of agency records, restricted production credentials, and monitoring designed to avoid
+            transmitting form contents. No method of storage or transmission is completely secure.
+          </p>
           <Placeholder>
-            Add specifics: encryption at rest, backup practices, penetration testing cadence, breach
-            notification procedure (PIPEDA requires notification of breaches that pose a real risk of
-            significant harm).
+            Confirm encryption-at-rest, backup, restoration, security-testing, and incident-response practices before launch.
           </Placeholder>
         </Section>
 
@@ -123,7 +146,10 @@ function PrivacyPage() {
             <li>Withdraw consent, subject to legal or contractual restrictions</li>
             <li>Lodge a complaint with the Office of the Privacy Commissioner of Canada</li>
           </ul>
-          <p>To exercise these rights, contact us at <Placeholder inline>privacy@[yourdomain].com</Placeholder>.</p>
+          <p>
+            A dedicated privacy contact method will be published here before the Platform accepts customers.
+            Until then, this draft must not be presented as a final public policy.
+          </p>
         </Section>
 
         <Section number="10" title="Cookies and Tracking">
@@ -142,9 +168,9 @@ function PrivacyPage() {
         </Section>
 
         <Section number="12" title="Contact">
+          <p>Home Care Management Software is based in St. John&apos;s, Newfoundland and Labrador, Canada.</p>
           <Placeholder>
-            Provide the name and contact information of your Privacy Officer (required under PIPEDA for
-            organisations that collect personal information commercially). Include mailing address and email.
+            Appoint a privacy officer and add a monitored privacy email and service or mailing address before launch.
           </Placeholder>
         </Section>
 

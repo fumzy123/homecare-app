@@ -22,6 +22,7 @@ from app.schemas.shift import (
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
+from app.repositories.client_repository import ClientRepository
 from app.domain.scheduling import (
     DEFAULT_RECURRENCE_HORIZON_DAYS,
     SchedulingChecker,
@@ -43,6 +44,7 @@ class ShiftService:
         self.shift_repo = ShiftRepository(db)
         self.modification_repo = ShiftModificationRepository(db)
         self.employment_repo = EmploymentRepository(db)
+        self.client_repo = ClientRepository(db)
         org_repo = OrganizationRepository(db)
         current_employment = org_repo.get_active_employment_for_user(current_user.id)
         if not current_employment:
@@ -59,6 +61,16 @@ class ShiftService:
 
     def _get_active_shift(self, shift_id: str) -> Shift:
         return self.shift_repo.get_active_shift(shift_id, self.org_id)
+
+    def _validate_shift_participants(self, client_id, worker_id):
+        """Resolve shift participants within the authenticated organization.
+
+        Both lookups deliberately return not-found for foreign-tenant IDs so a
+        caller cannot use this endpoint to discover another agency's records.
+        """
+        client = self.client_repo.get_active_client(client_id, self.org_id)
+        self.employment_repo.get_active_by_id_and_org(worker_id, self.org_id)
+        return client
 
     @staticmethod
     def _build_rrule_string(recurrence) -> str:
@@ -186,6 +198,10 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def create_shift(self, payload: ShiftCreateSchema):
         try:
+            client = self._validate_shift_participants(
+                payload.client_id,
+                payload.worker_id,
+            )
             is_recurring = payload.recurrence is not None
             recurrence_rule = None
             recurrence_end_date = None
@@ -210,11 +226,7 @@ class ShiftService:
             if payload.location:
                 location = payload.location
             else:
-                client = self.shift_repo.get_client_by_id(payload.client_id)
-                if client:
-                    location = f"{client.street}, {client.city}, {client.province} {client.postal_code}"
-                else:
-                    location = None
+                location = f"{client.street}, {client.city}, {client.province} {client.postal_code}"
 
             shift = Shift(
                 org_id=self.org_id,
@@ -506,6 +518,11 @@ class ShiftService:
             updates = payload.model_dump(exclude_unset=True, exclude={"override_hours_check"})
 
             new_worker_id = payload.worker_id or shift.worker_id
+            if payload.worker_id is not None or payload.client_id is not None:
+                self._validate_shift_participants(
+                    payload.client_id or shift.client_id,
+                    new_worker_id,
+                )
             new_start_time = payload.start_time or shift.start_time
             new_end_time = payload.end_time or shift.end_time
             if new_end_time <= new_start_time:
@@ -724,6 +741,12 @@ class ShiftService:
         try:
             shift = self._get_active_shift(shift_id)
             occurrence_date = payload.occurrence_date
+
+            if payload.worker_id is not None or payload.client_id is not None:
+                self._validate_shift_participants(
+                    payload.client_id or shift.client_id,
+                    payload.worker_id or shift.worker_id,
+                )
 
             if occurrence_date <= shift.start_time.date():
                 new_worker_id = payload.worker_id or shift.worker_id

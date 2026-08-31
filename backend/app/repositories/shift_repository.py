@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.models.employment import Employment
-from app.models.client import Client
 from app.core.enums import ShiftStatus
 from app.core.exceptions import AppError
 
@@ -145,20 +144,6 @@ class ShiftRepository:
         if client_id:
             query = query.filter(Shift.client_id == client_id)
         return query.all()
-
-    def get_client_by_id(self, client_id) -> Client | None:
-        """Fetch a client by primary key with no additional filters.
-
-        Used to look up the client's address for shift location fallback.
-        Returns None if no record exists.
-
-        Args:
-            client_id: Primary key of the client to fetch.
-
-        Returns:
-            The matching Client ORM instance, or None if not found.
-        """
-        return self.db.query(Client).filter(Client.id == client_id).first()
 
     def get_active_shifts_for_client(self, client_id, org_id) -> list[Shift]:
         """Fetch all active, non-deleted shifts assigned to a client in an organisation.
