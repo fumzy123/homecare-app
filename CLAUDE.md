@@ -387,7 +387,6 @@ differ. See [[project_org_member_architecture]] for the worker side.
 
 ### 2. Scheduling
 - **Shift Creation**: Single shift or multiple shifts bulk creation
-- **Calendar Integration**: Auto-add to worker's Google Calendar via email
 
 ---
 
