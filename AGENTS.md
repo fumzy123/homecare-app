@@ -259,16 +259,15 @@ npx expo start --tunnel --clear
 
 ---
 
-## Temporary: Email Confirmation Bypass (REMOVE AFTER DEMO)
+## Email Confirmation
 
-Email confirmation is currently **bypassed** for the demo (added 2026-05-21). Registration goes directly to the dashboard with no email sent.
-
-**What was changed — revert all of this after the demo:**
-- `backend/app/schemas/organization.py` — Added `RegisterDirectSchema`
-- `backend/app/services/org_service.py` — Added `register_organization_direct()`
-- `backend/app/api/routes/organization.py` — Added `POST /api/organization/register-direct`
-- `admin-frontend/src/features/auth/api.ts` — Added `authApi.registerDirect()`
-- `admin-frontend/src/features/auth/components/RegisterForm.tsx` — Bypasses email check
+Registration uses Supabase sign-up and sends a confirmation email. The demo
+`register-direct` bypass has been removed. Supabase must have Confirm email enabled.
+After confirmation, `/confirm-email` creates the organization and records the
+accepted terms. Pending registration details (never passwords) are stored in
+localStorage, so open the email in the same browser and origin used to register.
+Allow `/confirm-email` for each frontend URL in Supabase Auth URL Configuration.
+Templates live in Supabase Authentication → Emails; Resend handles SMTP delivery.
 
 ---
 

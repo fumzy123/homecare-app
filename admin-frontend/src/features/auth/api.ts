@@ -14,7 +14,7 @@ export const authApi = {
   },
 
   resendConfirmationEmail: async (email: string) => {
-    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${window.location.origin}/confirm-email` } })
     if (error) throw error
   },
 
@@ -35,17 +35,6 @@ export const authApi = {
     last_name: string
   }) => {
     const { data } = await apiClient.post('/api/organization', payload)
-    return data
-  },
-
-  registerDirect: async (payload: {
-    email: string
-    password: string
-    organization_name: string
-    first_name: string
-    last_name: string
-  }) => {
-    const { data } = await apiClient.post('/api/organization/register-direct', payload)
     return data
   },
 

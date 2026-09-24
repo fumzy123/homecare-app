@@ -1,3 +1,4 @@
+import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from '@tanstack/react-router'
 import { supabase } from '@/shared/lib/supabase'
@@ -12,6 +13,7 @@ interface PendingRegistration {
   first_name: string
   last_name:  string
   email:      string
+  terms_version?: string
 }
 
 export function ConfirmEmailForm() {
@@ -26,17 +28,36 @@ export function ConfirmEmailForm() {
 
   useEffect(() => {
     if (error) return
+    let disposed = false
 
-    const complete = async () => {
-      if (completing.current) return
+    const complete = async (session: Session) => {
+      if (disposed || completing.current) return
       completing.current = true
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) {
         setError('wrong-browser')
         return
       }
-      const pending: PendingRegistration = JSON.parse(raw)
       try {
+        const pending: PendingRegistration = JSON.parse(raw)
+        if (pending.email.toLowerCase() !== session.user.email?.toLowerCase()) {
+          setError('Please sign in with the email address you used to register.')
+          return
+        }
+        if (!session.user.email_confirmed_at) {
+          setError('Please confirm your email before continuing.')
+          return
+        }
+        if (pending.terms_version !== CURRENT_TERMS_VERSION) {
+          setError('Please return to registration and accept the current terms.')
+          return
+        }
+        useAuthStore.getState().setAuth(session.access_token, {
+          id: session.user.id, email: session.user.email ?? '',
+          firstName: session.user.user_metadata?.first_name ?? '',
+          lastName: session.user.user_metadata?.last_name ?? '',
+          role: session.user.user_metadata?.role ?? '',
+        })
         await authApi.registerOrganization({
           organization_name: pending.org_name,
           first_name:        pending.first_name,
@@ -46,7 +67,15 @@ export function ConfirmEmailForm() {
         // wrote into user_metadata. Without this, the stored token has no role
         // and any future auth state event (tab focus, auto-refresh) overwrites
         // Zustand back to role='' and triggers the worker-access screen.
-        await supabase.auth.refreshSession()
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) throw refreshError
+        if (!refreshed.session) throw new Error('Please sign in to finish setup.')
+        useAuthStore.getState().setAuth(refreshed.session.access_token, {
+          id: refreshed.session.user.id, email: refreshed.session.user.email ?? '',
+          firstName: refreshed.session.user.user_metadata?.first_name ?? '',
+          lastName: refreshed.session.user.user_metadata?.last_name ?? '',
+          role: refreshed.session.user.user_metadata?.role ?? '',
+        })
         await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
         useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
         localStorage.removeItem(STORAGE_KEY)
@@ -57,16 +86,21 @@ export function ConfirmEmailForm() {
     }
 
     // Handle the case where the session already exists (same-browser, token processed instantly)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { complete(); return }
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      if (disposed) return
+      if (sessionError) { setError(sessionError.message); return }
+      if (session) { void complete(session); return }
+      if (!completing.current) setError('Open the confirmation link from your email to continue.')
     })
 
     // Handle the SIGNED_IN event fired when Supabase processes the confirmation token
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) complete()
+      if (event === 'SIGNED_IN' && session) {
+        window.setTimeout(() => { void complete(session) }, 0)
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => { disposed = true; subscription.unsubscribe() }
   }, [navigate, error])
 
   if (error === 'wrong-browser') {
