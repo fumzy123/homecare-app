@@ -11,7 +11,8 @@ from app.models.organization import Organization
 
 router = APIRouter(prefix="/legal", tags=["Legal"])
 
-CURRENT_TERMS_VERSION = "0.0"
+# Keep aligned with the version presented by admin-frontend/src/shared/lib/legal.ts.
+CURRENT_TERMS_VERSION = "0.1-draft"
 
 
 class TermsStatusResponse(BaseModel):
