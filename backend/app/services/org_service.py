@@ -5,7 +5,7 @@ from supabase_auth.types import User as SupabaseUser
 from app.models.person import Person
 from app.models.employment import Employment
 from app.models.organization import Organization
-from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, RegisterDirectSchema
+from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema
 from app.core.enums import OrgMemberRole, EmploymentStatus
 from app.core.exceptions import AppError
 from app.core.config import settings
@@ -46,6 +46,25 @@ class OrgService:
     # 1. Register a new organization + owner
     # ─────────────────────────────────────────
     async def register_organization(self, payload: RegisterOrganizationSchema):
+        if not self.current_user.email_confirmed_at:
+            raise AppError(status_code=403, code="EMAIL_NOT_CONFIRMED", message="Confirm your email before registering an organization")
+        existing_person = self.person_repo.get_by_supabase_user_id(self.current_user.id)
+        if existing_person:
+            employment = self.org_repo.get_active_employment_for_user(self.current_user.id)
+            if not employment or employment.role != OrgMemberRole.owner:
+                raise AppError(status_code=409, code="ALREADY_REGISTERED", message="Your profile already exists. Please sign in.")
+            # A prior attempt may have committed before auth metadata or terms failed.
+            # Retry only the metadata update, using trusted persisted profile values.
+            get_supabase_client().auth.admin.update_user_by_id(
+                str(self.current_user.id),
+                {"user_metadata": {
+                    "first_name": existing_person.first_name,
+                    "last_name": existing_person.last_name,
+                    "role": OrgMemberRole.owner.value,
+                    "org_id": str(employment.org_id),
+                }},
+            )
+            return {"message": "Organization already registered", "org_id": str(employment.org_id), "user_id": str(self.current_user.id)}
         supabase = get_supabase_client()
         org_id = None
         try:
@@ -97,78 +116,6 @@ class OrgService:
             raise
         except Exception as e:
             self.db.rollback()
-            if org_id is None:
-                try:
-                    supabase.auth.admin.delete_user(str(self.current_user.id))
-                except Exception:
-                    pass
-            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
-
-    # ─────────────────────────────────────────
-    # 1b. Register org without email confirmation (demo bypass)
-    # ─────────────────────────────────────────
-    async def register_organization_direct(self, payload: RegisterDirectSchema):
-        supabase = get_supabase_client()
-        supabase_user_id = None
-        org_id = None
-        try:
-            result = supabase.auth.admin.create_user({
-                "email": payload.email,
-                "password": payload.password,
-                "email_confirm": True,
-            })
-            user = result.user
-            supabase_user_id = str(user.id)
-
-            person = Person(
-                supabase_user_id=user.id,
-                first_name=payload.first_name,
-                last_name=payload.last_name,
-                email=payload.email,
-            )
-            self.person_repo.add(person)
-            self.db.flush()
-
-            new_org = Organization(
-                id=uuid.uuid4(),
-                name=payload.organization_name,
-                owner_id=person.id,
-            )
-            self.org_repo.add(new_org)
-            self.org_repo.flush()
-            org_id = new_org.id
-
-            employment = Employment(
-                person_id=person.id,
-                org_id=org_id,
-                role=OrgMemberRole.owner,
-                employment_status=EmploymentStatus.active,
-            )
-            self.employment_repo.add(employment)
-            self.db.commit()
-
-            supabase.auth.admin.update_user_by_id(
-                supabase_user_id,
-                {"user_metadata": {
-                    "first_name": payload.first_name,
-                    "last_name": payload.last_name,
-                    "role": OrgMemberRole.owner.value,
-                    "org_id": str(org_id),
-                }},
-            )
-
-            return {"message": "Organization registered successfully", "org_id": str(org_id), "user_id": supabase_user_id}
-
-        except AppError:
-            self.db.rollback()
-            raise
-        except Exception as e:
-            self.db.rollback()
-            if supabase_user_id and org_id is None:
-                try:
-                    supabase.auth.admin.delete_user(supabase_user_id)
-                except Exception:
-                    pass
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
     # ─────────────────────────────────────────

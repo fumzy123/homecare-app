@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.models.employment import Employment
-from app.models.client import Client
 from app.core.enums import ShiftStatus
 from app.core.exceptions import AppError
 
@@ -46,6 +45,32 @@ class ShiftRepository:
         )
         if not shift:
             raise AppError(status_code=404, code="NOT_FOUND", message="Shift not found")
+        return shift
+
+    def get_active_shift_for_worker(self, shift_id, org_id, worker_id) -> Shift:
+        """Fetch one active shift scoped to both tenant and assigned worker.
+
+        Returning the same not-found error for missing and unassigned shifts
+        prevents workers from discovering other workers' shift identifiers.
+        """
+        shift = (
+            self.db.query(Shift)
+            .options(
+                joinedload(Shift.worker).joinedload(Employment.person),
+                joinedload(Shift.client),
+                joinedload(Shift.modifications),
+            )
+            .filter(
+                Shift.id == shift_id,
+                Shift.org_id == org_id,
+                Shift.worker_id == worker_id,
+                Shift.status == ShiftStatus.active,
+                Shift.deleted_at == None,  # noqa: E711
+            )
+            .first()
+        )
+        if not shift:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Shift occurrence not found")
         return shift
 
     def get_active_shifts_for_conflict_check(self, worker_id, org_id) -> list[Shift]:
@@ -119,20 +144,6 @@ class ShiftRepository:
         if client_id:
             query = query.filter(Shift.client_id == client_id)
         return query.all()
-
-    def get_client_by_id(self, client_id) -> Client | None:
-        """Fetch a client by primary key with no additional filters.
-
-        Used to look up the client's address for shift location fallback.
-        Returns None if no record exists.
-
-        Args:
-            client_id: Primary key of the client to fetch.
-
-        Returns:
-            The matching Client ORM instance, or None if not found.
-        """
-        return self.db.query(Client).filter(Client.id == client_id).first()
 
     def get_active_shifts_for_client(self, client_id, org_id) -> list[Shift]:
         """Fetch all active, non-deleted shifts assigned to a client in an organisation.

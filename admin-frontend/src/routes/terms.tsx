@@ -5,13 +5,18 @@ export const Route = createFileRoute('/terms')({
   component: TermsPage,
 })
 
-const EFFECTIVE_DATE = 'May 1, 2026'
+const EFFECTIVE_DATE = 'Draft dated August 28, 2026'
 
 function TermsPage() {
   return (
     <div className="min-h-screen bg-cream">
       <LegalNav />
       <div className="max-w-3xl mx-auto px-8 py-16">
+
+        <div className="border border-orange bg-orange/5 px-4 py-3 mb-8 font-mono text-[11px] text-orange leading-relaxed">
+          <strong className="uppercase tracking-[0.08em]">Pre-launch draft:</strong>{' '}
+          These terms are not final and must be reviewed before the Platform accepts customers.
+        </div>
 
         <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-4">
           Legal · Version {CURRENT_TERMS_VERSION} · Effective {EFFECTIVE_DATE}
@@ -29,7 +34,7 @@ function TermsPage() {
         <Section number="1" title="Definitions">
           <p><strong>"Platform"</strong> means the Homecare web application and related services.</p>
           <p><strong>"Agency"</strong> or <strong>"you"</strong> means the home care organisation that has registered an account.</p>
-          <p><strong>"Provider"</strong> or <strong>"we"</strong> means [YOUR COMPANY LEGAL NAME], the operator of the Platform.</p>
+          <p><strong>"Provider"</strong> or <strong>"we"</strong> means Home Care Management Software, the operator of the Platform.</p>
           <p><strong>"Users"</strong> means the Agency's administrators and staff who access the Platform.</p>
           <Placeholder>Add definitions for any other key terms your lawyer identifies.</Placeholder>
         </Section>
@@ -116,10 +121,13 @@ function TermsPage() {
         </Section>
 
         <Section number="11" title="Governing Law and Dispute Resolution">
-          <Placeholder>
-            Specify the governing jurisdiction (e.g., Province of Ontario, Canada), and your preferred
-            dispute resolution process (negotiation → mediation → arbitration or litigation).
-          </Placeholder>
+          <p>
+            These Terms are governed by the laws of the Province of Newfoundland and Labrador and the
+            federal laws of Canada applicable there. Subject to mandatory legal rights, proceedings
+            relating to these Terms will be brought in the courts located in St. John&apos;s, Newfoundland
+            and Labrador.
+          </p>
+          <Placeholder>Confirm the governing-law and dispute-resolution language before launch.</Placeholder>
         </Section>
 
         <Section number="12" title="Changes to These Terms">

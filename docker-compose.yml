@@ -36,4 +36,4 @@ services:
     # We don't want migrations running on every file save.
     # --reload tells uvicorn to watch for file changes and restart automatically —
     # same live-reload behaviour you have when running uvicorn directly today.
-    entrypoint: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    entrypoint: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app

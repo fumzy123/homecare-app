@@ -73,6 +73,7 @@ export interface ShiftUpdatePayload {
   notes?: string
   recurrence_end_date?: string
   recurrence?: { frequency: RecurrenceFrequency; days_of_week?: DayOfWeek[]; recurrence_end_date?: string }
+  override_hours_check?: boolean
 }
 
 export interface ShiftModificationPayload {

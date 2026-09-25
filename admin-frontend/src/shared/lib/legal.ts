@@ -1,6 +1,7 @@
 import { apiClient } from './api-client'
 
-export const CURRENT_TERMS_VERSION = '0.0'
+// Pre-launch draft. Change this only when a reviewed legal version is released.
+export const CURRENT_TERMS_VERSION = '0.1-draft'
 
 export const legalApi = {
   getStatus: () =>

@@ -169,18 +169,21 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     if (shift.is_recurring) {
       setShowSaveModal(true)
     } else {
-      saveMutation.mutate(async () => {
+      const saveNonRecurring = async (override = false) => {
         await shiftsApi.updateShift(shift.shift_id, {
           worker_id: workerId, client_id: clientId,
           start_time: `${date}T${startTime}:00`, end_time: `${endDate}T${endTime}:00`,
           location: location || undefined, notes: notes || undefined,
+          override_hours_check: override,
         })
         if (completionStatus !== shift.completion_status) {
           await shiftsApi.createModification(shift.shift_id, {
             original_date: shift.date, completion_status: completionStatus,
           })
         }
-      })
+      }
+      pendingOverrideFnRef.current = () => saveMutation.mutate(() => saveNonRecurring(true))
+      saveMutation.mutate(() => saveNonRecurring())
     }
   }
 
@@ -245,6 +248,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         recurrence_end_date: recurrenceEndDate || undefined,
         recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
         notes: notes || undefined,
+        override_hours_check: override,
       }))
     }
   }

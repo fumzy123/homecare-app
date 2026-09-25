@@ -46,7 +46,7 @@ export function NextShiftCard({ shift, shiftIndex, totalToday, onDetailsPress }:
   const initials = getInitials(client.first_name, client.last_name);
   const age = getClientAge(client.date_of_birth);
   const duration = formatDuration(start_time, end_time, 'long');
-  const focus = formatFocus(client.service_type, client.medical_conditions);
+  const focus = formatFocus(shift.service_type, client.medical_conditions);
   const address = `${client.street}, ${client.city}`;
 
   const now = new Date();

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { authApi } from '@/features/auth/api'
 import { Eye, EyeOff } from 'lucide-react'
+import { VerificationNotice } from './VerificationNotice'
 
 
 const schema = z.object({
@@ -18,6 +19,7 @@ export function LoginForm() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null)
 
 
   const form = useForm({
@@ -28,10 +30,19 @@ export function LoginForm() {
         await authApi.signIn(value.email, value.password)
         navigate({ to: '/dashboard' })
       } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'email_not_confirmed') {
+          setUnconfirmedEmail(value.email)
+          return
+        }
         setServerError(err instanceof Error ? err.message : 'Invalid email or password')
       }
     },
   })
+
+  if (unconfirmedEmail) return <div className="flex flex-col gap-4">
+    <VerificationNotice initialEmail={unconfirmedEmail} />
+    <button onClick={() => setUnconfirmedEmail(null)} className="font-mono text-[12px] underline text-left">Back to sign in</button>
+  </div>
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="flex flex-col gap-5">

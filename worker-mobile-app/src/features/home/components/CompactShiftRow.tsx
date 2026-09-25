@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/shared/components/ui';
 import { getInitials } from '@/shared/utils/getInitials';
 import { formatDuration } from '@/shared/utils/formatDuration';
+import { serviceTypeLabel } from '@/features/shifts/lib/schedule';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 function formatHour(iso: string): string {
@@ -11,13 +12,6 @@ function formatHour(iso: string): string {
     minute: '2-digit',
     hour12: true,
   });
-}
-
-function formatServiceType(raw: string): string {
-  return raw
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
 }
 
 interface CompactShiftRowProps {
@@ -30,7 +24,7 @@ export function CompactShiftRow({ shift, onPress, className = '' }: CompactShift
   const { client, start_time, end_time } = shift;
   const initials = getInitials(client.first_name, client.last_name);
   const duration = formatDuration(start_time, end_time, 'short');
-  const serviceLabel = formatServiceType(client.service_type);
+  const serviceLabel = serviceTypeLabel(shift.service_type);
   const address = client.city ? `${client.street} · ${client.city}` : client.street;
 
   return (

@@ -8,11 +8,14 @@ functions (no I/O); `SchedulingChecker` adds the repository-backed checks
 This is the canonical home for the RRULE expansion and the conflict/overtime
 rules — they used to live as private methods on `ShiftService`.
 """
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from uuid import UUID
 from dateutil.rrule import rrulestr
 from sqlalchemy.orm import Session
-from app.core.enums import RecurrenceFrequency, ShiftCompletionStatus, WeekDay
+from app.core.enums import RecurrenceFrequency, ServiceType, ShiftCompletionStatus, WeekDay
 from app.models.shift import Shift
+from app.models.shift_modification import ShiftModification
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.employment_repository import EmploymentRepository
 
@@ -76,6 +79,69 @@ DEFAULT_RECURRENCE_HORIZON_DAYS = 365
 
 
 # ── Occurrence math (pure, no I/O) ────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class EffectiveShiftOccurrence:
+    """Final business values for one concrete occurrence of a shift series."""
+
+    shift_id: UUID
+    occurrence_date: date
+    modification_id: UUID | None
+    start_time: datetime
+    end_time: datetime
+    completion_status: ShiftCompletionStatus
+    service_type: ServiceType | None
+    location: str | None
+    instructions: str | None
+    is_modified: bool
+
+
+def resolve_effective_occurrence(
+    shift: Shift,
+    occurrence_date: date,
+    modification: ShiftModification | None,
+) -> EffectiveShiftOccurrence:
+    """Merge a shift master with the optional override for one occurrence.
+
+    ``None`` modification notes inherit the master instructions. An explicit
+    empty string remains an intentional per-occurrence override.
+    """
+    duration = shift.end_time - shift.start_time
+    base_start = datetime.combine(occurrence_date, shift.start_time.timetz())
+    start_time = (
+        modification.new_start_time
+        if modification and modification.new_start_time is not None
+        else base_start
+    )
+    end_time = (
+        modification.new_end_time
+        if modification and modification.new_end_time is not None
+        else start_time + duration
+    )
+    completion_status = (
+        modification.completion_status
+        if modification is not None
+        else ShiftCompletionStatus.scheduled
+    )
+    instructions = (
+        modification.notes
+        if modification and modification.notes is not None
+        else shift.notes
+    )
+
+    return EffectiveShiftOccurrence(
+        shift_id=shift.id,
+        occurrence_date=occurrence_date,
+        modification_id=modification.id if modification else None,
+        start_time=start_time,
+        end_time=end_time,
+        completion_status=completion_status,
+        service_type=shift.service_type,
+        location=shift.location,
+        instructions=instructions,
+        is_modified=modification is not None,
+    )
+
 
 def expand_occurrences(shift: Shift, from_date: date, to_date: date) -> list[date]:
     """Return all occurrence dates for a shift within the given date range."""

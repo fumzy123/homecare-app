@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useBillingStatus } from '@/features/billing/hooks/useBillingStatus'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { Menu } from 'lucide-react'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
@@ -10,12 +10,14 @@ import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
-import { billingApi } from '@/features/billing/api'
 
 export const Route = createFileRoute('/_protected')({
-  beforeLoad: () => {
-    const { accessToken } = useAuthStore.getState()
-    if (!accessToken) throw redirect({ to: '/login' })
+  beforeLoad: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw redirect({ to: '/login' })
+    if (!user.email_confirmed_at || (user.user_metadata?.registration && !user.user_metadata?.org_id)) {
+      throw redirect({ to: '/confirm-email' })
+    }
   },
   component: ProtectedLayout,
 })
@@ -86,11 +88,7 @@ function ProtectedLayout() {
   const { user } = useAuthStore()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
-  const { data: billingStatus, isLoading: billingLoading } = useQuery({
-    queryKey: ['billing-status', user?.id],
-    queryFn:  billingApi.getStatus,
-    staleTime: 5 * 60 * 1000,
-  })
+  const { data: billingStatus, isLoading: billingLoading } = useBillingStatus(user?.id)
 
   if (!isAdminRole(user?.role)) {
     return <WorkerAccessDenied />

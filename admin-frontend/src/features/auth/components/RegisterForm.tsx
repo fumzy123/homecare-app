@@ -1,12 +1,11 @@
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { Eye, EyeOff } from 'lucide-react'
+import { VerificationNotice } from './VerificationNotice'
 import { authApi } from '@/features/auth/api'
-import { supabase } from '@/shared/lib/supabase'
-import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
-import { useAuthStore } from '@/shared/stores/auth'
+import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
 const schema = z.object({
   organization_name: z.string().min(2, 'Organization name is required'),
@@ -27,7 +26,7 @@ function FieldError({ error }: { error: unknown }) {
 }
 
 export function RegisterForm() {
-  const navigate = useNavigate()
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null)
   const [serverError, setServerError]     = useState<string | null>(null)
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [showPassword, setShowPassword]   = useState(false)
@@ -38,24 +37,33 @@ export function RegisterForm() {
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await authApi.registerDirect({
-          email:             value.email,
-          password:          value.password,
-          organization_name: value.organization_name,
-          first_name:        value.first_name,
-          last_name:         value.last_name,
-        })
-        const { error } = await supabase.auth.signInWithPassword({ email: value.email, password: value.password })
-        if (error) throw error
-        await supabase.auth.refreshSession()
-        await legalApi.acceptTerms(CURRENT_TERMS_VERSION)
-        useAuthStore.getState().setTermsAccepted(CURRENT_TERMS_VERSION)
-        navigate({ to: '/dashboard' })
+        if (!termsAccepted) return
+        const validation = schema.safeParse(value)
+        if (!validation.success) throw new Error(validation.error.issues[0].message)
+        if (value.password !== value.confirm_password) throw new Error('Passwords do not match')
+        const email = value.email.trim()
+        localStorage.setItem('pending_registration', JSON.stringify({
+          org_name: value.organization_name,
+          first_name: value.first_name,
+          last_name: value.last_name,
+          email,
+          terms_version: CURRENT_TERMS_VERSION,
+        }))
+        const data = await authApi.signUp(email, value.password, { organization_name: value.organization_name, first_name: value.first_name, last_name: value.last_name })
+        if (data.session) {
+          window.location.assign('/confirm-email')
+          return
+        }
+        setConfirmationEmail(email)
       } catch (err: unknown) {
         setServerError(err instanceof Error ? err.message : 'Something went wrong')
       }
     },
   })
+
+  if (confirmationEmail) {
+    return <VerificationNotice initialEmail={confirmationEmail} onEdit={() => setConfirmationEmail(null)} />
+  }
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }} className="flex flex-col gap-5">

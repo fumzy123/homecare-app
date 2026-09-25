@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from slowapi.util import get_remote_address
-from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, OrganizationResponseSchema, RegisterDirectSchema
+from app.schemas.organization import RegisterOrganizationSchema, OrganizationUpdateSchema, OrganizationResponseSchema
 from app.services.org_service import OrgService
 from app.core.security import require_admin, require_owner, get_current_user
 from app.core.limiter import limiter
@@ -16,13 +16,6 @@ def get_org_user_service(
 ) -> OrgService:
     # User is authenticated but not yet an org member — no org_id to resolve
     return OrgService(db, current_user)
-
-
-def get_org_public_service(
-    db: Session = Depends(get_db),
-) -> OrgService:
-    # No auth — demo/direct registration bypass
-    return OrgService(db)
 
 
 def get_org_admin_service(
@@ -52,19 +45,6 @@ async def register_organization(
     org_service: OrgService = Depends(get_org_user_service),
 ):
     return await org_service.register_organization(payload)
-
-
-# ─────────────────────────────────────────
-# 1b. Register without email confirmation (demo / dev bypass)
-# ─────────────────────────────────────────
-@router.post("/register-direct", response_model=None)
-@limiter.limit("5/minute", key_func=get_remote_address)
-async def register_organization_direct(
-    request: Request,
-    payload: RegisterDirectSchema,
-    org_service: OrgService = Depends(get_org_public_service),
-):
-    return await org_service.register_organization_direct(payload)
 
 
 # ─────────────────────────────────────────
