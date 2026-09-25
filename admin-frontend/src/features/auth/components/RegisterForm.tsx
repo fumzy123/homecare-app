@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Eye, EyeOff } from 'lucide-react'
+import { VerificationNotice } from './VerificationNotice'
 import { authApi } from '@/features/auth/api'
 import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
@@ -48,7 +49,7 @@ export function RegisterForm() {
           email,
           terms_version: CURRENT_TERMS_VERSION,
         }))
-        const data = await authApi.signUp(email, value.password)
+        const data = await authApi.signUp(email, value.password, { organization_name: value.organization_name, first_name: value.first_name, last_name: value.last_name })
         if (data.session) {
           window.location.assign('/confirm-email')
           return
@@ -61,16 +62,7 @@ export function RegisterForm() {
   })
 
   if (confirmationEmail) {
-    return (
-      <div className="flex flex-col gap-5">
-        <p className="font-mono text-[12px] text-ink leading-relaxed">
-          Check {confirmationEmail} for your confirmation link. Open it in this browser to finish setting up your agency.
-          If you already have an account, sign in instead.
-        </p>
-        <p className="font-mono text-[11px] text-muted">Check your spam folder if the email has not arrived.</p>
-        <Link to="/login" className="font-mono text-[12px] underline">Back to sign in</Link>
-      </div>
-    )
+    return <VerificationNotice initialEmail={confirmationEmail} onEdit={() => setConfirmationEmail(null)} />
   }
 
   return (

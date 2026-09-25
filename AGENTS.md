@@ -264,8 +264,9 @@ npx expo start --tunnel --clear
 Registration uses Supabase sign-up and sends a confirmation email. The demo
 `register-direct` bypass has been removed. Supabase must have Confirm email enabled.
 After confirmation, `/confirm-email` creates the organization and records the
-accepted terms. Pending registration details (never passwords) are stored in
-localStorage, so open the email in the same browser and origin used to register.
+accepted terms. Signup profile details (never passwords or roles) are stored in Supabase user
+metadata so confirmation works across browsers. Local storage remembers terms
+acceptance for the original browser; other browsers request acceptance again.
 Allow `/confirm-email` for each frontend URL in Supabase Auth URL Configuration.
 Templates live in Supabase Authentication → Emails; Resend handles SMTP delivery.
 

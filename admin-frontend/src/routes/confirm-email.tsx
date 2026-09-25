@@ -8,7 +8,7 @@ export const Route = createFileRoute('/confirm-email')({
 
 function ConfirmEmailPage() {
   return (
-    <div className="flex h-screen bg-cream">
+    <div className="flex min-h-screen bg-cream">
 
       {/* ── Left: Editorial panel ── */}
       <div className="flex-1 flex flex-col justify-between px-16 py-14 border-r border-ink max-md:hidden">
@@ -34,7 +34,7 @@ function ConfirmEmailPage() {
             <span className="italic text-muted">email address.</span>
           </h1>
           <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
-            Hang tight — we're verifying your identity and setting up your agency account.
+            Verify your email, then confirm your agency details to finish setting up your account.
           </p>
         </div>
 

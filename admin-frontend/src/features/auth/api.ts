@@ -3,11 +3,11 @@ import { apiClient } from '@/shared/lib/api-client'
 
 export const authApi = {
 
-  signUp: async (email: string, password: string) => {
+  signUp: async (email: string, password: string, profile: { organization_name: string; first_name: string; last_name: string }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/confirm-email` },
+      options: { emailRedirectTo: `${window.location.origin}/confirm-email`, data: { registration: profile } },
     })
     if (error) throw error
     return data
