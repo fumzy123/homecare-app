@@ -5,8 +5,26 @@ from app.db.session import get_db
 from app.core.security import require_admin
 from app.services.billing_service import BillingService
 from app.services.org_service import OrgService
+from uuid import UUID
+from app.core.security import require_billing_operator
+from app.services.trial_activation_service import TrialActivationService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_trial_activation_service(
+    current_user=Depends(require_billing_operator),
+    db: Session = Depends(get_db),
+) -> TrialActivationService:
+    return TrialActivationService(db, current_user)
+
+
+@router.post("/operator/organizations/{org_id}/trial-activation", status_code=202)
+def request_trial_activation(
+    org_id: UUID,
+    trial_activation_service: TrialActivationService = Depends(get_trial_activation_service),
+):
+    return trial_activation_service.request_start(org_id)
 
 
 def get_billing_service(

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
+    billing_onboarding_enabled: bool = False
+    billing_operator_user_ids: list[str] = []
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 

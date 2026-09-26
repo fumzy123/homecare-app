@@ -14,6 +14,7 @@ from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
 from app.jobs.shift_completion import mark_shifts_completed
+from app.jobs.trial_activation import request_due_trials
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
 from app.models.organization import Organization             # noqa: F401
@@ -61,6 +62,7 @@ scheduler = AsyncIOScheduler()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     scheduler.add_job(mark_shifts_completed, "interval", minutes=15)
+    scheduler.add_job(request_due_trials, "interval", minutes=15)
     scheduler.start()
     yield
     scheduler.shutdown()

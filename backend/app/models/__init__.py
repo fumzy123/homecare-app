@@ -1,5 +1,6 @@
 from app.models.base import Base as Base
 from app.models.organization import Organization as Organization
+from app.models.trial_activation import TrialActivation as TrialActivation
 from app.models.person import Person as Person
 from app.models.employment import Employment as Employment
 from app.models.client import Client as Client
