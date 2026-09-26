@@ -8,7 +8,7 @@ branch_labels = None
 depends_on = None
 
 _COLUMNS = (
-    "onboarding_deadline_at", "go_live_at", "trial_starts_at", "trial_ends_at",
+    "onboarding_deadline_at", "onboarding_completed_at", "trial_starts_at", "trial_ends_at",
 )
 
 

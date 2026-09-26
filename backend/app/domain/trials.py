@@ -26,7 +26,7 @@ def trial_window(
     deadline: datetime,
     *,
     now: datetime,
-    go_live_at: datetime | None = None,
+    onboarding_completed_at: datetime | None = None,
     existing_start: datetime | None = None,
     existing_end: datetime | None = None,
 ) -> TrialWindow | None:
@@ -44,11 +44,11 @@ def trial_window(
         return TrialWindow(start, end)
     current = _utc(now)
     start = _utc(deadline)
-    if go_live_at is not None:
-        go_live = _utc(go_live_at)
-        if go_live > current:
-            raise ValueError("Go-live cannot be in the future")
-        start = min(start, go_live)
+    if onboarding_completed_at is not None:
+        onboarding_completion = _utc(onboarding_completed_at)
+        if onboarding_completion > current:
+            raise ValueError("Onboarding completion cannot be in the future")
+        start = min(start, onboarding_completion)
     if start > current:
         return None
     return TrialWindow(start, start + TRIAL_DURATION)

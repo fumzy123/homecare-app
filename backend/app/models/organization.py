@@ -39,7 +39,7 @@ class Organization(Base):
     # Nullable rollout: legacy agencies retain their current access policy until
     # explicitly enrolled. Trial timestamps mirror confirmed Stripe values.
     onboarding_deadline_at = Column(DateTime(timezone=True), nullable=True)
-    go_live_at = Column(DateTime(timezone=True), nullable=True)
+    onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     trial_starts_at = Column(DateTime(timezone=True), nullable=True)
     trial_ends_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

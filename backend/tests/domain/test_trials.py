@@ -13,9 +13,9 @@ def test_onboarding_has_no_trial_before_deadline():
     assert trial_window(DEADLINE, now=SIGNUP) is None
 
 
-def test_manual_go_live_starts_fourteen_days():
+def test_manual_onboarding_completion_starts_fourteen_days():
     live = SIGNUP + timedelta(days=4)
-    window = trial_window(DEADLINE, now=live, go_live_at=live)
+    window = trial_window(DEADLINE, now=live, onboarding_completed_at=live)
     assert window.starts_at == live
     assert window.ends_at == live + timedelta(days=14)
 
@@ -28,9 +28,9 @@ def test_backstop_delay_never_restarts_clock(late_days):
     assert window.ends_at == DEADLINE + timedelta(days=14)
 
 
-def test_late_go_live_cannot_extend_backstop():
+def test_late_onboarding_completion_cannot_extend_backstop():
     live = DEADLINE + timedelta(days=2)
-    assert trial_window(DEADLINE, now=live, go_live_at=live).starts_at == DEADLINE
+    assert trial_window(DEADLINE, now=live, onboarding_completed_at=live).starts_at == DEADLINE
 
 
 def test_confirmed_stripe_window_is_preserved_on_retry():
@@ -50,9 +50,9 @@ def test_reversed_existing_window_rejected():
         trial_window(DEADLINE, now=DEADLINE, existing_start=DEADLINE, existing_end=SIGNUP)
 
 
-def test_future_go_live_rejected():
+def test_future_onboarding_completion_rejected():
     with pytest.raises(ValueError):
-        trial_window(DEADLINE, now=SIGNUP, go_live_at=SIGNUP + timedelta(days=1))
+        trial_window(DEADLINE, now=SIGNUP, onboarding_completed_at=SIGNUP + timedelta(days=1))
 
 
 def test_naive_timestamp_rejected():
