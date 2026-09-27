@@ -7,6 +7,7 @@ import { UpdateCardModal } from '@/features/billing/components/UpdateCardModal'
 import { useBillingStatus } from '@/features/billing/hooks/useBillingStatus'
 import { useBillingDetails } from '@/features/billing/hooks/useBillingOnboarding'
 import { BillingOnboardingPanel } from '@/features/billing/components/BillingOnboardingPanel'
+import { BillingUsageSection } from '@/features/billing/components/BillingUsageSection'
 
 function CardBrand({ brand }: { brand: string }) {
   const label = brand.toUpperCase() === 'MASTERCARD' ? 'MC' : brand.toUpperCase()
@@ -103,7 +104,7 @@ export function BillingSection() {
   const { data, isPending, isError } = useBillingStatus(user?.id)
   if (isPending) return <p>Loading billing…</p>
   if (isError) return <p role="alert">Could not load billing. Please refresh and try again.</p>
-  return data.new_billing_flow ? <BillingOnboardingPanel status={data} /> : <LegacyBillingSection />
+  return data.new_billing_flow ? <div className="space-y-6"><BillingOnboardingPanel status={data} /><BillingUsageSection status={data} /></div> : <LegacyBillingSection />
 }
 
 function LegacyBillingSection() {

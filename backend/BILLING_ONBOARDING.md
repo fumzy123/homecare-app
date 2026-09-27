@@ -105,8 +105,8 @@ until those release requirements and end-to-end staging checks are complete.
   boundary, or a nonexistent spring-forward time, requires review instead of an
   arbitrary charge. No browser/server timezone fallback is permitted.
 - `GET /api/billing/usage/current` now supplies server-selected dates and the
-  saved agency timezone to the counter. The Billing count/breakdown interface
-  remains the next frontend step.
+  saved agency timezone to the counter. Billing displays the current count,
+  monthly allowance, additional-client estimate and searchable visit evidence.
 - Before usage invoicing, preserve scheduling change history and finalized
   per-client evidence. Some existing edit/truncation paths delete overrides or
   rewrite masters; the estimate can only use surviving data. Do not calculate
@@ -149,6 +149,27 @@ until those release requirements and end-to-end staging checks are complete.
   disposable Stripe monthly/annual test-clock subscriptions across January 31,
   February 28 and March 31, with in-memory repositories. It deletes its clock
   and customers and never touches the application database.
+
+## Current usage in Billing
+
+- The new-flow Billing page includes a Layer 3 usage section with a dedicated
+  TanStack Query hook, and a props-only Layer 2 details view. Loading, no timezone,
+  trial, inactive subscription, zero clients, search-empty, and failure states are
+  explicit. Failed refreshes hide stale figures. The query refreshes on entry,
+  every minute while visible, and on request; it is scoped by signed-in user,
+  saved timezone and subscription status.
+- The summary shows exact agency-local period boundaries, calculation time,
+  included and additional clients, per-client rate, additional-client subtotal,
+  and the 72-hour correction deadline. It is explicitly an estimate, excludes
+  base/tax/adjustments, and explains monthly usage for annually billed agencies.
+- The table is searchable and paginated, with one qualifying visit per client.
+  Display names are fetched in one additional tenant-scoped query, including
+  archived clients. Only names and archival status are added; no care details are
+  returned or sent to Stripe. Unavailable names retain the counted client ID.
+- `node scripts/check-billing-usage-ui.mjs` in `admin-frontend` checks static React
+  rendering, annual amount wording, visit evidence, pagination, zero usage,
+  HTML escaping, and browser-independent agency wall-time formatting. This does
+  not replace a browser/staging walkthrough after migrations are applied.
 
 ## Recovery
 

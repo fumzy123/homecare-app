@@ -61,7 +61,46 @@ export interface BillingDetails {
   invoices: Invoice[]
 }
 
+export interface CountedBillingClient {
+  client_id: string
+  client_name: string | null
+  client_archived: boolean | null
+  shift_id: string
+  occurrence_date: string
+  modification_id: string | null
+  local_start: string
+  completion_status: 'scheduled' | 'in_progress' | 'completed' | 'no_show'
+}
+
+export interface ReadyBillingUsage {
+  state: 'ready'
+  period: {
+    id: string
+    starts_at: string
+    ends_at: string
+    agency_timezone: string
+    plan_code: 'standard' | 'founding'
+    plan_version: number
+    base_interval: 'month' | 'year'
+    included_clients: number
+    additional_client_amount_cents: number
+    currency: string
+    finalization_eligible_at: string
+  }
+  usage: {
+    is_estimate: true
+    calculated_at: string
+    active_client_count: number
+    additional_clients: number
+    estimated_usage_amount_cents: number
+    clients: CountedBillingClient[]
+  }
+}
+
+export type CurrentBillingUsage = ReadyBillingUsage | { state: 'not_started' | 'no_current_period'; usage: null }
+
 export const billingApi = {
+  getCurrentUsage: async (): Promise<CurrentBillingUsage> => (await apiClient.get('/api/billing/usage/current')).data,
   setTimezone: async (timezone: string): Promise<{ billing_timezone: string }> =>
     (await apiClient.put('/api/billing/timezone', { timezone })).data,
   getOnboardingOptions: async (): Promise<OnboardingOptions> => (await apiClient.get('/api/billing/onboarding/options')).data,

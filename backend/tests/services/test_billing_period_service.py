@@ -54,6 +54,17 @@ def test_monthly_current_uses_stripe_and_freezes_rates_without_charging(state):
     state.remote.Invoice.create.assert_not_called()
 
 
+def test_usage_breakdown_enriches_labels_in_one_scoped_lookup(state):
+    client_id, missing_id = uuid4(), uuid4()
+    state.svc.estimate.return_value = {"active_client_count": 2, "clients": [{"client_id": client_id}, {"client_id": missing_id}]}
+    state.svc.usage_repo.client_labels.return_value = {client_id: {"client_name": "Test Client", "client_archived": True}}
+    result = state.svc.current(now=state.now)
+    state.svc.usage_repo.client_labels.assert_called_once_with(state.org.id, [client_id, missing_id])
+    assert result["usage"]["clients"][0]["client_archived"] is True
+    assert result["usage"]["clients"][1]["client_name"] is None
+    assert result["usage"]["calculated_at"].tzinfo is not None
+
+
 def test_retry_reuses_same_period_and_preserves_stored_unit_rate(state):
     first = state.svc.current(now=state.now)
     state.svc.period_repo.get.return_value.additional_client_amount_cents = 450

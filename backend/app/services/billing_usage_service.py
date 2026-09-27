@@ -132,9 +132,13 @@ class BillingUsageService:
             self.db.rollback()
             raise
         usage = self.estimate(period_data["starts_at"], period_data["ends_at"], period_data["agency_timezone"])
+        labels = self.usage_repo.client_labels(self.org_id, [client["client_id"] for client in usage["clients"]])
+        usage["clients"] = [{**client, **labels.get(client["client_id"], {
+            "client_name": None, "client_archived": None,
+        })} for client in usage["clients"]]
         extra = max(0, usage["active_client_count"] - period_data["included_clients"])
         return {"state": "ready", "period": period_data, "usage": {
-            **usage, "additional_clients": extra,
+            **usage, "calculated_at": datetime.now(timezone.utc), "additional_clients": extra,
             "estimated_usage_amount_cents": extra * period_data["additional_client_amount_cents"],
         }}
 

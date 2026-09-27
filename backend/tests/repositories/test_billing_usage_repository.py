@@ -9,6 +9,7 @@ from app.core.enums import ShiftCompletionStatus, ShiftStatus
 from app.domain.billing_usage import UsageWindow, active_clients
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
+from app.models.client import Client
 from app.repositories.billing_usage_repository import BillingUsageRepository
 
 
@@ -18,6 +19,7 @@ def db():
     engine = create_engine("sqlite://")
     Shift.__table__.create(engine)
     ShiftModification.__table__.create(engine)
+    Client.__table__.create(engine)
     with Session(engine) as session:
         yield session
     engine.dispose()
@@ -86,3 +88,22 @@ def test_moved_out_override_loaded_so_original_does_not_count(db):
     candidates = BillingUsageRepository(db).candidates(org, window())
     assert len(candidates) == 1
     assert active_clients(candidates, window()) == ()
+
+
+def test_display_labels_include_archived_clients_but_never_other_agencies(db):
+    org, archived_id, foreign_id = uuid4(), uuid4(), uuid4()
+    for client_id, tenant, archived in ((archived_id, org, True), (foreign_id, uuid4(), False)):
+        db.add(Client(id=client_id, org_id=tenant, first_name="Test", last_name="Client", date_of_birth=date(1950, 1, 1),
+                      street="Private", city="Private", province="NL", postal_code="A1A1A1",
+                      emergency_contact_name="Private", emergency_contact_phone="Private", emergency_contact_relationship="Private",
+                      medical_conditions="Never returned in billing", deleted_at=datetime.now(timezone.utc) if archived else None))
+    db.commit()
+    labels = BillingUsageRepository(db).client_labels(org, [archived_id, foreign_id])
+    assert labels == {archived_id: {"client_name": "Test Client", "client_archived": True}}
+
+
+def test_empty_label_lookup_does_not_query(db):
+    statements = []
+    event.listen(db.bind, "before_cursor_execute", lambda *_args: statements.append(_args[2]))
+    assert BillingUsageRepository(db).client_labels(uuid4(), []) == {}
+    assert statements == []

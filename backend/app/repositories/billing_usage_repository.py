@@ -5,11 +5,22 @@ from app.core.enums import ShiftStatus
 from app.domain.billing_usage import HISTORICAL_STATUSES, UsageCandidate, UsageWindow
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
+from app.models.client import Client
 
 
 class BillingUsageRepository:
     def __init__(self, db):
         self.db = db
+
+    def client_labels(self, org_id, client_ids):
+        """Only display identity, including archived clients; never care records."""
+        if not client_ids:
+            return {}
+        rows = self.db.query(Client.id, Client.first_name, Client.last_name, Client.deleted_at).filter(
+            Client.org_id == org_id, Client.id.in_(client_ids),
+        ).all()
+        return {row.id: {"client_name": f"{row.first_name} {row.last_name}".strip(),
+                         "client_archived": row.deleted_at is not None} for row in rows}
 
     def candidates(self, org_id, window: UsageWindow) -> list[UsageCandidate]:
         first, last = window.local_dates
