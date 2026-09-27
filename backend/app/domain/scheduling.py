@@ -164,13 +164,17 @@ def expand_occurrences(shift: Shift, from_date: date, to_date: date) -> list[dat
     return [dt.date() for dt in occurrences]
 
 
-def shift_has_occurrence_on(shift: Shift, target_date: date) -> bool:
-    """Does this shift have an occurrence on target_date?"""
+def shift_has_occurrence_on(shift: Shift, target_date: date, *, include_truncated_history: bool = False) -> bool:
+    """Does this shift have an occurrence on target_date?
+
+    Billing may retain explicit completed/no-show evidence after a series was
+    shortened. Other callers always respect the current recurrence end.
+    """
     if not shift.is_recurring:
         return shift.start_time.date() == target_date
 
     end_bound = shift.recurrence_end_date
-    if end_bound and target_date > end_bound:
+    if end_bound and target_date > end_bound and not include_truncated_history:
         return False
 
     rule = rrulestr(shift.recurrence_rule, dtstart=shift.start_time)

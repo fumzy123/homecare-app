@@ -84,6 +84,38 @@ until those release requirements and end-to-end staging checks are complete.
 - Allocation tests cover capacity, replay, release, payment, and forfeiture.
   Real PostgreSQL concurrent-transaction verification remains a staging check.
 
+## Active-client counting foundation
+
+- `BillingUsageService.estimate` is an internal, read-only calculator. It requires
+  a resolved organization ID, exact aware period boundaries, and an explicit IANA
+  agency timezone. It returns an estimate and one qualifying visit reference per
+  client. It neither creates invoices nor persists a billable flag.
+- `BillingUsageRepository` scopes one SQL statement to the organization and a
+  coarse local date window. It includes recurring masters that can intersect the
+  period, overrides moved into it from outside, and existing completed/no-show
+  evidence on canceled/deleted masters. A bounded outer join fetches overrides
+  without lazy loads or modifying managed ORM relationship collections.
+- The domain calculator uses the existing recurrence and effective-occurrence
+  helpers, then compares the effective start against `[period_start, period_end)`.
+  Scheduled, in-progress, completed and no-show visits qualify; canceled/dropped
+  visits do not. It stops evaluating a client's remaining visits once matched.
+  Registry status, client/worker archival, care plans and placements are irrelevant.
+- Shift timestamps currently contain local wall time without offsets. Both DST
+  folds qualify when they fall in the same usage window. A fold straddling a billing
+  boundary, or a nonexistent spring-forward time, requires review instead of an
+  arbitrary charge. No browser/server timezone fallback is permitted.
+- This is not yet a Billing page endpoint. The next integration must store the
+  agency timezone and authoritative monthly usage periods (including annual-plan
+  monthly windows), excluding onboarding/trial by starting at the paid boundary.
+- Before usage invoicing, preserve scheduling change history and finalized
+  per-client evidence. Some existing edit/truncation paths delete overrides or
+  rewrite masters; the estimate can only use surviving data. Do not calculate
+  historical final invoices solely from mutable current schedule rows.
+- Tests execute the candidate query against isolated SQLite tables, checking
+  tenant isolation, moved occurrences and absence of N+1 queries, alongside
+  recurrence/status/timezone domain tests. PostgreSQL query-plan measurements
+  against realistic staging data remain a rollout check.
+
 ## Recovery
 
 - One activation request per organization; writes take the organization row lock.
