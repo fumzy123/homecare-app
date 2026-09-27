@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfoNotFoundError
@@ -9,6 +10,7 @@ from app.domain.billing_usage import UsageWindow, active_clients
 from app.repositories.billing_usage_repository import BillingUsageRepository
 from app.repositories.billing_evidence_repository import BillingEvidenceRepository
 from app.repositories.billing_period_repository import BillingPeriodRepository
+from app.repositories.billing_finalization_repository import BillingFinalizationRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
@@ -34,9 +36,16 @@ class BillingUsageService:
         self.usage_repo = BillingUsageRepository(db)
         self.evidence_repo = BillingEvidenceRepository(db)
         self.period_repo = BillingPeriodRepository(db)
+        self.finalization_repo = BillingFinalizationRepository(db)
         self.trial_activation_repo = TrialActivationRepository(db)
         self.agreement_repo = BillingAgreementRepository(db)
         self.conversion_repo = FoundingConversionRepository(db)
+
+    def finalized(self, period_id):
+        snapshot = self.finalization_repo.snapshot(self.org_id, period_id)
+        if snapshot is None:
+            raise AppError(404, "NOT_FOUND", "Finalized billing period not found")
+        return deepcopy(snapshot.payload)
 
     def _lock(self):
         org = self.trial_activation_repo.lock_organization(self.org_id)

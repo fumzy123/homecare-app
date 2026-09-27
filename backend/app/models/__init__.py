@@ -26,3 +26,5 @@ from app.models.worker_availability import WorkerAvailabilityEntry as WorkerAvai
 # you MUST import it into this file so Alembic knows it exists!
 
 from app.models.billing_visit_evidence import BillingVisitEvidence as BillingVisitEvidence
+
+from app.models.billing_usage_snapshot import BillingUsageSnapshot as BillingUsageSnapshot

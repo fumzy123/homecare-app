@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
     billing_onboarding_enabled: bool = False
+    billing_usage_finalization_enabled: bool = False
     billing_operator_user_ids: list[str] = []
     stripe_standard_monthly_v1_price_id: str = ""
     stripe_standard_annual_v1_price_id: str = ""

@@ -196,8 +196,51 @@ until those release requirements and end-to-end staging checks are complete.
   immutable invoice or a database-level ban on privileged administrative edits.
   No backfill can reconstruct overrides deleted before this release. Existing
   surviving historical overrides are captured before subsequent mutations.
-- Period finalization, the 72-hour correction cutoff, invoice submission, and
-  post-finalization adjustments are still separate implementation steps.
+- Recorded-period finalization is described below. The exact deadline cutoff,
+  invoice submission, and post-finalization adjustments remain separate steps.
+
+## Recorded-period usage finalization
+
+- Migration `d1b5c9e6f408` adds one snapshot per period and indexes for due-period
+  scans and agency history. It has not been applied to shared databases.
+- The 15-minute job requires both `BILLING_ONBOARDING_ENABLED=true` and
+  `BILLING_USAGE_FINALIZATION_ENABLED=true`. The latter defaults to false.
+  Keep it disabled until staging verification and the rollout blockers below
+  are resolved. This step makes no Stripe calls and cannot charge customers.
+- A dedicated transaction uses PostgreSQL REPEATABLE READ so live occurrences
+  and preserved evidence come from one database view. A period row lock and
+  primary-key uniqueness prevent duplicate snapshots. Concurrent attempts may
+  fail serialization/uniqueness and are retried by the next job pass.
+- Nothing finalizes before `ends_at + 72 hours`. At finalization, the service
+  copies the saved period terms, one qualifying witness per distinct client,
+  preserved evidence version IDs where applicable, and the additional-client
+  count and amount. Annual plans still receive one monthly allowance. Base fees,
+  taxes, payments, and invoice status are not part of the usage subtotal.
+- Repeated finalization returns the existing snapshot without recounting or
+  changing rates. Subsequent schedule/evidence corrections cannot rewrite it.
+  Application code exposes no update/delete operation for snapshots; privileged
+  database access is not prevented by this application-level immutability.
+- Agency admins can read a snapshot using `GET /billing/usage/periods/{period_id}`.
+  The route applies the existing admin guard and organization scope. Client
+  labels/clinical data are not copied into the financial snapshot.
+- Errors leave a period pending and logged; a failed count is never converted to
+  zero usage. Each period owns a separate session/transaction, so one failure
+  does not stop other agencies from finalizing.
+
+### Remaining rollout blockers
+
+- Period creation is currently on demand via Billing. Reconcile missing monthly
+  periods against verified Stripe history (including annual coverage and
+  cancellations) before enabling finalization. Never fabricate historical terms.
+- The current snapshot reflects the database at the actual finalization attempt,
+  which can be later than the nominal 72-hour deadline. An exact deadline cutoff
+  requires preventing late edits from changing eligible usage or reconstructing
+  all schedule state as of that deadline. Until that is implemented, do not
+  enable this worker for production billing.
+- Post-finalization differences need explicit adjustments, not snapshot rewrites.
+  Invoice submission, adjustment handling, and billing-history UI remain pending.
+- Tests exercise real SQLite queries/transactions and job error isolation.
+  PostgreSQL multi-session concurrency/isolation remains a staging check.
 
 ## Recovery
 

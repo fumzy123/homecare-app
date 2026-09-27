@@ -39,6 +39,11 @@ def current_billing_usage(billing_usage_service: BillingUsageService = Depends(g
     return billing_usage_service.current()
 
 
+@router.get("/usage/periods/{period_id}")
+def finalized_billing_usage(period_id: UUID, billing_usage_service: BillingUsageService = Depends(get_billing_usage_service)):
+    return billing_usage_service.finalized(period_id)
+
+
 def get_founding_offer_service(
     current_user=Depends(require_billing_operator),
     db: Session = Depends(get_db),

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, CheckConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.models.base import Base
@@ -23,6 +23,7 @@ class BillingPeriod(Base):
     finalization_eligible_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     __table_args__ = (
+        Index("ix_billing_period_finalization_due", "finalization_eligible_at", "id"),
         UniqueConstraint("org_id", "subscription_id", "starts_at", name="uq_billing_period_org_subscription_start"),
         CheckConstraint("ends_at > starts_at", name="ck_billing_period_order"),
         CheckConstraint("included_clients >= 0 AND additional_client_amount_cents >= 0", name="ck_billing_period_rates"),

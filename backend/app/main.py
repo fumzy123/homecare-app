@@ -16,6 +16,7 @@ from app.core.exceptions import AppError, app_error_handler, validation_error_ha
 from app.jobs.shift_completion import mark_shifts_completed
 from app.jobs.trial_activation import request_due_trials
 from app.jobs.founding_conversion import process_founding_conversions
+from app.jobs.billing_finalization import finalize_due_billing_periods
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
 from app.models.organization import Organization             # noqa: F401
@@ -65,6 +66,7 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(mark_shifts_completed, "interval", minutes=15)
     scheduler.add_job(request_due_trials, "interval", minutes=15)
     scheduler.add_job(process_founding_conversions, "interval", minutes=15)
+    scheduler.add_job(finalize_due_billing_periods, "interval", minutes=15)
     scheduler.start()
     yield
     scheduler.shutdown()
