@@ -11,8 +11,31 @@ from app.services.trial_activation_service import TrialActivationService
 from app.services.billing_onboarding_service import BillingOnboardingService
 from app.core.security import require_owner
 from typing import Literal
+from app.services.founding_offer_service import FoundingOfferService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_founding_offer_service(
+    current_user=Depends(require_billing_operator),
+    db: Session = Depends(get_db),
+) -> FoundingOfferService:
+    return FoundingOfferService(db, current_user)
+
+
+@router.get("/operator/founding-offers")
+def list_founding_offers(founding_offer_service: FoundingOfferService = Depends(get_founding_offer_service)):
+    return founding_offer_service.list_offers()
+
+
+@router.post("/operator/organizations/{org_id}/founding-offer")
+def reserve_founding_offer(org_id: UUID, founding_offer_service: FoundingOfferService = Depends(get_founding_offer_service)):
+    return founding_offer_service.reserve(org_id)
+
+
+@router.post("/operator/organizations/{org_id}/founding-offer/release")
+def release_founding_offer(org_id: UUID, founding_offer_service: FoundingOfferService = Depends(get_founding_offer_service)):
+    return founding_offer_service.release(org_id)
 
 
 def get_billing_onboarding_service(

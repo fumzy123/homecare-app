@@ -16,6 +16,10 @@ export interface BillingStatus {
   activation_status?: string | null
   plan_interval?: 'month' | 'year' | null
   base_amount_cents?: number | null
+  plan_code?: 'standard' | 'founding' | null
+  additional_client_amount_cents?: number | null
+  founding_protection_ends_at?: string | null
+  founding_notice_due_at?: string | null
 }
 
 export interface OnboardingOptions {

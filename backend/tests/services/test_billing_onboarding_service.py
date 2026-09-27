@@ -23,6 +23,8 @@ def state(monkeypatch):
     service = module.BillingOnboardingService(MagicMock(), SimpleNamespace(id=uuid4()), uuid4())
     service.trial_activation_repo = MagicMock()
     service.agreement_repo = MagicMock()
+    service.founding_offer_repo = MagicMock()
+    service.founding_offer_repo.get_for_org.return_value = None
     org = SimpleNamespace(
         id=service.org_id, onboarding_deadline_at=now + timedelta(days=20),
         onboarding_completed_at=now, stripe_customer_id="cus_own", subscription_id=None,
@@ -194,3 +196,45 @@ def test_price_interval_and_consent_cannot_be_arbitrary(state):
     with pytest.raises(AppError):
         state.service.setup_card("month", "old-consent")
     state.remote.checkout.Session.create.assert_not_called()
+
+
+def test_reserved_founder_gets_only_monthly_offer_and_correct_usage_rate(state):
+    state.service.agreement_repo.get_for_org.return_value = None
+    state.service.founding_offer_repo.get_for_org.return_value = SimpleNamespace(released_at=None, forfeited_at=None)
+    options = state.service.options()
+    assert len(options["plans"]) == 1
+    assert options["plans"][0]["code"] == "founding"
+    assert options["plans"][0]["base_amount_cents"] == 20000
+    assert options["plans"][0]["additional_client_amount_cents"] == 400
+    with pytest.raises(AppError):
+        state.service.setup_card("year", options["consent_version"])
+
+
+def test_browser_cannot_claim_founding_without_allocation(state):
+    from app.domain.billing_consent import FOUNDING_CONSENT_VERSION
+    state.service.agreement_repo.get_for_org.return_value = None
+    with pytest.raises(AppError) as error:
+        state.service.setup_card("month", FOUNDING_CONSENT_VERSION)
+    assert error.value.code == "INVALID_TERMS"
+    state.remote.checkout.Session.create.assert_not_called()
+
+
+def test_founder_setup_uses_server_founding_price(state, monkeypatch):
+    from app.domain.billing_consent import FOUNDING_CONSENT_VERSION
+    monkeypatch.setattr(settings, "stripe_founding_monthly_v1_price_id", "price_founding")
+    state.service.agreement_repo.get_for_org.return_value = None
+    state.service.founding_offer_repo.get_for_org.return_value = SimpleNamespace(released_at=None, forfeited_at=None)
+    state.service.agreement_repo.add.side_effect = lambda agreement: setattr(state.service.agreement_repo.get_for_org, "return_value", agreement)
+    state.remote.Price.retrieve.return_value = SimpleNamespace(active=True, currency="cad", unit_amount=20000, recurring=SimpleNamespace(interval="month", interval_count=1))
+    state.remote.checkout.Session.create.return_value = SimpleNamespace(id="cs_founder", url="https://checkout.stripe.com/test")
+    state.service.setup_card("month", FOUNDING_CONSENT_VERSION)
+    agreement = state.service.agreement_repo.add.call_args.args[0]
+    assert agreement.plan_code == "founding"
+    assert agreement.stripe_price_id == "price_founding"
+
+
+def test_cancel_records_founder_forfeiture(state):
+    offer = SimpleNamespace(forfeited_at=None)
+    state.service.founding_offer_repo.get_for_org.return_value = offer
+    state.service.cancel()
+    assert offer.forfeited_at == state.agreement.canceled_at

@@ -6,7 +6,9 @@ from app.core.config import settings
 from app.core.exceptions import AppError
 from app.models.organization import Organization
 from app.repositories.organization_repository import OrganizationRepository
-from app.services.billing_onboarding_service import BillingOnboardingService, subscription_period_end
+from app.services.billing_onboarding_service import BillingOnboardingService, subscription_period_end, stripe_field
+from app.repositories.founding_offer_repository import FoundingOfferRepository
+from app.services.founding_offer_service import FoundingOfferService
 
 stripe.api_key = settings.stripe_secret_key
 
@@ -22,6 +24,7 @@ class BillingService:
         self.db = db
         self.current_user = current_user
         self.org_repo = OrganizationRepository(db)
+        self.founding_offer_repo = FoundingOfferRepository(db)
         # org_id is None for the webhook route (no auth — Stripe signature used instead)
         self.org_id = org_id
 
@@ -216,6 +219,10 @@ class BillingService:
                 if org.onboarding_deadline_at is not None:
                     org.trial_starts_at = datetime.fromtimestamp(subscription.trial_start, timezone.utc) if subscription.trial_start else None
                     org.trial_ends_at = datetime.fromtimestamp(subscription.trial_end, timezone.utc) if subscription.trial_end else None
+                    if subscription.status == "canceled" or stripe_field(subscription, "cancel_at_period_end", False):
+                        offer = self.founding_offer_repo.get_for_org(org.id)
+                        if offer and offer.forfeited_at is None:
+                            offer.forfeited_at = datetime.now(timezone.utc)
                 self.db.commit()
             else:
                 self.db.commit()
@@ -231,6 +238,9 @@ class BillingService:
                     self.db.commit()
                     return
                 org.subscription_status = "canceled"
+                offer = self.founding_offer_repo.get_for_org(org.id)
+                if offer and offer.forfeited_at is None:
+                    offer.forfeited_at = datetime.now(timezone.utc)
                 org.subscription_current_period_end = subscription_period_end(subscription)
                 self.db.commit()
             else:
@@ -261,6 +271,12 @@ class BillingService:
             if org and not org.paid_at and invoice.amount_paid > 0:
                 org.paid_at = datetime.now(timezone.utc)
                 self.db.commit()
+            if org and invoice.amount_paid > 0 and org.trial_ends_at:
+                parent = stripe_field(invoice, "parent") or {}
+                details = stripe_field(parent, "subscription_details") or {}
+                invoice_subscription = stripe_field(invoice, "subscription") or stripe_field(details, "subscription")
+                if invoice_subscription == org.subscription_id:
+                    FoundingOfferService(self.db).record_paid_period(org.id, org.trial_ends_at)
         except Exception:
             self.db.rollback()
             raise

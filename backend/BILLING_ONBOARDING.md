@@ -1,7 +1,7 @@
 # Billing onboarding rollout
 
 This branch adds owner-authorized card setup and queued Stripe trial activation.
-It does not complete active-client invoicing, founding eligibility, read-only
+It does not complete active-client invoicing, founding conversion/notice delivery, read-only
 backend access, trial reminder delivery, or the operator UI. Keep rollout disabled
 until those release requirements and end-to-end staging checks are complete.
 
@@ -14,6 +14,7 @@ until those release requirements and end-to-end staging checks are complete.
   Agency owner/admin roles and user metadata cannot grant operator access.
 - `STRIPE_STANDARD_MONTHLY_V1_PRICE_ID`: CAD 300/month.
 - `STRIPE_STANDARD_ANNUAL_V1_PRICE_ID`: CAD 3000/year.
+- `STRIPE_FOUNDING_MONTHLY_V1_PRICE_ID`: CAD 200/month, offered only to reserved agencies.
 - Existing Stripe secret/webhook keys remain server-only. Sandbox and live IDs
   must not be mixed. The legacy single-price checkout remains for legacy accounts.
 - Apply the branch's Alembic migrations before running the updated application;
@@ -32,10 +33,36 @@ until those release requirements and end-to-end staging checks are complete.
    their original deadline, not the job's execution time.
 4. The processor requires recorded consent and a succeeded customer-owned card
    setup. It creates a trial with an explicit end date and saves Stripe's confirmed
-   dates. Standard plans only: founding eligibility is not exposed prematurely.
+   dates. Founding is offered only when an operator has allocated a slot before
+   billing authorization; founders cannot select annual billing.
 5. Owner cancellation stops renewal/conversion. Billing remains reachable through
    the frontend's expired-access gate; complete read-only operational access is a
    later step. Payment-method and invoice management use the Stripe portal.
+
+## Founding allocation
+
+- Operator routes: `GET /api/billing/operator/founding-offers`, and
+  `POST /api/billing/operator/organizations/{org_id}/founding-offer` to reserve,
+  with `/release` appended to release an unused reservation.
+- Migration seeds exactly three slots, with a database check constraining slot
+  numbers to 1–3. Allocation and release lock the agency, then all three slot rows
+  in fixed order. A fourth concurrent reservation must wait and then fail.
+- Each agency has permanent offer history. Repeated reservation returns the same
+  slot; a released/forfeited offer cannot be granted again to that agency.
+- Only reservations without any billing agreement/subscription can be released
+  automatically. Authorized or uncertain Stripe state requires reconciliation;
+  paid slots are never reused, even after cancellation.
+- A positive paid invoice linked to the agency's subscription records protection
+  from its trial-end/first-paid-period boundary for twelve calendar months.
+  Later paid invoices cannot reset it. API and Stripe-portal cancellations forfeit
+  eligibility for future subscriptions without repricing the current prepaid period.
+- Operator listing and Billing expose protection expiry and notice due date.
+  Automated 30-day notice delivery and month-13 Stripe repricing are **not yet
+  implemented**. Keep rollout disabled until these are built and verified.
+- `scripts/verify_founding_sandbox.py` provisions/reuses only the test-mode CAD
+  founding price and verifies zero-dollar trial creation and duplicate retries.
+- Allocation tests cover capacity, replay, release, payment, and forfeiture.
+  Real PostgreSQL concurrent-transaction verification remains a staging check.
 
 ## Recovery
 

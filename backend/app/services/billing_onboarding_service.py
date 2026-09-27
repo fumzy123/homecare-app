@@ -10,7 +10,9 @@ import stripe
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.domain.billing import get_plan
-from app.domain.billing_consent import CONSENT_TEXT, CONSENT_VERSION
+from app.domain.billing_consent import consent_for_plan
+from app.domain.founding import offer_available, notice_due_at
+from app.repositories.founding_offer_repository import FoundingOfferRepository
 from app.models.billing_agreement import BillingAgreement
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
@@ -26,6 +28,7 @@ class BillingOnboardingService:
         self.org_id = org_id
         self.agreement_repo = BillingAgreementRepository(db)
         self.trial_activation_repo = TrialActivationRepository(db)
+        self.founding_offer_repo = FoundingOfferRepository(db)
 
     def _lock(self):
         org = self.trial_activation_repo.lock_organization(self.org_id)
@@ -41,7 +44,9 @@ class BillingOnboardingService:
             raise AppError(409, "ONBOARDING_DISABLED", "Billing onboarding is not enabled")
 
     @staticmethod
-    def _price_id(interval):
+    def _price_id(interval, code="standard"):
+        if code == "founding":
+            return settings.stripe_founding_monthly_v1_price_id
         return (settings.stripe_standard_monthly_v1_price_id if interval == "month"
                 else settings.stripe_standard_annual_v1_price_id)
 
@@ -51,13 +56,18 @@ class BillingOnboardingService:
             raise AppError(409, "AGREEMENT_LOCKED", "Billing authorization is no longer open for card setup")
 
     def options(self):
+        agreement = self.agreement_repo.get_for_org(self.org_id)
+        offer = self.founding_offer_repo.get_for_org(self.org_id)
+        code = agreement.plan_code if agreement else "founding" if offer_available(offer) else "standard"
+        version, text = consent_for_plan(code)
         return {
-            "consent_version": CONSENT_VERSION, "consent_text": CONSENT_TEXT,
+            "consent_version": version, "consent_text": text,
             "plans": [{
-                "code": "standard", "version": 1, "interval": interval,
-                "base_amount_cents": get_plan("standard", interval, version=1).base_amount_cents,
-                "currency": "cad", "included_clients": 10, "additional_client_amount_cents": 500,
-            } for interval in ("month", "year")],
+                "code": code, "version": 1, "interval": interval,
+                "base_amount_cents": get_plan(code, interval, version=1).base_amount_cents,
+                "currency": "cad", "included_clients": 10,
+                "additional_client_amount_cents": get_plan(code, interval, version=1).additional_client_amount_cents,
+            } for interval in (("month",) if code == "founding" else ("month", "year"))],
         }
 
     def summary(self, org, *, now=None):
@@ -69,6 +79,7 @@ class BillingOnboardingService:
         onboarding = not org.trial_starts_at and now < org.onboarding_deadline_at
         canceled = bool(agreement and agreement.canceled_at)
         plan = get_plan(agreement.plan_code, agreement.base_interval, version=agreement.plan_version) if agreement else None
+        offer = self.founding_offer_repo.get_for_org(org.id)
         return {
             "new_billing_flow": True,
             "subscription_status": org.subscription_status,
@@ -84,16 +95,24 @@ class BillingOnboardingService:
             "activation_status": request.status if request else None,
             "plan_interval": agreement.base_interval if agreement else None,
             "base_amount_cents": plan.base_amount_cents if plan else None,
+            "plan_code": agreement.plan_code if agreement else None,
+            "additional_client_amount_cents": plan.additional_client_amount_cents if plan else None,
+            "founding_protection_ends_at": offer.protection_ends_at if offer else None,
+            "founding_notice_due_at": notice_due_at(offer.protection_ends_at) if offer and offer.protection_ends_at else None,
         }
 
     def setup_card(self, interval, consent_version):
         self._enabled()
-        if interval not in ("month", "year") or consent_version != CONSENT_VERSION:
+        if interval not in ("month", "year"):
             raise AppError(400, "INVALID_TERMS", "Please review the current billing terms")
         now = datetime.now(timezone.utc)
         try:
             org = self._lock()
             agreement = self.agreement_repo.get_for_org(org.id)
+            offer = self.founding_offer_repo.get_for_org(org.id)
+            code = agreement.plan_code if agreement else "founding" if offer_available(offer) else "standard"
+            if consent_version != consent_for_plan(code)[0] or (code == "founding" and interval != "month"):
+                raise AppError(400, "INVALID_TERMS", "Please review the available plan and current billing terms")
             if org.onboarding_deadline_at + timedelta(days=14) <= now:
                 raise AppError(409, "TRIAL_WINDOW_EXPIRED", "Contact support to review your trial window")
             if org.subscription_id:
@@ -101,17 +120,17 @@ class BillingOnboardingService:
             if agreement and (agreement.canceled_at or agreement.base_interval != interval):
                 raise AppError(409, "AGREEMENT_LOCKED", "Contact support to change a previously authorized plan")
             if agreement is None:
-                price_id = self._price_id(interval)
+                price_id = self._price_id(interval, code)
                 if not price_id:
                     raise AppError(503, "PRICING_NOT_CONFIGURED", "Billing setup is not available yet")
-                plan = get_plan("standard", interval, version=1)
+                plan = get_plan(code, interval, version=1)
                 price = stripe.Price.retrieve(price_id)
                 if (not price.active or price.currency != "cad" or price.unit_amount != plan.base_amount_cents
                         or not price.recurring or price.recurring.interval != interval
                         or price.recurring.interval_count != 1):
                     raise AppError(503, "PRICE_MISMATCH", "Configured pricing does not match the offer")
                 agreement = BillingAgreement(
-                    id=uuid4(), org_id=org.id, plan_code="standard", plan_version=1,
+                    id=uuid4(), org_id=org.id, plan_code=code, plan_version=1,
                     base_interval=interval, stripe_price_id=price_id,
                     consent_version=consent_version, accepted_at=now, accepted_by=self.current_user.id,
                 )
@@ -204,6 +223,10 @@ class BillingOnboardingService:
                 request.status = "canceled" if agreement else "awaiting_card"
                 self.db.commit()
                 return
+            if agreement.plan_code == "founding" and not offer_available(self.founding_offer_repo.get_for_org(org.id)):
+                request.status = "needs_review"
+                self.db.commit()
+                return
             # Reconcile remote success first, including after a local commit failure.
             matching = []
             if org.stripe_customer_id:
@@ -268,6 +291,9 @@ class BillingOnboardingService:
             if not agreement:
                 raise AppError(409, "NO_AGREEMENT", "There is no billing agreement to cancel")
             agreement.canceled_at = agreement.canceled_at or datetime.now(timezone.utc)
+            offer = self.founding_offer_repo.get_for_org(org.id)
+            if offer:
+                offer.forfeited_at = offer.forfeited_at or agreement.canceled_at
             request = self.trial_activation_repo.get_for_org(org.id)
             # Search also catches a successful Stripe create followed by local failure.
             if org.stripe_customer_id:

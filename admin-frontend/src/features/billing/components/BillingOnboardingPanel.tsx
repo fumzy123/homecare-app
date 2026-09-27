@@ -39,10 +39,11 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
 
   return (
     <section className="space-y-5 border border-ink bg-paper p-6">
-      <h2 className="font-serif text-3xl">{status.is_onboarding ? 'Onboarding' : status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? 'Standard plan' : 'Billing needs attention'}</h2>
+      <h2 className="font-serif text-3xl">{status.is_onboarding ? 'Onboarding' : status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? `${status.plan_code === 'founding' ? 'Founding' : 'Standard'} plan` : 'Billing needs attention'}</h2>
       {status.is_onboarding && <p>Your trial starts when onboarding is completed, or by {status.onboarding_deadline_at && new Date(status.onboarding_deadline_at).toLocaleString()}. No countdown runs before then.</p>}
       {end && <p>{status.billing_canceled ? 'Trial access ends' : 'Trial ends; first base payment is due'}: {end}.</p>}
-      {status.base_amount_cents != null && <p>CAD ${(status.base_amount_cents / 100).toLocaleString()} / {status.plan_interval}. Ten active clients included; then CAD $5 per additional client each month, plus applicable taxes.</p>}
+      {status.base_amount_cents != null && <p>CAD ${(status.base_amount_cents / 100).toLocaleString()} / {status.plan_interval}. Ten active clients included; then CAD ${((status.additional_client_amount_cents ?? 500) / 100).toLocaleString()} per additional client each month, plus applicable taxes.</p>}
+      {status.plan_code === 'founding' && <p>Founding rates are protected for your first 12 paid months. {status.founding_protection_ends_at && `Protection ends ${new Date(status.founding_protection_ends_at).toLocaleString()}. `}We will give at least 30 days’ notice of the standard rates before conversion.</p>}
       {status.billing_canceled && <p role="status">Renewal canceled. Any prepaid access continues to its end date.</p>}
       {status.activation_status === 'needs_review' && <p role="status">Your trial needs a support review. Contact Care Harbor before continuing.</p>}
       {!owner && <p>Your agency owner manages plan selection and payment details.</p>}
@@ -52,10 +53,10 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
           {options.data && <>
             <label className="block">Base subscription
               <select className="block border border-ink p-2 mt-2" value={interval} onChange={e => { setInterval(e.target.value as 'month' | 'year'); setAccepted(false) }} disabled={busy || Boolean(status.plan_interval)}>
-                {options.data.plans.map(p => <option key={p.interval} value={p.interval}>CAD ${(p.base_amount_cents / 100).toLocaleString()} / {p.interval}</option>)}
+                {options.data.plans.map(p => <option key={p.interval} value={p.interval}>{p.code === 'founding' ? 'Founding' : 'Standard'} · CAD ${(p.base_amount_cents / 100).toLocaleString()} / {p.interval}</option>)}
               </select>
             </label>
-            <p>Due today: CAD $0. {plan && `First base payment after your trial: CAD $${(plan.base_amount_cents / 100).toLocaleString()}.`} Annual prepayment covers the base only; additional clients are billed monthly.</p>
+            <p>Due today: CAD $0. {plan && `First base payment after your trial: CAD $${(plan.base_amount_cents / 100).toLocaleString()}. ${plan.included_clients} active clients included, then CAD $${plan.additional_client_amount_cents / 100} per additional client per month.`} {interval === 'year' && 'Annual prepayment covers the base only.'}</p>
             <label className="flex gap-3 items-start"><input type="checkbox" checked={accepted} disabled={busy} onChange={e => setAccepted(e.target.checked)} className="mt-1" /><span>{options.data.consent_text}</span></label>
             <button className={button} disabled={!accepted || busy} onClick={saveCard}>{setup.isPending ? 'Opening secure card setup…' : 'Agree and save card with Stripe'}</button>
           </>}
