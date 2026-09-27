@@ -24,3 +24,5 @@ from app.models.worker_availability import WorkerAvailabilityEntry as WorkerAvai
 
 # IMPORTANT: Whenever you create a new model (like Client or Worker),
 # you MUST import it into this file so Alembic knows it exists!
+
+from app.models.billing_visit_evidence import BillingVisitEvidence as BillingVisitEvidence

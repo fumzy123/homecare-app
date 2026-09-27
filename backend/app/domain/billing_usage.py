@@ -80,7 +80,7 @@ class CountedClient:
     completion_status: ShiftCompletionStatus
 
 
-def active_clients(candidates: Iterable[UsageCandidate], window: UsageWindow) -> tuple[CountedClient, ...]:
+def active_clients(candidates: Iterable[UsageCandidate], window: UsageWindow, evidence=()) -> tuple[CountedClient, ...]:
     """One witness per client; stop evaluating their other visits after a match.
 
     This is a fresh estimate, never a permanent billable flag or an invoice.
@@ -88,7 +88,18 @@ def active_clients(candidates: Iterable[UsageCandidate], window: UsageWindow) ->
     records survive a canceled/deleted master; its unfulfilled visits do not.
     """
     counted = {}
+    protected = {(row.shift_id, row.occurrence_date) for row in evidence
+                 if row.completion_status not in ("scheduled", "in_progress")}
     first, last = window.local_dates
+    for row in evidence:
+        status = ShiftCompletionStatus(row.completion_status)
+        if (status in HISTORICAL_STATUSES and row.client_id not in counted
+                and first <= row.local_start.date() <= last
+                and window.contains_local_start(row.local_start)):
+            counted[row.client_id] = CountedClient(
+                row.client_id, row.shift_id, row.occurrence_date, row.modification_id,
+                row.local_start, status,
+            )
     for candidate in candidates:
         shift = candidate.shift
         if shift.client_id in counted:
@@ -105,6 +116,8 @@ def active_clients(candidates: Iterable[UsageCandidate], window: UsageWindow) ->
             ):
                 dates.add(mod.original_date)
         for occurrence_date in sorted(dates):
+            if (shift.id, occurrence_date) in protected:
+                continue
             mod = modifications.get(occurrence_date)
             occurrence = resolve_effective_occurrence(shift, occurrence_date, mod)
             if occurrence.completion_status not in QUALIFYING_STATUSES:

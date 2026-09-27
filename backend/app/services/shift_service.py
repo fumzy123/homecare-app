@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 import uuid
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
+from app.services.billing_evidence_service import BillingEvidenceService
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, OVERTIME_APPROVERS
@@ -54,6 +55,7 @@ class ShiftService:
         self.current_member_role = current_employment.role
         self.current_employment = current_employment
         self.checker = SchedulingChecker(self.db, self.org_id)
+        self.evidence_service = BillingEvidenceService(db, self.org_id)
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -513,7 +515,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            self.evidence_service.preserve(shift)
 
             updates = payload.model_dump(exclude_unset=True, exclude={"override_hours_check"})
 
@@ -593,6 +597,7 @@ class ShiftService:
             return shift
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -603,7 +608,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def cancel_shift(self, shift_id: str, payload: ShiftCancelSchema):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            self.evidence_service.preserve(shift)
 
             shift.status = ShiftStatus.cancelled
             shift.deleted_at = datetime.now(timezone.utc)
@@ -613,6 +620,7 @@ class ShiftService:
             return {"message": "Shift cancelled successfully"}
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -623,7 +631,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             master = self._get_active_shift(shift_id)
+            evidence = self.evidence_service.preserve(master)
 
             if payload.new_start_time or payload.new_end_time:
                 duration = master.end_time - master.start_time
@@ -656,11 +666,14 @@ class ShiftService:
                     existing.cancelled_at = datetime.now(timezone.utc)
                 self.modification_repo.add(existing)
 
+            self.db.flush()
+            self.evidence_service.correct(master, existing, evidence, payload.model_fields_set)
             self.db.commit()
             self.db.refresh(existing)
             return existing
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -676,7 +689,9 @@ class ShiftService:
         payload: ShiftModificationUpdateSchema,
     ):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             master = self._get_active_shift(shift_id)
+            evidence = self.evidence_service.preserve(master)
             mod = self.modification_repo.get_modification_by_shift_and_date_required(shift_id, original_date)
 
             if payload.new_start_time or payload.new_end_time:
@@ -696,11 +711,14 @@ class ShiftService:
             for field, value in updates.items():
                 setattr(mod, field, value)
 
+            self.db.flush()
+            self.evidence_service.correct(master, mod, evidence, payload.model_fields_set)
             self.db.commit()
             self.db.refresh(mod)
             return mod
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -712,7 +730,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def cancel_from_date(self, shift_id: str, payload: ShiftCancelFromSchema):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            self.evidence_service.preserve(shift)
             occurrence_date = payload.occurrence_date
 
             if occurrence_date <= shift.start_time.date():
@@ -739,7 +759,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            self.evidence_service.preserve(shift)
             occurrence_date = payload.occurrence_date
 
             if payload.worker_id is not None or payload.client_id is not None:

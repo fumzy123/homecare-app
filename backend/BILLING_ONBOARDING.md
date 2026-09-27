@@ -171,6 +171,34 @@ until those release requirements and end-to-end staging checks are complete.
   HTML escaping, and browser-independent agency wall-time formatting. This does
   not replace a browser/staging walkthrough after migrations are applied.
 
+## Historical visit evidence
+
+- Apply migration `c0a4b8d5e397` before deploying this code. It adds the versioned
+  `billing_visit_evidence` table; it has not been applied to a shared database.
+- Completed/no-show occurrence facts are copied before master edits, series
+  splits/cancellations, or client archival. This happens inside the same
+  transaction as the schedule change. Failure rolls both changes back.
+- Explicit occurrence corrections append a revision. Master reassignment does
+  not transfer the historical client; ordinary master changes cannot change a
+  preserved visit's time. Note-only edits do not add financial revisions.
+- Estimates combine the latest evidence with live schedule occurrences. Moved-out
+  and cancelled versions suppress obsolete evidence; intentionally reopened
+  scheduled visits count only while their current schedule remains live.
+- The completion job uses the service/repository layers and the agency timezone
+  (legacy agencies retain UTC; enrolled agencies without a timezone are skipped).
+  Only scheduled visits are automatically completed, preserving dropped,
+  cancelled, in-progress and no-show states. Start-only rescheduling inherits
+  the duration at the new start. Completion and evidence commit together.
+- All these writers lock parent shifts in a consistent order. PostgreSQL locking
+  behavior still needs a staging concurrency check; SQLite tests verify
+  transactions and counting, not PostgreSQL row-lock semantics.
+- Evidence is append-only through application repositories. This is not an
+  immutable invoice or a database-level ban on privileged administrative edits.
+  No backfill can reconstruct overrides deleted before this release. Existing
+  surviving historical overrides are captured before subsequent mutations.
+- Period finalization, the 72-hour correction cutoff, invoice submission, and
+  post-finalization adjustments are still separate implementation steps.
+
 ## Recovery
 
 - One activation request per organization; writes take the organization row lock.

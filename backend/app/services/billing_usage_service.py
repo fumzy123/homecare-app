@@ -7,6 +7,7 @@ import stripe
 from app.core.exceptions import AppError
 from app.domain.billing_usage import UsageWindow, active_clients
 from app.repositories.billing_usage_repository import BillingUsageRepository
+from app.repositories.billing_evidence_repository import BillingEvidenceRepository
 from app.repositories.billing_period_repository import BillingPeriodRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
@@ -31,6 +32,7 @@ class BillingUsageService:
         self.current_user = current_user
         self.org_id = org_id
         self.usage_repo = BillingUsageRepository(db)
+        self.evidence_repo = BillingEvidenceRepository(db)
         self.period_repo = BillingPeriodRepository(db)
         self.trial_activation_repo = TrialActivationRepository(db)
         self.agreement_repo = BillingAgreementRepository(db)
@@ -157,7 +159,9 @@ class BillingUsageService:
     def estimate(self, starts_at: datetime, ends_at: datetime, agency_timezone: str):
         try:
             window = UsageWindow(starts_at, ends_at, agency_timezone)
-            clients = active_clients(self.usage_repo.candidates(self.org_id, window), window)
+            candidates = self.usage_repo.candidates(self.org_id, window)
+            evidence = self.evidence_repo.for_window(self.org_id, window, [c.shift.id for c in candidates])
+            clients = active_clients(candidates, window, evidence)
         except (ValueError, ZoneInfoNotFoundError) as exc:
             raise AppError(409, "USAGE_REVIEW_REQUIRED", str(exc)) from exc
         return {

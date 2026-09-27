@@ -8,6 +8,7 @@ from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
 from app.core.enums import ClientStatus, ShiftStatus, AuthorizationCoverage, CareArrangement
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
+from app.services.billing_evidence_service import BillingEvidenceService
 from app.repositories.client_repository import ClientRepository
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.authorization_repository import AuthorizationRepository
@@ -25,6 +26,7 @@ class ClientService:
         self.auth_repo = AuthorizationRepository(db)
         self.plan_repo = WeeklyCarePlanRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
+        self.evidence_service = BillingEvidenceService(db, self.org_id)
 
     # ── Derived authorization summary (service types, care dates, coverage) ────
 
@@ -165,6 +167,7 @@ class ClientService:
 
             active_shifts = self.shift_repo.get_active_shifts_for_client(client_id, self.org_id)
             for shift in active_shifts:
+                self.evidence_service.preserve(shift)
                 if shift.is_recurring:
                     shift.recurrence_end_date = today
                     self.shift_repo.delete_modifications_from_date(shift.id, today)
@@ -176,6 +179,7 @@ class ClientService:
             return {"message": "Client deleted successfully"}
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
