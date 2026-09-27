@@ -9,7 +9,8 @@ export function useBillingOnboarding(userId: string | undefined, owner: boolean)
   const confirm = useMutation({ mutationFn: billingApi.confirmOnboardingCard, onSuccess: refresh })
   const cancel = useMutation({ mutationFn: billingApi.cancelOnboarding, onSuccess: refresh })
   const portal = useMutation({ mutationFn: billingApi.createPortalSession })
-  return { options, setup, confirm, cancel, portal }
+  const timezone = useMutation({ mutationFn: billingApi.setTimezone, onSuccess: refresh })
+  return { options, setup, confirm, cancel, portal, timezone }
 }
 
 export function useBillingDetails(userId: string | undefined, enabled: boolean) {

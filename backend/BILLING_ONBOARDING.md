@@ -104,9 +104,9 @@ until those release requirements and end-to-end staging checks are complete.
   folds qualify when they fall in the same usage window. A fold straddling a billing
   boundary, or a nonexistent spring-forward time, requires review instead of an
   arbitrary charge. No browser/server timezone fallback is permitted.
-- This is not yet a Billing page endpoint. The next integration must store the
-  agency timezone and authoritative monthly usage periods (including annual-plan
-  monthly windows), excluding onboarding/trial by starting at the paid boundary.
+- `GET /api/billing/usage/current` now supplies server-selected dates and the
+  saved agency timezone to the counter. The Billing count/breakdown interface
+  remains the next frontend step.
 - Before usage invoicing, preserve scheduling change history and finalized
   per-client evidence. Some existing edit/truncation paths delete overrides or
   rewrite masters; the estimate can only use surviving data. Do not calculate
@@ -115,6 +115,40 @@ until those release requirements and end-to-end staging checks are complete.
   tenant isolation, moved occurrences and absence of N+1 queries, alongside
   recurrence/status/timezone domain tests. PostgreSQL query-plan measurements
   against realistic staging data remain a rollout check.
+
+## Agency timezone and monthly period records
+
+- The owner selects an IANA timezone in Billing and saves it using
+  `PUT /api/billing/timezone`. No timezone is inferred or backfilled by migration.
+  An initial choice is permitted for an enrolled agency missing its timezone;
+  changes to an existing choice after subscription creation require review.
+  Billing authorization and new trial subscription creation require a saved zone.
+- Migration `b9f3a7c4d286` adds `organizations.billing_timezone` and
+  `billing_periods`. Current-period creation locks the organization and has a
+  unique organization/subscription/start constraint. Retries reuse the period.
+  Its timezone, plan version, allowance, currency and per-client rate are snapshots;
+  the current catalog never rewrites stored terms.
+- `GET /api/billing/usage/current` is admin-only; dates, timezone and tenant ID
+  cannot be selected by the browser. It fetches the agency's current subscription
+  from Stripe and verifies customer, price, quantity and period before counting.
+  Owners alone can change the timezone. Workers cannot read this usage endpoint.
+- For monthly plans, the confirmed Stripe item dates must match the original
+  paid anchor. Annual plans derive monthly windows from that same anchor and
+  verify they lie within Stripe's annual coverage. Month-end clamping always
+  uses the original day/time, so January 31 returns to March 31 after February.
+  Drift or unexpected pricing fails closed for review rather than guessing.
+- Trial/onboarding periods return `not_started`; inactive subscriptions return
+  `no_current_period`. Usage estimates contain only additional-client charges,
+  never a monthly share of the annual base. Finalization eligibility is recorded
+  as period end + 72 hours, but no finalization or invoice is triggered here.
+- Period records are currently created on demand for the current period only.
+  Historical catch-up, preserved visit evidence, finalized counts, adjustments
+  and usage invoice delivery remain separate work before rollout. The record's
+  existence does not mean the period is finalized or that payment succeeded.
+- `scripts/verify_usage_periods_sandbox.py` exercises the actual service against
+  disposable Stripe monthly/annual test-clock subscriptions across January 31,
+  February 28 and March 31, with in-memory repositories. It deletes its clock
+  and customers and never touches the application database.
 
 ## Recovery
 

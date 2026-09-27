@@ -8,6 +8,7 @@ export interface BillingStatus {
   trial_ends_at: string | null
   has_access: boolean
   new_billing_flow?: boolean
+  billing_timezone?: string | null
   is_onboarding?: boolean
   onboarding_deadline_at?: string
   trial_starts_at?: string | null
@@ -31,6 +32,7 @@ export interface BillingStatus {
 }
 
 export interface OnboardingOptions {
+  timezones: string[]
   consent_version: string
   consent_text: string
   plans: { code: string; version: number; interval: 'month' | 'year'; base_amount_cents: number; currency: string; included_clients: number; additional_client_amount_cents: number }[]
@@ -60,6 +62,8 @@ export interface BillingDetails {
 }
 
 export const billingApi = {
+  setTimezone: async (timezone: string): Promise<{ billing_timezone: string }> =>
+    (await apiClient.put('/api/billing/timezone', { timezone })).data,
   getOnboardingOptions: async (): Promise<OnboardingOptions> => (await apiClient.get('/api/billing/onboarding/options')).data,
   setupOnboardingCard: async (payload: { interval: 'month' | 'year'; consent_version: string; accepted: true }): Promise<{ url: string | null; card_saved: boolean }> =>
     (await apiClient.post('/api/billing/onboarding/card-setup', payload)).data,

@@ -34,6 +34,7 @@ class Organization(Base):
     paid_at = Column(DateTime(timezone=True), nullable=True)
     stripe_customer_id = Column(String, nullable=True)
     subscription_id = Column(String, nullable=True)
+    billing_timezone = Column(String, nullable=True)
     subscription_status = Column(String, nullable=True)
     subscription_current_period_end = Column(DateTime(timezone=True), nullable=True)
     # Nullable rollout: legacy agencies retain their current access policy until

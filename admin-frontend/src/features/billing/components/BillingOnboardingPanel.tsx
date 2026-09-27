@@ -11,7 +11,8 @@ function message(error: unknown) {
 export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
   const user = useAuthStore(s => s.user)
   const owner = user?.role === 'owner'
-  const { options, setup, confirm, cancel, portal } = useBillingOnboarding(user?.id, owner)
+  const { options, setup, confirm, cancel, portal, timezone } = useBillingOnboarding(user?.id, owner)
+  const [selectedTimezone, setSelectedTimezone] = useState('')
   const details = useBillingDetails(user?.id, Boolean(status.card_saved || status.subscription_status))
   const [interval, setInterval] = useState<'month' | 'year'>(status.plan_interval ?? 'month')
   const [accepted, setAccepted] = useState(false)
@@ -23,8 +24,8 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
     returnChecked.current = true
     confirmCard()
   }, [owner, confirmCard])
-  const error = setup.error ?? confirm.error ?? cancel.error ?? portal.error ?? options.error
-  const busy = setup.isPending || confirm.isPending || cancel.isPending || portal.isPending
+  const error = setup.error ?? confirm.error ?? cancel.error ?? portal.error ?? options.error ?? timezone.error
+  const busy = setup.isPending || confirm.isPending || cancel.isPending || portal.isPending || timezone.isPending
   const button = 'border border-ink px-4 py-2 disabled:opacity-40'
   const end = status.trial_ends_at ? new Date(status.trial_ends_at).toLocaleString() : null
   const plan = options.data?.plans.find(p => p.interval === interval)
@@ -40,6 +41,20 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
 
   return (
     <section className="space-y-5 border border-ink bg-paper p-6">
+      <div className="space-y-2">
+        <p>Agency timezone: {status.billing_timezone ?? 'Not selected'}</p>
+        {owner && (!status.billing_timezone || !status.subscription_status) && <>
+          <label className="block">Select the timezone used for your agency’s shift times
+            <select className="block border border-ink p-2 mt-2 max-w-full" value={selectedTimezone || status.billing_timezone || ''} onChange={e => setSelectedTimezone(e.target.value)} disabled={busy}>
+              <option value="" disabled>Choose a timezone</option>
+              {options.data?.timezones.map(zone => <option key={zone} value={zone}>{zone.replaceAll('_', ' ')}</option>)}
+            </select>
+          </label>
+          <p>We use this timezone to place visits in the correct billing month. Changes after activation require support review.</p>
+          <button className={button} disabled={busy || !selectedTimezone || selectedTimezone === status.billing_timezone} onClick={() => timezone.mutate(selectedTimezone)}>Save agency timezone</button>
+        </>}
+        {!owner && !status.billing_timezone && <p>Ask your agency owner to select a timezone before billing setup.</p>}
+      </div>
       {conversion && ['pending', 'scheduled'].includes(conversion.status) && <div role="status" className="border border-ink p-4 space-y-2">
         <h3 className="font-semibold">Your move to Standard</h3>
         <p>From {new Date(conversion.effective_at).toLocaleString()}, your base subscription will be CAD ${conversion.base_amount_cents / 100}/month, including {conversion.included_clients} active clients. Additional clients will cost CAD ${conversion.additional_client_amount_cents / 100} each per month.</p>
@@ -65,7 +80,7 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
             </label>
             <p>Due today: CAD $0. {plan && `First base payment after your trial: CAD $${(plan.base_amount_cents / 100).toLocaleString()}. ${plan.included_clients} active clients included, then CAD $${plan.additional_client_amount_cents / 100} per additional client per month.`} {interval === 'year' && 'Annual prepayment covers the base only.'}</p>
             <label className="flex gap-3 items-start"><input type="checkbox" checked={accepted} disabled={busy} onChange={e => setAccepted(e.target.checked)} className="mt-1" /><span>{options.data.consent_text}</span></label>
-            <button className={button} disabled={!accepted || busy} onClick={saveCard}>{setup.isPending ? 'Opening secure card setup…' : 'Agree and save card with Stripe'}</button>
+            <button className={button} disabled={!accepted || busy || !status.billing_timezone} onClick={saveCard}>{setup.isPending ? 'Opening secure card setup…' : 'Agree and save card with Stripe'}</button>
           </>}
           <p>Already finished Stripe card setup?</p>
           <button className={button} disabled={busy} onClick={() => confirm.mutate()}>Check saved card</button>

@@ -2,6 +2,7 @@ from app.models.base import Base as Base
 from app.models.organization import Organization as Organization
 from app.models.trial_activation import TrialActivation as TrialActivation
 from app.models.billing_agreement import BillingAgreement as BillingAgreement
+from app.models.billing_period import BillingPeriod as BillingPeriod
 from app.models.founding_offer import FoundingOffer as FoundingOffer
 from app.models.founding_offer import FoundingSlot as FoundingSlot
 from app.models.founding_conversion import FoundingConversion as FoundingConversion

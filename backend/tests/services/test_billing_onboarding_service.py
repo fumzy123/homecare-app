@@ -28,6 +28,7 @@ def state(monkeypatch):
     service.founding_offer_repo = MagicMock()
     service.founding_offer_repo.get_for_org.return_value = None
     org = SimpleNamespace(
+        billing_timezone="UTC",
         id=service.org_id, onboarding_deadline_at=now + timedelta(days=20),
         onboarding_completed_at=now, stripe_customer_id="cus_own", subscription_id=None,
         trial_starts_at=None, trial_ends_at=None, subscription_status=None,
@@ -68,6 +69,21 @@ def test_activation_uses_authorized_price_card_and_fixed_trial_end(state):
     assert state.request.status == "activated"
     state.service.process_activation(now=state.now)
     state.remote.Subscription.create.assert_called_once()
+
+
+def test_missing_timezone_blocks_card_authorization(state):
+    state.org.billing_timezone = None
+    with pytest.raises(AppError) as error:
+        state.service.setup_card("month", CONSENT_VERSION)
+    assert error.value.code == "TIMEZONE_REQUIRED"
+    state.remote.checkout.Session.create.assert_not_called()
+
+
+def test_missing_timezone_blocks_new_trial_subscription(state):
+    state.org.billing_timezone = None
+    state.service.process_activation(now=state.now)
+    assert state.request.status == "needs_review"
+    state.remote.Subscription.create.assert_not_called()
 
 
 def test_remote_success_after_local_failure_is_reconciled(state):

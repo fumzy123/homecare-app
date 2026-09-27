@@ -12,8 +12,31 @@ from app.services.billing_onboarding_service import BillingOnboardingService
 from app.core.security import require_owner
 from typing import Literal
 from app.services.founding_offer_service import FoundingOfferService
+from app.services.billing_usage_service import BillingUsageService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_billing_usage_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):
+    return BillingUsageService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+def get_owner_billing_usage_service(current_user=Depends(require_owner), db: Session = Depends(get_db)):
+    return BillingUsageService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+class BillingTimezonePayload(BaseModel):
+    timezone: str
+
+
+@router.put("/timezone")
+def set_billing_timezone(payload: BillingTimezonePayload, billing_usage_service: BillingUsageService = Depends(get_owner_billing_usage_service)):
+    return billing_usage_service.set_timezone(payload.timezone)
+
+
+@router.get("/usage/current")
+def current_billing_usage(billing_usage_service: BillingUsageService = Depends(get_billing_usage_service)):
+    return billing_usage_service.current()
 
 
 def get_founding_offer_service(

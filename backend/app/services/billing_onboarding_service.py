@@ -5,6 +5,7 @@ Stripe I/O; domain helpers remain pure. All writers lock the organization first.
 """
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
+from app.domain.billing_periods import billing_timezones
 import stripe
 from app.core.stripe_objects import stripe_field as stripe_field, subscription_period_end as subscription_period_end
 from app.services.founding_conversion_service import release_conversion_schedule
@@ -66,6 +67,7 @@ class BillingOnboardingService:
         version, text = consent_for_plan(code)
         return {
             "consent_version": version, "consent_text": text,
+            "timezones": billing_timezones(),
             "plans": [{
                 "code": code, "version": 1, "interval": interval,
                 "base_amount_cents": get_plan(code, interval, version=1).base_amount_cents,
@@ -89,6 +91,7 @@ class BillingOnboardingService:
             plan = get_plan("standard", "month", version=conversion.target_plan_version)
         return {
             "new_billing_flow": True,
+            "billing_timezone": org.billing_timezone,
             "subscription_status": org.subscription_status,
             "subscription_current_period_end": org.subscription_current_period_end,
             "is_onboarding": onboarding,
@@ -121,6 +124,8 @@ class BillingOnboardingService:
         now = datetime.now(timezone.utc)
         try:
             org = self._lock()
+            if not org.billing_timezone:
+                raise AppError(409, "TIMEZONE_REQUIRED", "Save your agency timezone before authorizing billing")
             agreement = self.agreement_repo.get_for_org(org.id)
             offer = self.founding_offer_repo.get_for_org(org.id)
             code = agreement.plan_code if agreement else "founding" if offer_available(offer) else "standard"
@@ -260,6 +265,10 @@ class BillingOnboardingService:
             ):
                 request.status = "needs_review"
             else:
+                if not org.billing_timezone:
+                    request.status = "needs_review"
+                    self.db.commit()
+                    return
                 if not agreement.payment_method_id and agreement.checkout_session_id:
                     session = stripe.checkout.Session.retrieve(agreement.checkout_session_id)
                     if session.status == "complete":

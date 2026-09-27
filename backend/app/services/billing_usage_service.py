@@ -1,17 +1,28 @@
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfoNotFoundError
+from uuid import uuid4
+import stripe
 
 from app.core.exceptions import AppError
 from app.domain.billing_usage import UsageWindow, active_clients
 from app.repositories.billing_usage_repository import BillingUsageRepository
+from app.repositories.billing_period_repository import BillingPeriodRepository
+from app.repositories.trial_activation_repository import TrialActivationRepository
+from app.repositories.billing_agreement_repository import BillingAgreementRepository
+from app.repositories.founding_conversion_repository import FoundingConversionRepository
+from app.domain.billing_periods import monthly_usage_window, validate_billing_timezone
+from app.domain.billing import get_plan
+from app.models.billing_period import BillingPeriod
+from app.core.stripe_objects import stripe_field
+from app.services.founding_conversion_service import reconcile_conversion
+from app.core.config import settings
 
 
 class BillingUsageService:
-    """Internal estimate calculator; callers supply authoritative period/zone.
+    """Agency timezone, immutable current-period terms, and usage estimates.
 
-    The upcoming Billing endpoint must obtain these from the agency and billing
-    period records, not trust browser-supplied dates for financial decisions.
+    HTTP callers use current(); explicit-window estimate() is internal only.
     """
     def __init__(self, db, current_user, org_id):
         if org_id is None:
@@ -20,6 +31,124 @@ class BillingUsageService:
         self.current_user = current_user
         self.org_id = org_id
         self.usage_repo = BillingUsageRepository(db)
+        self.period_repo = BillingPeriodRepository(db)
+        self.trial_activation_repo = TrialActivationRepository(db)
+        self.agreement_repo = BillingAgreementRepository(db)
+        self.conversion_repo = FoundingConversionRepository(db)
+
+    def _lock(self):
+        org = self.trial_activation_repo.lock_organization(self.org_id)
+        if not org:
+            raise AppError(404, "NOT_FOUND", "Organization not found")
+        if org.onboarding_deadline_at is None:
+            raise AppError(409, "NOT_ENROLLED", "This agency is not enrolled in the new billing flow")
+        return org
+
+    def set_timezone(self, value):
+        try:
+            validate_billing_timezone(value)
+            org = self._lock()
+            if org.billing_timezone and org.billing_timezone != value and org.subscription_id:
+                raise AppError(409, "TIMEZONE_LOCKED", "Contact support to review a timezone change after subscription activation")
+            org.billing_timezone = value
+            self.db.commit()
+            return {"billing_timezone": value}
+        except ValueError as exc:
+            self.db.rollback()
+            raise AppError(422, "INVALID_TIMEZONE", str(exc)) from exc
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def current(self, *, now=None):
+        """Resolve current paid usage from Stripe, never from browser parameters.
+
+        Creates only the current period's immutable terms, on demand. Historical
+        catch-up/finalization is a separate workflow and must retain visit evidence.
+        """
+        if not settings.billing_onboarding_enabled:
+            raise AppError(409, "ONBOARDING_DISABLED", "Billing onboarding is not enabled")
+        now = now or datetime.now(timezone.utc)
+        try:
+            org = self._lock()
+            validate_billing_timezone(org.billing_timezone)
+            if not org.subscription_id or not org.trial_ends_at or now < org.trial_ends_at:
+                self.db.commit()
+                return {"state": "not_started", "usage": None}
+            agreement = self.agreement_repo.get_for_org(org.id)
+            if not agreement:
+                raise ValueError("The subscription has no recorded billing agreement")
+            sub = stripe.Subscription.retrieve(org.subscription_id)
+            if sub.id != org.subscription_id or sub.customer != org.stripe_customer_id:
+                raise ValueError("The subscription does not match this agency")
+            if sub.status not in ("active", "past_due", "unpaid"):
+                self.db.commit()
+                return {"state": "no_current_period", "usage": None}
+            items = stripe_field(stripe_field(sub, "items", {}), "data", [])
+            if len(items) != 1 or stripe_field(items[0], "quantity") != 1:
+                raise ValueError("The subscription items need billing review")
+            item = items[0]
+            start_value, end_value = stripe_field(item, "current_period_start"), stripe_field(item, "current_period_end")
+            if not start_value or not end_value:
+                raise ValueError("Stripe has not confirmed the subscription period")
+            base_start = datetime.fromtimestamp(start_value, timezone.utc)
+            base_end = datetime.fromtimestamp(end_value, timezone.utc)
+            starts_at, ends_at = monthly_usage_window(org.trial_ends_at, now)
+            if agreement.base_interval == "month":
+                if (base_start, base_end) != (starts_at, ends_at):
+                    raise ValueError("Stripe's monthly period differs from the recorded paid anchor")
+            elif agreement.base_interval == "year":
+                if not base_start <= starts_at < ends_at <= base_end:
+                    raise ValueError("Monthly usage falls outside the confirmed annual coverage")
+            else:
+                raise ValueError("Unsupported base billing interval")
+            plan, expected_price = self._period_plan(org.id, agreement, sub, starts_at, ends_at, now)
+            if stripe_field(stripe_field(item, "price", {}), "id") != expected_price:
+                raise ValueError("Stripe's price differs from the recorded period terms")
+            period = self.period_repo.get(org.id, sub.id, starts_at)
+            if period:
+                if (period.ends_at != ends_at or period.agency_timezone != org.billing_timezone
+                        or period.plan_code != plan.code or period.plan_version != plan.version):
+                    raise ValueError("Stored period terms need reconciliation; they will not be overwritten")
+            else:
+                period = BillingPeriod(
+                    id=uuid4(), org_id=org.id, subscription_id=sub.id, starts_at=starts_at, ends_at=ends_at,
+                    anchor_at=org.trial_ends_at, agency_timezone=org.billing_timezone,
+                    plan_code=plan.code, plan_version=plan.version, base_interval=plan.base_interval,
+                    included_clients=plan.included_clients, additional_client_amount_cents=plan.additional_client_amount_cents,
+                    currency=plan.currency, finalization_eligible_at=ends_at + timedelta(hours=72),
+                )
+                self.period_repo.add(period)
+            # Copy before commit expiration; counting uses exactly this snapshot.
+            period_data = {field: getattr(period, field) for field in (
+                "id", "starts_at", "ends_at", "agency_timezone", "plan_code", "plan_version", "base_interval",
+                "included_clients", "additional_client_amount_cents", "currency", "finalization_eligible_at",
+            )}
+            self.db.commit()
+        except ValueError as exc:
+            self.db.rollback()
+            raise AppError(409, "BILLING_PERIOD_REVIEW_REQUIRED", str(exc)) from exc
+        except Exception:
+            self.db.rollback()
+            raise
+        usage = self.estimate(period_data["starts_at"], period_data["ends_at"], period_data["agency_timezone"])
+        extra = max(0, usage["active_client_count"] - period_data["included_clients"])
+        return {"state": "ready", "period": period_data, "usage": {
+            **usage, "additional_clients": extra,
+            "estimated_usage_amount_cents": extra * period_data["additional_client_amount_cents"],
+        }}
+
+    def _period_plan(self, org_id, agreement, sub, starts_at, ends_at, now):
+        code, version, price = agreement.plan_code, agreement.plan_version, agreement.stripe_price_id
+        if code == "founding":
+            conversion = self.conversion_repo.get_for_org(org_id)
+            if conversion:
+                reconcile_conversion(conversion, sub, now)
+                if conversion.status == "needs_review" or starts_at < conversion.effective_at < ends_at:
+                    raise ValueError("The founding transition needs review before estimating usage")
+                if conversion.status == "converted" and starts_at >= conversion.effective_at:
+                    code, version, price = "standard", conversion.target_plan_version, conversion.target_price_id
+        return get_plan(code, agreement.base_interval, version=version), price
 
     def estimate(self, starts_at: datetime, ends_at: datetime, agency_timezone: str):
         try:
