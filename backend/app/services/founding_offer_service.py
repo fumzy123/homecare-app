@@ -7,6 +7,7 @@ from app.models.founding_offer import FoundingOffer
 from app.repositories.founding_offer_repository import FoundingOfferRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
+from app.repositories.founding_conversion_repository import FoundingConversionRepository
 
 
 class FoundingOfferService:
@@ -16,6 +17,7 @@ class FoundingOfferService:
         self.founding_offer_repo = FoundingOfferRepository(db)
         self.trial_activation_repo = TrialActivationRepository(db)
         self.agreement_repo = BillingAgreementRepository(db)
+        self.conversion_repo = FoundingConversionRepository(db)
 
     def _operator(self):
         if not self.current_user or str(self.current_user.id) not in settings.billing_operator_user_ids:
@@ -83,7 +85,17 @@ class FoundingOfferService:
 
     def list_offers(self):
         self._operator()
-        return [self._response(offer) for offer in self.founding_offer_repo.list_offers()]
+        result = []
+        for offer in self.founding_offer_repo.list_offers():
+            row = self._response(offer)
+            conversion = self.conversion_repo.get_for_org(offer.org_id)
+            row["conversion"] = {
+                "status": conversion.status, "notice_at": conversion.notice_at,
+                "effective_at": conversion.effective_at, "schedule_id": conversion.schedule_id,
+                "target_price_id": conversion.target_price_id,
+            } if conversion else None
+            result.append(row)
+        return result
 
     def record_paid_period(self, org_id, starts_at):
         """Called only for a verified paid invoice of this agency's subscription."""

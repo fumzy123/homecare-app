@@ -56,9 +56,29 @@ until those release requirements and end-to-end staging checks are complete.
   from its trial-end/first-paid-period boundary for twelve calendar months.
   Later paid invoices cannot reset it. API and Stripe-portal cancellations forfeit
   eligibility for future subscriptions without repricing the current prepaid period.
-- Operator listing and Billing expose protection expiry and notice due date.
-  Automated 30-day notice delivery and month-13 Stripe repricing are **not yet
-  implemented**. Keep rollout disabled until these are built and verified.
+- Operator listing and Billing expose protection expiry and conversion state.
+  A 15-minute job starts preparing conversion 45 days before protection ends.
+  It atomically publishes an admin in-app notification and an immutable record
+  of the exact Standard monthly base, allowance, additional-client rate, and date.
+  Billing retains the notice even after it falls out of the notification feed.
+  This step implements in-app notices, not email delivery.
+- The date is a monthly Stripe billing anchor after both protection expiry and
+  at least 31 days from notice preparation (one day of margin for publication).
+  Late preparation therefore gives an extra protected renewal rather than less
+  than 30 days' notice. Original founding consent is never overwritten.
+- Stripe schedules retain the founding base until the announced boundary, then
+  switch to the frozen Standard price without proration. The schedule releases
+  after one Standard month, leaving the monthly subscription running. Usage
+  counting/invoicing is a later step and must use the conversion's rate history.
+- Cancellation releases our schedule before stopping renewal, including during
+  its final Standard phase. An unknown external schedule is never overwritten.
+  Remote success is reconciled using schedule identity/metadata and deterministic
+  keys; an ambiguous create beyond 23 hours, removed schedule, or missed transition
+  becomes `needs_review`. Operators see this through the founding-offers endpoint.
+  Reconcile the remote state before repairing the record; never automatically
+  backdate a failed transition or reuse the original notice for different rates.
+- Migration `a8e2f6b3c175` adds the conversion audit table and notification enum.
+  Keep rollout disabled until the remaining usage billing and staging checks pass.
 - `scripts/verify_founding_sandbox.py` provisions/reuses only the test-mode CAD
   founding price and verifies zero-dollar trial creation and duplicate retries.
 - Allocation tests cover capacity, replay, release, payment, and forfeiture.
@@ -89,6 +109,11 @@ until those release requirements and end-to-end staging checks are complete.
   cancellation. It deletes its disposable customers/subscriptions.
 - `scripts/verify_trial_conversion_sandbox.py` advances disposable test clocks
   through monthly/annual conversion and cancellation, then removes the clocks.
+- `scripts/verify_founding_conversion_sandbox.py` uses the actual conversion
+  service with in-memory repository substitutes and real Stripe test clocks.
+  It simulates the final two protected months, verifies a CAD 200 renewal,
+  a CAD 300 Standard renewal, retry reconciliation, and cancellation before and
+  after the transition. It never touches the application database or live mode.
 - These scripts reject live keys. The first writes only sandbox price IDs to
   ignored `.env.local`; neither enables rollout or changes application data.
 - Database migration SQL can be generated offline. Real database migration,

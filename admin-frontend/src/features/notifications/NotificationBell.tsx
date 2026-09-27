@@ -14,6 +14,8 @@ function notificationTitle(n: Notification): string {
     ? `${n.about_worker_first_name} ${n.about_worker_last_name}`
     : null
   switch (n.type as NotificationType) {
+    case 'founding_conversion_notice':
+      return `Standard pricing starts ${new Date(String(n.payload.effective_at)).toLocaleDateString()}: CAD $${Number(n.payload.base_amount_cents) / 100}/month, plus $${Number(n.payload.additional_client_amount_cents) / 100} per client above ${Number(n.payload.included_clients)}. View billing details.`
     case 'credential_uploaded': {
       const label = DOCUMENT_LABELS[n.payload.document_type as string] ?? n.payload.document_type
       return `${workerName} uploaded ${label}`
@@ -36,6 +38,8 @@ function notificationTitle(n: Notification): string {
 
 function notificationDestination(n: Notification): string {
   switch (n.type as NotificationType) {
+    case 'founding_conversion_notice':
+      return '/settings/billing'
     case 'credential_uploaded':
       return `/dashboard/workers/${n.about_worker_id}/documents`
     case 'profile_updated':

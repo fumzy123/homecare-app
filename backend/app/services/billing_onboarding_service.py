@@ -6,6 +6,8 @@ Stripe I/O; domain helpers remain pure. All writers lock the organization first.
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import stripe
+from app.core.stripe_objects import stripe_field as stripe_field, subscription_period_end as subscription_period_end
+from app.services.founding_conversion_service import release_conversion_schedule
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -13,6 +15,7 @@ from app.domain.billing import get_plan
 from app.domain.billing_consent import consent_for_plan
 from app.domain.founding import offer_available, notice_due_at
 from app.repositories.founding_offer_repository import FoundingOfferRepository
+from app.repositories.founding_conversion_repository import FoundingConversionRepository
 from app.models.billing_agreement import BillingAgreement
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
@@ -29,6 +32,7 @@ class BillingOnboardingService:
         self.agreement_repo = BillingAgreementRepository(db)
         self.trial_activation_repo = TrialActivationRepository(db)
         self.founding_offer_repo = FoundingOfferRepository(db)
+        self.conversion_repo = FoundingConversionRepository(db)
 
     def _lock(self):
         org = self.trial_activation_repo.lock_organization(self.org_id)
@@ -80,6 +84,9 @@ class BillingOnboardingService:
         canceled = bool(agreement and agreement.canceled_at)
         plan = get_plan(agreement.plan_code, agreement.base_interval, version=agreement.plan_version) if agreement else None
         offer = self.founding_offer_repo.get_for_org(org.id)
+        conversion = self.conversion_repo.get_for_org(org.id) if agreement and agreement.plan_code == "founding" else None
+        if conversion and conversion.status == "converted":
+            plan = get_plan("standard", "month", version=conversion.target_plan_version)
         return {
             "new_billing_flow": True,
             "subscription_status": org.subscription_status,
@@ -95,10 +102,16 @@ class BillingOnboardingService:
             "activation_status": request.status if request else None,
             "plan_interval": agreement.base_interval if agreement else None,
             "base_amount_cents": plan.base_amount_cents if plan else None,
-            "plan_code": agreement.plan_code if agreement else None,
+            "plan_code": plan.code if plan else None,
             "additional_client_amount_cents": plan.additional_client_amount_cents if plan else None,
             "founding_protection_ends_at": offer.protection_ends_at if offer else None,
             "founding_notice_due_at": notice_due_at(offer.protection_ends_at) if offer and offer.protection_ends_at else None,
+            "founding_conversion": {
+                "status": conversion.status, "notice_at": conversion.notice_at,
+                "effective_at": conversion.effective_at, "base_amount_cents": conversion.base_amount_cents,
+                "additional_client_amount_cents": conversion.additional_client_amount_cents,
+                "included_clients": conversion.included_clients,
+            } if conversion else None,
         }
 
     def setup_card(self, interval, consent_version):
@@ -300,6 +313,7 @@ class BillingOnboardingService:
                 for sub in stripe.Subscription.list(customer=org.stripe_customer_id, status="all", limit=100).auto_paging_iter():
                     if sub.id == org.subscription_id or (request and stripe_field(sub.metadata, "trial_activation_id") == str(request.id)):
                         if sub.status not in ("canceled", "incomplete_expired"):
+                            release_conversion_schedule(self.conversion_repo.get_for_org(org.id), sub)
                             stripe.Subscription.modify(sub.id, cancel_at_period_end=True)
                         org.subscription_id = sub.id
             if request:
@@ -309,18 +323,3 @@ class BillingOnboardingService:
         except Exception:
             self.db.rollback()
             raise
-
-
-def subscription_period_end(subscription):
-    """Current Stripe versions expose periods on subscription items."""
-    items = stripe_field(stripe_field(subscription, "items", {}), "data", [])
-    end = (stripe_field(items[0], "current_period_end") if items else None) or stripe_field(subscription, "current_period_end")
-    return datetime.fromtimestamp(end, timezone.utc) if end else None
-
-
-def stripe_field(obj, key, default=None):
-    """Stripe SDK 15 objects support indexing, but no longer dict.get()."""
-    try:
-        return obj[key]
-    except KeyError:
-        return default

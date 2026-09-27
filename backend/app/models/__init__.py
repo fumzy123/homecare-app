@@ -4,6 +4,7 @@ from app.models.trial_activation import TrialActivation as TrialActivation
 from app.models.billing_agreement import BillingAgreement as BillingAgreement
 from app.models.founding_offer import FoundingOffer as FoundingOffer
 from app.models.founding_offer import FoundingSlot as FoundingSlot
+from app.models.founding_conversion import FoundingConversion as FoundingConversion
 from app.models.person import Person as Person
 from app.models.employment import Employment as Employment
 from app.models.client import Client as Client

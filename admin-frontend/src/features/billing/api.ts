@@ -19,6 +19,14 @@ export interface BillingStatus {
   plan_code?: 'standard' | 'founding' | null
   additional_client_amount_cents?: number | null
   founding_protection_ends_at?: string | null
+  founding_conversion?: {
+    status: 'pending' | 'scheduled' | 'converted' | 'canceled' | 'needs_review'
+    notice_at: string
+    effective_at: string
+    base_amount_cents: number
+    additional_client_amount_cents: number
+    included_clients: number
+  } | null
   founding_notice_due_at?: string | null
 }
 

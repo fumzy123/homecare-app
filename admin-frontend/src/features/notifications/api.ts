@@ -1,6 +1,7 @@
 import { apiClient } from '@/shared/lib/api-client'
 
 export type NotificationType =
+  | 'founding_conversion_notice'
   | 'profile_updated'
   | 'credential_uploaded'
   | 'shift_dropped'

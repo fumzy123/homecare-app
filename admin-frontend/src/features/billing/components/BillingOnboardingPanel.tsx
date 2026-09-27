@@ -28,6 +28,7 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
   const button = 'border border-ink px-4 py-2 disabled:opacity-40'
   const end = status.trial_ends_at ? new Date(status.trial_ends_at).toLocaleString() : null
   const plan = options.data?.plans.find(p => p.interval === interval)
+  const conversion = status.founding_conversion
 
   async function saveCard() {
     if (!accepted || !options.data) return
@@ -39,6 +40,12 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
 
   return (
     <section className="space-y-5 border border-ink bg-paper p-6">
+      {conversion && ['pending', 'scheduled'].includes(conversion.status) && <div role="status" className="border border-ink p-4 space-y-2">
+        <h3 className="font-semibold">Your move to Standard</h3>
+        <p>From {new Date(conversion.effective_at).toLocaleString()}, your base subscription will be CAD ${conversion.base_amount_cents / 100}/month, including {conversion.included_clients} active clients. Additional clients will cost CAD ${conversion.additional_client_amount_cents / 100} each per month.</p>
+        <p>Notice issued {new Date(conversion.notice_at).toLocaleDateString()}. You can cancel automatic billing before the change. Your final bill depends on usage and applicable taxes.</p>
+      </div>}
+      {conversion?.status === 'needs_review' && <p role="status">Your pricing transition needs a support review. Contact Care Harbor to confirm the effective date and rates.</p>}
       <h2 className="font-serif text-3xl">{status.is_onboarding ? 'Onboarding' : status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? `${status.plan_code === 'founding' ? 'Founding' : 'Standard'} plan` : 'Billing needs attention'}</h2>
       {status.is_onboarding && <p>Your trial starts when onboarding is completed, or by {status.onboarding_deadline_at && new Date(status.onboarding_deadline_at).toLocaleString()}. No countdown runs before then.</p>}
       {end && <p>{status.billing_canceled ? 'Trial access ends' : 'Trial ends; first base payment is due'}: {end}.</p>}

@@ -23,6 +23,8 @@ def state(monkeypatch):
     service = module.BillingOnboardingService(MagicMock(), SimpleNamespace(id=uuid4()), uuid4())
     service.trial_activation_repo = MagicMock()
     service.agreement_repo = MagicMock()
+    service.conversion_repo = MagicMock()
+    service.conversion_repo.get_for_org.return_value = None
     service.founding_offer_repo = MagicMock()
     service.founding_offer_repo.get_for_org.return_value = None
     org = SimpleNamespace(
@@ -238,3 +240,38 @@ def test_cancel_records_founder_forfeiture(state):
     state.service.founding_offer_repo.get_for_org.return_value = offer
     state.service.cancel()
     assert offer.forfeited_at == state.agreement.canceled_at
+
+
+def test_converted_summary_uses_standard_without_rewriting_consent(state):
+    state.agreement.plan_code = "founding"
+    state.service.conversion_repo.get_for_org.return_value = SimpleNamespace(
+        status="converted", target_plan_version=1, notice_at=state.now - timedelta(days=40),
+        effective_at=state.now, base_amount_cents=30000, additional_client_amount_cents=500, included_clients=10,
+    )
+    summary = state.service.summary(state.org, now=state.now)
+    assert summary["plan_code"] == "standard"
+    assert summary["base_amount_cents"] == 30000
+    assert summary["additional_client_amount_cents"] == 500
+    assert state.agreement.plan_code == "founding"
+
+
+def test_pending_notice_does_not_change_current_plan(state):
+    state.agreement.plan_code = "founding"
+    state.service.conversion_repo.get_for_org.return_value = SimpleNamespace(
+        status="scheduled", target_plan_version=1, notice_at=state.now,
+        effective_at=state.now + timedelta(days=40), base_amount_cents=30000, additional_client_amount_cents=500, included_clients=10,
+    )
+    summary = state.service.summary(state.org, now=state.now)
+    assert summary["base_amount_cents"] == 20000
+    assert summary["additional_client_amount_cents"] == 400
+    assert summary["founding_conversion"]["base_amount_cents"] == 30000
+
+
+def test_cancel_releases_schedule_before_stopping_renewal(state, monkeypatch):
+    actions = []
+    monkeypatch.setattr(module, "release_conversion_schedule", lambda *_: actions.append("release"))
+    state.remote.Subscription.modify.side_effect = lambda *_args, **_kwargs: actions.append("cancel")
+    state.org.subscription_id = state.sub.id
+    state.remote.Subscription.list.return_value.auto_paging_iter.side_effect = lambda: iter([state.sub])
+    state.service.cancel()
+    assert actions == ["release", "cancel"]

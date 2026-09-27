@@ -9,6 +9,8 @@ from app.repositories.organization_repository import OrganizationRepository
 from app.services.billing_onboarding_service import BillingOnboardingService, subscription_period_end, stripe_field
 from app.repositories.founding_offer_repository import FoundingOfferRepository
 from app.services.founding_offer_service import FoundingOfferService
+from app.repositories.founding_conversion_repository import FoundingConversionRepository
+from app.services.founding_conversion_service import reconcile_conversion
 
 stripe.api_key = settings.stripe_secret_key
 
@@ -25,6 +27,7 @@ class BillingService:
         self.current_user = current_user
         self.org_repo = OrganizationRepository(db)
         self.founding_offer_repo = FoundingOfferRepository(db)
+        self.conversion_repo = FoundingConversionRepository(db)
         # org_id is None for the webhook route (no auth — Stripe signature used instead)
         self.org_id = org_id
 
@@ -217,6 +220,7 @@ class BillingService:
                 org.subscription_status = subscription.status
                 org.subscription_current_period_end = subscription_period_end(subscription)
                 if org.onboarding_deadline_at is not None:
+                    reconcile_conversion(self.conversion_repo.get_for_org(org.id), subscription, datetime.now(timezone.utc))
                     org.trial_starts_at = datetime.fromtimestamp(subscription.trial_start, timezone.utc) if subscription.trial_start else None
                     org.trial_ends_at = datetime.fromtimestamp(subscription.trial_end, timezone.utc) if subscription.trial_end else None
                     if subscription.status == "canceled" or stripe_field(subscription, "cancel_at_period_end", False):

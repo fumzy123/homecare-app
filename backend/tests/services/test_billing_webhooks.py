@@ -25,6 +25,8 @@ def service():
     service = BillingService(MagicMock())
     service.org_repo = MagicMock()
     service.founding_offer_repo = MagicMock()
+    service.conversion_repo = MagicMock()
+    service.conversion_repo.get_for_org.return_value = None
     service.founding_offer_repo.get_for_org.return_value = None
     service.org_repo.get_by_stripe_customer_id.return_value = SimpleNamespace(
         id=uuid4(),
@@ -41,6 +43,20 @@ def test_latest_stripe_state_wins_over_old_webhook(service, monkeypatch):
     org = service.org_repo.get_by_stripe_customer_id.return_value
     assert org.subscription_status == "active"
     assert org.trial_ends_at == datetime.fromtimestamp(1701209600, timezone.utc)
+
+
+def test_webhook_confirms_announced_conversion_immediately(service, monkeypatch):
+    conversion = SimpleNamespace(
+        id=uuid4(), org_id=uuid4(), subscription_id="sub_own", target_price_id="price_standard",
+        effective_at=datetime(2020, 1, 1, tzinfo=timezone.utc), status="scheduled", converted_at=None,
+    )
+    service.conversion_repo.get_for_org.return_value = conversion
+    current = subscription(status="active", metadata={"founding_conversion_id": str(conversion.id)},
+                           items={"data": [{"price": {"id": "price_standard"}, "quantity": 1}]})
+    monkeypatch.setattr(stripe.Subscription, "retrieve", lambda _: current)
+    service._handle_subscription_updated(current)
+    assert conversion.status == "converted"
+    assert conversion.converted_at == conversion.effective_at
 
 
 def test_commit_failure_propagates_for_stripe_retry(service, monkeypatch):
