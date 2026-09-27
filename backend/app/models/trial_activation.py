@@ -18,3 +18,4 @@ class TrialActivation(Base):
     starts_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=False)
     status = Column(String, nullable=False, default="pending")
+    stripe_attempted_at = Column(DateTime(timezone=True), nullable=True)

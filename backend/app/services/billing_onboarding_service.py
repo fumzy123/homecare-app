@@ -1,0 +1,300 @@
+"""Owner consent, hosted card setup, and replay-safe trial activation.
+
+All database queries are repository-owned. This service owns transactions and
+Stripe I/O; domain helpers remain pure. All writers lock the organization first.
+"""
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+import stripe
+
+from app.core.config import settings
+from app.core.exceptions import AppError
+from app.domain.billing import get_plan
+from app.domain.billing_consent import CONSENT_TEXT, CONSENT_VERSION
+from app.models.billing_agreement import BillingAgreement
+from app.repositories.billing_agreement_repository import BillingAgreementRepository
+from app.repositories.trial_activation_repository import TrialActivationRepository
+from math import ceil
+
+stripe.api_key = settings.stripe_secret_key
+
+
+class BillingOnboardingService:
+    def __init__(self, db, current_user=None, org_id=None):
+        self.db = db
+        self.current_user = current_user
+        self.org_id = org_id
+        self.agreement_repo = BillingAgreementRepository(db)
+        self.trial_activation_repo = TrialActivationRepository(db)
+
+    def _lock(self):
+        org = self.trial_activation_repo.lock_organization(self.org_id)
+        if org is None:
+            raise AppError(404, "NOT_FOUND", "Organization not found")
+        if org.onboarding_deadline_at is None:
+            raise AppError(409, "NOT_ENROLLED", "Organization is not enrolled in the new billing flow")
+        return org
+
+    @staticmethod
+    def _enabled():
+        if not settings.billing_onboarding_enabled:
+            raise AppError(409, "ONBOARDING_DISABLED", "Billing onboarding is not enabled")
+
+    @staticmethod
+    def _price_id(interval):
+        return (settings.stripe_standard_monthly_v1_price_id if interval == "month"
+                else settings.stripe_standard_annual_v1_price_id)
+
+    @staticmethod
+    def _check_setup_open(org, agreement):
+        if org.subscription_id or agreement.canceled_at:
+            raise AppError(409, "AGREEMENT_LOCKED", "Billing authorization is no longer open for card setup")
+
+    def options(self):
+        return {
+            "consent_version": CONSENT_VERSION, "consent_text": CONSENT_TEXT,
+            "plans": [{
+                "code": "standard", "version": 1, "interval": interval,
+                "base_amount_cents": get_plan("standard", interval, version=1).base_amount_cents,
+                "currency": "cad", "included_clients": 10, "additional_client_amount_cents": 500,
+            } for interval in ("month", "year")],
+        }
+
+    def summary(self, org, *, now=None):
+        now = now or datetime.now(timezone.utc)
+        agreement = self.agreement_repo.get_for_org(org.id)
+        request = self.trial_activation_repo.get_for_org(org.id)
+        end = org.trial_ends_at
+        trial_active = bool(end and now < end and org.subscription_status == "trialing")
+        onboarding = not org.trial_starts_at and now < org.onboarding_deadline_at
+        canceled = bool(agreement and agreement.canceled_at)
+        plan = get_plan(agreement.plan_code, agreement.base_interval, version=agreement.plan_version) if agreement else None
+        return {
+            "new_billing_flow": True,
+            "subscription_status": org.subscription_status,
+            "subscription_current_period_end": org.subscription_current_period_end,
+            "is_onboarding": onboarding,
+            "onboarding_deadline_at": org.onboarding_deadline_at,
+            "trial_starts_at": org.trial_starts_at, "trial_ends_at": end,
+            "is_trial_active": trial_active,
+            "trial_days_left": max(0, ceil((end - now).total_seconds() / 86400)) if trial_active else 0,
+            "has_access": org.subscription_status == "active" or trial_active or onboarding,
+            "card_saved": bool(agreement and agreement.payment_method_id),
+            "billing_canceled": canceled,
+            "activation_status": request.status if request else None,
+            "plan_interval": agreement.base_interval if agreement else None,
+            "base_amount_cents": plan.base_amount_cents if plan else None,
+        }
+
+    def setup_card(self, interval, consent_version):
+        self._enabled()
+        if interval not in ("month", "year") or consent_version != CONSENT_VERSION:
+            raise AppError(400, "INVALID_TERMS", "Please review the current billing terms")
+        now = datetime.now(timezone.utc)
+        try:
+            org = self._lock()
+            agreement = self.agreement_repo.get_for_org(org.id)
+            if org.onboarding_deadline_at + timedelta(days=14) <= now:
+                raise AppError(409, "TRIAL_WINDOW_EXPIRED", "Contact support to review your trial window")
+            if org.subscription_id:
+                raise AppError(409, "ALREADY_SUBSCRIBED", "Manage the existing subscription in Billing")
+            if agreement and (agreement.canceled_at or agreement.base_interval != interval):
+                raise AppError(409, "AGREEMENT_LOCKED", "Contact support to change a previously authorized plan")
+            if agreement is None:
+                price_id = self._price_id(interval)
+                if not price_id:
+                    raise AppError(503, "PRICING_NOT_CONFIGURED", "Billing setup is not available yet")
+                plan = get_plan("standard", interval, version=1)
+                price = stripe.Price.retrieve(price_id)
+                if (not price.active or price.currency != "cad" or price.unit_amount != plan.base_amount_cents
+                        or not price.recurring or price.recurring.interval != interval
+                        or price.recurring.interval_count != 1):
+                    raise AppError(503, "PRICE_MISMATCH", "Configured pricing does not match the offer")
+                agreement = BillingAgreement(
+                    id=uuid4(), org_id=org.id, plan_code="standard", plan_version=1,
+                    base_interval=interval, stripe_price_id=price_id,
+                    consent_version=consent_version, accepted_at=now, accepted_by=self.current_user.id,
+                )
+                self.agreement_repo.add(agreement)
+                self.db.commit()
+                org = self._lock()
+                agreement = self.agreement_repo.get_for_org(org.id)
+            self._check_setup_open(org, agreement)
+            if not org.stripe_customer_id:
+                if agreement.customer_attempted_at is None:
+                    agreement.customer_attempted_at = now
+                    self.db.commit()
+                    org = self._lock()
+                    agreement = self.agreement_repo.get_for_org(org.id)
+                    self._check_setup_open(org, agreement)
+                if now - agreement.customer_attempted_at >= timedelta(hours=23):
+                    raise AppError(409, "RECONCILIATION_REQUIRED", "Support must reconcile the billing account")
+                customer = stripe.Customer.create(
+                    metadata={"org_id": str(org.id)},
+                    idempotency_key=f"onboarding-customer-{agreement.id}",
+                )
+                org.stripe_customer_id = customer.id
+                self.db.commit()
+                org = self._lock()
+                agreement = self.agreement_repo.get_for_org(org.id)
+                self._check_setup_open(org, agreement)
+            if agreement.checkout_session_id:
+                session = stripe.checkout.Session.retrieve(agreement.checkout_session_id)
+                if session.status == "complete":
+                    self._save_card(org, agreement, session)
+                    self.db.commit()
+                    return {"url": None, "card_saved": True}
+                if session.status == "open":
+                    self.db.commit()
+                    return {"url": session.url, "card_saved": False}
+            # Setup-only sessions never charge. Expired sessions may be replaced.
+            session = stripe.checkout.Session.create(
+                mode="setup", currency="cad", customer=org.stripe_customer_id,
+                payment_method_types=["card"],
+                metadata={"agreement_id": str(agreement.id)},
+                success_url=f"{settings.frontend_url}/settings/billing?card_setup=complete",
+                cancel_url=f"{settings.frontend_url}/settings/billing?card_setup=cancelled",
+                idempotency_key=f"onboarding-setup-{agreement.id}-{agreement.checkout_session_id or 'initial'}",
+            )
+            agreement.checkout_session_id = session.id
+            self.db.commit()
+            return {"url": session.url, "card_saved": False}
+        except Exception:
+            self.db.rollback()
+            raise
+
+    @staticmethod
+    def _save_card(org, agreement, session):
+        if session.customer != org.stripe_customer_id or session.mode != "setup":
+            raise AppError(409, "SETUP_MISMATCH", "Card setup does not belong to this account")
+        intent = stripe.SetupIntent.retrieve(session.setup_intent)
+        if intent.status != "succeeded" or intent.customer != org.stripe_customer_id:
+            raise AppError(409, "CARD_NOT_READY", "Finish card verification first")
+        stripe.Customer.modify(org.stripe_customer_id, invoice_settings={"default_payment_method": intent.payment_method})
+        agreement.payment_method_id = intent.payment_method
+
+    def confirm_card(self):
+        self._enabled()
+        try:
+            org = self._lock()
+            agreement = self.agreement_repo.get_for_org(org.id)
+            if not agreement or agreement.canceled_at or not agreement.checkout_session_id:
+                raise AppError(409, "NO_SETUP", "There is no active card setup")
+            session = stripe.checkout.Session.retrieve(agreement.checkout_session_id)
+            if session.status != "complete":
+                raise AppError(409, "CARD_NOT_READY", "Finish card setup first")
+            self._save_card(org, agreement, session)
+            self.db.commit()
+            return {"card_saved": True}
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def process_activation(self, *, now=None):
+        self._enabled()
+        now = now or datetime.now(timezone.utc)
+        try:
+            org = self._lock()
+            request = self.trial_activation_repo.get_for_org(org.id)
+            agreement = self.agreement_repo.get_for_org(org.id)
+            if not request or request.status not in ("pending", "awaiting_card"):
+                self.db.commit()
+                return
+            if not agreement or agreement.canceled_at:
+                request.status = "canceled" if agreement else "awaiting_card"
+                self.db.commit()
+                return
+            # Reconcile remote success first, including after a local commit failure.
+            matching = []
+            if org.stripe_customer_id:
+                subscriptions = stripe.Subscription.list(customer=org.stripe_customer_id, status="all", limit=100)
+                for sub in subscriptions.auto_paging_iter():
+                    if stripe_field(sub.metadata, "trial_activation_id") == str(request.id):
+                        matching.append(sub)
+                    elif sub.status not in ("canceled", "incomplete_expired"):
+                        request.status = "needs_review"
+                        self.db.commit()
+                        return
+            if len(matching) > 1:
+                request.status = "needs_review"
+            elif matching:
+                self._sync(org, request, matching[0])
+            elif org.subscription_id or request.ends_at <= now or (
+                request.stripe_attempted_at and now - request.stripe_attempted_at >= timedelta(hours=23)
+            ):
+                request.status = "needs_review"
+            else:
+                if not agreement.payment_method_id and agreement.checkout_session_id:
+                    session = stripe.checkout.Session.retrieve(agreement.checkout_session_id)
+                    if session.status == "complete":
+                        self._save_card(org, agreement, session)
+                if not agreement.payment_method_id or not org.stripe_customer_id:
+                    request.status = "awaiting_card"
+                    self.db.commit()
+                    return
+                if request.stripe_attempted_at is None:
+                    request.stripe_attempted_at = now
+                    self.db.commit()
+                    # Re-enter under the org lock and recheck cancellation/remote state.
+                    return self.process_activation(now=now)
+                sub = stripe.Subscription.create(
+                    customer=org.stripe_customer_id,
+                    items=[{"price": agreement.stripe_price_id}],
+                    default_payment_method=agreement.payment_method_id,
+                    trial_end=int(request.ends_at.timestamp()),
+                    trial_settings={"end_behavior": {"missing_payment_method": "cancel"}},
+                    metadata={"trial_activation_id": str(request.id), "org_id": str(org.id)},
+                    idempotency_key=f"trial-activation-{request.id}",
+                )
+                self._sync(org, request, sub)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+    @staticmethod
+    def _sync(org, request, sub):
+        org.subscription_id = sub.id
+        org.subscription_status = sub.status
+        org.trial_starts_at = datetime.fromtimestamp(sub.trial_start, timezone.utc) if sub.trial_start else None
+        org.trial_ends_at = datetime.fromtimestamp(sub.trial_end, timezone.utc) if sub.trial_end else None
+        org.subscription_current_period_end = subscription_period_end(sub)
+        request.status = "activated" if sub.status != "canceled" else "canceled"
+
+    def cancel(self):
+        try:
+            org = self._lock()
+            agreement = self.agreement_repo.get_for_org(org.id)
+            if not agreement:
+                raise AppError(409, "NO_AGREEMENT", "There is no billing agreement to cancel")
+            agreement.canceled_at = agreement.canceled_at or datetime.now(timezone.utc)
+            request = self.trial_activation_repo.get_for_org(org.id)
+            # Search also catches a successful Stripe create followed by local failure.
+            if org.stripe_customer_id:
+                for sub in stripe.Subscription.list(customer=org.stripe_customer_id, status="all", limit=100).auto_paging_iter():
+                    if sub.id == org.subscription_id or (request and stripe_field(sub.metadata, "trial_activation_id") == str(request.id)):
+                        if sub.status not in ("canceled", "incomplete_expired"):
+                            stripe.Subscription.modify(sub.id, cancel_at_period_end=True)
+                        org.subscription_id = sub.id
+            if request:
+                request.status = "canceled"
+            self.db.commit()
+            return {"canceled": True}
+        except Exception:
+            self.db.rollback()
+            raise
+
+
+def subscription_period_end(subscription):
+    """Current Stripe versions expose periods on subscription items."""
+    items = stripe_field(stripe_field(subscription, "items", {}), "data", [])
+    end = (stripe_field(items[0], "current_period_end") if items else None) or stripe_field(subscription, "current_period_end")
+    return datetime.fromtimestamp(end, timezone.utc) if end else None
+
+
+def stripe_field(obj, key, default=None):
+    """Stripe SDK 15 objects support indexing, but no longer dict.get()."""
+    try:
+        return obj[key]
+    except KeyError:
+        return default

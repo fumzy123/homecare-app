@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.exceptions import AppError
 from app.models.organization import Organization
 from app.repositories.organization_repository import OrganizationRepository
+from app.services.billing_onboarding_service import BillingOnboardingService, subscription_period_end
 
 stripe.api_key = settings.stripe_secret_key
 
@@ -46,6 +47,8 @@ class BillingService:
             org = self.org_repo.get_by_id(self.org_id)
             if not org:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
+            if org.onboarding_deadline_at is not None:
+                raise AppError(409, "USE_ONBOARDING", "Authorize your plan through billing onboarding")
             if org.subscription_status == "active":
                 raise AppError(400, "ALREADY_SUBSCRIBED", "This organization already has an active subscription")
 
@@ -199,46 +202,68 @@ class BillingService:
 
     def _handle_subscription_updated(self, subscription) -> None:
         try:
-            org = self.org_repo.get_by_stripe_customer_id(subscription.customer)
+            org = self.org_repo.lock_by_stripe_customer_id(subscription.customer)
             if org:
+                if org.subscription_id and org.subscription_id != subscription.id:
+                    self.db.commit()
+                    return
+                # Fetch under the organization lock so concurrent stale events
+                # cannot overwrite a newer status after another handler commits.
+                subscription = stripe.Subscription.retrieve(subscription.id)
                 org.subscription_id = subscription.id
                 org.subscription_status = subscription.status
-                org.subscription_current_period_end = datetime.fromtimestamp(
-                    subscription.current_period_end, tz=timezone.utc
-                )
+                org.subscription_current_period_end = subscription_period_end(subscription)
+                if org.onboarding_deadline_at is not None:
+                    org.trial_starts_at = datetime.fromtimestamp(subscription.trial_start, timezone.utc) if subscription.trial_start else None
+                    org.trial_ends_at = datetime.fromtimestamp(subscription.trial_end, timezone.utc) if subscription.trial_end else None
+                self.db.commit()
+            else:
                 self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     def _handle_subscription_deleted(self, subscription) -> None:
         try:
-            org = self.org_repo.get_by_stripe_customer_id(subscription.customer)
+            org = self.org_repo.lock_by_stripe_customer_id(subscription.customer)
             if org:
+                if org.subscription_id != subscription.id:
+                    self.db.commit()
+                    return
                 org.subscription_status = "canceled"
-                org.subscription_current_period_end = datetime.fromtimestamp(
-                    subscription.current_period_end, tz=timezone.utc
-                )
+                org.subscription_current_period_end = subscription_period_end(subscription)
+                self.db.commit()
+            else:
                 self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     def _handle_payment_failed(self, invoice) -> None:
         try:
             org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
             if org:
+                if org.onboarding_deadline_at is not None:
+                    if org.subscription_id:
+                        self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
+                    return
                 org.subscription_status = "past_due"
                 self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     def _handle_payment_succeeded(self, invoice) -> None:
         try:
             org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
-            if org and not org.paid_at:
+            if org and org.onboarding_deadline_at is not None and org.subscription_id:
+                self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
+            if org and not org.paid_at and invoice.amount_paid > 0:
                 org.paid_at = datetime.now(timezone.utc)
                 self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     # ─────────────────────────────────────────
     # 6. Customer portal
@@ -253,7 +278,7 @@ class BillingService:
 
             session = stripe.billing_portal.Session.create(
                 customer=org.stripe_customer_id,
-                return_url=f"{settings.frontend_url}/settings",
+                return_url=f"{settings.frontend_url}/settings/billing",
             )
             return {"url": session.url}
 
@@ -272,6 +297,8 @@ class BillingService:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
 
             trial_duration = 14
+            if org.onboarding_deadline_at is not None:
+                return BillingOnboardingService(self.db, self.current_user, self.org_id).summary(org)
             now = datetime.now(timezone.utc)
             created_at = org.created_at
             if created_at.tzinfo is None:

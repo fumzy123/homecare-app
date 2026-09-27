@@ -4,6 +4,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { PlanCard }            from '@/features/billing/components/PlanCard'
 import { UpgradeCheckoutForm } from '@/features/billing/components/UpgradeCheckoutForm'
+import { useBillingStatus } from '@/features/billing/hooks/useBillingStatus'
+import { useAuthStore } from '@/shared/stores/auth'
+import { BillingOnboardingPanel } from '@/features/billing/components/BillingOnboardingPanel'
 
 export const Route = createFileRoute('/_protected/upgrade')({
   component: UpgradePage,
@@ -13,12 +16,18 @@ function UpgradePage() {
   const navigate    = useNavigate()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const user = useAuthStore(s => s.user)
+  const status = useBillingStatus(user?.id)
 
   function handleSuccess() {
     queryClient.invalidateQueries({ queryKey: ['billing-status'] })
     queryClient.invalidateQueries({ queryKey: ['billing-details'] })
     navigate({ to: '/settings/billing' })
   }
+
+  if (status.isPending) return <p className="p-8">Loading billing…</p>
+  if (status.isError) return <p className="p-8" role="alert">Could not load billing. Please refresh.</p>
+  if (status.data.new_billing_flow) return <div className="max-w-2xl mx-auto p-8"><BillingOnboardingPanel status={status.data} /></div>
 
   return (
     <div className="min-h-screen bg-cream px-6 py-8 flex flex-col">

@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { billingApi, type CardInfo, type Invoice } from '@/features/billing/api'
 import { UpdateCardModal } from '@/features/billing/components/UpdateCardModal'
+import { useBillingStatus } from '@/features/billing/hooks/useBillingStatus'
+import { useBillingDetails } from '@/features/billing/hooks/useBillingOnboarding'
+import { BillingOnboardingPanel } from '@/features/billing/components/BillingOnboardingPanel'
 
 function CardBrand({ brand }: { brand: string }) {
   const label = brand.toUpperCase() === 'MASTERCARD' ? 'MC' : brand.toUpperCase()
@@ -96,28 +99,27 @@ function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
 }
 
 export function BillingSection() {
+  const user = useAuthStore(s => s.user)
+  const { data, isPending, isError } = useBillingStatus(user?.id)
+  if (isPending) return <p>Loading billing…</p>
+  if (isError) return <p role="alert">Could not load billing. Please refresh and try again.</p>
+  return data.new_billing_flow ? <BillingOnboardingPanel status={data} /> : <LegacyBillingSection />
+}
+
+function LegacyBillingSection() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showUpdateCard, setShowUpdateCard] = useState(false)
   const [portalLoading, setPortalLoading]   = useState(false)
 
-  const { data: b } = useQuery({
-    queryKey:  ['billing-status', user?.id],
-    queryFn:   billingApi.getStatus,
-    staleTime: 5 * 60 * 1000,
-  })
+  const { data: b } = useBillingStatus(user?.id)
 
   const isActive  = b?.subscription_status === 'active'
   const isPastDue = b?.subscription_status === 'past_due'
   const isTrial   = b?.is_trial_active && !isActive
 
-  const { data: details } = useQuery({
-    queryKey:  ['billing-details', user?.id],
-    queryFn:   billingApi.getBillingDetails,
-    enabled:   b !== undefined && (isActive || isPastDue),
-    staleTime: 5 * 60 * 1000,
-  })
+  const { data: details } = useBillingDetails(user?.id, b !== undefined && (isActive || isPastDue))
 
   async function openPortal() {
     setPortalLoading(true)

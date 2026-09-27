@@ -28,6 +28,11 @@ class OrganizationRepository:
             Organization.stripe_customer_id == stripe_customer_id
         ).first()
 
+    def lock_by_stripe_customer_id(self, stripe_customer_id: str) -> Organization | None:
+        return self.db.query(Organization).filter(
+            Organization.stripe_customer_id == stripe_customer_id,
+        ).populate_existing().with_for_update().first()
+
     def add(self, org: Organization) -> None:
         self.db.add(org)
 

@@ -70,13 +70,13 @@ function PaymentGate() {
           Ready to continue?
         </h1>
         <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
-          Your 14-day free trial has ended. Subscribe for $700/month to keep your agency running.
+          Review your billing status or update your payment method to continue.
         </p>
         <button
-          onClick={() => navigate({ to: '/upgrade' })}
+          onClick={() => navigate({ to: '/settings/billing' })}
           className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 transition-opacity"
         >
-          Subscribe — $700 / month
+          Open billing
         </button>
       </div>
     </div>
@@ -103,7 +103,7 @@ function ProtectedLayout() {
   }
 
   // Let expired-trial users through to /upgrade so they can subscribe
-  if (billingStatus?.has_access === false && pathname !== '/upgrade') {
+  if (billingStatus?.has_access === false && pathname !== '/upgrade' && pathname !== '/settings/billing') {
     return <PaymentGate />
   }
 
@@ -139,9 +139,10 @@ function ProtectedLayout() {
             </button>
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
+              {billingStatus?.is_onboarding && <Link to="/settings/billing" className="ml-3 text-orange font-bold hover:underline">· Onboarding</Link>}
               {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
-                <Link to="/upgrade" className="ml-3 text-orange font-bold hover:underline">
-                  · Trial: {billingStatus.trial_days_left} days left · Subscribe
+                <Link to={billingStatus.new_billing_flow ? '/settings/billing' : '/upgrade'} className="ml-3 text-orange font-bold hover:underline">
+                  · Trial: {billingStatus.trial_days_left} days left · {billingStatus.new_billing_flow ? 'Manage billing' : 'Subscribe'}
                 </Link>
               )}
             </span>

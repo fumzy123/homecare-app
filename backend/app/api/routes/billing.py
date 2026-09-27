@@ -8,8 +8,44 @@ from app.services.org_service import OrgService
 from uuid import UUID
 from app.core.security import require_billing_operator
 from app.services.trial_activation_service import TrialActivationService
+from app.services.billing_onboarding_service import BillingOnboardingService
+from app.core.security import require_owner
+from typing import Literal
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_billing_onboarding_service(
+    current_user=Depends(require_owner),
+    db: Session = Depends(get_db),
+) -> BillingOnboardingService:
+    return BillingOnboardingService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+class BillingConsentPayload(BaseModel):
+    interval: Literal["month", "year"]
+    consent_version: str
+    accepted: Literal[True]
+
+
+@router.get("/onboarding/options")
+def onboarding_options(service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
+    return service.options()
+
+
+@router.post("/onboarding/card-setup")
+def onboarding_card_setup(payload: BillingConsentPayload, service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
+    return service.setup_card(payload.interval, payload.consent_version)
+
+
+@router.post("/onboarding/confirm-card")
+def onboarding_confirm_card(service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
+    return service.confirm_card()
+
+
+@router.post("/onboarding/cancel")
+def onboarding_cancel(service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
+    return service.cancel()
 
 
 def get_trial_activation_service(
@@ -34,6 +70,13 @@ def get_billing_service(
     return BillingService(db, current_user, org_id=OrgService.get_user_org_id(current_user, db))
 
 
+def get_owner_billing_service(
+    current_user=Depends(require_owner),
+    db: Session = Depends(get_db),
+) -> BillingService:
+    return BillingService(db, current_user, org_id=OrgService.get_user_org_id(current_user, db))
+
+
 def get_billing_webhook_service(
     db: Session = Depends(get_db),
 ) -> BillingService:
@@ -43,7 +86,7 @@ def get_billing_webhook_service(
 
 @router.post("/subscribe")
 async def create_subscription_intent(
-    billing_service: BillingService = Depends(get_billing_service),
+    billing_service: BillingService = Depends(get_owner_billing_service),
 ):
     return await billing_service.create_subscription_intent()
 
@@ -60,7 +103,7 @@ async def stripe_webhook(
 
 @router.post("/portal")
 async def create_portal_session(
-    billing_service: BillingService = Depends(get_billing_service),
+    billing_service: BillingService = Depends(get_owner_billing_service),
 ):
     return await billing_service.create_portal_session()
 
@@ -74,7 +117,7 @@ async def get_billing_status(
 
 @router.post("/setup-intent")
 async def create_setup_intent(
-    billing_service: BillingService = Depends(get_billing_service),
+    billing_service: BillingService = Depends(get_owner_billing_service),
 ):
     return await billing_service.create_setup_intent()
 
@@ -86,7 +129,7 @@ class SetDefaultCardPayload(BaseModel):
 @router.post("/set-default-card")
 async def set_default_card(
     payload: SetDefaultCardPayload,
-    billing_service: BillingService = Depends(get_billing_service),
+    billing_service: BillingService = Depends(get_owner_billing_service),
 ):
     return await billing_service.set_default_payment_method(payload.payment_method_id)
 

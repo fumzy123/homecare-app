@@ -1,12 +1,27 @@
 import { apiClient } from '@/shared/lib/api-client'
 
 export interface BillingStatus {
-  subscription_status: 'active' | 'past_due' | 'canceled' | 'unpaid' | null
+  subscription_status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'paused' | null
   subscription_current_period_end: string | null
   is_trial_active: boolean
   trial_days_left: number
-  trial_ends_at: string
+  trial_ends_at: string | null
   has_access: boolean
+  new_billing_flow?: boolean
+  is_onboarding?: boolean
+  onboarding_deadline_at?: string
+  trial_starts_at?: string | null
+  card_saved?: boolean
+  billing_canceled?: boolean
+  activation_status?: string | null
+  plan_interval?: 'month' | 'year' | null
+  base_amount_cents?: number | null
+}
+
+export interface OnboardingOptions {
+  consent_version: string
+  consent_text: string
+  plans: { code: string; version: number; interval: 'month' | 'year'; base_amount_cents: number; currency: string; included_clients: number; additional_client_amount_cents: number }[]
 }
 
 export interface CardInfo {
@@ -33,6 +48,11 @@ export interface BillingDetails {
 }
 
 export const billingApi = {
+  getOnboardingOptions: async (): Promise<OnboardingOptions> => (await apiClient.get('/api/billing/onboarding/options')).data,
+  setupOnboardingCard: async (payload: { interval: 'month' | 'year'; consent_version: string; accepted: true }): Promise<{ url: string | null; card_saved: boolean }> =>
+    (await apiClient.post('/api/billing/onboarding/card-setup', payload)).data,
+  confirmOnboardingCard: async () => (await apiClient.post('/api/billing/onboarding/confirm-card')).data,
+  cancelOnboarding: async () => (await apiClient.post('/api/billing/onboarding/cancel')).data,
   getStatus: async (): Promise<BillingStatus> => {
     const { data } = await apiClient.get('/api/billing/status')
     return data

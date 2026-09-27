@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     stripe_price_id: str = ""
     billing_onboarding_enabled: bool = False
     billing_operator_user_ids: list[str] = []
+    stripe_standard_monthly_v1_price_id: str = ""
+    stripe_standard_annual_v1_price_id: str = ""
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 
