@@ -58,6 +58,25 @@ This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
 - Run `node scripts/verify-billing-history.mjs` from `admin-frontend` for
   browser-free rendering checks; backend coverage lives in `test_billing_history.py`.
 
+## Upcoming charge breakdown
+
+- `GET /billing/upcoming` is admin-only and scoped to persisted organization
+  membership. It reads agreed plan terms, subscription dates, closed periods,
+  snapshots and approved corrections. It does not call Stripe or mutate billing.
+- The Billing page shows the next base renewal (annual or monthly), first base
+  payment after trial, completed periods awaiting finalization/invoicing, and
+  approved corrections still in progress. Current usage estimates stay separate.
+- Unknown usage is null, never zero. Finalized zero usage remains explicitly
+  zero. Already-invoiced usage is excluded; outstanding correction invoices are
+  labeled as already invoiced. Credits/refunds are not subtracted from a guessed
+  next-charge total because they can settle against earlier invoices.
+- A scheduled founding conversion supplies its new standard rate. An unresolved
+  transition, stale renewal date, collection problem, cutoff review or missing
+  history reconciliation displays uncertainty rather than a confirmed amount.
+- Dates are recorded billing boundaries, not promised debit dates. All amounts
+  are before tax; the actual Stripe invoice confirms taxes and collection timing.
+  No new migration, price configuration or production rollout was performed.
+
 ## Read-only subscription access
 
 - `domain/billing_access.py` is the shared entitlement policy for Billing status

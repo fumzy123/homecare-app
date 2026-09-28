@@ -9,6 +9,7 @@ import { useBillingDetails } from '@/features/billing/hooks/useBillingOnboarding
 import { BillingOnboardingPanel } from '@/features/billing/components/BillingOnboardingPanel'
 import { BillingUsageSection } from '@/features/billing/components/BillingUsageSection'
 import { BillingUsageHistorySection, InvoiceHistorySection } from '@/features/billing/components/BillingHistorySection'
+import { UpcomingBillingSection } from '@/features/billing/components/UpcomingBillingSection'
 
 function CardBrand({ brand }: { brand: string }) {
   const label = brand.toUpperCase() === 'MASTERCARD' ? 'MC' : brand.toUpperCase()
@@ -45,7 +46,7 @@ export function BillingSection() {
   if (isPending) return <p>Loading billing…</p>
   if (isError) return <p role="alert">Could not load billing. Please refresh and try again.</p>
   return <div className="space-y-6">{data.new_billing_flow
-    ? <><BillingOnboardingPanel status={data} /><BillingUsageSection status={data} /><BillingUsageHistorySection /></>
+    ? <><BillingOnboardingPanel status={data} /><UpcomingBillingSection timezone={data.billing_timezone} /><BillingUsageSection status={data} /><BillingUsageHistorySection /></>
     : <LegacyBillingSection />}
     <InvoiceHistorySection />
   </div>

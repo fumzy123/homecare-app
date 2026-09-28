@@ -52,6 +52,27 @@ try {
   assert.match(html, /10\.00.*original usage/)
   assert.match(html, /aria-expanded="false"/)
   assert.match(html, /View corrections and payments/)
+  const { UpcomingBillingDetails } = await server.ssrLoadModule('/src/features/billing/components/UpcomingBillingSection.tsx')
+  const upcoming = { calculated_at: '2026-09-28T00:00:00Z', history_needs_review: false, tax_status: 'not_calculated',
+    base: { state: 'scheduled', interval: 'year', amount_cents: 300000, scheduled_at: '2027-08-01T00:00:00Z' },
+    periods: [{ id: 'pending', starts_at: '2026-08-01T00:00:00Z', ends_at: '2026-09-01T00:00:00Z',
+      agency_timezone: 'UTC', finalization_eligible_at: '2026-09-04T00:00:00Z', currency: 'cad',
+      usage_amount_cents: null, state: 'awaiting_finalization' }], corrections: [],
+  }
+  const renderUpcoming = data => renderToStaticMarkup(createElement(UpcomingBillingDetails, { data, timezone: 'UTC' }))
+  html = renderUpcoming(upcoming)
+  assert.match(html, /Next annual base renewal/)
+  assert.match(html, /3,000\.00/)
+  assert.match(html, /amount not yet confirmed/)
+  assert.doesNotMatch(html, /CAD[^<]*\b0\.00/)
+  assert.doesNotMatch(html, /Next monthly base renewal/)
+  html = renderUpcoming({ ...upcoming, base: { ...upcoming.base, state: 'canceled', amount_cents: null },
+    corrections: [{ id: 'credit', amount_cents: -500, currency: 'cad', state: 'credited', payment_status: 'refund_pending' }] })
+  assert.match(html, /Automatic base renewal is canceled/)
+  assert.match(html, /Refund processing/)
+  assert.doesNotMatch(html, /3,000\.00/)
+  html = renderUpcoming({ ...upcoming, periods: [{ ...upcoming.periods[0], usage_amount_cents: 0, state: 'ready' }] })
+  assert.match(html, /0\.00 finalized usage/)
   console.log('Billing history rendering checks passed (loading, errors, empty history, unpaid totals, pagination, and usage).')
 } finally {
   await server.close()

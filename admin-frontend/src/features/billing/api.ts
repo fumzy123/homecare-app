@@ -103,6 +103,37 @@ export interface BillingSettlement {
   invoice_id: string | null
 }
 
+export interface UpcomingBilling {
+  calculated_at: string
+  history_needs_review: boolean
+  tax_status: 'not_calculated'
+  base: {
+    state: 'not_selected' | 'canceled' | 'after_trial' | 'needs_review' | 'first_payment' | 'scheduled'
+    amount_cents: number | null
+    scheduled_at: string | null
+    interval: 'month' | 'year' | null
+  }
+  periods: {
+    id: string
+    starts_at: string
+    ends_at: string
+    agency_timezone: string
+    finalization_eligible_at: string
+    currency: string
+    usage_amount_cents: number | null
+    state: 'needs_review' | 'awaiting_finalization' | 'ready'
+  }[]
+  corrections: {
+    id: string
+    period_id: string
+    amount_cents: number
+    currency: string
+    settlement_status: string
+    state: string | null
+    payment_status: string | null
+  }[]
+}
+
 export interface CountedBillingClient {
   client_id: string
   client_name: string | null
@@ -142,6 +173,7 @@ export interface ReadyBillingUsage {
 export type CurrentBillingUsage = ReadyBillingUsage | { state: 'not_started' | 'no_current_period'; usage: null }
 
 export const billingApi = {
+  getUpcoming: async (): Promise<UpcomingBilling> => (await apiClient.get('/api/billing/upcoming')).data,
   getInvoiceHistory: async (before?: string): Promise<{ invoices: HistoricalInvoice[]; next_cursor: string | null }> =>
     (await apiClient.get('/api/billing/invoices', { params: { before } })).data,
   getUsageHistory: async (before?: string): Promise<{ periods: BillingPeriodHistory[]; next_cursor: string | null }> =>

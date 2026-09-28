@@ -14,8 +14,18 @@ from typing import Literal
 from app.services.founding_offer_service import FoundingOfferService
 from app.services.billing_usage_service import BillingUsageService
 from app.services.billing_adjustment_service import BillingAdjustmentService
+from app.services.billing_upcoming_service import BillingUpcomingService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_billing_upcoming_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):
+    return BillingUpcomingService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+@router.get('/upcoming')
+def upcoming_billing(billing_upcoming_service: BillingUpcomingService = Depends(get_billing_upcoming_service)):
+    return billing_upcoming_service.summary()
 
 
 def get_billing_usage_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):
