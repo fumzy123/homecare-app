@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     stripe_price_id: str = ""
     billing_onboarding_enabled: bool = False
     billing_usage_finalization_enabled: bool = False
+    billing_settlement_enabled: bool = False
+    billing_settlement_live_enabled: bool = False
+    billing_usage_tax_mode: str = "unconfigured"
+    stripe_usage_tax_code: str = ""
     billing_operator_user_ids: list[str] = []
     stripe_standard_monthly_v1_price_id: str = ""
     stripe_standard_annual_v1_price_id: str = ""

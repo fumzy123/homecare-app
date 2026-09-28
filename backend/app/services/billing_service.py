@@ -195,7 +195,10 @@ class BillingService:
         event_type = event["type"]
         data = event["data"]["object"]
 
-        if event_type in ("customer.subscription.created", "customer.subscription.updated"):
+        if event_type == "invoice.created":
+            from app.services.billing_invoice_hold_service import BillingInvoiceHoldService
+            BillingInvoiceHoldService(self.db).hold(data.id)
+        elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
             self._handle_subscription_updated(data)
         elif event_type == "customer.subscription.deleted":
             self._handle_subscription_deleted(data)

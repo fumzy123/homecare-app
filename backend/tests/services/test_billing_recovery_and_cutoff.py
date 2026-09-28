@@ -14,6 +14,7 @@ from app.models.organization import Organization
 from app.models.billing_agreement import BillingAgreement
 from app.models.founding_conversion import FoundingConversion
 from app.models.billing_period import BillingPeriod
+from app.models.billing_settlement import BillingSettlement
 from app.models.billing_usage_cutoff import BillingUsageCutoff
 from app.models.billing_visit_evidence import BillingVisitEvidence
 from app.models.billing_usage_snapshot import BillingUsageSnapshot
@@ -38,7 +39,7 @@ def dt(month, day=1, year=2026):
 def db():
     engine = create_engine("sqlite://")
     for model in (Organization, BillingAgreement, FoundingConversion, BillingPeriod, BillingUsageCutoff,
-                  BillingVisitEvidence, BillingUsageSnapshot, Shift, ShiftModification):
+                  BillingVisitEvidence, BillingUsageSnapshot, BillingSettlement, Shift, ShiftModification):
         model.__table__.create(engine)
     with Session(engine, autoflush=False) as session:
         yield session
@@ -245,7 +246,7 @@ def test_unsafe_coverage_is_not_inferred(change):
     if change == "duplicate":
         history *= 2
     with pytest.raises(ValueError):
-        invoice_periods(context, sub, history, dt(9, 15))
+        invoice_periods(context, sub, history, dt(10, 15))
 
 
 def test_remote_reads_hold_no_database_transaction_and_recheck_context(db, monkeypatch):

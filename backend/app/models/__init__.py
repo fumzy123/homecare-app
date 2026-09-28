@@ -33,3 +33,6 @@ from app.models.billing_usage_cutoff import BillingUsageCutoff as BillingUsageCu
 
 from app.models.billing_adjustment import BillingAdjustment as BillingAdjustment
 from app.models.billing_adjustment import BillingAdjustmentEvent as BillingAdjustmentEvent
+
+from app.models.billing_settlement import BillingSettlement as BillingSettlement
+from app.models.billing_settlement import BillingInvoiceHold as BillingInvoiceHold

@@ -33,7 +33,7 @@ def invoice_periods(context, subscription, invoices, now):
             continue
         if field(invoice, "status") not in ("paid", "open"):
             raise ValueError("Voided/uncollectible coverage needs review")
-        if field(invoice, "post_payment_credit_notes_amount", 0) or field(invoice, "pre_payment_credit_notes_amount", 0):
+        if (field(invoice, "post_payment_credit_notes_amount", 0) or field(invoice, "pre_payment_credit_notes_amount", 0)) and field(invoice, "id") not in context.get("verified_usage_credit_invoices", set()):
             raise ValueError("Credited invoice coverage needs review")
         for line in lines:
             parent = field(line, "parent", {})
@@ -83,7 +83,7 @@ def invoice_periods(context, subscription, invoices, now):
     for offset in range(max(0, months + 1)):
         start = context["anchor"] + relativedelta(months=offset)
         end = context["anchor"] + relativedelta(months=offset + 1)
-        if start > now or (ended and end > ended):
+        if end > now or (ended and end > ended):
             continue
         if start not in output:
             raise ValueError("Missing subscription invoice coverage")

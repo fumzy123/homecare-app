@@ -325,7 +325,8 @@ Keep rollout disabled until release requirements and staging checks are complete
 - Approval does NOT issue a refund, charge, or account credit. Nonzero approvals
   have `settlement_status=pending`; zero-value approvals are `not_required`.
   Rejected/pending proposals are `not_approved`. Stripe settlement, including
-  the no-next-invoice case for cancelled agencies, remains the next step.
+  the no-next-invoice case for cancelled agencies, is now implemented behind
+  disabled rollout flags. See BILLING_SETTLEMENT.md for setup and verification.
 - Cancelled/archived agencies retain this correction path. The original finalized
   snapshot, cutoff, invoice references, and pricing terms are never overwritten.
   Changes needed after an approval are a new correction, not an edit to its audit.

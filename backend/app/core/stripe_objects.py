@@ -11,6 +11,8 @@ def subscription_period_end(subscription):
 
 def stripe_field(obj, key, default=None):
     """Stripe SDK 15 objects support indexing, but no longer dict.get()."""
+    if obj is None:
+        return default
     try:
         return obj[key]
     except KeyError:

@@ -11,6 +11,7 @@ from app.repositories.billing_usage_repository import BillingUsageRepository
 from app.repositories.billing_evidence_repository import BillingEvidenceRepository
 from app.repositories.billing_period_repository import BillingPeriodRepository
 from app.repositories.billing_finalization_repository import BillingFinalizationRepository
+from app.repositories.billing_settlement_repository import BillingSettlementRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
@@ -40,6 +41,14 @@ class BillingUsageService:
         self.trial_activation_repo = TrialActivationRepository(db)
         self.agreement_repo = BillingAgreementRepository(db)
         self.conversion_repo = FoundingConversionRepository(db)
+
+    def settlements(self, period_id):
+        if self.finalization_repo.snapshot(self.org_id, period_id) is None:
+            raise AppError(404, "NOT_FOUND", "Finalized billing period not found")
+        return [{field: getattr(row, field) for field in (
+            "id", "period_id", "adjustment_id", "amount_cents", "currency", "state", "payment_status",
+            "invoice_id", "invoice_line_id", "created_at", "updated_at", "error_code",
+        )} for row in BillingSettlementRepository(self.db).period_rows(self.org_id, period_id)]
 
     def finalized(self, period_id):
         snapshot = self.finalization_repo.snapshot(self.org_id, period_id)

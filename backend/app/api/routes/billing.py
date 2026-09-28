@@ -45,6 +45,11 @@ def finalized_billing_usage(period_id: UUID, billing_usage_service: BillingUsage
     return billing_usage_service.finalized(period_id)
 
 
+@router.get("/usage/periods/{period_id}/settlements")
+def billing_usage_settlements(period_id: UUID, billing_usage_service: BillingUsageService = Depends(get_billing_usage_service)):
+    return billing_usage_service.settlements(period_id)
+
+
 def get_billing_adjustment_operator_service(current_user=Depends(require_billing_operator), db: Session = Depends(get_db)):
     return BillingAdjustmentService(db, current_user)
 

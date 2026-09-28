@@ -9,6 +9,7 @@ from app.repositories.billing_cutoff_repository import BillingCutoffRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
 from app.repositories.billing_period_repository import BillingPeriodRepository
+from app.repositories.billing_settlement_repository import BillingSettlementRepository
 from app.services.billing_cutoff_service import utc
 
 
@@ -41,17 +42,25 @@ class BillingPeriodRecoveryService:
         now = now or datetime.now(timezone.utc)
         try:
             context = self._context(self.cutoff_repo.lock_organization(org_id))
+            known_credits = BillingSettlementRepository(self.db).credit_ids(org_id)
             self.db.commit()  # No database locks are held during Stripe reads.
             sub = stripe.Subscription.retrieve(context["subscription_id"])
             history = []
+            verified_credits = set()
             for invoice in stripe.Invoice.list(customer=context["customer_id"], subscription=context["subscription_id"], limit=100).auto_paging_iter():
+                credited = stripe_field(invoice, "post_payment_credit_notes_amount", 0) + stripe_field(invoice, "pre_payment_credit_notes_amount", 0)
+                if credited:
+                    notes = [note for note in stripe.CreditNote.list(invoice=invoice.id, limit=100).auto_paging_iter()
+                             if note.status == "issued"]
+                    if notes and all(note.id in known_credits for note in notes) and sum(note.amount for note in notes) == credited:
+                        verified_credits.add(invoice.id)
                 lines = stripe_field(invoice, "lines", {})
                 if stripe_field(lines, "has_more", False):
                     rows = list(stripe.Invoice.list_lines(invoice.id, limit=100).auto_paging_iter())
                 else:
                     rows = stripe_field(lines, "data", [])
                 history.append((invoice, rows))
-            proposals, partial = invoice_periods(context, sub, history, now)
+            proposals, partial = invoice_periods({**context, "verified_usage_credit_invoices": verified_credits}, sub, history, now)
             org = self.cutoff_repo.lock_organization(org_id)
             if self._context(org) != context:
                 raise ValueError("Billing terms changed while reading Stripe")
@@ -78,7 +87,7 @@ class BillingPeriodRecoveryService:
                         included_clients=plan.included_clients, additional_client_amount_cents=plan.additional_client_amount_cents,
                         currency=plan.currency, finalization_eligible_at=end + timedelta(hours=72),
                         source_invoice_id=invoice_id, source_invoice_line_id=line_id))
-            missing = any(utc(row.starts_at) not in proposals for row in
+            missing = any(utc(row.ends_at) <= now and utc(row.starts_at) not in proposals for row in
                           self.period_repo.for_subscription(org_id, context["subscription_id"]))
             org.billing_recovery_checked_at = now
             org.billing_recovery_error = ("PARTIAL_CANCELLATION_REVIEW_REQUIRED" if partial
