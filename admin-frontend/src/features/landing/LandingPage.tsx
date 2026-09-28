@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PricingCalculator } from './components/PricingCalculator'
+import { LaunchFeatures } from './components/LaunchFeatures'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Tag, Btn, Card, Kicker } from '@/shared/components/ui'
@@ -133,7 +134,7 @@ export function LandingPage() {
             <Card brackets className="p-2 bg-paper rotate-1 shadow-2xl">
               <img src={heroImage} alt="Homecare OS Dashboard Mockup" className="w-full grayscale-[0.2]" />
               <div className="absolute -top-6 -right-6">
-                <Tag variant="orange" className="rotate-12 px-4 py-2 text-[12px]">v1.0 Released</Tag>
+                <Tag variant="orange" className="rotate-12 px-4 py-2 text-[12px]">Agency workspace</Tag>
               </div>
             </Card>
           </div>
@@ -148,9 +149,9 @@ export function LandingPage() {
               {[
                 { dot: true,  text: 'Visual shift scheduling' },
                 { dot: false, text: '—' },
-                { dot: true,  text: 'Real-time attendance tracking' },
+                { dot: true,  text: 'Office-managed attendance records' },
                 { dot: false, text: '—' },
-                { dot: true,  text: 'Automated timesheets' },
+                { dot: true,  text: 'Scheduled-hours CSV export' },
                 { dot: false, text: '—' },
                 { dot: true,  text: 'Employee leave management' },
                 { dot: false, text: '—' },
@@ -191,28 +192,28 @@ export function LandingPage() {
                 id: 0,
                 label: '[MODULE_01]',
                 title: 'Visual Scheduling',
-                desc: "Visualize your entire agency's week in a precision grid. Drag, drop, and deploy care to the clients who need it most.",
+                desc: 'Plan recurring visits, review your calendar, and manage changes with conflict checks and overtime review.',
                 img: schedulingPreview
               },
               {
                 id: 1,
                 label: '[MODULE_02]',
                 title: 'Attendance Control',
-                desc: 'Know exactly who is on-site. Track no-shows and coverage gaps instantly with real-time status updates.',
+                desc: 'Review visit statuses, record no-shows, and manage attendance from the office. Statuses do not verify a worker’s location or actual hours.',
                 img: attendancePreview
               },
               {
                 id: 2,
                 label: '[MODULE_03]',
-                title: 'Automated Timesheets',
-                desc: 'No more manual calculations. Generate ready-to-bill timesheets directly from scheduled shifts with one click.',
+                title: 'Timesheet Export',
+                desc: 'Export scheduled shift times and recorded statuses as CSV. Review and reconcile actual hours before using the export for payroll.',
                 img: timesheetsPreview
               },
               {
                 id: 3,
                 label: '[MODULE_04]',
                 title: 'Progress Notes',
-                desc: 'Document care as it happens. Capture clinical notes, observations, and care-plan updates directly from the field.',
+                desc: 'Office staff can record and review progress notes for client visits. Worker mobile documentation is not part of the launch offer.',
                 img: progressNotesPreview
               }
             ].map((f) => (
@@ -252,6 +253,7 @@ export function LandingPage() {
         </div>
       </section>
 
+      <LaunchFeatures />
       <PricingCalculator />
 
       {/* ── CTA Section ─────────────────────────────────────────────────── */}

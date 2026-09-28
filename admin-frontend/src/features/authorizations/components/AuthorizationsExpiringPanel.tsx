@@ -10,18 +10,26 @@ function urgencyColor(days: number) {
 
 /**
  * Dashboard feed of active authorizations nearing the end of their covering
- * window (within 15 days). Mirrors ComplianceAlertsPanel — a pull/read-model,
- * recomputed every load, so it can never go stale. Hidden when nothing is due.
+ * window (within 15 days). Mirrors ComplianceAlertsPanel — a cached query of a
+ * server read model, with explicit loading, failure, and empty-window states.
  */
 export function AuthorizationsExpiringPanel() {
-  const { data: expiring = [] } = useExpiringAuthorizations()
+  const { data: expiring = [], isPending, isError, refetch } = useExpiringAuthorizations()
+
+  if (isPending || isError) return <Card className="p-6 h-full">
+    <Kicker className="mb-2">D / Authorizations</Kicker>
+    {isPending ? <p>Checking upcoming authorization expirations…</p> : <div role="alert">
+      <p>Could not check authorization expirations.</p>
+      <button className="underline mt-2" onClick={() => void refetch()}>Retry</button>
+    </div>}
+  </Card>
 
   if (expiring.length === 0) {
     return (
       <Card className="p-6 h-full">
         <Kicker className="mb-2">D / Authorizations</Kicker>
-        <div className="font-serif text-[22px] leading-none mt-2 mb-1">All authorizations valid</div>
-        <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTION NEEDED</p>
+        <div className="font-serif text-[22px] leading-none mt-2 mb-1">No upcoming authorization expirations</div>
+        <p className="text-sm text-ink-soft">None found in the next 15 days. Review client records for missing or already expired authorizations.</p>
       </Card>
     )
   }

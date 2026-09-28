@@ -10,14 +10,22 @@ function urgencyColor(days: number) {
 }
 
 export function ComplianceAlertsPanel() {
-  const { data: expiring = [] } = useExpiringCredentials()
+  const { data: expiring = [], isPending, isError, refetch } = useExpiringCredentials()
+
+  if (isPending || isError) return <Card className="p-6">
+    <Kicker className="mb-2">E / Compliance</Kicker>
+    {isPending ? <p>Checking upcoming credential expirations…</p> : <div role="alert">
+      <p>Could not check credential expirations.</p>
+      <button className="underline mt-2" onClick={() => void refetch()}>Retry</button>
+    </div>}
+  </Card>
 
   if (expiring.length === 0) {
     return (
       <Card className="p-6">
         <Kicker className="mb-2">E / Compliance</Kicker>
-        <div className="font-serif text-[22px] leading-none mt-2 mb-1">All credentials valid</div>
-        <p className="font-mono text-[10px] text-muted tracking-wide">NO ACTION NEEDED</p>
+        <div className="font-serif text-[22px] leading-none mt-2 mb-1">No upcoming credential expirations</div>
+        <p className="text-sm text-ink-soft">None found in the next 30 days. Review worker records for missing or already expired credentials.</p>
       </Card>
     )
   }
