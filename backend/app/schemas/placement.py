@@ -68,6 +68,13 @@ class PlacementResponse(BaseModel):
 
 class PlacementDetailResponse(PlacementResponse):
     interests: list[InterestWorkerSummary]
+    filled_worker_name: str | None = None
+
+
+class PlacementAssignmentPreview(BaseModel):
+    employment_id: UUID
+    worker_name: str
+    eligibility: InterestEligibility
 
 
 class WorkerPlacementResponse(BaseModel):

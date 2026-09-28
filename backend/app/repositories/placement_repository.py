@@ -3,12 +3,25 @@ from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from app.models.placement import Placement, PlacementInterest
 from app.models.employment import Employment
-from app.core.enums import PlacementStatus
+from app.core.enums import PlacementStatus, OrgMemberRole, EmploymentStatus
 
 
 class PlacementRepository:
     def __init__(self, db: Session):
         self.db = db
+
+    def lock_for_org(self, placement_id, org_id):
+        # Lock the parent only; joined outer relations cannot safely participate
+        # in PostgreSQL FOR UPDATE. Load relationships after acquiring this lock.
+        return self.db.query(Placement).filter(Placement.id == placement_id, Placement.org_id == org_id).populate_existing().with_for_update().first()
+
+    def active_worker(self, employment_id, org_id):
+        return self.db.query(Employment).options(joinedload(Employment.person)).filter(
+            Employment.id == employment_id, Employment.org_id == org_id,
+            Employment.role == OrgMemberRole.home_support_worker,
+            Employment.employment_status == EmploymentStatus.active,
+            Employment.deleted_at.is_(None),
+        ).populate_existing().first()
 
     def create(
         self,

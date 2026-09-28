@@ -14,6 +14,7 @@ from app.schemas.placement import (
     PlacementInterestSchema,
     PlacementResponse,
     PlacementDetailResponse,
+    PlacementAssignmentPreview,
 )
 
 router = APIRouter(prefix="/placements", tags=["Placements"])
@@ -82,6 +83,18 @@ async def fill_placement(
     service: PlacementService = Depends(get_placement_service),
 ):
     return service.fill_placement(placement_id, payload.employment_id)
+
+
+@router.get("/{placement_id}/workers/{employment_id}/eligibility", response_model=PlacementAssignmentPreview)
+def preview_assignment(placement_id: UUID, employment_id: UUID,
+    placement_service: PlacementService = Depends(get_placement_service)):
+    return placement_service.preview_assignment(placement_id, employment_id)
+
+
+@router.post("/{placement_id}/assign", response_model=PlacementDetailResponse)
+def assign_worker(placement_id: UUID, payload: PlacementFillSchema,
+    placement_service: PlacementService = Depends(get_placement_service)):
+    return placement_service.assign_worker(placement_id, payload.employment_id)
 
 
 # ─────────────────────────────────────────

@@ -7,7 +7,7 @@ export function LaunchFeatures() {
           <li>Recurring scheduling, calendar and day views, conflict checks, and overtime review.</li>
           <li>Client records, weekly care plans, authorizations, visit history, and office-entered progress notes.</li>
           <li>Worker credentials, leave, and attendance records managed by office staff.</li>
-          <li>Post and manage placement openings from the office.</li>
+          <li>Post placement openings and assign workers from the office, with availability, conflict, and weekly-hours checks.</li>
           <li>Dashboard panels for upcoming credential and authorization expirations.</li>
           <li>Administrator in-app notifications and scheduled-hours timesheet CSV export.</li>
           <li>Unlimited workers and staff seats.</li>

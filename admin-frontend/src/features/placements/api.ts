@@ -39,6 +39,13 @@ export interface Placement {
 
 export interface PlacementDetail extends Placement {
   interests: InterestWorkerSummary[]
+  filled_worker_name?: string | null
+}
+
+export interface AssignmentPreview {
+  employment_id: string
+  worker_name: string
+  eligibility: InterestEligibility
 }
 
 export interface PlacementCreatePayload {
@@ -52,6 +59,10 @@ export interface PlacementFillPayload {
 }
 
 export const placementsApi = {
+  previewAssignment: async (id: string, worker: string): Promise<AssignmentPreview> =>
+    (await apiClient.get(`/api/placements/${id}/workers/${worker}/eligibility`)).data,
+  assign: async (id: string, payload: PlacementFillPayload): Promise<PlacementDetail> =>
+    (await apiClient.post(`/api/placements/${id}/assign`, payload)).data,
   list: async (status?: PlacementStatus): Promise<Placement[]> => {
     const { data } = await apiClient.get('/api/placements', {
       params: status ? { status } : {},

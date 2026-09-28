@@ -34,8 +34,24 @@ export function useFillPlacement() {
       placementsApi.fill(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['placements'] })
+      qc.invalidateQueries({ queryKey: ['shifts'] })
     },
   })
+}
+
+export function usePlacementAssignment(id: string, worker: string) {
+  const qc = useQueryClient()
+  const preview = useQuery({ queryKey: ['placements', id, 'assignment', worker],
+    queryFn: () => placementsApi.previewAssignment(id, worker), enabled: Boolean(id && worker), retry: false })
+  const assign = useMutation({
+    mutationFn: () => placementsApi.assign(id, { employment_id: worker }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['placements'] })
+      qc.invalidateQueries({ queryKey: ['shifts'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+  return { preview, assign }
 }
 
 export function useClosePlacement() {

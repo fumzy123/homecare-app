@@ -158,40 +158,72 @@ class PlacementService:
         placement = self._get_or_404(placement_id)
         return self._to_detail(placement)
 
-    def fill_placement(self, placement_id: UUID, employment_id: UUID) -> PlacementDetailResponse:
+    def preview_assignment(self, placement_id: UUID, employment_id: UUID):
         placement = self._get_or_404(placement_id)
+        self._require_open(placement)
+        worker = self._assignment_worker(employment_id)
+        client, entries, today, start = self._assignment_context(placement)
+        return dict(employment_id=worker.id,
+                    worker_name=f"{worker.person.first_name} {worker.person.last_name}",
+                    eligibility=self._eligibility_for(worker, entries, client, start, today))
+
+    def assign_worker(self, placement_id: UUID, employment_id: UUID):
+        return self._assign(placement_id, employment_id, require_interest=False)
+
+    def fill_placement(self, placement_id: UUID, employment_id: UUID):
+        return self._assign(placement_id, employment_id, require_interest=True)
+
+    @staticmethod
+    def _require_open(placement):
         if placement.status != PlacementStatus.open:
-            raise AppError(status_code=400, code="PLACEMENT_NOT_OPEN",
-                           message="Placement is no longer open")
-        # Only a worker who actually expressed interest can be selected.
-        chosen = next((i for i in placement.interests if str(i.employment_id) == str(employment_id)), None)
-        if not chosen:
-            raise AppError(status_code=400, code="WORKER_NOT_INTERESTED",
-                           message="That worker has not expressed interest in this placement")
+            raise AppError(409, "PLACEMENT_NOT_OPEN", "Placement is no longer open")
 
-        # Gate: the worker must still pass every check against the frozen snapshot.
-        # Re-run server-side (never trust the client) and abort the whole fill if
-        # anything fails — no shifts are created.
+    def _assignment_worker(self, employment_id):
+        worker = self.repo.active_worker(employment_id, self.org_id)
+        if not worker:
+            raise AppError(404, "WORKER_NOT_AVAILABLE", "An active worker in this agency is required")
+        return worker
+
+    def _assignment_context(self, placement):
+        client = self.client_repo.get_active_client(placement.client_id, self.org_id)
+        if not client:
+            raise AppError(404, "NOT_FOUND", "Client not found")
+        entries = self._parse_snapshot(placement.care_plan_snapshot)
+        if not entries:
+            raise AppError(400, "NO_CARE_PLAN", "This placement has no weekly care plan to schedule")
+        for index, entry in enumerate(entries):
+            if entry.end_time <= entry.start_time or any(
+                entry.day_of_week == other.day_of_week
+                and entry.start_time < other.end_time and other.start_time < entry.end_time
+                for other in entries[:index]
+            ):
+                raise AppError(409, "INVALID_CARE_PLAN", "The saved care plan contains invalid or overlapping times; close and repost it with a corrected plan")
         today = date.today()
-        client = placement.client
-        snapshot_entries = self._parse_snapshot(placement.care_plan_snapshot)
-        if not snapshot_entries:
-            raise AppError(status_code=400, code="NO_CARE_PLAN",
-                           message="This placement has no weekly care plan to schedule.")
-        effective_start = self._effective_start(placement, today)
-        eligibility = self._eligibility_for(chosen.employment, snapshot_entries, client, effective_start, today)
-        if not eligibility.all_clear:
-            raise AppError(status_code=409, code="WORKER_NOT_ELIGIBLE",
-                           message="Worker can't be assigned: " + "; ".join(eligibility.reasons),
-                           details=eligibility.reasons)
+        start = self._effective_start(placement, today)
+        horizon = self._check_horizon(client, start, today)
+        if not weekly_entries_to_time_blocks(entries, start, horizon):
+            raise AppError(409, "NO_SCHEDULE_WINDOW", "No care-plan visits fall within the scheduling window")
+        return client, entries, today, start
 
-        # Generate the schedule from the snapshot — one recurring shift per
-        # (start, end, service) group, all assigned to the chosen worker.
-        shifts = self._generate_shifts(placement, employment_id, snapshot_entries, client, effective_start, today)
-
-        others = [i.employment_id for i in placement.interests if i.employment_id != employment_id]
+    def _assign(self, placement_id, employment_id, *, require_interest):
         try:
+            # Same agency-first lock order as ShiftService: competing placements
+            # and ordinary scheduling writes cannot pass checks simultaneously.
             self.cutoff_service.seal_due(self.org_id)
+            placement = self.repo.lock_for_org(placement_id, self.org_id)
+            if not placement:
+                raise AppError(404, "NOT_FOUND", "Placement not found")
+            self._require_open(placement)
+            if require_interest and not any(i.employment_id == employment_id for i in placement.interests):
+                raise AppError(400, "WORKER_NOT_INTERESTED", "That worker has not expressed interest in this placement")
+            worker = self._assignment_worker(employment_id)
+            client, entries, today, start = self._assignment_context(placement)
+            eligibility = self._eligibility_for(worker, entries, client, start, today)
+            if not eligibility.all_clear:
+                raise AppError(409, "WORKER_NOT_ELIGIBLE", "Worker can't be assigned: " + "; ".join(eligibility.reasons),
+                               details=eligibility.reasons)
+            shifts = self._generate_shifts(placement, employment_id, entries, client, start, today)
+            others = [i.employment_id for i in placement.interests if i.employment_id != employment_id]
             for shift in shifts:
                 self.shift_repo.add(shift)
             self.repo.fill(placement, employment_id)
@@ -220,18 +252,17 @@ class PlacementService:
         except Exception:
             self.db.rollback()
             raise
-
         self.db.refresh(placement)
         return self._to_detail(placement)
 
     def close_placement(self, placement_id: UUID) -> PlacementDetailResponse:
-        placement = self._get_or_404(placement_id)
-        if placement.status != PlacementStatus.open:
-            raise AppError(status_code=400, code="PLACEMENT_NOT_OPEN",
-                           message="Placement is no longer open")
-
-        interested = [i.employment_id for i in placement.interests]
         try:
+            OrganizationRepository(self.db).lock_by_id(self.org_id)
+            placement = self.repo.lock_for_org(placement_id, self.org_id)
+            if not placement:
+                raise AppError(404, "NOT_FOUND", "Placement not found")
+            self._require_open(placement)
+            interested = [i.employment_id for i in placement.interests]
             self.repo.close(placement)
 
             # Tell interested workers the placement is no longer available.
@@ -363,7 +394,7 @@ class PlacementService:
         return end if (end and end < cap) else cap
 
     def _eligibility_for(self, employment, snapshot_entries, client, effective_start: date, today: date) -> InterestEligibility:
-        """Run the three gates for one interested worker against the snapshot."""
+        """Run the same three gates for interested and office-selected workers."""
         avail = self.availability_repo.list_for_person(employment.person_id)
         match = availability_covers_care_plan(avail, snapshot_entries)
 
@@ -427,6 +458,8 @@ class PlacementService:
         shifts = []
         for (start_t, end_t, service), days in groups.items():
             first = self._first_occurrence_date(days, effective_start)
+            if covering_end and first > covering_end:
+                continue
             byday = ",".join(d.value for d in sorted(days, key=lambda x: WEEKDAY_INDEX[x]))
             shifts.append(Shift(
                 org_id=self.org_id,
@@ -482,4 +515,5 @@ class PlacementService:
             created_at=p.created_at,
             interest_count=len(p.interests),
             interests=interests,
+            filled_worker_name=(f"{p.filler.person.first_name} {p.filler.person.last_name}" if p.filler else None),
         )

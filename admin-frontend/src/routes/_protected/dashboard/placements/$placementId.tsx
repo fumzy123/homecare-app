@@ -5,6 +5,7 @@ import { Tag, Kicker, Avatar } from '@/shared/components/ui'
 import { usePlacement, useFillPlacement, useClosePlacement } from '@/features/placements/hooks/usePlacements'
 import { toast } from '@/shared/stores/toast'
 import type { PlacementStatus, InterestWorkerSummary } from '@/features/placements/api'
+import { DirectAssignmentPanel } from '@/features/placements/components/DirectAssignmentPanel'
 
 export const Route = createFileRoute('/_protected/dashboard/placements/$placementId')({
   component: PlacementDetailPage,
@@ -162,15 +163,17 @@ function PlacementDetailPage() {
 
       {/* Right: Interest list */}
       <div className="flex-1 min-w-0 p-10">
+        {isOpen && <DirectAssignmentPanel placementId={placement.id} disabled={filling || closing} />}
+        {placement.filled_worker_name && <p className="border border-ink p-4 mb-6">Assigned to {placement.filled_worker_name}. Recurring shifts are available in the schedule.</p>}
         <h2 className="font-serif text-[28px] leading-none font-medium tracking-[-0.02em] mb-6">
           {isOpen ? 'Interested workers' : 'Workers who expressed interest'}
         </h2>
 
         {placement.interests.length === 0 ? (
           <div className="border border-dashed border-ink p-16 text-center">
-            <p className="font-serif text-[24px] mb-2">No interest yet</p>
+            <p className="font-serif text-[24px] mb-2">No worker interest recorded</p>
             <p className="font-mono text-[11px] text-muted tracking-wide">
-              WORKERS WILL APPEAR HERE AFTER RECEIVING THE PLACEMENT NOTIFICATION
+              WORKERS APPEAR HERE WHEN THEY EXPRESS INTEREST. DIRECT ASSIGNMENT DOES NOT ADD AN INTEREST RECORD.
             </p>
           </div>
         ) : (
