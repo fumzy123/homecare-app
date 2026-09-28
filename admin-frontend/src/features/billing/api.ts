@@ -61,6 +61,46 @@ export interface BillingDetails {
   invoices: Invoice[]
 }
 
+export interface HistoricalInvoice extends Omit<Invoice, 'hosted_invoice_url'> {
+  number: string | null
+  total: number
+  amount_remaining: number
+  hosted_invoice_url: string | null
+}
+
+export interface BillingPeriodHistory {
+  period_id: string
+  finalized_at: string
+  starts_at: string
+  ends_at: string
+  agency_timezone: string
+  active_client_count: number
+  additional_clients: number
+  usage_amount_cents: number
+  currency: string
+}
+
+export interface BillingCorrection {
+  id: string
+  status: 'pending' | 'approved' | 'rejected'
+  amount_cents: number
+  currency: string
+  reason: string
+  proposed_at: string
+  decision_reason: string | null
+  settlement_status: string
+}
+
+export interface BillingSettlement {
+  id: string
+  adjustment_id: string | null
+  amount_cents: number
+  currency: string
+  state: string
+  payment_status: string | null
+  invoice_id: string | null
+}
+
 export interface CountedBillingClient {
   client_id: string
   client_name: string | null
@@ -100,6 +140,14 @@ export interface ReadyBillingUsage {
 export type CurrentBillingUsage = ReadyBillingUsage | { state: 'not_started' | 'no_current_period'; usage: null }
 
 export const billingApi = {
+  getInvoiceHistory: async (before?: string): Promise<{ invoices: HistoricalInvoice[]; next_cursor: string | null }> =>
+    (await apiClient.get('/api/billing/invoices', { params: { before } })).data,
+  getUsageHistory: async (before?: string): Promise<{ periods: BillingPeriodHistory[]; next_cursor: string | null }> =>
+    (await apiClient.get('/api/billing/usage/periods', { params: { before } })).data,
+  getCorrections: async (periodId: string): Promise<{ adjustments: BillingCorrection[] }> =>
+    (await apiClient.get(`/api/billing/usage/periods/${periodId}/adjustments`)).data,
+  getSettlements: async (periodId: string): Promise<BillingSettlement[]> =>
+    (await apiClient.get(`/api/billing/usage/periods/${periodId}/settlements`)).data,
   getCurrentUsage: async (): Promise<CurrentBillingUsage> => (await apiClient.get('/api/billing/usage/current')).data,
   setTimezone: async (timezone: string): Promise<{ billing_timezone: string }> =>
     (await apiClient.put('/api/billing/timezone', { timezone })).data,

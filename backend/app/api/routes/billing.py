@@ -45,6 +45,11 @@ def finalized_billing_usage(period_id: UUID, billing_usage_service: BillingUsage
     return billing_usage_service.finalized(period_id)
 
 
+@router.get("/usage/periods")
+def billing_usage_history(before: UUID | None = None, billing_usage_service: BillingUsageService = Depends(get_billing_usage_service)):
+    return billing_usage_service.history(before)
+
+
 @router.get("/usage/periods/{period_id}/settlements")
 def billing_usage_settlements(period_id: UUID, billing_usage_service: BillingUsageService = Depends(get_billing_usage_service)):
     return billing_usage_service.settlements(period_id)
@@ -236,3 +241,8 @@ async def get_billing_details(
     billing_service: BillingService = Depends(get_billing_service),
 ):
     return await billing_service.get_billing_details()
+
+
+@router.get("/invoices")
+async def billing_invoice_history(before: str | None = None, billing_service: BillingService = Depends(get_billing_service)):
+    return await billing_service.invoice_history(before)

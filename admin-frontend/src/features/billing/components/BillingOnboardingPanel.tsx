@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { isAxiosError } from 'axios'
 import type { BillingStatus } from '../api'
-import { useBillingOnboarding, useBillingDetails } from '../hooks/useBillingOnboarding'
+import { useBillingOnboarding } from '../hooks/useBillingOnboarding'
 import { useAuthStore } from '@/shared/stores/auth'
 
 function message(error: unknown) {
@@ -13,7 +13,6 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
   const owner = user?.role === 'owner'
   const { options, setup, confirm, cancel, portal, timezone } = useBillingOnboarding(user?.id, owner)
   const [selectedTimezone, setSelectedTimezone] = useState('')
-  const details = useBillingDetails(user?.id, Boolean(status.card_saved || status.subscription_status))
   const [interval, setInterval] = useState<'month' | 'year'>(status.plan_interval ?? 'month')
   const [accepted, setAccepted] = useState(false)
   const [cancelPrompt, setCancelPrompt] = useState(false)
@@ -93,7 +92,6 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
           : <button className={button} disabled={busy} onClick={() => setCancelPrompt(true)}>Cancel automatic billing</button>
       )}
       {error && <p role="alert" className="text-orange">{message(error)}</p>}
-      {details.data?.invoices.length ? <div><h3 className="font-semibold">Invoices</h3>{details.data.invoices.map(inv => <p key={inv.id}><a className="underline" href={inv.hosted_invoice_url} target="_blank" rel="noopener noreferrer">{new Date(inv.created * 1000).toLocaleDateString()} · {inv.status}</a></p>)}</div> : null}
     </section>
   )
 }

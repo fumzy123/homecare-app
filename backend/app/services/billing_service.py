@@ -179,6 +179,36 @@ class BillingService:
         except Exception as e:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
+    async def invoice_history(self, before=None):
+        org = self.org_repo.get_by_id(self.org_id)
+        if not org:
+            raise AppError(404, "NOT_FOUND", "Organization not found")
+        customer_id = org.stripe_customer_id
+        if not customer_id:
+            return {"invoices": [], "next_cursor": None}
+        try:
+            if before:
+                cursor = stripe.Invoice.retrieve(before)
+                if stripe_field(cursor, "customer") != customer_id:
+                    raise AppError(404, "NOT_FOUND", "Invoice not found")
+            params = {"customer": customer_id, "limit": 20}
+            if before:
+                params["starting_after"] = before
+            page = stripe.Invoice.list(**params)
+            invoices = [{"id": inv.id, "number": stripe_field(inv, "number"),
+                "created": inv.created, "description": stripe_field(inv, "description") or "Care Harbor subscription and usage",
+                "total": inv.total, "amount_paid": inv.amount_paid, "amount_remaining": inv.amount_remaining,
+                "currency": inv.currency, "status": inv.status,
+                "hosted_invoice_url": stripe_field(inv, "hosted_invoice_url"),
+            } for inv in page.data]
+            return {"invoices": invoices, "next_cursor": invoices[-1]["id"] if page.has_more and invoices else None}
+        except AppError:
+            raise
+        except stripe.InvalidRequestError as exc:
+            raise AppError(400, "INVALID_INVOICE_REQUEST", "Could not load this invoice page") from exc
+        except Exception as exc:
+            raise AppError(503, "BILLING_UNAVAILABLE", "Invoice history is temporarily unavailable") from exc
+
     # ─────────────────────────────────────────
     # 5. Stripe webhook handler
     # ─────────────────────────────────────────

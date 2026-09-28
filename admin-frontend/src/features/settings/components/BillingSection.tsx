@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
-import { billingApi, type CardInfo, type Invoice } from '@/features/billing/api'
+import { billingApi, type CardInfo } from '@/features/billing/api'
 import { UpdateCardModal } from '@/features/billing/components/UpdateCardModal'
 import { useBillingStatus } from '@/features/billing/hooks/useBillingStatus'
 import { useBillingDetails } from '@/features/billing/hooks/useBillingOnboarding'
 import { BillingOnboardingPanel } from '@/features/billing/components/BillingOnboardingPanel'
 import { BillingUsageSection } from '@/features/billing/components/BillingUsageSection'
+import { BillingUsageHistorySection, InvoiceHistorySection } from '@/features/billing/components/BillingHistorySection'
 
 function CardBrand({ brand }: { brand: string }) {
   const label = brand.toUpperCase() === 'MASTERCARD' ? 'MC' : brand.toUpperCase()
@@ -16,19 +17,6 @@ function CardBrand({ brand }: { brand: string }) {
       {label}
     </span>
   )
-}
-
-function formatAmount(cents: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style:    'currency',
-    currency: currency.toUpperCase(),
-  }).format(cents / 100)
-}
-
-function formatDate(timestamp: number) {
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  })
 }
 
 function CardRow({ card }: { card: CardInfo }) {
@@ -51,60 +39,16 @@ function CardRow({ card }: { card: CardInfo }) {
   )
 }
 
-function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
-  return (
-    <>
-      <div className="grid grid-cols-[1.4fr_1fr_2fr_1fr_72px_52px] px-6 py-3 border-b border-ink bg-cream-2">
-        {['Invoice', 'Date', 'Description', 'Amount', 'Status', ''].map(h => (
-          <p key={h} className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">{h}</p>
-        ))}
-      </div>
-      {invoices.map((inv, i) => (
-        <div
-          key={inv.id}
-          className={`grid grid-cols-[1.4fr_1fr_2fr_1fr_72px_52px] items-center px-6 py-3 ${
-            i > 0 ? 'border-t border-dashed border-line-soft' : ''
-          }`}
-        >
-          <p className="font-mono text-[10px] text-ink-soft truncate pr-2">{inv.id}</p>
-          <p className="font-mono text-[11px]">{formatDate(inv.created)}</p>
-          <p className="font-mono text-[11px] truncate pr-2">{inv.description}</p>
-          <p className="font-mono text-[11px]">{formatAmount(inv.amount_paid, inv.currency)}</p>
-          <div>
-            {inv.status === 'paid' ? (
-              <span className="bg-mint text-ink font-mono text-[9px] tracking-[0.1em] uppercase px-2 py-0.5">
-                PAID
-              </span>
-            ) : (
-              <span className="border border-line-soft text-ink-soft font-mono text-[9px] tracking-[0.1em] uppercase px-2 py-0.5">
-                {inv.status.toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div>
-            {inv.hosted_invoice_url && (
-              <a
-                href={inv.hosted_invoice_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-[10px] text-ink-soft hover:text-ink underline underline-offset-2 transition-colors"
-              >
-                View →
-              </a>
-            )}
-          </div>
-        </div>
-      ))}
-    </>
-  )
-}
-
 export function BillingSection() {
   const user = useAuthStore(s => s.user)
   const { data, isPending, isError } = useBillingStatus(user?.id)
   if (isPending) return <p>Loading billing…</p>
   if (isError) return <p role="alert">Could not load billing. Please refresh and try again.</p>
-  return data.new_billing_flow ? <div className="space-y-6"><BillingOnboardingPanel status={data} /><BillingUsageSection status={data} /></div> : <LegacyBillingSection />
+  return <div className="space-y-6">{data.new_billing_flow
+    ? <><BillingOnboardingPanel status={data} /><BillingUsageSection status={data} /><BillingUsageHistorySection /></>
+    : <LegacyBillingSection />}
+    <InvoiceHistorySection />
+  </div>
 }
 
 function LegacyBillingSection() {
@@ -275,22 +219,6 @@ function LegacyBillingSection() {
           </div>
         </div>
 
-        {/* ── B · Invoice history ────────────────────────────────────── */}
-        <div className={`border border-ink bg-paper transition-opacity ${!isActive && !isPastDue ? 'opacity-40 pointer-events-none select-none' : ''}`}>
-          <div className="px-6 py-5 border-b border-ink">
-            <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">B · Invoice history</p>
-            <h3 className="font-serif text-[22px] leading-none font-medium mt-1">Past invoices</h3>
-          </div>
-          {details?.invoices && details.invoices.length > 0 ? (
-            <InvoiceTable invoices={details.invoices} />
-          ) : (
-            <div className="px-6 py-8">
-              <p className="font-mono text-[11px] text-ink-soft">
-                {isActive || isPastDue ? 'Loading invoices…' : 'No invoices yet.'}
-              </p>
-            </div>
-          )}
-        </div>
 
       </div>
 

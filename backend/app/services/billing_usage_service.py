@@ -50,6 +50,14 @@ class BillingUsageService:
             "invoice_id", "invoice_line_id", "created_at", "updated_at", "error_code",
         )} for row in BillingSettlementRepository(self.db).period_rows(self.org_id, period_id)]
 
+    def history(self, before=None):
+        cursor = self.finalization_repo.snapshot(self.org_id, before) if before else None
+        if before and cursor is None:
+            raise AppError(404, "NOT_FOUND", "Billing history cursor not found")
+        rows = self.finalization_repo.history(self.org_id, cursor)
+        return {"periods": [dict(row._mapping) for row in rows[:20]],
+                "next_cursor": rows[19].period_id if len(rows) > 20 else None}
+
     def finalized(self, period_id):
         snapshot = self.finalization_repo.snapshot(self.org_id, period_id)
         if snapshot is None:

@@ -25,3 +25,17 @@ class BillingFinalizationRepository:
 
     def add(self, snapshot):
         self.db.add(snapshot)
+
+    def history(self, org_id, before=None, limit=21):
+        query = self.db.query(BillingUsageSnapshot.period_id, BillingUsageSnapshot.finalized_at,
+            BillingUsageSnapshot.active_client_count, BillingUsageSnapshot.additional_clients,
+            BillingUsageSnapshot.usage_amount_cents, BillingPeriod.starts_at, BillingPeriod.ends_at,
+            BillingPeriod.agency_timezone, BillingPeriod.currency).join(
+                BillingPeriod, BillingPeriod.id == BillingUsageSnapshot.period_id
+            ).filter(BillingUsageSnapshot.org_id == org_id, BillingPeriod.org_id == org_id)
+        if before:
+            from sqlalchemy import or_, and_
+            query = query.filter(or_(BillingUsageSnapshot.finalized_at < before.finalized_at,
+                and_(BillingUsageSnapshot.finalized_at == before.finalized_at,
+                     BillingUsageSnapshot.period_id < before.period_id)))
+        return query.order_by(BillingUsageSnapshot.finalized_at.desc(), BillingUsageSnapshot.period_id.desc()).limit(limit).all()

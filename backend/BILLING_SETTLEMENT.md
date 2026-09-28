@@ -34,8 +34,29 @@ This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
   lines, changed terms, or invalid requests stop the operation for review.
   Only counts, rates, and opaque billing references are sent to Stripe.
 - `GET /billing/usage/periods/{period_id}/settlements` returns organization-scoped
-  amounts and settlement/payment states. Customer history and operator review
-  screens remain pending; this step implements the backend workflow.
+  amounts and settlement/payment states. The Billing page now displays invoice
+  history, finalized usage, corrections, and settlement states. Operator review
+  screens remain pending.
+
+## Customer history
+
+- `GET /billing/invoices?before=<invoice_id>` returns 20 Stripe invoices per page,
+  including totals and remaining balances. Cursor ownership is checked against
+  the signed-in administrator's organization. Stripe errors are surfaced rather
+  than presented as an empty history.
+- `GET /billing/usage/periods?before=<period_id>` returns 20 finalized usage
+  summaries, with a stable timestamp/ID cursor and no client or visit payload.
+  Corrections and settlement details load only when a period is expanded.
+- Both endpoints use the existing admin guard and service/repository boundaries.
+  Billing remains accessible after subscription access expires. Invoice history
+  also serves legacy accounts; finalized usage history belongs to the new flow.
+- React query calls live in `useBillingHistory`; components show loading, empty,
+  error and refresh states. Approved corrections update the displayed usage
+  total but are not described as paid/refunded until settlement confirms it.
+- No additional migration or live Stripe configuration is needed for this UI
+  step. Earlier billing migrations still need to be deployed before rollout.
+- Run `node scripts/verify-billing-history.mjs` from `admin-frontend` for
+  browser-free rendering checks; backend coverage lives in `test_billing_history.py`.
 
 ## Verification
 
