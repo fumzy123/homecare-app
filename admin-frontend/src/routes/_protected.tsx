@@ -113,7 +113,7 @@ function ProtectedLayout() {
               {billingStatus?.is_onboarding && <Link to="/settings/billing" className="ml-3 text-orange font-bold hover:underline">· Onboarding</Link>}
               {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
                 <Link to={billingStatus.new_billing_flow ? '/settings/billing' : '/upgrade'} className="ml-3 text-orange font-bold hover:underline">
-                  · Trial: {billingStatus.trial_days_left} days left · {billingStatus.new_billing_flow ? 'Manage billing' : 'Subscribe'}
+                  · Trial: {billingStatus.trial_days_left} days left · Manage billing
                 </Link>
               )}
             </span>

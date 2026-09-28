@@ -2,6 +2,26 @@
 
 This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
 
+## Pricing copy and legacy checkout
+
+- Signup explains onboarding, the 14-day trial, the 30-day backstop, card consent,
+  and automatic conversion. Public copy must be released together with onboarding
+  rollout; changing text does not enable new billing for legacy accounts.
+- `/upgrade` uses the existing server-priced onboarding panel for enrolled
+  accounts. Unenrolled accounts receive an explicit onboarding/support message
+  and a link to Billing; they are never shown new prices above an old checkout.
+- The old `POST /billing/subscribe` endpoint now returns 409 `USE_ONBOARDING`
+  without calling Stripe. Its hardcoded-price frontend checkout was removed.
+  Existing subscriptions are not migrated or repriced by this change. Their
+  invoice history, payment updates, and Stripe portal remain available.
+- Legacy Billing no longer invents a price or promises all future features;
+  it points to existing invoice/portal terms. Read-only messaging does not imply
+  customer records disappear. Paid accounts no longer show a past trial end as
+  an upcoming first payment. Annual base and monthly usage remain separate.
+- The legal Terms of Service page is still explicitly a pre-launch draft with
+  an incomplete subscription/payment section. Finalizing/versioning those terms
+  and reviewing launch promises remain release requirements.
+
 ## Durable Stripe messages and billing notices
 
 - Apply migration `b5f9a3c0d842` before deploying this code, including before

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+import asyncio
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,7 @@ import stripe
 from app.services.billing_service import BillingService
 from app.services.billing_onboarding_service import subscription_period_end
 from app.services import billing_service as billing_module
+from app.core.exceptions import AppError
 
 
 def subscription(**overrides):
@@ -113,3 +115,17 @@ def test_portal_cancellation_records_forfeiture(service, monkeypatch):
     monkeypatch.setattr(stripe.Subscription, "retrieve", lambda _: subscription(cancel_at_period_end=True))
     service._handle_subscription_updated(subscription())
     assert offer.forfeited_at is not None
+
+
+def test_retired_checkout_never_creates_a_legacy_subscription(service, monkeypatch):
+    create_customer = MagicMock()
+    create_subscription = MagicMock()
+    monkeypatch.setattr(stripe.Customer, 'create', create_customer)
+    monkeypatch.setattr(stripe.Subscription, 'create', create_subscription)
+    with pytest.raises(AppError) as error:
+        asyncio.run(service.create_subscription_intent())
+    assert error.value.status_code == 409
+    assert error.value.code == 'USE_ONBOARDING'
+    create_customer.assert_not_called()
+    create_subscription.assert_not_called()
+    service.db.commit.assert_not_called()

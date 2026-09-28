@@ -34,7 +34,7 @@ function RegisterPage() {
         {/* Headline */}
         <div className="max-w-lg">
           <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-6">
-            Get started free
+            Personal onboarding included
           </p>
           <h1 className="font-serif text-[56px] leading-[1.0] font-medium tracking-[-0.02em]">
             Your agency,{' '}
@@ -42,7 +42,7 @@ function RegisterPage() {
             from day one.
           </h1>
           <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
-            Set up your organization and start scheduling shifts in minutes. No credit card required.
+            Create your agency account and arrange onboarding with Care Harbor. Choose your plan and confirm billing details before your trial is activated.
           </p>
         </div>
 
@@ -61,6 +61,10 @@ function RegisterPage() {
         </div>
 
         <RegisterForm />
+
+        <p className="mt-5 text-sm text-ink-soft leading-relaxed">
+          Your 14-day trial starts at onboarding completion or 30 days after signup, whichever comes first. A saved card and billing consent are required before activation. Your card is charged at trial end unless you cancel renewal.
+        </p>
 
         <p className="mt-8 font-mono text-[10px] text-ink-soft">
           Already have an account?{' '}

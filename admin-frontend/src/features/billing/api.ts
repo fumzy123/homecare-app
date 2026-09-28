@@ -195,11 +195,6 @@ export const billingApi = {
     return data
   },
 
-  createSubscriptionIntent: async (): Promise<{ client_secret: string }> => {
-    const { data } = await apiClient.post('/api/billing/subscribe', {})
-    return data
-  },
-
   createSetupIntent: async (): Promise<{ client_secret: string }> => {
     const { data } = await apiClient.post('/api/billing/setup-intent', {})
     return data

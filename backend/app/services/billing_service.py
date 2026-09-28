@@ -50,34 +50,10 @@ class BillingService:
     # 1. Create subscription + return PaymentIntent client_secret
     # ─────────────────────────────────────────
     async def create_subscription_intent(self) -> dict:
-        try:
-            org = self.org_repo.get_by_id(self.org_id)
-            if not org:
-                raise AppError(404, "NOT_FOUND", "Organization not found")
-            if org.onboarding_deadline_at is not None:
-                raise AppError(409, "USE_ONBOARDING", "Authorize your plan through billing onboarding")
-            if org.subscription_status == "active":
-                raise AppError(400, "ALREADY_SUBSCRIBED", "This organization already has an active subscription")
-
-            customer_id = self._get_or_create_customer(org)
-
-            subscription = stripe.Subscription.create(
-                customer=customer_id,
-                items=[{"price": settings.stripe_price_id}],
-                payment_behavior="default_incomplete",
-                payment_settings={"save_default_payment_method": "on_subscription"},
-                expand=["latest_invoice.confirmation_secret"],
-            )
-
-            org.subscription_id = subscription.id
-            self.db.commit()
-
-            return {"client_secret": subscription.latest_invoice.confirmation_secret.client_secret}
-
-        except AppError:
-            raise
-        except Exception as e:
-            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+        # Retain the endpoint for old clients, but never create a subscription
+        # against the retired single-price configuration. New enrollment needs
+        # server-owned plan selection, consent, and trial activation.
+        raise AppError(409, "USE_ONBOARDING", "Choose your plan through billing onboarding. Contact Care Harbor if your account is not enrolled yet.")
 
     # ─────────────────────────────────────────
     # 2. Create SetupIntent for updating the card

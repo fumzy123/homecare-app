@@ -62,10 +62,14 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
       {conversion?.status === 'needs_review' && <p role="status">Your pricing transition needs a support review. Contact Care Harbor to confirm the effective date and rates.</p>}
       <h2 className="font-serif text-3xl">{status.is_onboarding ? 'Onboarding' : status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? `${status.plan_code === 'founding' ? 'Founding' : 'Standard'} plan` : 'Billing needs attention'}</h2>
       {status.is_onboarding && <p>Your trial starts when onboarding is completed, or by {status.onboarding_deadline_at && new Date(status.onboarding_deadline_at).toLocaleString()}. No countdown runs before then.</p>}
-      {end && <p>{status.billing_canceled ? 'Trial access ends' : 'Trial ends; first base payment is due'}: {end}.</p>}
+      {end && status.is_trial_active && <p>{status.billing_canceled ? 'Trial access ends' : 'Trial ends; first base payment is due'}: {end}.</p>}
+      {end && !status.is_trial_active && <p>Trial ended: {end}. Check your invoices below for payment status.</p>}
       {status.base_amount_cents != null && <p>CAD ${(status.base_amount_cents / 100).toLocaleString()} / {status.plan_interval}. Ten active clients included; then CAD ${((status.additional_client_amount_cents ?? 500) / 100).toLocaleString()} per additional client each month, plus applicable taxes.</p>}
       {status.plan_code === 'founding' && <p>Founding rates are protected for your first 12 paid months. {status.founding_protection_ends_at && `Protection ends ${new Date(status.founding_protection_ends_at).toLocaleString()}. `}We will give at least 30 days’ notice of the standard rates before conversion.</p>}
       {status.billing_canceled && <p role="status">Renewal canceled. Any prepaid access continues to its end date.</p>}
+      {status.plan_interval === 'year' && <p>Annual prepayment covers the base subscription only. Additional active clients are billed monthly. Cancel renewal anytime; prepaid base fees are non-refundable and access continues through the prepaid year.</p>}
+      {status.plan_interval === 'month' && <p>No minimum commitment. Cancel renewal anytime; access continues through any paid billing period.</p>}
+      {status.plan_interval && <p>Additional-client usage is finalized three days after each monthly billing period. Final usage charges may still apply after cancellation. All amounts are in CAD, plus applicable taxes.</p>}
       {status.activation_status === 'needs_review' && <p role="status">Your trial needs a support review. Contact Care Harbor before continuing.</p>}
       {!owner && <p>Your agency owner manages plan selection and payment details.</p>}
       {owner && !status.subscription_status && !status.billing_canceled && !status.card_saved && (

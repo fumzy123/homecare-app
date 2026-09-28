@@ -122,15 +122,13 @@ function LegacyBillingSection() {
               {isActive && (
                 <>
                   <h3 className="font-serif text-[48px] leading-none font-medium tracking-[-0.02em]">
-                    Monthly <span className="font-serif italic text-mint">Subscription.</span>
+                    Existing <span className="font-serif italic text-mint">Subscription.</span>
                   </h3>
                   <p className="font-mono text-[11px] text-cream/60 mt-3 max-w-sm leading-relaxed">
-                    Full access to scheduling, timesheets, client management, and all future features.
+                    Your existing subscription terms apply. Review invoices and your current price in Stripe, or contact Care Harbor to discuss the new plans.
                   </p>
                   <div className="flex flex-wrap gap-2 mt-4">
-                    <span className="font-mono text-[9px] tracking-[0.1em] uppercase border border-mint text-mint px-2.5 py-1">All features</span>
-                    <span className="font-mono text-[9px] tracking-[0.1em] uppercase border border-mint text-mint px-2.5 py-1">Unlimited clients</span>
-                    <span className="font-mono text-[9px] tracking-[0.1em] uppercase border border-cream/30 text-cream/50 px-2.5 py-1">$700 / month</span>
+                    <span className="font-mono text-[9px] tracking-[0.1em] uppercase border border-mint text-mint px-2.5 py-1">Existing plan</span>
                   </div>
                 </>
               )}
@@ -141,7 +139,7 @@ function LegacyBillingSection() {
                     Free <span className="font-serif italic text-orange">Trial.</span>
                   </h3>
                   <p className="font-mono text-[11px] text-cream/60 mt-3 max-w-sm leading-relaxed">
-                    {b?.trial_days_left} days remaining — trial ends {trialEndDate}. Upgrade to keep your data and access.
+                    {b?.trial_days_left} days remaining — trial ends {trialEndDate}. Contact Care Harbor to confirm your subscription options. Your records remain available to view after the trial.
                   </p>
                 </>
               )}
@@ -152,7 +150,7 @@ function LegacyBillingSection() {
                     Access <span className="font-serif italic text-orange">Expired.</span>
                   </h3>
                   <p className="font-mono text-[11px] text-cream/60 mt-3 max-w-sm leading-relaxed">
-                    Your trial has ended. Upgrade to restore full access.
+                    Your account is read-only. You can view records and invoices. Review Billing to resolve payment issues, or contact Care Harbor to arrange a subscription.
                   </p>
                 </>
               )}
@@ -168,7 +166,7 @@ function LegacyBillingSection() {
               </div>
               {isActive && (
                 <div>
-                  <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-mint mb-1.5">Renews</p>
+                  <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-mint mb-1.5">Current period ends</p>
                   <p className="font-mono text-[13px]">{renewsDate}</p>
                 </div>
               )}
@@ -192,7 +190,7 @@ function LegacyBillingSection() {
                 onClick={() => navigate({ to: '/upgrade' })}
                 className="bg-orange border border-orange px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-white hover:opacity-80 transition-opacity rounded-full"
               >
-                Upgrade →
+                Review billing options →
               </button>
             ) : <p className="text-sm">Your agency owner manages payments.</p>}
           </div>

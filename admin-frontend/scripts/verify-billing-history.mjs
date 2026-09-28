@@ -108,6 +108,23 @@ try {
   assert.match(html, /More remain/)
   assert.doesNotMatch(html, /No pending or failed messages/)
   webhookClient.clear()
+  const { BillingOnboardingPanel } = await server.ssrLoadModule('/src/features/billing/components/BillingOnboardingPanel.tsx')
+  const copyClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const renderPanel = status => renderToStaticMarkup(createElement(QueryClientProvider, { client: copyClient }, createElement(BillingOnboardingPanel, { status })))
+  const activeAnnual = { subscription_status: 'active', is_trial_active: false, trial_days_left: 0,
+    trial_ends_at: '2026-08-01T00:00:00Z', plan_interval: 'year', base_amount_cents: 300000,
+    additional_client_amount_cents: 500, plan_code: 'standard', billing_timezone: 'UTC' }
+  html = renderPanel(activeAnnual)
+  assert.match(html, /Annual prepayment covers the base subscription only/)
+  assert.match(html, /Additional active clients are billed monthly/)
+  assert.doesNotMatch(html, /first base payment is due/)
+  html = renderPanel({ ...activeAnnual, subscription_status: 'trialing', is_trial_active: true, billing_canceled: true })
+  assert.match(html, /Trial access ends/)
+  assert.doesNotMatch(html, /first base payment is due/)
+  html = renderPanel({ ...activeAnnual, subscription_status: 'trialing', is_trial_active: true, plan_interval: 'month' })
+  assert.match(html, /first base payment is due/)
+  assert.match(html, /No minimum commitment/)
+  copyClient.clear()
   console.log('Billing rendering checks passed, including upcoming charges, operator correction safeguards, and webhook alerts.')
 } finally {
   await server.close()
