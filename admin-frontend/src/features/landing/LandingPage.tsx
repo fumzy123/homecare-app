@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PricingCalculator } from './components/PricingCalculator'
 import { Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { Tag, Btn, Card, Kicker } from '@/shared/components/ui'
@@ -116,14 +117,14 @@ export function LandingPage() {
               spreadsheet.
             </h1>
             <p className="text-[18px] max-md:text-[16px] text-ink-soft leading-relaxed max-w-lg mb-10">
-              The modern operating system for home care agencies. Start with a 14-day full-access trial, then pay once to own it for life.
+              Scheduling, client records, and team management for home care agencies. Get personal help with onboarding, then evaluate your agency’s workflow with a 14-day trial.
             </p>
             <div className="flex items-center gap-4 max-sm:flex-col max-sm:items-start">
               <Link to="/register">
-                <Btn variant="orange" className="px-8 py-3 text-[14px]">Start your 14-day trial</Btn>
+                <Btn variant="orange" className="px-8 py-3 text-[14px]">Get started</Btn>
               </Link>
               <p className="font-mono text-[10px] text-muted max-w-[140px] leading-tight">
-                No credit card required. Setup in 5 minutes.
+                Onboarding included. No setup fees.
               </p>
             </div>
           </div>
@@ -251,92 +252,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing Section ─────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 max-md:py-16 px-10 max-md:px-6 border-b border-ink bg-cream">
-        <div className="max-w-5xl mx-auto">
-
-          {/* Header */}
-          <div className="mb-16 max-md:mb-10 max-w-xl">
-            <Kicker leader className="mb-4">Pricing</Kicker>
-            <h2 className="font-serif text-[52px] max-md:text-[36px] leading-[1.0] font-medium tracking-[-0.02em] mb-5">
-              Simple pricing.<br />
-              <span className="italic">Cancel anytime.</span>
-            </h2>
-            <p className="text-ink-soft text-[16px] max-md:text-[14px] leading-relaxed">
-              Start with a 14-day full-access trial — no credit card required. When you're ready, subscribe monthly and keep your agency running.
-            </p>
-          </div>
-
-          {/* Single Pricing Card */}
-          <div className="grid grid-cols-12 gap-8 max-md:gap-6 items-start">
-            <div className="col-span-7 max-md:col-span-12">
-              <div className="border border-ink bg-ink text-cream p-10 max-md:p-6 transition-all duration-200 hover:-translate-y-2 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.25)]">
-                <div className="flex items-center justify-between mb-8">
-                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">Trial + Monthly Subscription</p>
-                  <span className="font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1 bg-[#7ECECE] text-[#111]">* Monthly</span>
-                </div>
-
-                <div className="mb-8">
-                  <div className="flex items-end gap-2 mb-1">
-                    <span className="font-mono text-[14px] text-muted self-start mt-3">$</span>
-                    <span className="font-serif text-[96px] max-md:text-[72px] leading-none font-medium tracking-[-0.03em]">700</span>
-                  </div>
-                  <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">Per month · Cancel anytime</p>
-                </div>
-
-                <div className="border-t border-white/10 pt-8 mb-10">
-                  <div className="grid grid-cols-2 max-md:grid-cols-1 gap-3">
-                    {[
-                      'Visual shift scheduling',
-                      'Attendance tracking',
-                      'Progress notes',
-                      'Client care-hour reports',
-                      'Employee leave management',
-                      'Automated timesheets',
-                      'Unlimited clients & workers',
-                    ].map((item) => (
-                      <div key={item} className="flex items-center gap-2.5">
-                        <span className="font-mono text-[12px]" style={{ color: '#7ECECE' }}>✓</span>
-                        <span className="font-mono text-[11px] tracking-[0.04em] text-cream/80">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Btn
-                  variant="orange"
-                  className="w-full py-4 text-[13px] tracking-[0.08em] uppercase justify-center"
-                  onClick={() => window.location.href = '/register'}
-                >
-                  Start 14-Day Free Trial
-                </Btn>
-                <p className="font-mono text-[8px] text-center text-muted uppercase mt-4 tracking-widest">
-                  14-day free trial · Then $700/month
-                </p>
-              </div>
-            </div>
-
-            {/* Right: reassurance column */}
-            <div className="col-span-5 max-md:col-span-12 flex flex-col gap-6 pt-2">
-              {[
-                {
-                  label: 'Full trial, no risk',
-                  body: 'Use every single feature for 14 days without entering a credit card. Subscribe only when you\'re confident it works for your agency.',
-                },
-                {
-                  label: 'Your data, always',
-                  body: 'All schedules, workers, and clients you add during the trial stay with you. Cancel anytime — no lock-in, no penalties.',
-                },
-              ].map(({ label, body }) => (
-                <div key={label} className="border-l-2 border-orange pl-5">
-                  <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink mb-1">{label}</p>
-                  <p className="text-[13px] text-ink-soft leading-relaxed">{body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <PricingCalculator />
 
       {/* ── CTA Section ─────────────────────────────────────────────────── */}
       <section className="bg-ink text-cream py-32 max-md:py-20 px-10 max-md:px-6 text-center border-y border-ink">
