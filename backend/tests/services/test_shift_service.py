@@ -20,6 +20,7 @@ def _service(role=OrgMemberRole.manager):
     service.client_repo = MagicMock()
     service.employment_repo = MagicMock()
     service.evidence_service = MagicMock()
+    service.cutoff_service = MagicMock()
     service.db = MagicMock()
     service.org_id = uuid4()
     return service

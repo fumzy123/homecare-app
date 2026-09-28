@@ -12,11 +12,16 @@ class ShiftRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def completion_candidates(self):
+    def completion_org_ids(self):
+        return [row[0] for row in self.db.query(Shift.org_id).filter(
+            Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None),
+        ).distinct().order_by(Shift.org_id).all()]
+
+    def completion_candidates(self, org_id):
         return self.db.query(Shift, Organization.billing_timezone, Organization.onboarding_deadline_at).join(
             Organization, Organization.id == Shift.org_id,
         ).filter(
-            Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None),
+            Shift.org_id == org_id, Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None),
         ).order_by(Shift.id).with_for_update(of=Shift).all()
 
     def lock_shift(self, shift_id, org_id):

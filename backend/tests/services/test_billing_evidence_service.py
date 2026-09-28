@@ -58,6 +58,7 @@ def shift_service(db, shift):
     service.shift_repo = ShiftRepository(db)
     service.modification_repo = ShiftModificationRepository(db)
     service.evidence_service = BillingEvidenceService(db, shift.org_id)
+    service.cutoff_service = MagicMock()
     service._get_active_shift = lambda _: shift
     service._enforce_scheduling_rules = MagicMock()
     service._validate_shift_participants = MagicMock()
@@ -126,7 +127,9 @@ def test_failed_edit_rolls_back_staged_evidence_and_schedule(db):
 def test_completion_does_not_overwrite_non_scheduled_visits(db, status):
     shift, mod = visit(db, status=status)
     service = ShiftCompletionService(db)
+    service.cutoff_service = MagicMock()
     service.shift_repo = MagicMock()
+    service.shift_repo.completion_org_ids.return_value = [shift.org_id]
     service.shift_repo.completion_candidates.return_value = [(shift, "UTC", None)]
     service.complete(datetime(2026, 9, 12, 15, tzinfo=timezone.utc))
     assert mod.completion_status == status
@@ -135,7 +138,9 @@ def test_completion_does_not_overwrite_non_scheduled_visits(db, status):
 def test_completion_uses_agency_time_and_records_evidence(db):
     shift, mod = visit(db, status=Status.scheduled)
     service = ShiftCompletionService(db)
+    service.cutoff_service = MagicMock()
     service.shift_repo = MagicMock()
+    service.shift_repo.completion_org_ids.return_value = [shift.org_id]
     service.shift_repo.completion_candidates.return_value = [(shift, "America/St_Johns", None)]
     service.complete(datetime(2026, 9, 12, 12, tzinfo=timezone.utc))
     assert mod.completion_status == Status.scheduled  # 09:30 local, not ended.
@@ -175,6 +180,7 @@ def test_archiving_client_preserves_history_before_truncation(db):
     service.client_repo.get_active_client.return_value = client
     service.shift_repo = ShiftRepository(db)
     service.evidence_service = BillingEvidenceService(db, shift.org_id)
+    service.cutoff_service = MagicMock()
     asyncio.run(service.delete_client(shift.client_id))
     assert db.query(ShiftModification).count() == 0
     evidence = db.query(BillingVisitEvidence).one()
@@ -193,7 +199,9 @@ def test_deleted_cancelled_correction_cannot_resurrect_usage(db):
     assert estimate(db, shift.org_id) == ()
     db.expire_all()
     completion = ShiftCompletionService(db)
+    completion.cutoff_service = MagicMock()
     completion.shift_repo = MagicMock()
+    completion.shift_repo.completion_org_ids.return_value = [shift.org_id]
     completion.shift_repo.completion_candidates.return_value = [(shift, "UTC", None)]
     completion.complete(datetime(2026, 9, 12, 15, tzinfo=timezone.utc))
     assert db.query(ShiftModification).count() == 0
@@ -205,7 +213,9 @@ def test_completion_respects_new_start_without_new_end(db):
     mod.new_start_time = datetime(2026, 9, 12, 16)
     db.commit()
     service = ShiftCompletionService(db)
+    service.cutoff_service = MagicMock()
     service.shift_repo = MagicMock()
+    service.shift_repo.completion_org_ids.return_value = [shift.org_id]
     service.shift_repo.completion_candidates.return_value = [(shift, "UTC", None)]
     service.complete(datetime(2026, 9, 12, 15, tzinfo=timezone.utc))
     assert mod.completion_status == Status.scheduled
@@ -214,7 +224,9 @@ def test_completion_respects_new_start_without_new_end(db):
 def test_completion_failure_rolls_back_both_visit_and_evidence(db, monkeypatch):
     shift, mod = visit(db, status=Status.scheduled)
     service = ShiftCompletionService(db)
+    service.cutoff_service = MagicMock()
     service.shift_repo = MagicMock()
+    service.shift_repo.completion_org_ids.return_value = [shift.org_id]
     service.shift_repo.completion_candidates.return_value = [(shift, "UTC", None)]
     monkeypatch.setattr(db, "commit", MagicMock(side_effect=RuntimeError("commit failed")))
     with pytest.raises(RuntimeError):

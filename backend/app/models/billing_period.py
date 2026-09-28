@@ -10,6 +10,8 @@ class BillingPeriod(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     subscription_id = Column(String, nullable=False)
+    source_invoice_id = Column(String, nullable=True)
+    source_invoice_line_id = Column(String, nullable=True)
     starts_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=False)
     anchor_at = Column(DateTime(timezone=True), nullable=False)

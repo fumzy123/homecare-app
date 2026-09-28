@@ -11,7 +11,7 @@ class BillingEvidenceRepository:
     def _latest(self, org_id):
         row = BillingVisitEvidence
         newer = aliased(row)
-        return self.db.query(row).filter(row.org_id == org_id, ~exists().where(and_(
+        return self.db.query(row).populate_existing().filter(row.org_id == org_id, ~exists().where(and_(
             newer.org_id == row.org_id, newer.shift_id == row.shift_id,
             newer.occurrence_date == row.occurrence_date, newer.revision > row.revision,
         )))

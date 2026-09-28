@@ -44,7 +44,7 @@ class BillingUsageRepository:
             ShiftModification, and_(ShiftModification.shift_id == Shift.id, relevant_mod),
         ).filter(Shift.org_id == org_id, eligible).order_by(
             Shift.client_id, Shift.id, ShiftModification.original_date,
-        ).all()
+        ).populate_existing().all()
         # One statement provides a consistent read. Do not assign a filtered
         # collection to an ORM relationship or trigger lazy loads per shift.
         grouped = {}

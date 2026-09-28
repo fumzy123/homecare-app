@@ -28,3 +28,5 @@ from app.models.worker_availability import WorkerAvailabilityEntry as WorkerAvai
 from app.models.billing_visit_evidence import BillingVisitEvidence as BillingVisitEvidence
 
 from app.models.billing_usage_snapshot import BillingUsageSnapshot as BillingUsageSnapshot
+
+from app.models.billing_usage_cutoff import BillingUsageCutoff as BillingUsageCutoff

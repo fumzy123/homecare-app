@@ -4,11 +4,10 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from app.core.exceptions import AppError
-from app.domain.billing_usage import UsageWindow, active_clients
 from app.models.billing_usage_snapshot import BillingUsageSnapshot
 from app.repositories.billing_finalization_repository import BillingFinalizationRepository
-from app.repositories.billing_usage_repository import BillingUsageRepository
-from app.repositories.billing_evidence_repository import BillingEvidenceRepository
+from app.services.billing_cutoff_service import BillingCutoffService
+from app.repositories.billing_cutoff_repository import BillingCutoffRepository
 
 
 def _utc(value):
@@ -28,20 +27,21 @@ class BillingFinalizationService:
     def __init__(self, db):
         self.db = db
         self.finalization_repo = BillingFinalizationRepository(db)
-        self.usage_repo = BillingUsageRepository(db)
-        self.evidence_repo = BillingEvidenceRepository(db)
+        self.cutoff_service = BillingCutoffService(db)
+        self.cutoff_repo = BillingCutoffRepository(db)
 
     def finalize(self, org_id, period_id, *, now=None):
+        provided_now = now
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("Finalization time must include a timezone")
-        # A dedicated session is required: all schedule/evidence queries must
-        # see the same database snapshot, not multiple READ COMMITTED views.
+        # Dedicated session; all writers serialize on the agency before shifts.
+        # READ COMMITTED sees commits made while waiting for the agency lock.
         if self.db.in_transaction():
             raise ValueError("Finalization requires a fresh database session")
         try:
-            if self.db.get_bind().dialect.name == "postgresql":
-                self.db.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+            org = self.cutoff_service.seal_due(org_id, now=provided_now)
+            now = provided_now or datetime.now(timezone.utc)
             period = self.finalization_repo.lock_period(org_id, period_id)
             if period is None:
                 raise AppError(404, "NOT_FOUND", "Billing period not found")
@@ -59,34 +59,27 @@ class BillingFinalizationService:
             if (period.included_clients < 0 or period.additional_client_amount_cents < 0
                     or period.currency != "cad" or period.base_interval not in ("month", "year")):
                 raise ValueError("Stored billing terms need review")
-            window = UsageWindow(start, end, period.agency_timezone)
-            candidates = self.usage_repo.candidates(org_id, window)
-            evidence = self.evidence_repo.for_window(org_id, window, [c.shift.id for c in candidates])
-            clients = active_clients(candidates, window, evidence)
-            versions = {(row.shift_id, row.occurrence_date): row for row in evidence
-                        if row.completion_status in ("completed", "no_show")}
-            witnesses = []
-            for client in clients:
-                version = versions.get((client.shift_id, client.occurrence_date))
-                witnesses.append({
-                    "client_id": str(client.client_id), "shift_id": str(client.shift_id),
-                    "occurrence_date": client.occurrence_date.isoformat(),
-                    "modification_id": str(client.modification_id) if client.modification_id else None,
-                    "local_start": client.local_start.isoformat(),
-                    "completion_status": client.completion_status.value,
-                    "evidence_id": str(version.id) if version else None,
-                    "evidence_revision": version.revision if version else None,
-                })
+            if (org is None or org.billing_recovery_error or org.billing_recovery_checked_at is None
+                    or not now - timedelta(hours=1) <= _utc(org.billing_recovery_checked_at) <= now):
+                raise AppError(409, "BILLING_PERIOD_REVIEW_REQUIRED", "Recent Stripe coverage verification is required")
+            if not period.source_invoice_id or not period.source_invoice_line_id:
+                raise AppError(409, "BILLING_PERIOD_REVIEW_REQUIRED", "Stripe invoice coverage has not been verified")
+            cutoff = self.cutoff_repo.get(org_id, period.subscription_id, start)
+            if (cutoff is None or cutoff.state != "ready" or _utc(cutoff.ends_at) != end
+                    or cutoff.agency_timezone != period.agency_timezone or _utc(cutoff.deadline_at) != eligible):
+                raise AppError(409, "USAGE_CUTOFF_REVIEW_REQUIRED", "The correction-deadline usage needs review")
+            witnesses = deepcopy(cutoff.clients)
+            clients = witnesses
             extra = max(0, len(clients) - period.included_clients)
             amount = extra * period.additional_client_amount_cents
             terms = {field: _json_value(getattr(period, field)) for field in (
-                "id", "subscription_id", "agency_timezone", "plan_code", "plan_version",
+                "id", "subscription_id", "source_invoice_id", "source_invoice_line_id", "agency_timezone", "plan_code", "plan_version",
                 "base_interval", "included_clients", "additional_client_amount_cents", "currency",
             )}
             terms.update(starts_at=start.isoformat(), ends_at=end.isoformat(),
                          anchor_at=_utc(period.anchor_at).isoformat(), finalization_eligible_at=eligible.isoformat())
             result = {
-                "schema_version": 1, "state": "finalized", "is_estimate": False,
+                "schema_version": 2, "cutoff_at": eligible.isoformat(), "state": "finalized", "is_estimate": False,
                 "finalized_at": now.isoformat(), "period": terms,
                 "active_client_count": len(clients), "additional_clients": extra,
                 "usage_amount_cents": amount, "clients": witnesses,

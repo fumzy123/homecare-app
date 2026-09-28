@@ -11,5 +11,10 @@ class BillingPeriodRepository:
             BillingPeriod.starts_at == starts_at,
         ).first()
 
+    def for_subscription(self, org_id, subscription_id):
+        return self.db.query(BillingPeriod).filter(
+            BillingPeriod.org_id == org_id, BillingPeriod.subscription_id == subscription_id,
+        ).all()
+
     def add(self, period):
         self.db.add(period)

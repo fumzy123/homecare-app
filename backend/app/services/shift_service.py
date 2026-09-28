@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.services.billing_evidence_service import BillingEvidenceService
+from app.services.billing_cutoff_service import BillingCutoffService
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, OVERTIME_APPROVERS
@@ -56,6 +57,7 @@ class ShiftService:
         self.current_employment = current_employment
         self.checker = SchedulingChecker(self.db, self.org_id)
         self.evidence_service = BillingEvidenceService(db, self.org_id)
+        self.cutoff_service = BillingCutoffService(db)
 
     # ─────────────────────────────────────────
     # Internal helpers
@@ -200,6 +202,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def create_shift(self, payload: ShiftCreateSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             client = self._validate_shift_participants(
                 payload.client_id,
                 payload.worker_id,
@@ -251,6 +254,7 @@ class ShiftService:
             return shift
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -515,6 +519,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
             self.evidence_service.preserve(shift)
@@ -608,6 +613,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def cancel_shift(self, shift_id: str, payload: ShiftCancelSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
             self.evidence_service.preserve(shift)
@@ -631,6 +637,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
             master = self._get_active_shift(shift_id)
             evidence = self.evidence_service.preserve(master)
@@ -689,6 +696,7 @@ class ShiftService:
         payload: ShiftModificationUpdateSchema,
     ):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
             master = self._get_active_shift(shift_id)
             evidence = self.evidence_service.preserve(master)
@@ -730,6 +738,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def cancel_from_date(self, shift_id: str, payload: ShiftCancelFromSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
             self.evidence_service.preserve(shift)
@@ -759,6 +768,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
             self.evidence_service.preserve(shift)

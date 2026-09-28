@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import ShiftCompletionStatus, ShiftStatus
 from app.core.exceptions import AppError
+from app.models.organization import Organization
+from app.models.billing_usage_cutoff import BillingUsageCutoff
 from app.models.billing_period import BillingPeriod
 from app.models.billing_usage_snapshot import BillingUsageSnapshot
 from app.models.billing_visit_evidence import BillingVisitEvidence
@@ -25,7 +27,7 @@ DUE = END + timedelta(hours=72)
 @pytest.fixture
 def db():
     engine = create_engine("sqlite://")
-    for model in (BillingPeriod, BillingUsageSnapshot, Shift, ShiftModification, BillingVisitEvidence):
+    for model in (Organization, BillingUsageCutoff, BillingPeriod, BillingUsageSnapshot, Shift, ShiftModification, BillingVisitEvidence):
         model.__table__.create(engine)
     with Session(engine, autoflush=False) as session:
         yield session
@@ -36,8 +38,11 @@ def period(db, **overrides):
     values = dict(id=uuid4(), org_id=uuid4(), subscription_id="sub_test", starts_at=START, ends_at=END,
                   anchor_at=START, agency_timezone="UTC", plan_code="standard", plan_version=1,
                   base_interval="month", included_clients=10, additional_client_amount_cents=500,
-                  currency="cad", finalization_eligible_at=DUE)
+                  currency="cad", finalization_eligible_at=DUE, source_invoice_id="in_verified", source_invoice_line_id="il_verified")
     values.update(overrides)
+    db.add(Organization(id=values["org_id"], name="Test", owner_id=uuid4(), subscription_id=values["subscription_id"],
+        billing_timezone=values["agency_timezone"], trial_ends_at=values["anchor_at"], onboarding_deadline_at=START,
+        billing_usage_tracking_started_at=values["starts_at"] - timedelta(days=1), billing_recovery_checked_at=DUE))
     db.add(BillingPeriod(**values))
     db.commit()
     return values["org_id"], values["id"]
@@ -130,7 +135,7 @@ def test_evidence_version_is_copied_and_later_revision_cannot_change_snapshot(db
 
 def test_invalid_dst_evidence_is_not_silently_finalized_as_zero(db):
     org, pid = period(db, starts_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
-        ends_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        ends_at=datetime(2026, 4, 1, tzinfo=timezone.utc), anchor_at=datetime(2026, 3, 1, tzinfo=timezone.utc),
         finalization_eligible_at=datetime(2026, 4, 4, tzinfo=timezone.utc), agency_timezone="America/New_York")
     sid, _ = shift(db, org)
     db.flush()
@@ -138,8 +143,9 @@ def test_invalid_dst_evidence_is_not_silently_finalized_as_zero(db):
     row.start_time = datetime(2026, 3, 8, 2, 30)
     row.end_time = datetime(2026, 3, 8, 4)
     db.commit()
-    with pytest.raises(ValueError, match="nonexistent"):
+    with pytest.raises(AppError) as error:
         BillingFinalizationService(db).finalize(org, pid, now=DUE)
+    assert error.value.code == "USAGE_CUTOFF_REVIEW_REQUIRED"
     assert db.query(BillingUsageSnapshot).count() == 0
 
 

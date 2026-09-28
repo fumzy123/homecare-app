@@ -196,8 +196,8 @@ until those release requirements and end-to-end staging checks are complete.
   immutable invoice or a database-level ban on privileged administrative edits.
   No backfill can reconstruct overrides deleted before this release. Existing
   surviving historical overrides are captured before subsequent mutations.
-- Recorded-period finalization is described below. The exact deadline cutoff,
-  invoice submission, and post-finalization adjustments remain separate steps.
+- Recorded-period finalization and exact deadline capture are described below.
+  Invoice submission and post-finalization adjustments remain separate steps.
 
 ## Recorded-period usage finalization
 
@@ -205,12 +205,12 @@ until those release requirements and end-to-end staging checks are complete.
   scans and agency history. It has not been applied to shared databases.
 - The 15-minute job requires both `BILLING_ONBOARDING_ENABLED=true` and
   `BILLING_USAGE_FINALIZATION_ENABLED=true`. The latter defaults to false.
-  Keep it disabled until staging verification and the rollout blockers below
-  are resolved. This step makes no Stripe calls and cannot charge customers.
-- A dedicated transaction uses PostgreSQL REPEATABLE READ so live occurrences
-  and preserved evidence come from one database view. A period row lock and
-  primary-key uniqueness prevent duplicate snapshots. Concurrent attempts may
-  fail serialization/uniqueness and are retried by the next job pass.
+  Keep it disabled until staging verification and review of pre-tracking periods
+  are complete. This step makes no Stripe calls and cannot charge customers.
+- A dedicated READ COMMITTED transaction first locks the agency, then the
+  period. Every scheduling writer takes that agency lock first. Reads see any
+  changes committed while waiting for the lock, and usage cannot change during
+  capture. Period locks and primary-key uniqueness prevent duplicate snapshots.
 - Nothing finalizes before `ends_at + 72 hours`. At finalization, the service
   copies the saved period terms, one qualifying witness per distinct client,
   preserved evidence version IDs where applicable, and the additional-client
@@ -227,20 +227,67 @@ until those release requirements and end-to-end staging checks are complete.
   zero usage. Each period owns a separate session/transaction, so one failure
   does not stop other agencies from finalizing.
 
-### Remaining rollout blockers
+## Period recovery and exact correction cutoff
 
-- Period creation is currently on demand via Billing. Reconcile missing monthly
-  periods against verified Stripe history (including annual coverage and
-  cancellations) before enabling finalization. Never fabricate historical terms.
-- The current snapshot reflects the database at the actual finalization attempt,
-  which can be later than the nominal 72-hour deadline. An exact deadline cutoff
-  requires preventing late edits from changing eligible usage or reconstructing
-  all schedule state as of that deadline. Until that is implemented, do not
-  enable this worker for production billing.
-- Post-finalization differences need explicit adjustments, not snapshot rewrites.
-  Invoice submission, adjustment handling, and billing-history UI remain pending.
-- Tests exercise real SQLite queries/transactions and job error isolation.
-  PostgreSQL multi-session concurrency/isolation remains a staging check.
+- Migration `e2c6d0f7a519` adds price-independent cutoff records, the time agency
+  usage tracking began, recovery status, and source invoice/line IDs on periods.
+  No migration has been applied to shared databases. New cutoff records have
+  RLS enabled with no Data API policies; only the backend database role accesses
+  them, consistent with the SQLAlchemy architecture.
+- Before shift creation, master/occurrence changes, cancellations, client
+  archival, placement scheduling, or automatic completion, the service locks
+  the agency and seals all windows whose `end + 72 hours` deadline has passed.
+  This check runs independently of the finalization flag. It runs before any
+  shift lock or mutation and commits/rolls back with the caller's transaction.
+- The effective correction time is admission under that agency lock. A request
+  admitted before the deadline may commit after it; the next writer waits and
+  includes that accepted correction. A request waiting across the deadline is
+  late. Operational changes remain allowed afterward, but cannot rewrite the
+  cutoff record. This also excludes newly backdated visits from a closed count.
+- Delayed workers are safe: the first late writer captures the last accepted
+  pre-deadline state before changing it. If no writer intervened, the worker
+  captures the same state. This guarantee covers application scheduling paths,
+  not direct SQL/manual data changes that bypass these services.
+- Tracking starts on the first eligible guard/maintenance pass, never backdated
+  by the migration. Deadlines at/before tracking start are `needs_review`, with
+  no invented count. Invalid or ambiguous visit times are likewise held for
+  review, while operational edits remain usable. Such rows need explicit
+  operator reconciliation; the service never silently recalculates them.
+- `recover_billing_periods` runs every 15 minutes when onboarding rollout is
+  enabled, even if finalization is disabled. It first persists overdue cutoffs,
+  then reads all paginated Stripe invoices/line items with no DB lock held.
+  It re-locks the agency and verifies the local context has not changed before
+  recording any recovered periods.
+- Coverage must match the owned customer/subscription, original paid anchor,
+  exact agreed price, quantity, amount, currency, and full base interval. Trial
+  lines, drafts, and manual items cannot establish coverage. Gaps, duplicate
+  coverage, prorations, credit notes, unexpected prices, and void/uncollectible
+  invoices fail closed. Month-end anchors never drift; annual coverage produces
+  monthly windows only as they begin. Founding transitions use their recorded
+  effective date and exact announced price, verified against each invoice.
+- Cancellation uses Stripe `ended_at`, not request time. Full historical windows
+  can be recovered; a partial last window is flagged for review rather than
+  charged as a full month. An unresolved recovery error holds finalization.
+- Recovery is idempotent. Existing terms are compared in full and never silently
+  overwritten. Source invoice/line IDs are attached after successful verification.
+  Error status and the last check time are recorded on the agency; errors are
+  also logged without client care data.
+- Finalization requires invoice-backed coverage verified within the last hour
+  and a ready cutoff for the exact window/timezone. Snapshot schema v2 copies
+  the cutoff's witnesses and saved rates; it never recounts late scheduling data.
+  Recovery and finalization make no Stripe mutations or charges.
+
+### Remaining launch verification and work
+
+- Verify PostgreSQL concurrency with independent sessions: a correction waiting
+  across the deadline, concurrent finalizers, and automatic completion competing
+  with a user edit. SQLite tests cover real persistence/rollback, but cannot
+  prove PostgreSQL row-lock behavior. Deploy migrations and all writers together;
+  do not run older backend processes alongside guarded writers.
+- Review pre-tracking/partial-cancellation/ambiguous-time periods explicitly.
+  Usage adjustments after finalization, invoice submission, and billing-history
+  UI are still pending. Keep finalization disabled until those launch checks
+  are complete and the configured backend role can access the RLS-protected table.
 
 ## Recovery
 

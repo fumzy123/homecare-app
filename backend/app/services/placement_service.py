@@ -15,6 +15,7 @@ from app.repositories.shift_repository import ShiftRepository
 from app.domain.scheduling import SchedulingChecker, weekly_entries_to_time_blocks, WEEKDAY_INDEX
 from app.domain.availability import availability_covers_care_plan
 from app.services.notification_service import NotificationService
+from app.services.billing_cutoff_service import BillingCutoffService
 from app.schemas.placement import (
     PlacementCreateSchema,
     PlacementResponse,
@@ -52,6 +53,7 @@ class PlacementService:
         self.availability_repo = WorkerAvailabilityRepository(db)
         self.auth_repo = AuthorizationRepository(db)
         self.shift_repo = ShiftRepository(db)
+        self.cutoff_service = BillingCutoffService(db)
         self.checker = SchedulingChecker(db, org_id)
         employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
         if not employment:
@@ -189,6 +191,7 @@ class PlacementService:
 
         others = [i.employment_id for i in placement.interests if i.employment_id != employment_id]
         try:
+            self.cutoff_service.seal_due(self.org_id)
             for shift in shifts:
                 self.shift_repo.add(shift)
             self.repo.fill(placement, employment_id)

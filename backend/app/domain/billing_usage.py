@@ -134,3 +134,19 @@ def active_clients(candidates: Iterable[UsageCandidate], window: UsageWindow, ev
                 )
                 break
     return tuple(counted[key] for key in sorted(counted, key=str))
+
+
+def usage_witnesses(clients, evidence):
+    """Copy only billing facts; never embed client names or clinical data."""
+    versions = {(row.shift_id, row.occurrence_date): row for row in evidence
+                if row.completion_status in ("completed", "no_show")}
+    return [{
+        "client_id": str(client.client_id), "shift_id": str(client.shift_id),
+        "occurrence_date": client.occurrence_date.isoformat(),
+        "modification_id": str(client.modification_id) if client.modification_id else None,
+        "local_start": client.local_start.isoformat(), "completion_status": client.completion_status.value,
+        "evidence_id": str(versions[(client.shift_id, client.occurrence_date)].id)
+            if (client.shift_id, client.occurrence_date) in versions else None,
+        "evidence_revision": versions[(client.shift_id, client.occurrence_date)].revision
+            if (client.shift_id, client.occurrence_date) in versions else None,
+    } for client in clients]

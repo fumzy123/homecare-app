@@ -9,6 +9,7 @@ from app.core.enums import ClientStatus, ShiftStatus, AuthorizationCoverage, Car
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 from app.services.billing_evidence_service import BillingEvidenceService
+from app.services.billing_cutoff_service import BillingCutoffService
 from app.repositories.client_repository import ClientRepository
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.authorization_repository import AuthorizationRepository
@@ -27,6 +28,7 @@ class ClientService:
         self.plan_repo = WeeklyCarePlanRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
         self.evidence_service = BillingEvidenceService(db, self.org_id)
+        self.cutoff_service = BillingCutoffService(db)
 
     # ── Derived authorization summary (service types, care dates, coverage) ────
 
@@ -162,6 +164,7 @@ class ClientService:
     # ─────────────────────────────────────────
     async def delete_client(self, client_id: str):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             client = self.client_repo.get_active_client(client_id, self.org_id)
             today = date.today()
 
