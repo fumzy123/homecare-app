@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
@@ -13,6 +13,7 @@ from app.core.security import require_owner
 from typing import Literal
 from app.services.founding_offer_service import FoundingOfferService
 from app.services.billing_usage_service import BillingUsageService
+from app.services.billing_adjustment_service import BillingAdjustmentService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 
@@ -42,6 +43,46 @@ def current_billing_usage(billing_usage_service: BillingUsageService = Depends(g
 @router.get("/usage/periods/{period_id}")
 def finalized_billing_usage(period_id: UUID, billing_usage_service: BillingUsageService = Depends(get_billing_usage_service)):
     return billing_usage_service.finalized(period_id)
+
+
+def get_billing_adjustment_operator_service(current_user=Depends(require_billing_operator), db: Session = Depends(get_db)):
+    return BillingAdjustmentService(db, current_user)
+
+
+def get_billing_adjustment_admin_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):
+    return BillingAdjustmentService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+class BillingAdjustmentProposal(BaseModel):
+    request_id: UUID
+    reason: str = Field(min_length=5, max_length=1000)
+
+
+class BillingAdjustmentDecision(BaseModel):
+    decision: Literal["approved", "rejected"]
+    reason: str = Field(min_length=5, max_length=1000)
+
+
+@router.get("/usage/periods/{period_id}/adjustments")
+def list_billing_adjustments(period_id: UUID, billing_adjustment_service: BillingAdjustmentService = Depends(get_billing_adjustment_admin_service)):
+    return billing_adjustment_service.list(period_id)
+
+
+@router.get("/operator/organizations/{org_id}/periods/{period_id}/adjustments")
+def operator_billing_adjustments(org_id: UUID, period_id: UUID, billing_adjustment_service: BillingAdjustmentService = Depends(get_billing_adjustment_operator_service)):
+    return billing_adjustment_service.operator_list(org_id, period_id)
+
+
+@router.post("/operator/organizations/{org_id}/periods/{period_id}/adjustments")
+def propose_billing_adjustment(org_id: UUID, period_id: UUID, payload: BillingAdjustmentProposal,
+                               billing_adjustment_service: BillingAdjustmentService = Depends(get_billing_adjustment_operator_service)):
+    return billing_adjustment_service.propose(org_id, period_id, payload.request_id, payload.reason)
+
+
+@router.post("/operator/organizations/{org_id}/periods/{period_id}/adjustments/{adjustment_id}/decision")
+def decide_billing_adjustment(org_id: UUID, period_id: UUID, adjustment_id: UUID, payload: BillingAdjustmentDecision,
+                              billing_adjustment_service: BillingAdjustmentService = Depends(get_billing_adjustment_operator_service)):
+    return billing_adjustment_service.decide(org_id, period_id, adjustment_id, payload.decision, payload.reason)
 
 
 def get_founding_offer_service(

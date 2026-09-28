@@ -30,3 +30,6 @@ from app.models.billing_visit_evidence import BillingVisitEvidence as BillingVis
 from app.models.billing_usage_snapshot import BillingUsageSnapshot as BillingUsageSnapshot
 
 from app.models.billing_usage_cutoff import BillingUsageCutoff as BillingUsageCutoff
+
+from app.models.billing_adjustment import BillingAdjustment as BillingAdjustment
+from app.models.billing_adjustment import BillingAdjustmentEvent as BillingAdjustmentEvent

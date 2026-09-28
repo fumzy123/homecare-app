@@ -1,9 +1,10 @@
 # Billing onboarding rollout
 
-This branch adds owner-authorized card setup and queued Stripe trial activation.
-It does not complete active-client invoicing, founding conversion/notice delivery, read-only
-backend access, trial reminder delivery, or the operator UI. Keep rollout disabled
-until those release requirements and end-to-end staging checks are complete.
+This branch implements owner-authorized card setup, trial activation, founding
+allocation/conversion with in-app notices, monthly usage evidence and finalization,
+and reviewed adjustment records. Stripe usage invoicing/adjustment settlement,
+read-only backend access, trial reminders, and the operator UI remain unfinished.
+Keep rollout disabled until release requirements and staging checks are complete.
 
 ## Configuration
 
@@ -197,7 +198,8 @@ until those release requirements and end-to-end staging checks are complete.
   No backfill can reconstruct overrides deleted before this release. Existing
   surviving historical overrides are captured before subsequent mutations.
 - Recorded-period finalization and exact deadline capture are described below.
-  Invoice submission and post-finalization adjustments remain separate steps.
+  Reviewed adjustments are described below. Invoice submission and adjustment
+  settlement remain separate steps.
 
 ## Recorded-period usage finalization
 
@@ -285,9 +287,61 @@ until those release requirements and end-to-end staging checks are complete.
   prove PostgreSQL row-lock behavior. Deploy migrations and all writers together;
   do not run older backend processes alongside guarded writers.
 - Review pre-tracking/partial-cancellation/ambiguous-time periods explicitly.
-  Usage adjustments after finalization, invoice submission, and billing-history
+  Usage adjustment settlement, invoice submission, and billing-history
   UI are still pending. Keep finalization disabled until those launch checks
   are complete and the configured backend role can access the RLS-protected table.
+
+## Reviewed post-finalization adjustments
+
+- Migration `f3d7e1a8b620` adds adjustment proposals and append-only decision
+  events. Both tables have RLS enabled, with no Data API policies. This migration
+  is prepared only; it has not been applied to shared databases.
+- A configured Care Harbor billing operator proposes a correction using the
+  finalized period ID, a unique request UUID, and a reason. The backend recounts
+  current qualifying clients using the same occurrence/evidence rules, then
+  compares them with the original snapshot or latest approved correction.
+- The amount is the difference between the old and corrected overage at the
+  original period's saved allowance and rate. It is never supplied by the caller.
+  Positive amounts are additional usage; negative amounts are credits. Counts
+  below the allowance cannot produce excessive credits. Annual base charges are
+  excluded; founding-period corrections retain their historical additional rate.
+- Proposals retain the before/after client evidence, added/removed client IDs,
+  signed amount, reason, operator, and timestamp. Same-count client substitutions
+  and changes below the allowance can be approved as zero-value corrections.
+  Reasons should contain billing explanations, not clinical or sensitive care data.
+- Approval or rejection records a separate audit event with the acting operator,
+  decision reason, and timestamp. One configured operator may both propose and
+  approve; this is deliberate for the initial owner-operated rollout, not a
+  two-person approval policy. Agency admins cannot approve financial adjustments.
+- Approvals serialize under the agency/period locks. An intervening approval
+  invalidates the previous baseline; a changed client set invalidates the proposal.
+  Create a new proposal rather than silently recalculating the reviewed amount.
+  Duplicate request IDs and identical decision retries return the existing result.
+  Reusing a request for different content or reversing a decided proposal fails.
+- Successive adjustments are incremental relative to the last approved total,
+  including approved adjustments not yet settled in Stripe. The invoice worker
+  must settle each approved nonzero adjustment once, in approval order, using its
+  immutable ID. Never charge only the latest delta and drop earlier pending ones.
+- Approval does NOT issue a refund, charge, or account credit. Nonzero approvals
+  have `settlement_status=pending`; zero-value approvals are `not_required`.
+  Rejected/pending proposals are `not_approved`. Stripe settlement, including
+  the no-next-invoice case for cancelled agencies, remains the next step.
+- Cancelled/archived agencies retain this correction path. The original finalized
+  snapshot, cutoff, invoice references, and pricing terms are never overwritten.
+  Changes needed after an approval are a new correction, not an edit to its audit.
+
+### Adjustment API
+
+- Operator list/propose: `GET` / `POST`
+  `/billing/operator/organizations/{org_id}/periods/{period_id}/adjustments`.
+  Proposal body: `request_id` (UUID), `reason` (5–1000 nonblank characters).
+- Operator decision: `POST`
+  `/billing/operator/organizations/{org_id}/periods/{period_id}/adjustments/{adjustment_id}/decision`.
+  Body: `decision` (`approved` or `rejected`) and `reason`.
+- Agency admin history: `GET /billing/usage/periods/{period_id}/adjustments`.
+  Organization scope comes from authenticated membership, never browser input.
+- These are backend endpoints. The Billing/operator history and approval UI is
+  still pending, as are automatic exception discovery and settlement controls.
 
 ## Recovery
 
