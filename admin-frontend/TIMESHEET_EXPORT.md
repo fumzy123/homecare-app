@@ -25,3 +25,18 @@ Python's standard CSV reader, checks special characters and formula-like values,
 and exercises the download wrapper with browser APIs stubbed. TypeScript, lint,
 and production build also pass. Actual Excel/Google Sheets/browser interaction
 has not been verified in this step.
+
+## Matching the current view
+
+The table now owns the single shift query used for display and export. Date,
+worker, and client filters are passed through the named `useTimesheetShifts`
+hook; the status filter applies to those returned rows. Export reads the same
+TanStack Table row model as the screen, including its current sort order.
+There is no separate unfiltered export query or effect-based copy of the rows.
+Export is disabled for empty, pending, refreshing, or failed queries. Errors
+are shown explicitly rather than represented as an empty successful result.
+
+Run `node scripts/verify-timesheet-view.mjs` for combined-filter query checks,
+real TanStack sorting into the actual CSV download wrapper, and browser-free
+loading/error/empty rendering checks. The page labels these as scheduled hours
+and explains automatic completion and the need for payroll reconciliation.

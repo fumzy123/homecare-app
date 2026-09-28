@@ -2,6 +2,15 @@ import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import type { ShiftOccurrence } from '@/features/shifts/api'
 import { serializeCsv } from '@/shared/lib/csv'
+import type { Table } from '@tanstack/react-table'
+
+export function filterTimesheetStatus(rows: ShiftOccurrence[], status: string): ShiftOccurrence[] {
+  return status ? rows.filter(row => row.completion_status === status) : rows
+}
+
+export function exportTimesheetView(table: Pick<Table<ShiftOccurrence>, 'getRowModel'>, from: string, to: string) {
+  exportCsv(table.getRowModel().rows.map(row => row.original), from || '2020-01-01', to || '2030-12-31')
+}
 
 export function toDateInput(d: Date) {
   return format(d, 'yyyy-MM-dd')

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,11 +9,13 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { format } from 'date-fns'
-import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
-import { orgMembersApi } from '@/features/org-members/api'
-import { clientsApi } from '@/features/clients/api'
+import type { ShiftOccurrence } from '@/features/shifts/api'
+import { useTimesheetShifts } from '../hooks/useTimesheetShifts'
+import { useWorkers } from '@/features/workers/hooks/useWorkers'
+import { useClients } from '@/features/clients/hooks/useClients'
+import { exportTimesheetView, filterTimesheetStatus } from '../utils/timesheet'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { Card, ShiftStatusBadge, DateInput } from '@/shared/components/ui'
+import { Card, ShiftStatusBadge, DateInput, Btn } from '@/shared/components/ui'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,7 +69,6 @@ interface TimesheetTableProps {
   toDate: string
   onFromChange: (v: string) => void
   onToChange:   (v: string) => void
-  onShiftsChange?: (shifts: ShiftOccurrence[]) => void
 }
 
 export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: TimesheetTableProps) {
@@ -76,23 +77,13 @@ export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: T
   const [filterStatus, setFilterStatus]     = useState('')
   const [sorting, setSorting]               = useState<SortingState>([{ id: 'date', desc: false }])
   const [selectedShift, setSelectedShift]   = useState<ShiftOccurrence | null>(null)
+  const [exportError, setExportError] = useState(false)
+  const query = useTimesheetShifts(fromDate, toDate, filterWorkerId, filterClientId)
+  const { data: shifts = [] } = query
+  const { data: workers = [] } = useWorkers()
+  const { data: clients = [] } = useClients()
 
-  const TIMESHEET_STATUSES = ['completed', 'no_show', 'cancelled']
-  const queryFrom = fromDate || '2020-01-01'
-  const queryTo   = toDate   || '2030-12-31'
-
-  const { data: shifts = [], isLoading } = useQuery({
-    queryKey: ['shifts', queryFrom, queryTo, filterWorkerId, filterClientId, TIMESHEET_STATUSES],
-    queryFn:  () => shiftsApi.listShifts(queryFrom, queryTo, filterWorkerId || undefined, filterClientId || undefined, TIMESHEET_STATUSES),
-  })
-
-  const { data: workers = [] } = useQuery({ queryKey: ['workers'],  queryFn: () => orgMembersApi.listByRole('home_support_worker') })
-  const { data: clients = [] } = useQuery({ queryKey: ['clients'],  queryFn: () => clientsApi.listClients() })
-
-  const filteredShifts = useMemo(() => {
-    if (!filterStatus) return shifts
-    return shifts.filter((s) => s.completion_status === filterStatus)
-  }, [shifts, filterStatus])
+  const filteredShifts = useMemo(() => filterTimesheetStatus(shifts, filterStatus), [shifts, filterStatus])
 
   const completedRows = useMemo(() => filteredShifts.filter((s) => s.completion_status === 'completed'), [filteredShifts])
   const totalHours    = useMemo(() => completedRows.reduce((acc, s) => acc + computeHours(s.start_time, s.end_time), 0), [completedRows])
@@ -107,6 +98,18 @@ export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: T
   })
 
   const inputClass = 'bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+  const visibleRows = table.getRowModel().rows
+  const exportDisabled = query.isPending || query.isFetching || query.isError || visibleRows.length === 0
+
+  function exportVisibleRows() {
+    if (exportDisabled) return
+    setExportError(false)
+    try {
+      exportTimesheetView(table, fromDate, toDate)
+    } catch {
+      setExportError(true)
+    }
+  }
 
   return (
     <>
@@ -123,30 +126,38 @@ export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: T
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 flex-1 w-full sm:w-auto">
-          <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+          <select aria-label="Filter by worker" value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
             <option value="">All workers</option>
             {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
           </select>
-          <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+          <select aria-label="Filter by client" value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
             <option value="">All clients</option>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
           </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
+          <select aria-label="Filter by status" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={inputClass + ' flex-1 min-w-[120px]'}>
             <option value="">All statuses</option>
             <option value="completed">Completed</option>
             <option value="no_show">No Show</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
+        <Btn variant="ghost" onClick={exportVisibleRows} disabled={exportDisabled}>
+          <Download size={14} /> Export filtered CSV
+        </Btn>
       </div>
+      <p className="px-10 max-md:px-4 pb-4 text-sm text-ink-soft">Export includes the current date, worker, client, and status filters, in the displayed sort order.</p>
+      {query.isFetching && !query.isPending && <p role="status" className="px-10 pb-4 text-sm">Refreshing shifts… Export will be available when the refresh finishes.</p>}
+      {exportError && <p role="alert" className="px-10 pb-4 text-sm text-orange">Could not download the CSV. Please try again.</p>}
 
       {/* Table */}
       <div className="flex-1 px-10 max-md:px-4 pb-12">
         <Card className="p-0">
-          {isLoading ? (
+          {query.isPending ? (
             <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>
+          ) : query.isError ? (
+            <div role="alert" className="px-6 py-10 text-center"><p>Could not load shifts. Export is unavailable.</p><button className="underline mt-2" onClick={() => void query.refetch()}>Retry</button></div>
           ) : filteredShifts.length === 0 ? (
-            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">NO SHIFTS FOR THIS PERIOD</p>
+            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">NO SHIFTS MATCH THESE FILTERS</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-sm">
@@ -170,7 +181,7 @@ export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: T
                   ))}
                 </thead>
                 <tbody>
-                  {table.getRowModel().rows.map((row, i) => (
+                  {visibleRows.map((row, i) => (
                     <tr key={row.id} onClick={() => setSelectedShift(row.original)}
                       className={`cursor-pointer hover:bg-cream-2 transition-colors ${i > 0 ? 'border-t border-dashed border-line-soft' : ''}`}>
                       {row.getVisibleCells().map((cell) => (
@@ -185,13 +196,13 @@ export function TimesheetTable({ fromDate, toDate, onFromChange, onToChange }: T
             </div>
           )}
 
-          {filteredShifts.length > 0 && (
+          {!query.isError && !query.isPending && filteredShifts.length > 0 && (
             <div className="flex items-center justify-between border-t border-ink px-4 py-3">
               <p className="font-mono text-[10px] text-ink-soft uppercase tracking-[0.08em]">
                 {filteredShifts.length} shift{filteredShifts.length !== 1 ? 's' : ''}
                 {filterStatus === '' && completedRows.length !== filteredShifts.length ? ` · ${completedRows.length} completed` : ''}
               </p>
-              <p className="font-mono text-[12px] font-semibold text-ink">{totalHours.toFixed(2)} hrs completed</p>
+              <p className="font-mono text-[12px] font-semibold text-ink">{totalHours.toFixed(2)} scheduled hrs · completed visits</p>
             </div>
           )}
         </Card>

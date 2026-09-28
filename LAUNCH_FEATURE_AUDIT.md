@@ -14,7 +14,7 @@ Paths below are relative to the repository root.
 | Progress notes and visit history | `services/progress_note_service.py`, `api/routes/progress_notes.py`, client notes route | Office-admin notes per shift occurrence and client history exist. Field/mobile documentation is excluded from the launch claim. |
 | Placements and matching | `api/routes/placements.py`, `services/placement_service.py::fill_placement`, `admin-frontend/src/routes/_protected/dashboard/placements/$placementId.tsx` | **Gap:** fill rejects workers without prior expressed interest (`WORKER_NOT_INTERESTED`); the admin screen selects only from interested workers. Posting/managing openings exists, but the promised independent office matching workflow is incomplete without worker interest. Add an explicit office-assignment path with eligibility checks; do not bypass the existing rules silently. |
 | Compliance alerts | Expiry services and dashboard panels; `backend/app/jobs/`; notification enum/service | Dashboard expiry panels exist. No scheduled expiry-notification job was found. Do not promise email, push, or durable expiry reminders. Credential-upload notifications are a different feature. |
-| Timesheet CSV | `features/shifts/utils/timesheet.ts`, `TimesheetTable.tsx`, timesheet route | CSV escaping and formula-like text handling tested. Hours come from scheduled times and statuses, not independently verified work. **Remaining bug:** the export queries all rows for the date range while table worker/client/status filters are separate; fix before describing export as matching the filtered view. |
+| Timesheet CSV | `features/shifts/utils/timesheet.ts`, `TimesheetTable.tsx`, timesheet route | CSV escaping and formula-like text handling tested. Hours come from scheduled times and statuses, not independently verified work. **Fixed after audit:** export now uses the table's filtered/sorted row model and is disabled during pending/refresh/error states. Automated query, row-order, CSV, and rendering checks pass; interactive staging verification remains. |
 | Completion / delivered care | `services/shift_completion_service.py`, `jobs/shift_completion.py` | Scheduled visits can be automatically marked completed after their end time. Completed does not mean checked-in, verified, or approved for payroll. |
 | Admin in-app notifications | `services/notification_service.py`, `NotificationBell.tsx` | In-app notification paths exist. Trial/payment notices are separately gated by `BILLING_NOTIFICATIONS_ENABLED`. No claim of push delivery. |
 | Unlimited worker/staff seats | Versioned billing domain and org-member/invitation services | Pricing uses active clients, not seat counts; no seat-price or explicit seat-cap enforcement found in reviewed services. This is not a load/capacity certification. |
@@ -33,9 +33,8 @@ Paths below are relative to the repository root.
 
 ## Remaining work, in order
 
-1. Make timesheet export use the same filtered rows as the table. Add an explicit
-   scheduled-hours notice in the timesheet workflow. Move touched query calls into
-   named hooks while fixing it, following the component architecture.
+1. **Implemented:** matching filtered/sorted timesheet export, scheduled-hours
+   notice, and named query hooks. Verify the interaction in staging.
 2. Implement office-led placement assignment for agencies without the mobile app,
    preserving worker eligibility, conflict/overtime checks, agency isolation,
    frozen care-plan scheduling, and transaction safety. Public copy currently
