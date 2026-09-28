@@ -1,4 +1,5 @@
 import stripe
+from app.domain.billing_access import billing_access
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -359,7 +360,8 @@ class BillingService:
             trial_ends_at = created_at + timedelta(days=trial_duration)
             is_trial_active = now < trial_ends_at
             days_left = max(0, (trial_ends_at - now).days)
-            has_access = org.subscription_status == "active" or is_trial_active
+            access = billing_access(org, now)
+            has_access = access.can_write
 
             return {
                 "subscription_status": org.subscription_status,
@@ -368,6 +370,8 @@ class BillingService:
                 "trial_days_left": days_left,
                 "trial_ends_at": trial_ends_at,
                 "has_access": has_access,
+                "can_write": access.can_write,
+                "is_read_only": not access.can_write,
             }
 
         except AppError:

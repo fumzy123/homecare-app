@@ -57,6 +57,8 @@ function LegacyBillingSection() {
   const queryClient = useQueryClient()
   const [showUpdateCard, setShowUpdateCard] = useState(false)
   const [portalLoading, setPortalLoading]   = useState(false)
+  const [portalError, setPortalError] = useState(false)
+  const owner = user?.role === 'owner'
 
   const { data: b } = useBillingStatus(user?.id)
 
@@ -64,14 +66,17 @@ function LegacyBillingSection() {
   const isPastDue = b?.subscription_status === 'past_due'
   const isTrial   = b?.is_trial_active && !isActive
 
-  const { data: details } = useBillingDetails(user?.id, b !== undefined && (isActive || isPastDue))
+  const { data: details, isPending: detailsPending, isError: detailsError } = useBillingDetails(user?.id, b !== undefined)
+  const hasBillingAccount = Boolean(b?.subscription_status || details?.card)
 
   async function openPortal() {
     setPortalLoading(true)
+    setPortalError(false)
     try {
       const { url } = await billingApi.createPortalSession()
       window.location.href = url
     } catch {
+      setPortalError(true)
       setPortalLoading(false)
     }
   }
@@ -171,7 +176,7 @@ function LegacyBillingSection() {
             <p className="font-mono text-[9px] tracking-[0.08em] text-cream/30 uppercase">
               Powered by Stripe
             </p>
-            {isActive || isPastDue ? (
+            {owner && hasBillingAccount ? (
               <button
                 onClick={openPortal}
                 disabled={portalLoading}
@@ -179,25 +184,26 @@ function LegacyBillingSection() {
               >
                 {portalLoading ? 'Loading…' : '＊ Manage billing in Stripe →'}
               </button>
-            ) : (
+            ) : owner ? (
               <button
                 onClick={() => navigate({ to: '/upgrade' })}
                 className="bg-orange border border-orange px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-white hover:opacity-80 transition-opacity rounded-full"
               >
                 Upgrade →
               </button>
-            )}
+            ) : <p className="text-sm">Your agency owner manages payments.</p>}
           </div>
         </div>
 
         {/* ── A · Payment method ─────────────────────────────────────── */}
-        <div className={`border border-ink bg-paper transition-opacity ${!isActive && !isPastDue ? 'opacity-40 pointer-events-none select-none' : ''}`}>
+        {portalError && <p role="alert">Could not open Stripe. Please try again.</p>}
+        <div className="border border-ink bg-paper">
           <div className="flex items-start justify-between px-6 py-5 border-b border-ink">
             <div>
               <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">A · Payment method</p>
               <h3 className="font-serif text-[22px] leading-none font-medium mt-1">Card on file</h3>
             </div>
-            {(isActive || isPastDue) && (
+            {owner && hasBillingAccount && b?.subscription_status !== 'canceled' && (
               <button
                 onClick={() => setShowUpdateCard(true)}
                 className="border border-ink px-4 py-1.5 font-mono text-[10px] tracking-[0.06em] uppercase hover:bg-cream-2 transition-colors rounded-full"
@@ -211,9 +217,9 @@ function LegacyBillingSection() {
               <CardRow card={details.card} />
             ) : (
               <p className="font-mono text-[11px] text-ink-soft">
-                {isActive || isPastDue
+                {detailsError ? 'Could not load card details. Please refresh and try again.' : detailsPending
                   ? 'Loading card details…'
-                  : 'No payment method on file. Subscribe to add one.'}
+                  : 'No payment method on file.'}
               </p>
             )}
           </div>

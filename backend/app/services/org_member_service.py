@@ -1,3 +1,4 @@
+from app.services.billing_access_service import BillingAccessService
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -73,6 +74,8 @@ def _flat_response(employment: Employment) -> dict:
     }
 
 
+
+
 class OrgMemberService:
 
     def __init__(self, db: Session, current_user: SupabaseUser, org_id=None):
@@ -115,6 +118,8 @@ class OrgMemberService:
                     code="INVITATION_EXPIRED",
                     message="This invitation has expired — ask an admin to send a new one",
                 )
+
+            BillingAccessService(self.db, self.current_user).require_org_write(invitation.org_id)
 
             employment_type_str = metadata.get("employment_type")
             employment_type = EmploymentType(employment_type_str) if employment_type_str else None

@@ -58,6 +58,36 @@ This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
 - Run `node scripts/verify-billing-history.mjs` from `admin-frontend` for
   browser-free rendering checks; backend coverage lives in `test_billing_history.py`.
 
+## Read-only subscription access
+
+- `domain/billing_access.py` is the shared entitlement policy for Billing status
+  and backend writes. Active subscriptions, unexpired trials and onboarding
+  before its deadline allow operations. End boundaries are exclusive. Legacy
+  agencies retain their 14-day trial measured from creation.
+- When entitlement ends, operational POST/PUT/PATCH/DELETE requests return
+  `403 BILLING_READ_ONLY` before endpoint execution. API dependencies resolve
+  organization membership from persisted records, not user metadata. Admin and
+  worker routers are covered; route-inventory tests catch unguarded additions.
+- GET requests retain existing role and organization checks. Billing recovery,
+  signed Stripe webhooks, legal acceptance, organization registration and owner
+  account closure keep their existing authorization. Invite acceptance checks
+  the persisted invitation's organization before creating membership records.
+- Cancellation at period end keeps access while Stripe reports active paid
+  coverage. A canceled/unpaid/paused/incomplete enrolled subscription does not
+  regain access just because its stored period end is in the future.
+- The admin shell permits browsing/exporting with a persistent read-only notice.
+  Existing mutation controls may remain visible, but the server rejects writes
+  with a recovery message. Billing stays reachable; legacy owners can open the
+  Stripe portal after expiry/cancellation. Status refreshes every minute.
+- No new migration or Stripe call is needed to authorize a write. Decisions use
+  persisted subscription status, updated by signed webhooks. Delayed webhook
+  reconciliation remains an operational consideration. Internal billing jobs and
+  historical completion/evidence maintenance are not blocked by the API guard.
+- This guard applies to legacy and enrolled organizations when this code is
+  deployed; pricing rollout flags do not bypass it. It does not enable charging.
+- Verified by entitlement boundary, mutation interception, route coverage,
+  database membership and pre-membership invitation tests in `test_billing_access.py`.
+
 ## Verification
 
 `scripts/verify_usage_settlement_sandbox.py` uses actual settlement services,

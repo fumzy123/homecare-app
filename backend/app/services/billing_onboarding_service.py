@@ -3,6 +3,7 @@
 All database queries are repository-owned. This service owns transactions and
 Stripe I/O; domain helpers remain pure. All writers lock the organization first.
 """
+from app.domain.billing_access import billing_access
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from app.domain.billing_periods import billing_timezones
@@ -81,8 +82,10 @@ class BillingOnboardingService:
         agreement = self.agreement_repo.get_for_org(org.id)
         request = self.trial_activation_repo.get_for_org(org.id)
         end = org.trial_ends_at
-        trial_active = bool(end and now < end and org.subscription_status == "trialing")
-        onboarding = not org.trial_starts_at and now < org.onboarding_deadline_at
+        access = billing_access(org, now)
+        end = access.trial_ends_at
+        trial_active = access.is_trial_active
+        onboarding = access.is_onboarding
         canceled = bool(agreement and agreement.canceled_at)
         plan = get_plan(agreement.plan_code, agreement.base_interval, version=agreement.plan_version) if agreement else None
         offer = self.founding_offer_repo.get_for_org(org.id)
@@ -99,7 +102,9 @@ class BillingOnboardingService:
             "trial_starts_at": org.trial_starts_at, "trial_ends_at": end,
             "is_trial_active": trial_active,
             "trial_days_left": max(0, ceil((end - now).total_seconds() / 86400)) if trial_active else 0,
-            "has_access": org.subscription_status == "active" or trial_active or onboarding,
+            "has_access": access.can_write,
+            "can_write": access.can_write,
+            "is_read_only": not access.can_write,
             "card_saved": bool(agreement and agreement.payment_method_id),
             "billing_canceled": canceled,
             "activation_status": request.status if request else None,

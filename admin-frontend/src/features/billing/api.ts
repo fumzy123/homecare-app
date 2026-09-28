@@ -7,6 +7,8 @@ export interface BillingStatus {
   trial_days_left: number
   trial_ends_at: string | null
   has_access: boolean
+  can_write?: boolean
+  is_read_only?: boolean
   new_billing_flow?: boolean
   billing_timezone?: string | null
   is_onboarding?: boolean
