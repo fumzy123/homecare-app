@@ -19,6 +19,8 @@ from app.jobs.founding_conversion import process_founding_conversions
 from app.jobs.billing_finalization import finalize_due_billing_periods
 from app.jobs.billing_period_recovery import recover_billing_periods
 from app.jobs.billing_settlement import settle_billing_usage
+from app.jobs.billing_webhooks import retry_billing_webhooks
+from app.jobs.billing_notices import send_billing_trial_reminders
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
 from app.models.organization import Organization             # noqa: F401
@@ -71,6 +73,8 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(recover_billing_periods, "interval", minutes=15)
     scheduler.add_job(finalize_due_billing_periods, "interval", minutes=15)
     scheduler.add_job(settle_billing_usage, "interval", minutes=15)
+    scheduler.add_job(retry_billing_webhooks, "interval", minutes=5)
+    scheduler.add_job(send_billing_trial_reminders, "interval", minutes=15)
     scheduler.start()
     yield
     scheduler.shutdown()

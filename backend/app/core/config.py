@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
     billing_onboarding_enabled: bool = False
+    billing_notifications_enabled: bool = False
     billing_usage_finalization_enabled: bool = False
     billing_settlement_enabled: bool = False
     billing_settlement_live_enabled: bool = False

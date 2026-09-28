@@ -2,6 +2,53 @@
 
 This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
 
+## Durable Stripe messages and billing notices
+
+- Apply migration `b5f9a3c0d842` before deploying this code, including before
+  starting the scheduler. It adds backend-only, RLS-protected webhook receipts
+  and notice deduplication records, plus two notification enum values. SQL was
+  checked offline; the migration has not been applied to a shared database.
+- Signature verification happens before recording an event. Supported events
+  save only event/type/object/customer references and processing metadata, not
+  raw payloads or payment/clinical details. Duplicate completed deliveries return
+  success; failures and busy/backoff deliveries return 503 so Stripe can retry.
+- A five-minute lease claims work with a conditional database update. The
+  scheduler scans every five minutes, recovering pending/expired claims and
+  failed attempts with exponential backoff capped at six hours. Each attempt
+  retrieves the current Stripe invoice/subscription and verifies its identity
+  and mode. Recovery does not depend on Stripe retaining the original Event.
+- This is **at-least-once processing**, not a claim of atomic exactly-once
+  delivery: handlers can commit before a process crashes. Existing subscription
+  reconciliation, settlement idempotency, and notice deduplication must remain
+  safe to repeat. A failed event is never deliberately acknowledged as complete.
+- `/billing-operations` lists the oldest 100 unfinished messages across agencies,
+  with attempts, generic error codes, and next retry eligibility; it refreshes
+  every minute. Repeated failures require operator investigation. There is no
+  button that erases receipts or blindly forces charges.
+- Subscribe the Stripe endpoint to `invoice.created`, `invoice.payment_failed`,
+  `invoice.payment_succeeded`, `invoice.paid`, `invoice.voided`,
+  `invoice.marked_uncollectible`, and subscription created/updated/deleted.
+  Configure and verify these subscriptions in sandbox before live rollout.
+- `BILLING_NOTIFICATIONS_ENABLED=false` by default. When enabled, the existing
+  admin notification bell receives trial reminders within three days and one day
+  of confirmed trial expiry, at most one of each per trial end. A missed earlier
+  window does not send both at once. Stripe cancellation is checked before the
+  message is composed. These are **in-app notices**, not email/SMS delivery.
+- Failed invoice alerts are deduplicated per agency/invoice and resolve when a
+  paid/void event is processed. Current invoice state is re-read under the agency
+  lock, so stale failures do not reopen resolved alerts. Staff cannot manually
+  mark payment alerts resolved. Marking notifications read remains available in
+  read-only accounts; billing recovery links remain accessible.
+- The notice record and notification commit together. Deduplication survives
+  purging old notification rows. Flags disabled during deployment do not backfill
+  completed historical payment events; enable before accepting new paid trials.
+- Verification includes real local database receipt persistence/restart,
+  duplicate and expired-lease recovery, ownership-token checks, sanitized error
+  recording, signature rejection, notification timing/deduplication/rollback,
+  operator access, and browser-free rendering. Live PostgreSQL concurrency,
+  signed sandbox delivery/restart, and interactive browser checks remain staging
+  gates. No customer messages or live Stripe changes were made during tests.
+
 ## Rollout
 
 - Migration `a4e8f2b9c731` adds settlement operations and monthly invoice holds.

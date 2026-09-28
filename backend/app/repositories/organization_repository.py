@@ -5,6 +5,9 @@ from app.models.employment import Employment
 
 
 class OrganizationRepository:
+    def lock_by_id(self, org_id):
+        return self.db.query(Organization).filter(Organization.id == org_id).with_for_update().populate_existing().first()
+
     def __init__(self, db: Session):
         self.db = db
 

@@ -35,6 +35,11 @@ def billing_operator_agencies(search: str = Query('', max_length=100), before: U
     return billing_operator_service.agencies(search, before)
 
 
+@router.get('/operator/webhooks')
+def billing_operator_webhooks(billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.webhooks()
+
+
 @router.get('/operator/organizations/{org_id}')
 def billing_operator_agency(org_id: UUID, billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
     return billing_operator_service.agency(org_id)

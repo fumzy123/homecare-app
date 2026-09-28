@@ -220,12 +220,13 @@ class BillingService:
             )
         except ValueError:
             raise AppError(400, "INVALID_PAYLOAD", "Invalid webhook payload")
-        except stripe.error.SignatureVerificationError:
+        except stripe.SignatureVerificationError:
             raise AppError(400, "INVALID_SIGNATURE", "Invalid webhook signature")
 
-        event_type = event["type"]
-        data = event["data"]["object"]
+        from app.services.billing_webhook_service import BillingWebhookService
+        return BillingWebhookService(self.db).receive(event)
 
+    def dispatch_webhook(self, event_type, data):
         if event_type == "invoice.created":
             from app.services.billing_invoice_hold_service import BillingInvoiceHoldService
             BillingInvoiceHoldService(self.db).hold(data.id)
@@ -235,10 +236,12 @@ class BillingService:
             self._handle_subscription_deleted(data)
         elif event_type == "invoice.payment_failed":
             self._handle_payment_failed(data)
-        elif event_type == "invoice.payment_succeeded":
+        elif event_type in ("invoice.payment_succeeded", "invoice.paid") and data.status == "paid":
             self._handle_payment_succeeded(data)
-
-        return {"received": True}
+        if event_type in ("invoice.payment_failed", "invoice.payment_succeeded", "invoice.paid",
+                          "invoice.voided", "invoice.marked_uncollectible"):
+            from app.services.billing_notice_service import BillingNoticeService
+            BillingNoticeService(self.db).payment_status(data)
 
     def _handle_subscription_updated(self, subscription) -> None:
         try:
@@ -291,12 +294,10 @@ class BillingService:
         try:
             org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
             if org:
-                if org.onboarding_deadline_at is not None:
-                    if org.subscription_id:
-                        self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
-                    return
-                org.subscription_status = "past_due"
-                self.db.commit()
+                if org.subscription_id:
+                    self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
+                else:
+                    self.db.commit()
         except Exception:
             self.db.rollback()
             raise
@@ -304,7 +305,7 @@ class BillingService:
     def _handle_payment_succeeded(self, invoice) -> None:
         try:
             org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
-            if org and org.onboarding_deadline_at is not None and org.subscription_id:
+            if org and org.subscription_id:
                 self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
             if org and not org.paid_at and invoice.amount_paid > 0:
                 org.paid_at = datetime.now(timezone.utc)

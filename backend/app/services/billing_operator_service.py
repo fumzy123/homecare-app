@@ -8,6 +8,7 @@ from app.repositories.founding_offer_repository import FoundingOfferRepository
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
 from app.services.billing_usage_service import BillingUsageService
 from app.services.billing_period_recovery_service import BillingPeriodRecoveryService
+from app.repositories.billing_webhook_repository import BillingWebhookRepository
 
 
 class BillingOperatorService:
@@ -35,6 +36,13 @@ class BillingOperatorService:
         rows = self.operator_repo.agencies(search.strip(), before)
         return dict(agencies=[dict(row._mapping) for row in rows[:20]],
                     next_cursor=rows[19].id if len(rows) > 20 else None)
+
+    def webhooks(self):
+        self._operator()
+        rows = BillingWebhookRepository(self.db).failures()
+        fields = ('event_id', 'event_type', 'state', 'attempts', 'received_at', 'updated_at',
+                  'next_attempt_at', 'lease_until', 'error_code')
+        return dict(events=[{key: getattr(row, key) for key in fields} for row in rows[:100]], has_more=len(rows) > 100)
 
     def _agency(self, org_id):
         self._operator()

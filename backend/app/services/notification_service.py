@@ -253,6 +253,8 @@ class NotificationService:
         if not notification.requires_action:
             raise AppError(status_code=400, code="NOT_ACTIONABLE",
                            message="This notification does not require action")
+        if notification.type == NotificationType.billing_payment_failed:
+            raise AppError(409, "PAYMENT_NOT_CONFIRMED", "Payment alerts are resolved automatically when the invoice is paid or voided")
         self.repo.mark_resolved(notification, member.id)
         self.repo.mark_read(notification_id, member.id)
         self.db.commit()

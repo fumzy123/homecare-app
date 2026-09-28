@@ -90,7 +90,25 @@ try {
   html = renderToStaticMarkup(createElement(OperatorCorrectionReview, { row: { ...proposal, status: 'approved' }, busy: false, onDecision: () => {} }))
   assert.doesNotMatch(html, /type="submit"/)
   assert.doesNotMatch(html, /Reject proposal/)
-  console.log('Billing rendering checks passed, including upcoming charges and operator correction review safeguards.')
+  const { OperatorWebhookAlerts } = await server.ssrLoadModule('/src/features/billing/components/OperatorWebhookAlerts.tsx')
+  const webhookClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const renderAlerts = () => renderToStaticMarkup(createElement(QueryClientProvider, { client: webhookClient }, createElement(OperatorWebhookAlerts)))
+  assert.match(renderAlerts(), /Loading message status/)
+  webhookClient.setQueryData(['billing-operator', undefined, 'webhooks'], { events: [], has_more: false })
+  assert.match(renderAlerts(), /No pending or failed messages/)
+  webhookClient.setQueryData(['billing-operator', undefined, 'webhooks'], { events: [{
+    event_id: 'evt_example', event_type: 'invoice.payment_failed', state: 'failed', attempts: 3,
+    received_at: '2026-09-28T00:00:00Z', next_attempt_at: '2026-09-28T01:00:00Z',
+    lease_until: null, error_code: 'RuntimeError',
+  }], has_more: true })
+  html = renderAlerts()
+  assert.match(html, /evt_example/)
+  assert.match(html, /3 attempts/)
+  assert.match(html, /RuntimeError/)
+  assert.match(html, /More remain/)
+  assert.doesNotMatch(html, /No pending or failed messages/)
+  webhookClient.clear()
+  console.log('Billing rendering checks passed, including upcoming charges, operator correction safeguards, and webhook alerts.')
 } finally {
   await server.close()
 }

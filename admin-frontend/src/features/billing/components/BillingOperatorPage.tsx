@@ -6,6 +6,7 @@ import { ApiError } from '@/shared/lib/api-client'
 import { usageDate, usageMoney } from '../utils/usage-format'
 import type { OperatorAccess, OperatorAction } from '../operator-api'
 import { OperatorCorrectionPanel } from './OperatorCorrectionPanel'
+import { OperatorWebhookAlerts } from './OperatorWebhookAlerts'
 
 const button = 'border border-ink rounded-full px-4 py-2 text-sm disabled:opacity-40'
 const labels: Record<OperatorAction, string> = {
@@ -44,6 +45,7 @@ function OperatorWorkspace({ access }: { access: OperatorAccess }) {
   const [selected, setSelected] = useState<string | null>(null)
   const agencies = useOperatorAgencies(userId, search)
   return <>
+    <OperatorWebhookAlerts />
     <p className="border border-ink p-4">Onboarding: {access.onboarding_enabled ? 'enabled' : 'disabled'} · Usage settlement: {access.settlement_enabled && access.onboarding_enabled ? 'enabled' : 'disabled'} · Live settlement permission: {access.live_settlement_enabled ? 'enabled' : 'disabled'}</p>
     <form className="flex gap-3 flex-wrap" onSubmit={e => { e.preventDefault(); setSearch(input.trim()); setSelected(null) }}>
       <label>Find an agency <input className="border border-ink p-2" maxLength={100} value={input} onChange={e => setInput(e.target.value)} /></label>

@@ -14,6 +14,10 @@ function notificationTitle(n: Notification): string {
     ? `${n.about_worker_first_name} ${n.about_worker_last_name}`
     : null
   switch (n.type as NotificationType) {
+    case 'billing_trial_reminder':
+      return `Your trial ends ${new Date(String(n.payload.trial_ends_at)).toLocaleString()}. ${n.payload.renewal_canceled ? 'Renewal is canceled. View your access and billing details.' : 'Your saved card will be charged when the trial ends. Review your plan or cancel renewal in Billing.'}`
+    case 'billing_payment_failed':
+      return n.resolved_at ? 'A previous payment alert has been resolved. View Billing for the latest invoice status.' : 'An invoice needs payment. Open Billing to review it and update your payment method.'
     case 'founding_conversion_notice':
       return `Standard pricing starts ${new Date(String(n.payload.effective_at)).toLocaleDateString()}: CAD $${Number(n.payload.base_amount_cents) / 100}/month, plus $${Number(n.payload.additional_client_amount_cents) / 100} per client above ${Number(n.payload.included_clients)}. View billing details.`
     case 'credential_uploaded': {
@@ -38,6 +42,8 @@ function notificationTitle(n: Notification): string {
 
 function notificationDestination(n: Notification): string {
   switch (n.type as NotificationType) {
+    case 'billing_trial_reminder':
+    case 'billing_payment_failed':
     case 'founding_conversion_notice':
       return '/settings/billing'
     case 'credential_uploaded':

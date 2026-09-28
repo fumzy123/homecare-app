@@ -20,6 +20,7 @@ def require_operational_access(request: Request, service: BillingAccessService =
         # persisted invitation's organization before creating any records.
         ("POST", "/api/org-members"),
         ("DELETE", "/api/organization"),  # Account closure remains available.
+        ("PATCH", "/api/notifications/{notification_id}/read"),
     }:
         return
     service.require_write()

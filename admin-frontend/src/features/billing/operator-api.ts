@@ -28,6 +28,7 @@ export interface OperatorCorrections {
 export type OperatorAction = 'trial-activation' | 'founding-offer' | 'founding-offer/release' | 'recheck'
 const root = '/api/billing/operator'
 export const operatorApi = {
+  webhooks: async (): Promise<{ events: { event_id: string; event_type: string; state: string; attempts: number; received_at: string; updated_at: string; next_attempt_at: string; lease_until: string | null; error_code: string | null }[]; has_more: boolean }> => (await apiClient.get(`${root}/webhooks`)).data,
   access: async (): Promise<OperatorAccess> => (await apiClient.get(`${root}/access`)).data,
   agencies: async (search: string, before?: string): Promise<{ agencies: OperatorAgency[]; next_cursor: string | null }> =>
     (await apiClient.get(`${root}/organizations`, { params: { search, before } })).data,

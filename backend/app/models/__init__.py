@@ -36,3 +36,5 @@ from app.models.billing_adjustment import BillingAdjustmentEvent as BillingAdjus
 
 from app.models.billing_settlement import BillingSettlement as BillingSettlement
 from app.models.billing_settlement import BillingInvoiceHold as BillingInvoiceHold
+from app.models.billing_webhook import BillingWebhook as BillingWebhook
+from app.models.billing_notice import BillingNotice as BillingNotice

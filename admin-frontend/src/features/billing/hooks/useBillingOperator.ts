@@ -16,6 +16,10 @@ export function useOperatorAccess(userId?: string) {
   return useQuery({ queryKey: ['billing-operator', userId, 'access'], queryFn: operatorApi.access,
     enabled: Boolean(userId), retry: false, staleTime: 30_000 })
 }
+export function useOperatorWebhooks(userId?: string) {
+  return useQuery({ queryKey: ['billing-operator', userId, 'webhooks'], queryFn: operatorApi.webhooks,
+    enabled: Boolean(userId), refetchInterval: 60_000 })
+}
 export function useOperatorAgencies(userId: string | undefined, search: string) {
   return useInfiniteQuery({ queryKey: ['billing-operator', userId, 'agencies', search],
     initialPageParam: undefined as string | undefined,

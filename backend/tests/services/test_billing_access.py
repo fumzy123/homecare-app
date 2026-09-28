@@ -82,6 +82,8 @@ def test_guard_blocks_all_mutation_methods_before_handler_but_allows_reads_and_e
     operational.add_api_route('/clients', handler, methods=['GET', 'POST', 'PATCH', 'PUT', 'DELETE'])
     operational.add_api_route('/organization', handler, methods=['POST', 'DELETE'])
     operational.add_api_route('/org-members', handler, methods=['POST'])
+    operational.add_api_route('/notifications/{notification_id}/read', handler, methods=['PATCH'])
+    operational.add_api_route('/notifications/{notification_id}/resolve', handler, methods=['PATCH'])
     app.include_router(operational)
     service = MagicMock()
     service.require_write.side_effect = AppError(403, 'BILLING_READ_ONLY', 'Read only')
@@ -95,6 +97,8 @@ def test_guard_blocks_all_mutation_methods_before_handler_but_allows_reads_and_e
         assert client.post('/api/organization').status_code == 200
         assert client.delete('/api/organization').status_code == 200
         assert client.post('/api/org-members').status_code == 200
+        assert client.patch('/api/notifications/one/read').status_code == 200
+        assert client.patch('/api/notifications/one/resolve').status_code == 403
         service.require_write.side_effect = None
         assert client.post('/api/clients').status_code == 200
 
