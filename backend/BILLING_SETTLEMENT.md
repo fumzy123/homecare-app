@@ -36,7 +36,7 @@ This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
 - `GET /billing/usage/periods/{period_id}/settlements` returns organization-scoped
   amounts and settlement/payment states. The Billing page now displays invoice
   history, finalized usage, corrections, and settlement states. Operator review
-  screens remain pending.
+  is available in the internal console described below.
 
 ## Customer history
 
@@ -57,6 +57,39 @@ This extends BILLING_ONBOARDING.md. Settlement is implemented but disabled.
   step. Earlier billing migrations still need to be deployed before rollout.
 - Run `node scripts/verify-billing-history.mjs` from `admin-frontend` for
   browser-free rendering checks; backend coverage lives in `test_billing_history.py`.
+
+## Internal billing controls
+
+- `/billing-operations` is a separate authenticated route, independent of agency
+  membership and subscription access. Existing operators also see a link from
+  Settings > Billing. The server checks `BILLING_OPERATOR_USER_IDS` on every
+  endpoint; owner/admin roles and editable user metadata cannot grant access.
+  Sign in with an allowlisted account and open/bookmark the console URL.
+- Search agencies with cursor pagination; inspect consent/card readiness, trial
+  requests, founding reservation/conversion, held invoices, cutoff errors and
+  pending/failed settlements. Responses omit payment-method IDs and raw Stripe
+  attempt parameters. Issue lists explicitly indicate a 100-row category cap.
+- Trial requests, founding reservation and unused reservation release use the
+  existing services and their idempotency/eligibility rules. The console presents
+  an agency-specific confirmation before requesting these actions. A queued
+  trial request is never labeled as a confirmed Stripe activation.
+- Finalized period selection exposes proposals, before/after usage totals,
+  client references, original rates, decisions and operator audit events.
+  Proposal retries reuse their request ID while the entered reason is unchanged.
+  Approval requires a reason and explicit acknowledgement of the amount. The
+  backend still rejects stale baselines, changed client sets and conflicting
+  repeated decisions. Approval may queue later charges/refunds when enabled.
+- Recheck reads Stripe history through the existing recovery service. It can
+  create/reconcile period records for normal downstream jobs, but cannot reset
+  settlement attempts, bypass review, force a charge or directly refund. Records
+  requiring manual investigation remain visible; no unsafe reset endpoint exists.
+- Onboarding and settlement switches are visible but cannot be changed from the
+  browser. No operator IDs, rollout flags, live prices or migrations were changed
+  while implementing this console. No operational action was run against a real
+  agency as part of verification.
+- Tests cover operator-only route dependencies, HTTP denial for regular owners,
+  service-layer checks before queries, literal search/pagination, issue scoping,
+  redacted responses, guarded recovery, and rendered correction confirmations.
 
 ## Upcoming charge breakdown
 

@@ -18,6 +18,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DpaRouteImport } from './routes/dpa'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
+import { Route as BillingOperationsRouteImport } from './routes/billing-operations'
 import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
@@ -92,6 +93,11 @@ const DpaRoute = DpaRouteImport.update({
 const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
   id: '/confirm-email',
   path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingOperationsRoute = BillingOperationsRouteImport.update({
+  id: '/billing-operations',
+  path: '/billing-operations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptTermsRoute = AcceptTermsRouteImport.update({
@@ -267,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -346,6 +354,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -388,6 +397,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/accept-terms'
+    | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
     | '/forgot-password'
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/accept-terms'
+    | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
     | '/forgot-password'
@@ -466,6 +477,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/accept-invite'
     | '/accept-terms'
+    | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
     | '/forgot-password'
@@ -508,6 +520,7 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AcceptInviteRoute: typeof AcceptInviteRoute
   AcceptTermsRoute: typeof AcceptTermsRoute
+  BillingOperationsRoute: typeof BillingOperationsRoute
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   DpaRoute: typeof DpaRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -582,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/confirm-email'
       fullPath: '/confirm-email'
       preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing-operations': {
+      id: '/billing-operations'
+      path: '/billing-operations'
+      fullPath: '/billing-operations'
+      preLoaderRoute: typeof BillingOperationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-terms': {
@@ -910,6 +930,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   AcceptInviteRoute: AcceptInviteRoute,
   AcceptTermsRoute: AcceptTermsRoute,
+  BillingOperationsRoute: BillingOperationsRoute,
   ConfirmEmailRoute: ConfirmEmailRoute,
   DpaRoute: DpaRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

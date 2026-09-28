@@ -3,7 +3,7 @@
 This branch implements owner-authorized card setup, trial activation, founding
 allocation/conversion with in-app notices, monthly usage evidence and finalization,
 and reviewed adjustment records. Stripe settlement, customer history, and backend
-read-only access are implemented. Trial reminders and the operator UI remain unfinished.
+read-only access are implemented. Trial reminders remain unfinished. The operator UI is implemented; see BILLING_SETTLEMENT.md.
 Keep rollout disabled until release requirements and staging checks are complete.
 
 ## Configuration

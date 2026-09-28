@@ -10,6 +10,7 @@ import { BillingOnboardingPanel } from '@/features/billing/components/BillingOnb
 import { BillingUsageSection } from '@/features/billing/components/BillingUsageSection'
 import { BillingUsageHistorySection, InvoiceHistorySection } from '@/features/billing/components/BillingHistorySection'
 import { UpcomingBillingSection } from '@/features/billing/components/UpcomingBillingSection'
+import { OperatorBillingLink } from '@/features/billing/components/BillingOperatorPage'
 
 function CardBrand({ brand }: { brand: string }) {
   const label = brand.toUpperCase() === 'MASTERCARD' ? 'MC' : brand.toUpperCase()
@@ -49,6 +50,7 @@ export function BillingSection() {
     ? <><BillingOnboardingPanel status={data} /><UpcomingBillingSection timezone={data.billing_timezone} /><BillingUsageSection status={data} /><BillingUsageHistorySection /></>
     : <LegacyBillingSection />}
     <InvoiceHistorySection />
+    <OperatorBillingLink />
   </div>
 }
 

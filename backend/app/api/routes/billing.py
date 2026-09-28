@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.db.session import get_db
@@ -15,8 +15,46 @@ from app.services.founding_offer_service import FoundingOfferService
 from app.services.billing_usage_service import BillingUsageService
 from app.services.billing_adjustment_service import BillingAdjustmentService
 from app.services.billing_upcoming_service import BillingUpcomingService
+from app.services.billing_operator_service import BillingOperatorService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_billing_operator_service(current_user=Depends(require_billing_operator), db: Session = Depends(get_db)):
+    return BillingOperatorService(db, current_user)
+
+
+@router.get('/operator/access')
+def billing_operator_access(billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.access()
+
+
+@router.get('/operator/organizations')
+def billing_operator_agencies(search: str = Query('', max_length=100), before: UUID | None = None,
+    billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.agencies(search, before)
+
+
+@router.get('/operator/organizations/{org_id}')
+def billing_operator_agency(org_id: UUID, billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.agency(org_id)
+
+
+@router.get('/operator/organizations/{org_id}/periods')
+def billing_operator_periods(org_id: UUID, before: UUID | None = None,
+    billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.periods(org_id, before)
+
+
+@router.get('/operator/organizations/{org_id}/periods/{period_id}/settlements')
+def billing_operator_settlements(org_id: UUID, period_id: UUID,
+    billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.settlements(org_id, period_id)
+
+
+@router.post('/operator/organizations/{org_id}/recheck')
+def billing_operator_recheck(org_id: UUID, billing_operator_service: BillingOperatorService = Depends(get_billing_operator_service)):
+    return billing_operator_service.recheck(org_id)
 
 
 def get_billing_upcoming_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):

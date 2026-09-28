@@ -73,7 +73,24 @@ try {
   assert.doesNotMatch(html, /3,000\.00/)
   html = renderUpcoming({ ...upcoming, periods: [{ ...upcoming.periods[0], usage_amount_cents: 0, state: 'ready' }] })
   assert.match(html, /0\.00 finalized usage/)
-  console.log('Billing history rendering checks passed (loading, errors, empty history, unpaid totals, pagination, and usage).')
+  const { OperatorCorrectionReview } = await server.ssrLoadModule('/src/features/billing/components/OperatorCorrectionPanel.tsx')
+  const proposal = { id: 'proposal', amount_cents: -500, currency: 'cad', status: 'pending', reason: '<script>not markup</script>',
+    decision_reason: null, settlement_status: 'not_approved', payload: {
+      baseline_clients: Array.from({ length: 12 }, (_, i) => ({ client_id: String(i) })),
+      corrected_clients: Array.from({ length: 11 }, (_, i) => ({ client_id: String(i) })),
+      added_client_ids: [], removed_client_ids: ['11'], included_clients: 10, additional_client_amount_cents: 500,
+      baseline_usage_amount_cents: 1000, corrected_usage_amount_cents: 500,
+    } }
+  html = renderToStaticMarkup(createElement(OperatorCorrectionReview, { row: proposal, busy: false, onDecision: () => {} }))
+  assert.match(html, /Credit.*5\.00/)
+  assert.match(html, /12.*11/)
+  assert.match(html, /&lt;script&gt;/)
+  assert.match(html, /disabled="" type="submit"/)
+  assert.match(html, /Approval authorizes settlement/)
+  html = renderToStaticMarkup(createElement(OperatorCorrectionReview, { row: { ...proposal, status: 'approved' }, busy: false, onDecision: () => {} }))
+  assert.doesNotMatch(html, /type="submit"/)
+  assert.doesNotMatch(html, /Reject proposal/)
+  console.log('Billing rendering checks passed, including upcoming charges and operator correction review safeguards.')
 } finally {
   await server.close()
 }
