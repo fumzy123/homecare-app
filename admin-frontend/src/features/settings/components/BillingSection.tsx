@@ -48,7 +48,7 @@ export function BillingSection() {
   if (isError) return <p role="alert">Could not load billing. Please refresh and try again.</p>
   return <div className="space-y-6">{data.new_billing_flow
     ? <><BillingOnboardingPanel status={data} /><UpcomingBillingSection timezone={data.billing_timezone} /><BillingUsageSection status={data} /><BillingUsageHistorySection /></>
-    : <LegacyBillingSection />}
+    : data.subscription_status ? <LegacyBillingSection /> : <BillingOnboardingPanel status={data} />}
     <InvoiceHistorySection />
     <OperatorBillingLink />
   </div>

@@ -9,6 +9,7 @@ from app.repositories.billing_webhook_repository import BillingWebhookRepository
 
 
 SUPPORTED_EVENTS = {
+    "checkout.session.completed",
     "invoice.created", "customer.subscription.created", "customer.subscription.updated",
     "customer.subscription.deleted", "invoice.payment_failed", "invoice.payment_succeeded",
     "invoice.paid", "invoice.voided", "invoice.marked_uncollectible",
@@ -65,7 +66,8 @@ class BillingWebhookService:
         try:
             # Retrieve current objects, not expired Event payloads. Old deliveries
             # must never restore an old subscription/payment status.
-            resource = stripe.Subscription if event_type.startswith("customer.subscription.") else stripe.Invoice
+            resource = (stripe.checkout.Session if event_type == "checkout.session.completed" else
+                        stripe.Subscription if event_type.startswith("customer.subscription.") else stripe.Invoice)
             obj = resource.retrieve(object_id)
             if obj.id != object_id or stripe_field(obj, "customer") != customer_id or stripe_field(obj, "livemode") != livemode:
                 raise ValueError("Stripe object identity mismatch")

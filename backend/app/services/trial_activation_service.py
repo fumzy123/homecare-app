@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from uuid import uuid4
+import stripe
 
 from app.core.config import settings
 from app.core.exceptions import AppError
@@ -33,6 +34,22 @@ class TrialActivationService:
                 # Completion after the automatic deadline remains useful history.
                 if self.current_user and org.onboarding_completed_at is None:
                     org.onboarding_completed_at = now
+                    self.db.commit()  # Persist the completion date before a retryable Stripe update.
+                    org = self.trial_activation_repo.lock_organization(org_id)
+                if (self.current_user and existing.source == "purchase"
+                        and org.onboarding_completed_at and existing.starts_at > org.onboarding_completed_at):
+                    window = trial_window(org.onboarding_deadline_at, now=now,
+                        onboarding_completed_at=org.onboarding_completed_at)
+                    if org.subscription_id:
+                        sub = stripe.Subscription.retrieve(org.subscription_id)
+                        if sub.customer != org.stripe_customer_id or sub.status != "trialing":
+                            raise AppError(409, "TRIAL_ALREADY_ENDED", "The subscription is no longer in its trial")
+                        stripe.Subscription.modify(sub.id, trial_end=int(window.ends_at.timestamp()),
+                            proration_behavior="none")
+                    elif existing.stripe_attempted_at:
+                        raise AppError(409, "ACTIVATION_PENDING", "Finish subscription recovery before changing its trial dates")
+                    existing.starts_at, existing.ends_at = window.starts_at, window.ends_at
+                    org.trial_starts_at, org.trial_ends_at = window.starts_at, window.ends_at
                 self.db.commit()
                 return self._response(existing)
             if org.subscription_id or org.trial_starts_at or org.trial_ends_at:

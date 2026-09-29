@@ -19,6 +19,8 @@ from app.domain.founding import offer_available, notice_due_at
 from app.repositories.founding_offer_repository import FoundingOfferRepository
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
 from app.models.billing_agreement import BillingAgreement
+from app.models.trial_activation import TrialActivation
+from app.domain.billing_access import aware
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.trial_activation_repository import TrialActivationRepository
 from math import ceil
@@ -40,8 +42,6 @@ class BillingOnboardingService:
         org = self.trial_activation_repo.lock_organization(self.org_id)
         if org is None:
             raise AppError(404, "NOT_FOUND", "Organization not found")
-        if org.onboarding_deadline_at is None:
-            raise AppError(409, "NOT_ENROLLED", "Organization is not enrolled in the new billing flow")
         return org
 
     @staticmethod
@@ -136,12 +136,18 @@ class BillingOnboardingService:
             code = agreement.plan_code if agreement else "founding" if offer_available(offer) else "standard"
             if consent_version != consent_for_plan(code)[0] or (code == "founding" and interval != "month"):
                 raise AppError(400, "INVALID_TERMS", "Please review the available plan and current billing terms")
-            if org.onboarding_deadline_at + timedelta(days=14) <= now:
-                raise AppError(409, "TRIAL_WINDOW_EXPIRED", "Contact support to review your trial window")
             if org.subscription_id:
                 raise AppError(409, "ALREADY_SUBSCRIBED", "Manage the existing subscription in Billing")
             if agreement and (agreement.canceled_at or agreement.base_interval != interval):
                 raise AppError(409, "AGREEMENT_LOCKED", "Contact support to change a previously authorized plan")
+            if agreement:
+                agreement.consent_version = consent_version
+                agreement.accepted_at = now
+                agreement.accepted_by = self.current_user.id
+                self._prepare_purchase(org, now)
+                self.db.commit()
+                org = self._lock()
+                agreement = self.agreement_repo.get_for_org(org.id)
             if agreement is None:
                 price_id = self._price_id(interval, code)
                 if not price_id:
@@ -158,6 +164,7 @@ class BillingOnboardingService:
                     consent_version=consent_version, accepted_at=now, accepted_by=self.current_user.id,
                 )
                 self.agreement_repo.add(agreement)
+                self._prepare_purchase(org, now)
                 self.db.commit()
                 org = self._lock()
                 agreement = self.agreement_repo.get_for_org(org.id)
@@ -185,7 +192,7 @@ class BillingOnboardingService:
                 if session.status == "complete":
                     self._save_card(org, agreement, session)
                     self.db.commit()
-                    return {"url": None, "card_saved": True}
+                    return self.confirm_card()
                 if session.status == "open":
                     self.db.commit()
                     return {"url": session.url, "card_saved": False}
@@ -222,15 +229,59 @@ class BillingOnboardingService:
             agreement = self.agreement_repo.get_for_org(org.id)
             if not agreement or agreement.canceled_at or not agreement.checkout_session_id:
                 raise AppError(409, "NO_SETUP", "There is no active card setup")
+            if agreement.consent_version != consent_for_plan(agreement.plan_code)[0]:
+                raise AppError(409, "CONSENT_REQUIRED", "Review the current plan and select Subscribe before continuing")
             session = stripe.checkout.Session.retrieve(agreement.checkout_session_id)
             if session.status != "complete":
                 raise AppError(409, "CARD_NOT_READY", "Finish card setup first")
             self._save_card(org, agreement, session)
+            self._prepare_purchase(org, datetime.now(timezone.utc))
             self.db.commit()
-            return {"card_saved": True}
+            self.process_activation()
+            org = self._lock()
+            result = {"card_saved": True, "url": None}
+            if org.subscription_id and org.subscription_status in ("incomplete", "past_due", "unpaid"):
+                sub = stripe.Subscription.retrieve(org.subscription_id)
+                if sub.customer != org.stripe_customer_id:
+                    raise AppError(409, "SUBSCRIPTION_MISMATCH", "Subscription does not belong to this account")
+                request = self.trial_activation_repo.get_for_org(org.id)
+                self._sync(org, request, sub)
+                invoice_id = stripe_field(sub, "latest_invoice")
+                if invoice_id and sub.status in ("incomplete", "past_due", "unpaid"):
+                    invoice = stripe.Invoice.retrieve(invoice_id)
+                    result["url"] = stripe_field(invoice, "hosted_invoice_url")
+            self.db.commit()
+            return result
         except Exception:
             self.db.rollback()
             raise
+
+    def _prepare_purchase(self, org, now):
+        """Owner authorization enrolls the agency without resetting its free window."""
+        request = self.trial_activation_repo.get_for_org(org.id)
+        if org.subscription_id or (request and request.stripe_attempted_at):
+            return
+        if org.onboarding_deadline_at is None:
+            start = aware(org.created_at)
+            end = start + timedelta(days=14)
+            org.onboarding_deadline_at = start
+        else:
+            start = aware(org.trial_starts_at) or min(
+                aware(org.onboarding_completed_at) or aware(org.onboarding_deadline_at),
+                aware(org.onboarding_deadline_at))
+            end = aware(org.trial_ends_at) or start + timedelta(days=14)
+        if request is None:
+            request = TrialActivation(id=uuid4(), org_id=org.id, requested_at=now,
+                requested_by=self.current_user.id if self.current_user else None, starts_at=start, ends_at=end,
+                source="purchase", status="pending")
+            self.trial_activation_repo.add(request)
+        else:
+            request.source = "purchase"
+            request.status = "pending"
+        # Preserve the local trial while Checkout is open. Paid access still
+        # requires a confirmed Stripe status; enrollment alone grants no access.
+        org.trial_starts_at = start
+        org.trial_ends_at = end
 
     def process_activation(self, *, now=None):
         self._enabled()
@@ -265,7 +316,8 @@ class BillingOnboardingService:
                 request.status = "needs_review"
             elif matching:
                 self._sync(org, request, matching[0])
-            elif org.subscription_id or request.ends_at <= now or (
+            elif org.subscription_id or (request.ends_at <= now and (getattr(request, "source", None) != "purchase"
+                or (request.stripe_attempted_at and request.ends_at > request.stripe_attempted_at))) or (
                 request.stripe_attempted_at and now - request.stripe_attempted_at >= timedelta(hours=23)
             ):
                 request.status = "needs_review"
@@ -287,12 +339,14 @@ class BillingOnboardingService:
                     self.db.commit()
                     # Re-enter under the org lock and recheck cancellation/remote state.
                     return self.process_activation(now=now)
+                trial = {"trial_end": int(request.ends_at.timestamp()),
+                    "trial_settings": {"end_behavior": {"missing_payment_method": "cancel"}}} if request.ends_at > request.stripe_attempted_at else {}
                 sub = stripe.Subscription.create(
                     customer=org.stripe_customer_id,
                     items=[{"price": agreement.stripe_price_id}],
                     default_payment_method=agreement.payment_method_id,
-                    trial_end=int(request.ends_at.timestamp()),
-                    trial_settings={"end_behavior": {"missing_payment_method": "cancel"}},
+                    **trial,
+                    payment_behavior="default_incomplete",
                     metadata={"trial_activation_id": str(request.id), "org_id": str(org.id)},
                     idempotency_key=f"trial-activation-{request.id}",
                 )
@@ -306,8 +360,10 @@ class BillingOnboardingService:
     def _sync(org, request, sub):
         org.subscription_id = sub.id
         org.subscription_status = sub.status
-        org.trial_starts_at = datetime.fromtimestamp(sub.trial_start, timezone.utc) if sub.trial_start else None
-        org.trial_ends_at = datetime.fromtimestamp(sub.trial_end, timezone.utc) if sub.trial_end else None
+        org.trial_starts_at = request.starts_at
+        # Immediate subscriptions need a paid-usage anchor too. Never bill for
+        # the gap between an expired trial and the customer's actual purchase.
+        org.trial_ends_at = datetime.fromtimestamp(sub.trial_end or sub.start_date, timezone.utc)
         org.subscription_current_period_end = subscription_period_end(sub)
         request.status = "activated" if sub.status != "canceled" else "canceled"
 

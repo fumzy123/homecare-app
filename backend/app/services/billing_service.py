@@ -203,7 +203,14 @@ class BillingService:
         return BillingWebhookService(self.db).receive(event)
 
     def dispatch_webhook(self, event_type, data):
-        if event_type == "invoice.created":
+        if event_type == "checkout.session.completed":
+            org = self.org_repo.get_by_stripe_customer_id(data.customer)
+            if org and data.mode == "setup":
+                service = BillingOnboardingService(self.db, org_id=org.id)
+                agreement = service.agreement_repo.get_for_org(org.id)
+                if agreement and agreement.checkout_session_id == data.id and not agreement.canceled_at:
+                    service.confirm_card()
+        elif event_type == "invoice.created":
             from app.services.billing_invoice_hold_service import BillingInvoiceHoldService
             BillingInvoiceHoldService(self.db).hold(data.id)
         elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
@@ -234,8 +241,10 @@ class BillingService:
                 org.subscription_current_period_end = subscription_period_end(subscription)
                 if org.onboarding_deadline_at is not None:
                     reconcile_conversion(self.conversion_repo.get_for_org(org.id), subscription, datetime.now(timezone.utc))
-                    org.trial_starts_at = datetime.fromtimestamp(subscription.trial_start, timezone.utc) if subscription.trial_start else None
-                    org.trial_ends_at = datetime.fromtimestamp(subscription.trial_end, timezone.utc) if subscription.trial_end else None
+                    activation = BillingOnboardingService(self.db, org_id=org.id).trial_activation_repo.get_for_org(org.id)
+                    org.trial_starts_at = activation.starts_at if activation else (
+                        datetime.fromtimestamp(subscription.trial_start, timezone.utc) if subscription.trial_start else None)
+                    org.trial_ends_at = datetime.fromtimestamp(subscription.trial_end or subscription.start_date, timezone.utc)
                     if subscription.status == "canceled" or stripe_field(subscription, "cancel_at_period_end", False):
                         offer = self.founding_offer_repo.get_for_org(org.id)
                         if offer and offer.forfeited_at is None:
@@ -341,6 +350,7 @@ class BillingService:
             has_access = access.can_write
 
             return {
+                "billing_timezone": org.billing_timezone,
                 "subscription_status": org.subscription_status,
                 "subscription_current_period_end": org.subscription_current_period_end,
                 "is_trial_active": is_trial_active,

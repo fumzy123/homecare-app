@@ -188,7 +188,7 @@ export const billingApi = {
   getOnboardingOptions: async (): Promise<OnboardingOptions> => (await apiClient.get('/api/billing/onboarding/options')).data,
   setupOnboardingCard: async (payload: { interval: 'month' | 'year'; consent_version: string; accepted: true }): Promise<{ url: string | null; card_saved: boolean }> =>
     (await apiClient.post('/api/billing/onboarding/card-setup', payload)).data,
-  confirmOnboardingCard: async () => (await apiClient.post('/api/billing/onboarding/confirm-card')).data,
+  confirmOnboardingCard: async (): Promise<{card_saved: boolean; url: string | null}> => (await apiClient.post('/api/billing/onboarding/confirm-card')).data,
   cancelOnboarding: async () => (await apiClient.post('/api/billing/onboarding/cancel')).data,
   getStatus: async (): Promise<BillingStatus> => {
     const { data } = await apiClient.get('/api/billing/status')

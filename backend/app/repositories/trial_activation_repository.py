@@ -14,7 +14,7 @@ class TrialActivationRepository:
             Organization.id == org_id,
             Organization.deleted_at.is_(None),
             Organization.is_active.is_(True),
-        ).with_for_update().first()
+        ).populate_existing().with_for_update().first()
 
     def get_for_org(self, org_id):
         return self.db.query(TrialActivation).filter(TrialActivation.org_id == org_id).first()

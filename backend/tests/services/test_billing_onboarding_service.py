@@ -37,6 +37,7 @@ def state(monkeypatch):
     agreement = SimpleNamespace(
         id=uuid4(), org_id=org.id, plan_code="standard", plan_version=1,
         base_interval="month", stripe_price_id="price_month", canceled_at=None,
+        consent_version=CONSENT_VERSION,
         customer_attempted_at=None, checkout_session_id=None, payment_method_id="pm_own",
     )
     request = SimpleNamespace(

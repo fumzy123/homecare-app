@@ -33,6 +33,11 @@ Paths below are relative to the repository root.
 
 ## Remaining work, in order
 
+The self-service upgrade dead end was subsequently fixed. See
+`backend/SELF_SERVICE_BILLING.md` for the current owner purchase flow and operator
+access instructions. Subscription purchases no longer require manual enrollment;
+remaining trial time is preserved. Hosted browser and webhook staging checks remain.
+
 1. **Implemented:** matching filtered/sorted timesheet export, scheduled-hours
    notice, and named query hooks. Verify the interaction in staging.
 2. **Implemented:** office-led placement assignment, preserving eligibility,

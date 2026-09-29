@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { isAxiosError } from 'axios'
+import { ApiError } from '@/shared/lib/api-client'
+import { SubscriptionPlans } from './SubscriptionPlans'
 import type { BillingStatus } from '../api'
 import { useBillingOnboarding } from '../hooks/useBillingOnboarding'
 import { useAuthStore } from '@/shared/stores/auth'
 
 function message(error: unknown) {
-  return isAxiosError(error) ? error.response?.data?.error?.message ?? 'Billing is temporarily unavailable. Please try again.' : 'Please try again.'
+  return error instanceof ApiError ? error.message : 'Billing is temporarily unavailable. Please try again.'
 }
 
 export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
@@ -60,10 +61,10 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
         <p>Notice issued {new Date(conversion.notice_at).toLocaleDateString()}. You can cancel automatic billing before the change. Your final bill depends on usage and applicable taxes.</p>
       </div>}
       {conversion?.status === 'needs_review' && <p role="status">Your pricing transition needs a support review. Contact Care Harbor to confirm the effective date and rates.</p>}
-      <h2 className="font-serif text-3xl">{status.is_onboarding ? 'Onboarding' : status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? `${status.plan_code === 'founding' ? 'Founding' : 'Standard'} plan` : 'Billing needs attention'}</h2>
+      <h2 className="font-serif text-3xl">{status.is_onboarding ? 'Onboarding' : status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? `${status.plan_code === 'founding' ? 'Founding' : 'Standard'} plan` : 'Your subscription'}</h2>
       {status.is_onboarding && <p>Your trial starts when onboarding is completed, or by {status.onboarding_deadline_at && new Date(status.onboarding_deadline_at).toLocaleString()}. No countdown runs before then.</p>}
       {end && status.is_trial_active && <p>{status.billing_canceled ? 'Trial access ends' : 'Trial ends; first base payment is due'}: {end}.</p>}
-      {end && !status.is_trial_active && <p>Trial ended: {end}. Check your invoices below for payment status.</p>}
+      {end && !status.is_trial_active && !status.is_onboarding && <p>Recorded trial end: {end}. Check your invoices below for payment status.</p>}
       {status.base_amount_cents != null && <p>CAD ${(status.base_amount_cents / 100).toLocaleString()} / {status.plan_interval}. Ten active clients included; then CAD ${((status.additional_client_amount_cents ?? 500) / 100).toLocaleString()} per additional client each month, plus applicable taxes.</p>}
       {status.plan_code === 'founding' && <p>Founding rates are protected for your first 12 paid months. {status.founding_protection_ends_at && `Protection ends ${new Date(status.founding_protection_ends_at).toLocaleString()}. `}We will give at least 30 days’ notice of the standard rates before conversion.</p>}
       {status.billing_canceled && <p role="status">Renewal canceled. Any prepaid access continues to its end date.</p>}
@@ -72,25 +73,22 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
       {status.plan_interval && <p>Additional-client usage is finalized three days after each monthly billing period. Final usage charges may still apply after cancellation. All amounts are in CAD, plus applicable taxes.</p>}
       {status.activation_status === 'needs_review' && <p role="status">Your trial needs a support review. Contact Care Harbor before continuing.</p>}
       {!owner && <p>Your agency owner manages plan selection and payment details.</p>}
-      {owner && !status.subscription_status && !status.billing_canceled && !status.card_saved && (
+      {owner && !status.subscription_status && !status.billing_canceled && (
         <div className="space-y-4">
           {options.isPending && <p>Loading billing terms…</p>}
           {options.data && <>
-            <label className="block">Base subscription
-              <select className="block border border-ink p-2 mt-2" value={interval} onChange={e => { setInterval(e.target.value as 'month' | 'year'); setAccepted(false) }} disabled={busy || Boolean(status.plan_interval)}>
-                {options.data.plans.map(p => <option key={p.interval} value={p.interval}>{p.code === 'founding' ? 'Founding' : 'Standard'} · CAD ${(p.base_amount_cents / 100).toLocaleString()} / {p.interval}</option>)}
-              </select>
-            </label>
-            <p>Due today: CAD $0. {plan && `First base payment after your trial: CAD $${(plan.base_amount_cents / 100).toLocaleString()}. ${plan.included_clients} active clients included, then CAD $${plan.additional_client_amount_cents / 100} per additional client per month.`} {interval === 'year' && 'Annual prepayment covers the base only.'}</p>
+            <SubscriptionPlans plans={options.data.plans} interval={interval} onChange={value => { setInterval(value); setAccepted(false) }} disabled={busy || Boolean(status.plan_interval)} />
+            <p>{status.is_trial_active ? `Nothing due today. Your existing trial ends ${end}.` : status.is_onboarding ? 'Nothing due today. Your subscription will bill after the onboarding and trial period described above.' : 'Your trial has ended. The first base payment is due when you finish subscribing.'} {plan && `Base subscription: CAD $${(plan.base_amount_cents / 100).toLocaleString()} per ${interval}, plus applicable tax. Additional-client usage is billed separately each month.`}</p>
             <label className="flex gap-3 items-start"><input type="checkbox" checked={accepted} disabled={busy} onChange={e => setAccepted(e.target.checked)} className="mt-1" /><span>{options.data.consent_text}</span></label>
-            <button className={button} disabled={!accepted || busy || !status.billing_timezone} onClick={saveCard}>{setup.isPending ? 'Opening secure card setup…' : 'Agree and save card with Stripe'}</button>
+            <button className={button} disabled={!accepted || busy || !status.billing_timezone} onClick={saveCard}>{setup.isPending ? 'Opening Stripe…' : 'Subscribe with Stripe'}</button>
           </>}
           <p>Already finished Stripe card setup?</p>
-          <button className={button} disabled={busy} onClick={() => confirm.mutate()}>Check saved card</button>
+          <button className={button} disabled={busy} onClick={() => confirm.mutate()}>Finish subscription setup</button>
         </div>
       )}
-      {status.card_saved && !status.subscription_status && !status.billing_canceled && <p>Your card is saved. Care Harbor will start the trial when onboarding is complete, or at the onboarding deadline.</p>}
+      {status.card_saved && !status.subscription_status && !status.billing_canceled && <p>Your card is saved. Finish subscription setup above to confirm activation.</p>}
       {owner && status.subscription_status && <button className={button} disabled={busy} onClick={async () => { try { const result = await portal.mutateAsync(); window.location.assign(result.url) } catch { /* Display below. */ } }}>Payment methods and invoices</button>}
+      {owner && status.new_billing_flow && ['incomplete', 'past_due', 'unpaid'].includes(status.subscription_status ?? '') && <button className={button} disabled={busy} onClick={() => confirm.mutate()}>Check payment status / finish payment</button>}
       {owner && status.plan_interval && !status.billing_canceled && (
         cancelPrompt ? <div className="space-y-3"><p>Stop automatic conversion or the next renewal? Existing prepaid coverage remains available.</p><button className={button} disabled={busy} onClick={() => cancel.mutate(undefined, { onSuccess: () => setCancelPrompt(false) })}>Confirm cancellation</button><button className={button} disabled={busy} onClick={() => setCancelPrompt(false)}>Keep subscription</button></div>
           : <button className={button} disabled={busy} onClick={() => setCancelPrompt(true)}>Cancel automatic billing</button>

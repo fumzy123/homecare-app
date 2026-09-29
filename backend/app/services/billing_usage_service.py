@@ -75,7 +75,9 @@ class BillingUsageService:
     def set_timezone(self, value):
         try:
             validate_billing_timezone(value)
-            org = self._lock()
+            org = self.trial_activation_repo.lock_organization(self.org_id)
+            if not org:
+                raise AppError(404, "NOT_FOUND", "Organization not found")
             if org.billing_timezone and org.billing_timezone != value and org.subscription_id:
                 raise AppError(409, "TIMEZONE_LOCKED", "Contact support to review a timezone change after subscription activation")
             org.billing_timezone = value

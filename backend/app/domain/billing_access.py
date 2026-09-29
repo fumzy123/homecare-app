@@ -24,8 +24,10 @@ def billing_access(org, now=None):
         onboarding = False
     else:
         end = aware(org.trial_ends_at)
-        trial = bool(end and now < end and org.subscription_status == "trialing")
-        onboarding = not org.trial_starts_at and now < deadline
+        start = aware(org.trial_starts_at)
+        trial = bool(end and (not start or start <= now) and now < end
+                     and org.subscription_status in (None, "trialing"))
+        onboarding = (not start or start > now) and now < deadline
     allowed = org.subscription_status == "active" or trial or onboarding
     # Cancelling renewal keeps Stripe active until paid coverage ends. A terminal
     # subscription status never extends access merely because its period is future.
