@@ -11,6 +11,7 @@ from app.repositories.founding_conversion_repository import FoundingConversionRe
 from app.repositories.billing_period_repository import BillingPeriodRepository
 from app.repositories.billing_settlement_repository import BillingSettlementRepository
 from app.services.billing_cutoff_service import utc
+from app.services.billing_prices import standard_prices
 
 
 class BillingPeriodRecoveryService:
@@ -31,6 +32,8 @@ class BillingPeriodRecoveryService:
         context = dict(subscription_id=org.subscription_id, customer_id=org.stripe_customer_id,
             anchor=utc(org.trial_ends_at), timezone=org.billing_timezone, plan_code=agreement.plan_code,
             plan_version=agreement.plan_version, interval=agreement.base_interval, price_id=agreement.stripe_price_id)
+        if agreement.plan_code == "standard":
+            context["standard_prices"] = standard_prices()
         if conversion and conversion.status != "canceled":
             if conversion.subscription_id != org.subscription_id or conversion.status == "needs_review":
                 raise ValueError("Founding conversion needs review")

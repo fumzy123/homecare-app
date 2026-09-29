@@ -63,7 +63,92 @@ class StripeUsageGateway:
             raise SettlementReviewRequired("CUSTOMER_DELETED")
         if self.op["amount_cents"] < 0:
             return self._credit()
+        if self.context.get("annual_entries"):
+            return self._annual_charge()
         return self._charge()
+
+    def _annual_charge(self):
+        if self.op["invoice_id"]:
+            invoice = self._check(stripe.Invoice.retrieve(self.op["invoice_id"]))
+            if invoice.status not in ("open", "paid"):
+                raise SettlementReviewRequired("ISSUED_INVOICE_CHANGED")
+            return dict(state="invoiced", invoice_id=invoice.id, payment_status=invoice.status)
+        hold = self.service.settlement_repo.hold(self.op["org_id"], self.context["subscription"],
+                                                 datetime.fromisoformat(self.context["starts_at"]))
+        held_id = hold.invoice_id if hold and hold.state in ("held", "released") else None
+        expected_base = (hold.base_line_id, hold.base_amount_cents) if held_id else None
+        self.service.db.commit()
+        if held_id:
+            invoice = self._check(stripe.Invoice.retrieve(held_id))
+            if field(field(invoice, "metadata", {}), "care_harbor_usage_start") != self.context["starts_at"]:
+                raise SettlementReviewRequired("ANNUAL_HOLD_CHANGED")
+        else:
+            sub = self._check(stripe.Subscription.retrieve(self.context["subscription"]))
+            # Missing a renewal hold must not silently create a second renewal bill.
+            if sub.status != "canceled" or field(sub, "ended_at") != int(datetime.fromisoformat(self.context["annual_end"]).timestamp()):
+                raise SettlementReviewRequired("ANNUAL_RENEWAL_HOLD_REQUIRED")
+            if self.op["amount_cents"] == 0:
+                return dict(state="zero", payment_status="not_required")
+            params = dict(customer=self.customer, currency="cad", collection_method="charge_automatically",
+                auto_advance=False, pending_invoice_items_behavior="exclude", discounts=[],
+                automatic_tax={"enabled": self._tax()}, metadata=self._metadata("invoice"),
+                description="Care Harbor final annual additional-client usage")
+            invoice_id = self._step("invoice", params,
+                lambda _: self._unique(stripe.Invoice.list(customer=self.customer, limit=100).auto_paging_iter(), "invoice"),
+                lambda p, key: stripe.Invoice.create(**p, idempotency_key=key).id)
+            invoice = self._check(stripe.Invoice.retrieve(invoice_id))
+        self._tax(invoice)
+        allowed = set()
+        for entry in self.context["annual_entries"]:
+            if entry["amount"] == 0:
+                continue
+            if entry["amount"] < 0 or entry["amount"] % entry["rate"]:
+                raise SettlementReviewRequired("INVALID_ANNUAL_USAGE")
+            name = f"item-{entry['period_id']}"
+            quantity = entry["amount"] // entry["rate"]
+            params = dict(customer=self.customer, invoice=invoice.id, currency="cad", quantity=quantity,
+                unit_amount_decimal=str(entry["rate"]), discountable=False, tax_behavior="exclusive",
+                description=f"Additional clients · {entry['starts_at'][:10]} to {entry['ends_at'][:10]}",
+                period=dict(start=int(datetime.fromisoformat(entry["starts_at"]).timestamp()),
+                            end=int(datetime.fromisoformat(entry["ends_at"]).timestamp())), metadata=self._metadata(name))
+            if settings.billing_usage_tax_mode == "stripe":
+                params["tax_code"] = settings.stripe_usage_tax_code
+            item_id = self._step(name, params,
+                lambda _, step=name: self._unique(stripe.InvoiceItem.list(customer=self.customer, limit=100).auto_paging_iter(), step),
+                lambda p, key: stripe.InvoiceItem.create(**p, idempotency_key=key).id)
+            item = self._check(stripe.InvoiceItem.retrieve(item_id))
+            if remote_id(field(item, "invoice")) != invoice.id or item.amount != entry["amount"]:
+                raise SettlementReviewRequired("ANNUAL_ITEM_CHANGED")
+            lines = list(stripe.Invoice.list_lines(invoice.id, limit=100).auto_paging_iter())
+            own = [line for line in lines if (field(field(field(line, "parent", {}), "invoice_item_details", {}), "invoice_item")
+                    or remote_id(field(line, "invoice_item"))) == item_id]
+            if len(own) != 1 or own[0].amount != entry["amount"]:
+                raise SettlementReviewRequired("ANNUAL_LINE_MISMATCH")
+            line_id = own[0].id
+            self._step(f"line-{entry['period_id']}", {"line": line_id}, lambda p: p["line"], lambda p, _: p["line"])
+            allowed.add(line_id)
+        lines = list(stripe.Invoice.list_lines(invoice.id, limit=100).auto_paging_iter())
+        if expected_base:
+            allowed.add(expected_base[0])
+            if not any(line.id == expected_base[0] and line.amount == expected_base[1] for line in lines):
+                raise SettlementReviewRequired("ANNUAL_BASE_CHANGED")
+        if {line.id for line in lines} != allowed:
+            raise SettlementReviewRequired("UNEXPECTED_ANNUAL_INVOICE_ITEMS")
+        self._step("finalize", {"invoice": invoice.id},
+            lambda p: p["invoice"] if stripe.Invoice.retrieve(p["invoice"]).status in ("open", "paid") else None,
+            lambda p, key: stripe.Invoice.finalize_invoice(p["invoice"], auto_advance=True, idempotency_key=key).id, creation=False)
+        invoice = self._check(stripe.Invoice.retrieve(invoice.id))
+        if invoice.status == "open":
+            try:
+                self._step("pay", {"invoice": invoice.id},
+                    lambda p: p["invoice"] if stripe.Invoice.retrieve(p["invoice"]).status == "paid" else None,
+                    lambda p, key: stripe.Invoice.pay(p["invoice"], idempotency_key=key).id, creation=False)
+            except stripe.CardError:
+                pass
+            invoice = self._check(stripe.Invoice.retrieve(invoice.id))
+        if invoice.status not in ("open", "paid"):
+            raise SettlementReviewRequired("ANNUAL_INVOICE_NOT_COLLECTIBLE")
+        return dict(state="invoiced", invoice_id=invoice.id, payment_status=invoice.status)
 
     def _charge(self):
         if self.op["invoice_id"]:

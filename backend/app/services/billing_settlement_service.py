@@ -48,13 +48,18 @@ class BillingSettlementService:
                 self.settlement_repo.add(base)
                 self.db.flush()
             rows = self.settlement_repo.period_rows(org_id, period_id)
+            if terms["base_interval"] == "year" and terms["plan_version"] >= 2 and base.state == "ready":
+                base.state = "accrued"
+            if base.state == "accrued":
+                self.db.commit()
+                return  # Annual coordinator freezes approved adjustments at collection.
             for adjustment in self.settlement_repo.approved_adjustments(org_id, period_id):
-                if adjustment.amount_cents == 0:
+                if adjustment.amount_cents == 0 or adjustment.settlement_status == "settled":
                     continue
                 key = f"adjustment:{adjustment.id}"
                 existing = self.settlement_repo.by_source(key)
                 if existing:
-                    if existing.state not in ("invoiced", "credited", "zero"):
+                    if existing.state not in ("invoiced", "credited", "zero", "netted"):
                         break
                     continue
                 # Original usage must be posted before subsequent deltas. A failed
@@ -69,9 +74,9 @@ class BillingSettlementService:
                             reserved[allocation["source_id"]] = reserved.get(allocation["source_id"], 0) + allocation["amount"]
                     remaining, allocations = -row.amount_cents, []
                     for charge in rows:
-                        if charge.amount_cents <= 0 or charge.state != "invoiced" or not charge.invoice_line_id:
+                        if charge.context.get("annual_entries") or charge.amount_cents <= 0 or charge.state != "invoiced" or not charge.invoice_line_id:
                             continue
-                        available = charge.amount_cents - reserved.get(str(charge.id), 0)
+                        available = charge.context.get("invoice_amount", charge.amount_cents) - reserved.get(str(charge.id), 0)
                         portion = min(remaining, max(0, available))
                         if portion:
                             allocations.append(dict(source_id=str(charge.id), invoice=charge.invoice_id,
@@ -178,6 +183,17 @@ class BillingSettlementService:
                 hold = self.settlement_repo.hold_by_invoice(invoice_id)
                 if hold and state == "invoiced":
                     hold.state = "released"
+            if row.context.get("annual_entries") and state in ("invoiced", "zero"):
+                for entry in row.context["annual_entries"]:
+                    original = self.settlement_repo.by_source(entry["source_key"])
+                    original.state = "invoiced" if entry["amount"] else "zero"
+                    original.invoice_id = invoice_id
+                    original.invoice_line_id = row.steps.get(f"line-{entry['period_id']}", {}).get("result_id")
+                    original.payment_status = payment_status
+                    original.context = {**original.context, "invoice_amount": entry["amount"]}
+                    for adjustment in self.settlement_repo.approved_adjustments(row.org_id, original.period_id):
+                        if str(adjustment.id) in entry["adjustments"]:
+                            adjustment.settlement_status = "settled"
             self.db.commit()
         except Exception:
             self.db.rollback()

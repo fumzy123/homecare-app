@@ -5,6 +5,8 @@ from app.core.config import settings
 from app.core.stripe_objects import stripe_field as field
 from app.domain.billing import get_plan
 from app.domain.billing_periods import monthly_usage_window
+from dateutil.relativedelta import relativedelta
+from app.services.billing_prices import standard_prices
 from app.models.billing_settlement import BillingInvoiceHold
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
@@ -34,7 +36,7 @@ class BillingInvoiceHoldService:
             org = self.org_repo.lock_by_stripe_customer_id(invoice.customer)
             agreement = self.agreement_repo.get_for_org(org.id) if org else None
             if (not org or org.onboarding_deadline_at is None or not org.trial_ends_at
-                    or not agreement or agreement.base_interval != "month"):
+                    or not agreement):
                 self.db.commit()
                 return
             parent = field(field(invoice, "parent", {}), "subscription_details", {})
@@ -59,14 +61,22 @@ class BillingInvoiceHoldService:
             if start <= context["anchor"]:
                 return  # Signup/first paid conversion must not wait for old usage.
             end = datetime.fromtimestamp(field(field(line, "period", {}), "end"), timezone.utc)
-            if monthly_usage_window(context["anchor"], start) != (start, end):
-                raise SettlementReviewRequired("RENEWAL_ANCHOR_MISMATCH")
             price, code, version = context["price"], context["code"], context["version"]
             conversion = context.get("conversion")
             if conversion and start >= conversion[0]:
                 price, code, version = conversion[1], "standard", conversion[2]
             actual_price = field(field(field(line, "pricing", {}), "price_details", {}), "price") or field(field(line, "price", {}), "id")
-            plan = get_plan(code, "month", version=version)
+            interval = "month"
+            if code == "standard" and actual_price in standard_prices():
+                interval, version = standard_prices()[actual_price]
+                price = actual_price
+            if interval == "year" and version == 1:
+                return  # Historical annual contracts retain monthly usage collection.
+            months = (start.year - context["anchor"].year) * 12 + start.month - context["anchor"].month
+            if (monthly_usage_window(context["anchor"], start)[0] != start
+                    or context["anchor"] + relativedelta(months=months + (12 if interval == "year" else 1)) != end):
+                raise SettlementReviewRequired("RENEWAL_ANCHOR_MISMATCH")
+            plan = get_plan(code, interval, version=version)
             if (actual_price != price or line.amount != plan.base_amount_cents or line.quantity != 1
                     or line.currency != "cad" or field(field(field(line, "parent", {}), "subscription_item_details", {}), "proration", False)):
                 raise SettlementReviewRequired("RENEWAL_TERMS_MISMATCH")

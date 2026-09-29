@@ -6,6 +6,7 @@ from app.services.billing_settlement_service import (BillingSettlementService, S
                                                      SettlementReviewRequired, settlement_enabled)
 from app.services.billing_invoice_hold_service import BillingInvoiceHoldService
 from app.services.stripe_usage_gateway import StripeUsageGateway
+from app.services.billing_annual_service import BillingAnnualService
 import stripe
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,14 @@ def settle_billing_usage():
                 BillingSettlementService(db).prepare(org_id, period_id)
         except Exception:
             logger.exception("Unable to prepare usage settlement for period %s", period_id)
+    with SessionLocal() as db:
+        annual = BillingSettlementRepository(db).annual_groups()
+    for org_id, invoice_id, line_id in annual:
+        try:
+            with SessionLocal() as db:
+                BillingAnnualService(db).prepare_year(org_id, invoice_id, line_id)
+        except Exception:
+            logger.exception("Annual usage collection needs retry/review for agency %s", org_id)
     with SessionLocal() as db:
         ids = BillingSettlementRepository(db).work_ids()
     for sid in ids:

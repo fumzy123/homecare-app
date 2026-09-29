@@ -21,7 +21,8 @@ def state(monkeypatch):
     for name in ("usage_repo", "period_repo", "trial_activation_repo", "agreement_repo", "conversion_repo"):
         setattr(svc, name, MagicMock())
     org = SimpleNamespace(id=svc.org_id, billing_timezone="America/St_Johns", onboarding_deadline_at=utc(1, 1),
-                          subscription_id="sub_own", stripe_customer_id="cus_own", trial_ends_at=utc(1, 31))
+                          subscription_id="sub_own", stripe_customer_id="cus_own", trial_ends_at=utc(1, 31),
+                          subscription_status="active", trial_starts_at=utc(1, 17), created_at=utc(1, 17))
     agreement = SimpleNamespace(plan_code="standard", plan_version=1, base_interval="month", stripe_price_id="price_standard")
     sub = stripe.StripeObject.construct_from({
         "id": "sub_own", "customer": "cus_own", "status": "active", "metadata": {},
@@ -86,8 +87,11 @@ def test_annual_base_still_has_monthly_allowance(state):
 
 
 def test_trial_visits_never_create_paid_period(state):
+    state.org.subscription_status = "trialing"
     result = state.svc.current(now=utc(1, 20))
-    assert result["state"] == "not_started"
+    assert result["state"] == "ready" and result["trial_preview"]
+    assert result["usage"]["active_client_count"] == 30
+    assert result["usage"]["estimated_usage_amount_cents"] == 0
     state.remote.Subscription.retrieve.assert_not_called()
     state.svc.period_repo.add.assert_not_called()
 

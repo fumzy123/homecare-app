@@ -18,7 +18,8 @@ class BillingUpcomingRepository:
                 BillingUsageSnapshot, and_(BillingUsageSnapshot.period_id == BillingPeriod.id,
                                           BillingUsageSnapshot.org_id == org_id)
             ).outerjoin(BillingSettlement, and_(BillingSettlement.period_id == BillingPeriod.id,
-                BillingSettlement.org_id == org_id, BillingSettlement.adjustment_id.is_(None))
+                BillingSettlement.org_id == org_id, BillingSettlement.adjustment_id.is_(None),
+                BillingSettlement.source_key.like("usage:%"))
             ).outerjoin(BillingUsageCutoff, and_(BillingUsageCutoff.org_id == org_id,
                 BillingUsageCutoff.subscription_id == BillingPeriod.subscription_id,
                 BillingUsageCutoff.starts_at == BillingPeriod.starts_at)

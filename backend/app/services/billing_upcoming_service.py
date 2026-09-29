@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 from app.core.exceptions import AppError
 from app.domain.billing import get_plan
@@ -28,15 +28,27 @@ class BillingUpcomingService:
         agreement = self.agreement_repo.get_for_org(self.org_id)
         conversion = self.conversion_repo.get_for_org(self.org_id)
         base = self._base(org, agreement, conversion, now)
+        corrections = [dict(row._mapping) for row in self.upcoming_repo.pending_corrections(self.org_id)]
+        accrued_ids = set()
         periods = []
         for row in self.upcoming_repo.pending_periods(self.org_id, now):
             entry = dict(row._mapping)
             entry.pop('cutoff_state')
+            if row.state == 'accrued' and row.usage_amount_cents is not None:
+                # Approved corrections to unbilled annual usage are collected in
+                # the same annual invoice, not separate payment transactions.
+                accrued_ids.add(row.id)
+                correction = sum(c['amount_cents'] for c in corrections if c['period_id'] == row.id)
+                entry['usage_amount_cents'] += correction
+                entry['adjustment_amount_cents'] = correction
             entry['state'] = ('needs_review' if row.state == 'needs_review' or row.cutoff_state == 'needs_review' else
                 'awaiting_finalization' if row.usage_amount_cents is None else 'ready')
             periods.append(entry)
-        return dict(calculated_at=now, base=base, periods=periods,
-            corrections=[dict(row._mapping) for row in self.upcoming_repo.pending_corrections(self.org_id)],
+        annual = bool(agreement and agreement.base_interval == "year" and agreement.plan_version >= 2)
+        return dict(calculated_at=now, base=base, periods=periods, annual_settlement=annual,
+            collection_at=(aware(org.subscription_current_period_end) + timedelta(hours=72))
+                if annual and org.subscription_current_period_end and org.subscription_status != "trialing" else None,
+            corrections=[c for c in corrections if c['period_id'] not in accrued_ids],
             history_needs_review=bool(org.billing_recovery_error or (
                 org.subscription_id and org.trial_ends_at and aware(org.trial_ends_at) <= now
                 and not org.billing_recovery_checked_at)), tax_status='not_calculated')

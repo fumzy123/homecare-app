@@ -48,6 +48,30 @@ def test_trial_and_founding_transition_do_not_guess_future_rates():
     assert BillingUpcomingService._base(org, agreement, conversion, NOW)['amount_cents'] is None
 
 
+def test_annual_pending_balance_includes_approved_unbilled_corrections():
+    from unittest.mock import MagicMock
+    svc = BillingUpcomingService(MagicMock(), None, uuid4())
+    for name in ('org_repo', 'agreement_repo', 'conversion_repo', 'upcoming_repo'):
+        setattr(svc, name, MagicMock())
+    svc.org_repo.get_by_id.return_value = SimpleNamespace(onboarding_deadline_at=NOW,
+        subscription_status='active', trial_ends_at=NOW-timedelta(days=100),
+        subscription_current_period_end=NOW+timedelta(days=200), billing_recovery_error=None,
+        billing_recovery_checked_at=NOW, subscription_id='sub_test')
+    svc.agreement_repo.get_for_org.return_value = SimpleNamespace(plan_code='standard', plan_version=2,
+        base_interval='year', canceled_at=None)
+    pid = uuid4()
+    entry = dict(id=pid, state='accrued', usage_amount_cents=10000, cutoff_state=None)
+    svc.upcoming_repo.pending_periods.return_value = [SimpleNamespace(**entry, _mapping=entry)]
+    correction = dict(id=uuid4(), period_id=pid, amount_cents=-500)
+    svc.upcoming_repo.pending_corrections.return_value = [SimpleNamespace(_mapping=correction)]
+    result = svc.summary(NOW)
+    assert result['periods'][0]['usage_amount_cents'] == 9500
+    assert result['periods'][0]['adjustment_amount_cents'] == -500
+    assert result['corrections'] == []  # Not a separate payment while annual usage is unbilled.
+    assert result['base']['amount_cents'] == 336000
+    assert result['collection_at'] == NOW+timedelta(days=203)
+
+
 def test_pending_periods_and_corrections_are_scoped_and_never_recounted():
     engine = create_engine('sqlite://')
     for model in (Organization, BillingAgreement, FoundingConversion, BillingPeriod,
@@ -73,7 +97,7 @@ def test_pending_periods_and_corrections_are_scoped_and_never_recounted():
                 db.add(BillingUsageSnapshot(period_id=pid, org_id=scope, finalized_at=NOW, active_client_count=12,
                     additional_clients=2, usage_amount_cents=amount, payload={'private': 'not for summary'}))
             if state:
-                db.add(BillingSettlement(id=uuid4(), org_id=scope, period_id=pid, source_key=str(pid),
+                db.add(BillingSettlement(id=uuid4(), org_id=scope, period_id=pid, source_key=f"usage:{pid}",
                     amount_cents=amount, currency='cad', state=state, payment_status='open', context={}, steps={}, created_at=NOW, updated_at=NOW))
             if index == 6:
                 db.add(BillingUsageCutoff(org_id=org, subscription_id='sub_test', starts_at=start, ends_at=end,

@@ -113,6 +113,25 @@ def test_annual_coverage_creates_only_started_monthly_windows(db, monkeypatch):
     assert {row.included_clients for row in db.query(BillingPeriod)} == {10}
 
 
+def test_monthly_to_annual_history_keeps_original_monthly_usage_windows(db, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "stripe_standard_monthly_v1_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_v1_price_id", "price_year")
+    org_id = agency(db, anchor=dt(1), interval="year")
+    agreement = db.query(BillingAgreement).filter_by(org_id=org_id).one()
+    agreement.stripe_price_id = "price_year"
+    db.commit()
+    fake = remote(monkeypatch, dt(1), [
+        invoice(dt(1), dt(2), price="price_month", identifier="monthly"),
+        invoice(dt(2), dt(2, year=2027), amount=300000, price="price_year", identifier="annual"),
+    ])
+    fake.Subscription.retrieve.return_value.metadata = {"careharbor_interval": "year"}
+    assert BillingPeriodRecoveryService(db).recover(org_id, now=dt(4, 4)) == 4
+    rows = db.query(BillingPeriod).order_by(BillingPeriod.starts_at).all()
+    assert [row.base_interval for row in rows] == ["month", "year", "year", "year"]
+    assert {row.additional_client_amount_cents for row in rows} == {500}
+
+
 def test_line_pagination_is_fully_consumed(db, monkeypatch):
     org = agency(db)
     inv = invoice(dt(9), dt(10))

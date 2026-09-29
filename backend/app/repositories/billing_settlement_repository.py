@@ -64,3 +64,16 @@ class BillingSettlementRepository:
 
     def add(self, row):
         self.db.add(row)
+
+    def annual_groups(self):
+        return self.db.query(BillingPeriod.org_id, BillingPeriod.source_invoice_id,
+                             BillingPeriod.source_invoice_line_id).filter(
+            BillingPeriod.base_interval == "year", BillingPeriod.plan_version >= 2,
+            BillingPeriod.source_invoice_id.is_not(None),
+        ).distinct().all()
+
+    def annual_periods(self, org_id, invoice_id, line_id):
+        return self.db.query(BillingPeriod, BillingUsageSnapshot).outerjoin(
+            BillingUsageSnapshot, BillingUsageSnapshot.period_id == BillingPeriod.id,
+        ).filter(BillingPeriod.org_id == org_id, BillingPeriod.source_invoice_id == invoice_id,
+                 BillingPeriod.source_invoice_line_id == line_id).order_by(BillingPeriod.starts_at).all()

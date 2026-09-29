@@ -16,7 +16,7 @@ def invoice_periods(context, subscription, invoices, now):
     """Return verified full monthly windows; partial cancellation needs review."""
     if field(subscription, "id") != context["subscription_id"] or field(subscription, "customer") != context["customer_id"]:
         raise ValueError("Subscription ownership mismatch")
-    if field(subscription, "trial_end") != int(context["anchor"].timestamp()):
+    if (field(subscription, "trial_end") or field(subscription, "start_date")) != int(context["anchor"].timestamp()):
         raise ValueError("Paid anchor differs from Stripe")
     ended = field(subscription, "ended_at")
     if field(subscription, "status") == "canceled" and not ended:
@@ -54,17 +54,23 @@ def invoice_periods(context, subscription, invoices, now):
                 raise ValueError("Coverage crosses a founding price change")
             if conversion and start >= conversion["effective_at"]:
                 code, version, price = "standard", conversion["version"], conversion["price_id"]
-            plan = get_plan(code, context["interval"], version=version)
             line_price = field(field(field(line, "pricing", {}), "price_details", {}), "price")
             line_price = line_price or field(field(line, "price", {}), "id")
+            interval = context["interval"]
+            interval_changed = code == "standard" and field(field(subscription, "metadata", {}), "careharbor_interval") in ("month", "year")
+            if code == "standard" and line_price in context.get("standard_prices", {}):
+                recorded = context["standard_prices"][line_price]
+                interval, version = recorded if isinstance(recorded, tuple) else (recorded, version)
+                price = line_price
+            plan = get_plan(code, interval, version=version)
             if (line_price != price or field(line, "quantity") != 1 or field(line, "currency") != plan.currency
                     or field(line, "amount") != plan.base_amount_cents):
                 raise ValueError("Invoice line differs from agreed pricing")
             if start < context["anchor"] or monthly_usage_window(context["anchor"], start)[0] != start:
                 raise ValueError("Coverage differs from original monthly anchor")
             month = (start.year - context["anchor"].year) * 12 + start.month - context["anchor"].month
-            duration = 12 if context["interval"] == "year" else 1
-            if duration == 12 and month % 12:
+            duration = 12 if interval == "year" else 1
+            if duration == 12 and month % 12 and not interval_changed:
                 raise ValueError("Annual coverage starts outside the paid anniversary")
             if context["anchor"] + relativedelta(months=month + duration) != end:
                 raise ValueError("Incomplete base coverage")

@@ -17,6 +17,7 @@ from app.repositories.billing_agreement_repository import BillingAgreementReposi
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
 from app.domain.billing_periods import monthly_usage_window, validate_billing_timezone
 from app.domain.billing import get_plan
+from app.domain.billing_access import billing_access
 from app.models.billing_period import BillingPeriod
 from app.core.stripe_objects import stripe_field
 from app.services.founding_conversion_service import reconcile_conversion
@@ -48,7 +49,7 @@ class BillingUsageService:
         return [{field: getattr(row, field) for field in (
             "id", "period_id", "adjustment_id", "amount_cents", "currency", "state", "payment_status",
             "invoice_id", "invoice_line_id", "created_at", "updated_at", "error_code",
-        )} for row in BillingSettlementRepository(self.db).period_rows(self.org_id, period_id)]
+        )} for row in BillingSettlementRepository(self.db).period_rows(self.org_id, period_id) if not row.context.get("annual_entries")]
 
     def history(self, before=None):
         cursor = self.finalization_repo.snapshot(self.org_id, before) if before else None
@@ -68,8 +69,6 @@ class BillingUsageService:
         org = self.trial_activation_repo.lock_organization(self.org_id)
         if not org:
             raise AppError(404, "NOT_FOUND", "Organization not found")
-        if org.onboarding_deadline_at is None:
-            raise AppError(409, "NOT_ENROLLED", "This agency is not enrolled in the new billing flow")
         return org
 
     def set_timezone(self, value):
@@ -102,6 +101,22 @@ class BillingUsageService:
         try:
             org = self._lock()
             validate_billing_timezone(org.billing_timezone)
+            access = billing_access(org, now)
+            if access.is_trial_active:
+                end = access.trial_ends_at
+                start = end - timedelta(days=14)
+                timezone_name = org.billing_timezone
+                self.db.commit()
+                usage = self.estimate(start, end, timezone_name)
+                return {"state": "ready", "trial_preview": True, "period": {
+                    "id": f"trial:{self.org_id}", "starts_at": start, "ends_at": end,
+                    "agency_timezone": timezone_name, "included_clients": 10,
+                    "additional_client_amount_cents": 500, "currency": "cad", "base_interval": "month",
+                    "finalization_eligible_at": end, "plan_code": "standard", "plan_version": 2,
+                }, "usage": {**usage, "calculated_at": now,
+                    "additional_clients": max(0, usage["active_client_count"] - 10),
+                    "estimated_usage_amount_cents": 0,
+                    "clients": [{**client, "client_name": None, "client_archived": None} for client in usage["clients"]]}}
             if not org.subscription_id or not org.trial_ends_at or now < org.trial_ends_at:
                 self.db.commit()
                 return {"state": "not_started", "usage": None}
@@ -111,6 +126,8 @@ class BillingUsageService:
             sub = stripe.Subscription.retrieve(org.subscription_id)
             if sub.id != org.subscription_id or sub.customer != org.stripe_customer_id:
                 raise ValueError("The subscription does not match this agency")
+            from app.services.billing_plan_service import reconcile_standard_plan
+            reconcile_standard_plan(agreement, sub)
             if sub.status not in ("active", "past_due", "unpaid"):
                 self.db.commit()
                 return {"state": "no_current_period", "usage": None}
