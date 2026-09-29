@@ -60,11 +60,30 @@ function TermsPage() {
         </Section>
 
         <Section number="4" title="Subscription and Payment">
-          <Placeholder>
-            Detail your pricing model here: subscription tiers, billing cycles, payment methods accepted,
-            what happens on non-payment (grace period, suspension, termination), refund policy, and
-            how price changes are communicated.
-          </Placeholder>
+          <p>All prices are in Canadian dollars, before applicable taxes. Standard costs $350 per month
+            or $3,360 per year paid in advance. Annual billing saves 20% on the base subscription.
+            Each monthly usage period includes 10 active clients; additional clients cost $5 each for that period.</p>
+          <p>A client counts once in a monthly billing period if they have a qualifying scheduled,
+            in-progress, completed or no-show visit in that period. Cancelled visits do not count.
+            Monthly periods follow the subscription anniversary, including for annual subscriptions.</p>
+          <p>Usage remains open for corrections until 72 hours after each monthly period ends.
+            Later corrections require a recorded billing adjustment. Monthly usage is collected after
+            this window closes. Annual usage accumulates during the prepaid year and is collected with
+            the next annual base renewal after the final 72-hour correction window. Billing shows the
+            current estimate and accumulated charges; estimates can change before finalization.</p>
+          <p>Your 14-day trial begins when your agency is created after email verification. Onboarding
+            assistance does not delay or block the trial or purchase. Selecting a plan and authorizing
+            payment preserves the remaining trial. If you subscribe after the trial has ended, the first
+            base payment is due at purchase. Trial visits incur no usage charge.</p>
+          <p>Cancel renewal from Billing at any time. Access continues through the paid period.
+            Prepaid annual base fees are non-refundable, subject to applicable rights. Annual cancellation
+            results in a final usage-only invoice after the prepaid year and its correction window end.
+            Cancellation does not remove charges already incurred.</p>
+          <p>Invited founding agencies pay $200 per month plus $4 per additional client above 10.
+            Founding pricing is protected for the first 12 paid months, then converts to Standard with
+            advance notice of the applicable rates. Founding billing is monthly only.</p>
+          <p>If payment is not completed when required, operational access may be restricted.
+            Billing, payment recovery and invoice history remain accessible.</p>
         </Section>
 
         <Section number="5" title="Data and Privacy">
