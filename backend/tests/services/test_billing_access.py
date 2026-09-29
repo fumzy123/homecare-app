@@ -32,7 +32,7 @@ def test_expired_trial_status_policy(status, allowed):
 
 
 def test_onboarding_trial_boundaries_legacy_and_cancel_at_period_end():
-    org = agency(onboarding_deadline_at=NOW, trial_starts_at=None, trial_ends_at=None, subscription_status=None)
+    org = agency(created_at=NOW - timedelta(days=14), onboarding_deadline_at=NOW + timedelta(days=30), trial_starts_at=None, trial_ends_at=None, subscription_status=None)
     assert billing_access(org, NOW - timedelta(seconds=1)).can_write
     assert not billing_access(org, NOW).can_write
     org = agency()
@@ -52,7 +52,7 @@ def test_onboarding_trial_boundaries_legacy_and_cancel_at_period_end():
 
 
 def test_naive_database_dates_are_normalized():
-    org = agency(onboarding_deadline_at=None, created_at=NOW.replace(tzinfo=None))
+    org = agency(onboarding_deadline_at=None, created_at=NOW.replace(tzinfo=None), subscription_status=None)
     assert billing_access(org, NOW).can_write
 
 

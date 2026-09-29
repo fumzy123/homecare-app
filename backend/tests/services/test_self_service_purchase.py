@@ -29,16 +29,16 @@ def test_owner_enrollment_preserves_original_trial_without_operator(state, age):
     assert billing_access(state.org, state.now).can_write == (age < 14)
 
 
-def test_subscription_purchase_during_onboarding_keeps_scheduled_trial(state):
+def test_subscription_purchase_ignores_old_onboarding_deadline(state):
     state.org.onboarding_completed_at = None
     state.service.trial_activation_repo.get_for_org.return_value = None
     state.service._prepare_purchase(state.org, state.now)
     request = state.service.trial_activation_repo.add.call_args.args[0]
-    assert request.starts_at == state.org.onboarding_deadline_at
+    assert request.starts_at == state.org.created_at
     assert request.ends_at == request.starts_at + timedelta(days=14)
     state.org.subscription_status = 'trialing'
     access = billing_access(state.org, state.now)
-    assert access.is_onboarding and not access.is_trial_active and access.can_write
+    assert not access.is_onboarding and access.is_trial_active and access.can_write
 
 
 def test_expired_purchase_has_no_trial_or_retroactive_charge(state):
@@ -65,7 +65,7 @@ def test_unenrolled_expired_owner_can_open_checkout(state):
     state.service.agreement_repo.add.side_effect = lambda agreement: setattr(state.service.agreement_repo.get_for_org, 'return_value', agreement)
     state.service.trial_activation_repo.get_for_org.return_value = None
     state.service.trial_activation_repo.add.side_effect = lambda request: setattr(state.service.trial_activation_repo.get_for_org, 'return_value', request)
-    state.remote.Price.retrieve.return_value = SimpleNamespace(active=True, currency='cad', unit_amount=30000,
+    state.remote.Price.retrieve.return_value = SimpleNamespace(active=True, currency='cad', unit_amount=35000,
         recurring=SimpleNamespace(interval='month', interval_count=1))
     state.remote.checkout.Session.create.return_value = SimpleNamespace(id='cs_new', url='https://checkout.stripe.com/test')
     result = state.service.setup_card('month', CONSENT_VERSION)
@@ -157,24 +157,15 @@ def test_payment_failure_does_not_grant_access(state):
     state.service.db.rollback.assert_called()
 
 
-def test_completion_can_start_previously_purchased_onboarding_trial(state, monkeypatch):
-    from app.core.config import settings
-    from app.services import trial_activation_service as module
-    service = module.TrialActivationService(state.service.db, state.service.current_user)
-    service.trial_activation_repo = state.service.trial_activation_repo
-    monkeypatch.setattr(settings, 'billing_operator_user_ids', [str(state.service.current_user.id)])
-    remote = MagicMock()
-    monkeypatch.setattr(module, 'stripe', remote)
-    state.org.onboarding_completed_at = None
-    state.org.subscription_id = 'sub_own'
-    state.request.source = 'purchase'
-    state.request.starts_at = state.now + timedelta(days=20)
-    state.request.ends_at = state.now + timedelta(days=34)
-    remote.Subscription.retrieve.return_value = SimpleNamespace(id='sub_own', customer='cus_own', status='trialing')
-    result = service.request_start(state.org.id, now=state.now)
-    assert result['planned_trial_starts_at'] == state.now
-    assert result['planned_trial_ends_at'] == state.now + timedelta(days=14)
-    remote.Subscription.modify.assert_called_once_with('sub_own', trial_end=int((state.now + timedelta(days=14)).timestamp()), proration_behavior='none')
+def test_operator_cannot_change_trial_after_purchase(state):
+    from app.services.trial_activation_service import TrialActivationService
+    service = TrialActivationService(state.service.db, state.service.current_user)
+    original_end = state.request.ends_at
+    with pytest.raises(AppError) as error:
+        service.request_start(state.org.id, now=state.now)
+    assert error.value.code == 'AUTOMATIC_TRIAL'
+    assert state.request.ends_at == original_end
+    state.remote.Subscription.modify.assert_not_called()
 
 
 def test_billing_purchase_routes_remain_owner_only_and_outside_operational_guard():
@@ -185,6 +176,21 @@ def test_billing_purchase_routes_remain_owner_only_and_outside_operational_guard
         return {node.call} | set().union(*(calls(d) for d in node.dependencies))
     routes = [r for r in router.routes if r.path.endswith(('/onboarding/card-setup', '/onboarding/confirm-card'))]
     assert len(routes) == 2
+    for route in routes:
+        assert require_owner in calls(route.dependant)
+        assert require_operational_access not in calls(route.dependant)
+
+
+def test_in_app_billing_mutations_require_owner_even_when_access_expired():
+    from app.api.api import router
+    from app.core.security import require_owner
+    from app.api.billing_access import require_operational_access
+    def calls(node):
+        return {node.call} | set().union(*(calls(d) for d in node.dependencies))
+    suffixes = ('/profile', '/plan/preview', '/plan/change', '/plan/pending', '/onboarding/embedded-setup',
+                '/onboarding/embedded-confirm', '/payment-methods/{payment_method_id}', '/payment-methods/confirm', '/setup-intent', '/set-default-card')
+    routes = [r for r in router.routes if '/billing/' in r.path and r.path.endswith(suffixes)]
+    assert len(routes) >= 10
     for route in routes:
         assert require_owner in calls(route.dependant)
         assert require_operational_access not in calls(route.dependant)

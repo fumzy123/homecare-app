@@ -16,11 +16,12 @@ def test_one_failed_agency_does_not_block_others(monkeypatch):
     monkeypatch.setattr(trial_activation.settings, "billing_onboarding_enabled", True)
     ids = [uuid4(), uuid4()]
     repo = MagicMock()
-    repo.return_value.due_org_ids.return_value = ids
+    repo.return_value.pending_org_ids.return_value = ids
     service = MagicMock()
-    service.return_value.request_start.side_effect = [RuntimeError("failure"), {}]
+    service.return_value.process_activation.side_effect = [RuntimeError("failure"), {}]
     monkeypatch.setattr(trial_activation, "SessionLocal", MagicMock())
-    monkeypatch.setattr(trial_activation, "TrialActivationRepository", repo)
-    monkeypatch.setattr(trial_activation, "TrialActivationService", service)
+    monkeypatch.setattr(trial_activation, "BillingAgreementRepository", repo)
+    monkeypatch.setattr(trial_activation, "BillingOnboardingService", service)
     trial_activation.request_due_trials()
-    assert [call.args[0] for call in service.return_value.request_start.call_args_list] == ids
+    assert [call.kwargs['org_id'] for call in service.call_args_list] == ids
+    assert service.return_value.process_activation.call_count == 2

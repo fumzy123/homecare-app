@@ -13,7 +13,8 @@ from app.services.founding_conversion_service import release_conversion_schedule
 
 from app.core.config import settings
 from app.core.exceptions import AppError
-from app.domain.billing import get_plan
+from app.domain.billing import get_plan, current_plan_version
+from app.services.billing_prices import price_id
 from app.domain.billing_consent import consent_for_plan
 from app.domain.founding import offer_available, notice_due_at
 from app.repositories.founding_offer_repository import FoundingOfferRepository
@@ -51,10 +52,7 @@ class BillingOnboardingService:
 
     @staticmethod
     def _price_id(interval, code="standard"):
-        if code == "founding":
-            return settings.stripe_founding_monthly_v1_price_id
-        return (settings.stripe_standard_monthly_v1_price_id if interval == "month"
-                else settings.stripe_standard_annual_v1_price_id)
+        return price_id(code, interval, current_plan_version(code))
 
     @staticmethod
     def _check_setup_open(org, agreement):
@@ -70,10 +68,10 @@ class BillingOnboardingService:
             "consent_version": version, "consent_text": text,
             "timezones": billing_timezones(),
             "plans": [{
-                "code": code, "version": 1, "interval": interval,
-                "base_amount_cents": get_plan(code, interval, version=1).base_amount_cents,
+                "code": code, "version": current_plan_version(code), "interval": interval,
+                "base_amount_cents": get_plan(code, interval, version=current_plan_version(code)).base_amount_cents,
                 "currency": "cad", "included_clients": 10,
-                "additional_client_amount_cents": get_plan(code, interval, version=1).additional_client_amount_cents,
+                "additional_client_amount_cents": get_plan(code, interval, version=current_plan_version(code)).additional_client_amount_cents,
             } for interval in (("month",) if code == "founding" else ("month", "year"))],
         }
 
@@ -109,6 +107,7 @@ class BillingOnboardingService:
             "billing_canceled": canceled,
             "activation_status": request.status if request else None,
             "plan_interval": agreement.base_interval if agreement else None,
+            "annual_settlement": bool(agreement and agreement.base_interval == "year" and agreement.plan_version >= 2),
             "base_amount_cents": plan.base_amount_cents if plan else None,
             "plan_code": plan.code if plan else None,
             "additional_client_amount_cents": plan.additional_client_amount_cents if plan else None,
@@ -122,7 +121,7 @@ class BillingOnboardingService:
             } if conversion else None,
         }
 
-    def setup_card(self, interval, consent_version):
+    def setup_card(self, interval, consent_version, *, embedded=False):
         self._enabled()
         if interval not in ("month", "year"):
             raise AppError(400, "INVALID_TERMS", "Please review the current billing terms")
@@ -141,6 +140,17 @@ class BillingOnboardingService:
             if agreement and (agreement.canceled_at or agreement.base_interval != interval):
                 raise AppError(409, "AGREEMENT_LOCKED", "Contact support to change a previously authorized plan")
             if agreement:
+                if agreement.plan_version != current_plan_version(code):
+                    request = self.trial_activation_repo.get_for_org(org.id)
+                    if request and request.stripe_attempted_at:
+                        raise AppError(409, "ACTIVATION_PENDING", "Finish the existing payment setup before changing its terms")
+                    target = self._price_id(interval, code)
+                    plan = get_plan(code, interval, version=current_plan_version(code))
+                    price = stripe.Price.retrieve(target)
+                    if (not price.active or price.currency != "cad" or price.unit_amount != plan.base_amount_cents
+                            or not price.recurring or price.recurring.interval != interval or price.recurring.interval_count != 1):
+                        raise AppError(503, "PRICE_MISMATCH", "Configured pricing does not match the offer")
+                    agreement.plan_version, agreement.stripe_price_id = plan.version, target
                 agreement.consent_version = consent_version
                 agreement.accepted_at = now
                 agreement.accepted_by = self.current_user.id
@@ -152,14 +162,14 @@ class BillingOnboardingService:
                 price_id = self._price_id(interval, code)
                 if not price_id:
                     raise AppError(503, "PRICING_NOT_CONFIGURED", "Billing setup is not available yet")
-                plan = get_plan(code, interval, version=1)
+                plan = get_plan(code, interval, version=current_plan_version(code))
                 price = stripe.Price.retrieve(price_id)
                 if (not price.active or price.currency != "cad" or price.unit_amount != plan.base_amount_cents
                         or not price.recurring or price.recurring.interval != interval
                         or price.recurring.interval_count != 1):
                     raise AppError(503, "PRICE_MISMATCH", "Configured pricing does not match the offer")
                 agreement = BillingAgreement(
-                    id=uuid4(), org_id=org.id, plan_code=code, plan_version=1,
+                    id=uuid4(), org_id=org.id, plan_code=code, plan_version=plan.version,
                     base_interval=interval, stripe_price_id=price_id,
                     consent_version=consent_version, accepted_at=now, accepted_by=self.current_user.id,
                 )
@@ -192,22 +202,26 @@ class BillingOnboardingService:
                 if session.status == "complete":
                     self._save_card(org, agreement, session)
                     self.db.commit()
-                    return self.confirm_card()
+                    return self.confirm_card(embedded=embedded)
                 if session.status == "open":
-                    self.db.commit()
-                    return {"url": session.url, "card_saved": False}
+                    if embedded == (stripe_field(session, "ui_mode") in ("embedded", "embedded_page")):
+                        self.db.commit()
+                        return {"url": session.url, "card_saved": False, **({"client_secret": stripe_field(session, "client_secret")} if embedded else {})}
+                    stripe.checkout.Session.expire(session.id)
             # Setup-only sessions never charge. Expired sessions may be replaced.
             session = stripe.checkout.Session.create(
                 mode="setup", currency="cad", customer=org.stripe_customer_id,
                 payment_method_types=["card"],
                 metadata={"agreement_id": str(agreement.id)},
-                success_url=f"{settings.frontend_url}/settings/billing?card_setup=complete",
-                cancel_url=f"{settings.frontend_url}/settings/billing?card_setup=cancelled",
-                idempotency_key=f"onboarding-setup-{agreement.id}-{agreement.checkout_session_id or 'initial'}",
+                **({"ui_mode": "embedded_page", "redirect_on_completion": "never"} if embedded else {
+                    "success_url": f"{settings.frontend_url}/settings/billing?card_setup=complete",
+                    "cancel_url": f"{settings.frontend_url}/settings/billing?card_setup=cancelled",
+                }),
+                idempotency_key=f"onboarding-setup-{agreement.id}-{agreement.checkout_session_id or 'initial'}{'-embedded' if embedded else ''}",
             )
             agreement.checkout_session_id = session.id
             self.db.commit()
-            return {"url": session.url, "card_saved": False}
+            return {"url": session.url, "card_saved": False, **({"client_secret": stripe_field(session, "client_secret")} if embedded else {})}
         except Exception:
             self.db.rollback()
             raise
@@ -219,10 +233,12 @@ class BillingOnboardingService:
         intent = stripe.SetupIntent.retrieve(session.setup_intent)
         if intent.status != "succeeded" or intent.customer != org.stripe_customer_id:
             raise AppError(409, "CARD_NOT_READY", "Finish card verification first")
+        if org.subscription_id and agreement.payment_method_id:
+            return  # A later in-app card update must survive checkout retries.
         stripe.Customer.modify(org.stripe_customer_id, invoice_settings={"default_payment_method": intent.payment_method})
         agreement.payment_method_id = intent.payment_method
 
-    def confirm_card(self):
+    def confirm_card(self, *, embedded=False):
         self._enabled()
         try:
             org = self._lock()
@@ -248,8 +264,13 @@ class BillingOnboardingService:
                 self._sync(org, request, sub)
                 invoice_id = stripe_field(sub, "latest_invoice")
                 if invoice_id and sub.status in ("incomplete", "past_due", "unpaid"):
-                    invoice = stripe.Invoice.retrieve(invoice_id)
-                    result["url"] = stripe_field(invoice, "hosted_invoice_url")
+                    invoice = stripe.Invoice.retrieve(invoice_id, **({"expand": ["confirmation_secret"]} if embedded else {}))
+                    if embedded:
+                        result["payment_client_secret"] = stripe_field(stripe_field(invoice, "confirmation_secret", {}), "client_secret")
+                        if not result["payment_client_secret"]:
+                            raise AppError(409, "PAYMENT_NOT_READY", "Payment is still processing. Please check again shortly.")
+                    else:
+                        result["url"] = stripe_field(invoice, "hosted_invoice_url")
             self.db.commit()
             return result
         except Exception:
@@ -261,15 +282,9 @@ class BillingOnboardingService:
         request = self.trial_activation_repo.get_for_org(org.id)
         if org.subscription_id or (request and request.stripe_attempted_at):
             return
-        if org.onboarding_deadline_at is None:
-            start = aware(org.created_at)
-            end = start + timedelta(days=14)
-            org.onboarding_deadline_at = start
-        else:
-            start = aware(org.trial_starts_at) or min(
-                aware(org.onboarding_completed_at) or aware(org.onboarding_deadline_at),
-                aware(org.onboarding_deadline_at))
-            end = aware(org.trial_ends_at) or start + timedelta(days=14)
+        start = aware(org.created_at)
+        end = start + timedelta(days=14)
+        org.onboarding_deadline_at = start
         if request is None:
             request = TrialActivation(id=uuid4(), org_id=org.id, requested_at=now,
                 requested_by=self.current_user.id if self.current_user else None, starts_at=start, ends_at=end,
@@ -278,6 +293,7 @@ class BillingOnboardingService:
         else:
             request.source = "purchase"
             request.status = "pending"
+            request.starts_at, request.ends_at = start, end
         # Preserve the local trial while Checkout is open. Paid access still
         # requires a confirmed Stripe status; enrollment alone grants no access.
         org.trial_starts_at = start
@@ -383,6 +399,9 @@ class BillingOnboardingService:
                 for sub in stripe.Subscription.list(customer=org.stripe_customer_id, status="all", limit=100).auto_paging_iter():
                     if sub.id == org.subscription_id or (request and stripe_field(sub.metadata, "trial_activation_id") == str(request.id)):
                         if sub.status not in ("canceled", "incomplete_expired"):
+                            from app.services.billing_plan_service import release_plan_schedule
+                            if release_plan_schedule(sub):
+                                sub = stripe.Subscription.retrieve(sub.id)
                             release_conversion_schedule(self.conversion_repo.get_for_org(org.id), sub)
                             stripe.Subscription.modify(sub.id, cancel_at_period_end=True)
                         org.subscription_id = sub.id

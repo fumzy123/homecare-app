@@ -20,7 +20,7 @@ def state(monkeypatch):
     now = datetime(2027, 8, 17, tzinfo=timezone.utc)
     end = datetime(2027, 10, 1, tzinfo=timezone.utc)
     monkeypatch.setattr(settings, "billing_onboarding_enabled", True)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v1_price_id", "price_standard")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_v2_price_id", "price_standard")
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
     svc = module.FoundingConversionService(MagicMock())
@@ -41,7 +41,7 @@ def state(monkeypatch):
     svc.conversion_repo.get_for_org.return_value = None
     svc.conversion_repo.add.side_effect = lambda c: setattr(svc.conversion_repo.get_for_org, "return_value", c)
     remote.Subscription.retrieve.return_value = sub
-    remote.Price.retrieve.return_value = obj(active=True, currency="cad", unit_amount=30000,
+    remote.Price.retrieve.return_value = obj(active=True, currency="cad", unit_amount=35000,
                                               recurring={"interval": "month", "interval_count": 1})
     remote.SubscriptionSchedule.create.return_value = schedule
     remote.SubscriptionSchedule.retrieve.return_value = schedule
@@ -59,7 +59,7 @@ def test_notice_and_schedule_preserve_twelve_months_and_snapshot_rates(state):
     assert conversion.effective_at == state.end
     assert conversion.notice_at == state.now
     assert conversion.status == "scheduled"
-    assert conversion.base_amount_cents == 30000
+    assert conversion.base_amount_cents == 35000
     assert conversion.additional_client_amount_cents == 500
     assert state.agreement.plan_code == "founding"
     state.svc.notification_repo.create.assert_called_once()

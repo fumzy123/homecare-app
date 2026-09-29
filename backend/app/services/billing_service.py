@@ -236,6 +236,8 @@ class BillingService:
                 # Fetch under the organization lock so concurrent stale events
                 # cannot overwrite a newer status after another handler commits.
                 subscription = stripe.Subscription.retrieve(subscription.id)
+                from app.services.billing_plan_service import reconcile_standard_plan
+                reconcile_standard_plan(BillingOnboardingService(self.db, org_id=org.id).agreement_repo.get_for_org(org.id), subscription)
                 org.subscription_id = subscription.id
                 org.subscription_status = subscription.status
                 org.subscription_current_period_end = subscription_period_end(subscription)

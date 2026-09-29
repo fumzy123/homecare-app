@@ -30,7 +30,7 @@ def test_annual_discount_only_applies_to_base():
 
 @pytest.mark.parametrize("code,interval,version", [
     ("founding", "year", 1),
-    ("standard", "month", 2),
+    ("standard", "month", 3),
     ("unknown", "month", 1),
     ("standard", "week", 1),
     ("standard", "month", True),

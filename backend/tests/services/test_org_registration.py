@@ -1,4 +1,5 @@
 import asyncio
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -77,3 +78,7 @@ def test_confirmed_signup_creates_owner_and_updates_auth_metadata():
         metadata = client.return_value.auth.admin.update_user_by_id.call_args.args[1]['user_metadata']
         assert metadata['org_id'] == result['org_id']
         assert metadata['role'] == OrgMemberRole.owner.value
+        org = instance.org_repo.add.call_args.args[0]
+        assert org.trial_starts_at == org.created_at
+        assert org.trial_ends_at == org.created_at + timedelta(days=14)
+        assert org.onboarding_completed_at is None

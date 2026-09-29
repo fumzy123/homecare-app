@@ -16,8 +16,96 @@ from app.services.billing_usage_service import BillingUsageService
 from app.services.billing_adjustment_service import BillingAdjustmentService
 from app.services.billing_upcoming_service import BillingUpcomingService
 from app.services.billing_operator_service import BillingOperatorService
+from app.services.billing_profile_service import BillingProfileService
+from app.services.billing_plan_service import BillingPlanService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_billing_plan_service(current_user=Depends(require_owner), db: Session = Depends(get_db)):
+    return BillingPlanService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+class PlanIntervalPayload(BaseModel):
+    interval: Literal["month", "year"]
+
+
+class PlanQuotePayload(PlanIntervalPayload):
+    org_id: str = Field(max_length=36)
+    subscription_id: str = Field(max_length=255)
+    price_id: str = Field(max_length=255)
+    current_price_id: str = Field(max_length=255)
+    effective_at: int
+    trial: bool
+    base_amount_cents: int
+    due_now_cents: Literal[0]
+    currency: Literal["cad"]
+    expires_at: int
+    request_id: str = Field(max_length=36)
+    token: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+@router.post('/plan/preview')
+def preview_billing_plan(payload: PlanIntervalPayload, billing_plan_service: BillingPlanService = Depends(get_billing_plan_service)):
+    return billing_plan_service.preview(payload.interval)
+
+
+@router.post('/plan/change')
+def change_billing_plan(payload: PlanQuotePayload, billing_plan_service: BillingPlanService = Depends(get_billing_plan_service)):
+    return billing_plan_service.change(payload.model_dump())
+
+
+@router.get('/plan/pending')
+def pending_billing_plan(billing_plan_service: BillingPlanService = Depends(get_billing_plan_service)):
+    return billing_plan_service.pending()
+
+
+@router.delete('/plan/pending')
+def cancel_pending_billing_plan(billing_plan_service: BillingPlanService = Depends(get_billing_plan_service)):
+    return billing_plan_service.cancel_pending()
+
+
+def get_billing_profile_service(current_user=Depends(require_owner), db: Session = Depends(get_db)):
+    return BillingProfileService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+class BillingAddressPayload(BaseModel):
+    line1: str = Field(default="", max_length=200)
+    line2: str = Field(default="", max_length=200)
+    city: str = Field(default="", max_length=100)
+    state: str = Field(default="", max_length=100)
+    postal_code: str = Field(default="", max_length=30)
+    country: str = Field(pattern=r"^[A-Z]{2}$")
+
+
+class BillingProfilePayload(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=3, max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    address: BillingAddressPayload
+
+
+class ConfirmPaymentSetupPayload(BaseModel):
+    setup_intent_id: str = Field(min_length=1, max_length=255)
+
+
+@router.post('/payment-methods/confirm')
+def confirm_payment_setup(payload: ConfirmPaymentSetupPayload, billing_profile_service: BillingProfileService = Depends(get_billing_profile_service)):
+    return billing_profile_service.confirm_setup(payload.setup_intent_id)
+
+
+@router.get('/profile')
+def billing_profile(billing_profile_service: BillingProfileService = Depends(get_billing_profile_service)):
+    return billing_profile_service.read()
+
+
+@router.put('/profile')
+def update_billing_profile(payload: BillingProfilePayload, billing_profile_service: BillingProfileService = Depends(get_billing_profile_service)):
+    return billing_profile_service.update(payload.model_dump())
+
+
+@router.delete('/payment-methods/{payment_method_id}')
+def remove_billing_card(payment_method_id: str, billing_profile_service: BillingProfileService = Depends(get_billing_profile_service)):
+    return billing_profile_service.card(payment_method_id, remove=True)
 
 
 def get_billing_operator_service(current_user=Depends(require_billing_operator), db: Session = Depends(get_db)):
@@ -198,6 +286,16 @@ def onboarding_confirm_card(service: BillingOnboardingService = Depends(get_bill
     return service.confirm_card()
 
 
+@router.post("/onboarding/embedded-setup")
+def embedded_billing_setup(payload: BillingConsentPayload, billing_onboarding_service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
+    return billing_onboarding_service.setup_card(payload.interval, payload.consent_version, embedded=True)
+
+
+@router.post("/onboarding/embedded-confirm")
+def embedded_billing_confirm(billing_onboarding_service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
+    return billing_onboarding_service.confirm_card(embedded=True)
+
+
 @router.post("/onboarding/cancel")
 def onboarding_cancel(service: BillingOnboardingService = Depends(get_billing_onboarding_service)):
     return service.cancel()
@@ -272,9 +370,9 @@ async def get_billing_status(
 
 @router.post("/setup-intent")
 async def create_setup_intent(
-    billing_service: BillingService = Depends(get_owner_billing_service),
+    billing_profile_service: BillingProfileService = Depends(get_billing_profile_service),
 ):
-    return await billing_service.create_setup_intent()
+    return billing_profile_service.setup()
 
 
 class SetDefaultCardPayload(BaseModel):
@@ -284,9 +382,9 @@ class SetDefaultCardPayload(BaseModel):
 @router.post("/set-default-card")
 async def set_default_card(
     payload: SetDefaultCardPayload,
-    billing_service: BillingService = Depends(get_owner_billing_service),
+    billing_profile_service: BillingProfileService = Depends(get_billing_profile_service),
 ):
-    return await billing_service.set_default_payment_method(payload.payment_method_id)
+    return billing_profile_service.card(payload.payment_method_id)
 
 
 @router.get("/details")

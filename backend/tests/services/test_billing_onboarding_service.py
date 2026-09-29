@@ -16,8 +16,8 @@ from app.services import billing_onboarding_service as module
 def state(monkeypatch):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     monkeypatch.setattr(settings, "billing_onboarding_enabled", True)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v1_price_id", "price_month")
-    monkeypatch.setattr(settings, "stripe_standard_annual_v1_price_id", "price_year")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_v2_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_v2_price_id", "price_year")
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
     service = module.BillingOnboardingService(MagicMock(), SimpleNamespace(id=uuid4()), uuid4())
@@ -28,14 +28,14 @@ def state(monkeypatch):
     service.founding_offer_repo = MagicMock()
     service.founding_offer_repo.get_for_org.return_value = None
     org = SimpleNamespace(
-        billing_timezone="UTC",
+        billing_timezone="UTC", created_at=now,
         id=service.org_id, onboarding_deadline_at=now + timedelta(days=20),
         onboarding_completed_at=now, stripe_customer_id="cus_own", subscription_id=None,
         trial_starts_at=None, trial_ends_at=None, subscription_status=None,
         subscription_current_period_end=None,
     )
     agreement = SimpleNamespace(
-        id=uuid4(), org_id=org.id, plan_code="standard", plan_version=1,
+        id=uuid4(), org_id=org.id, plan_code="standard", plan_version=2,
         base_interval="month", stripe_price_id="price_month", canceled_at=None,
         consent_version=CONSENT_VERSION,
         customer_attempted_at=None, checkout_session_id=None, payment_method_id="pm_own",
@@ -144,14 +144,14 @@ def test_setup_is_charge_free_and_records_server_selected_terms(state):
     state.service.agreement_repo.get_for_org.return_value = None
     state.service.agreement_repo.add.side_effect = lambda agreement: setattr(state.service.agreement_repo.get_for_org, "return_value", agreement)
     state.remote.Price.retrieve.return_value = SimpleNamespace(
-        active=True, currency="cad", unit_amount=30000,
+        active=True, currency="cad", unit_amount=35000,
         recurring=SimpleNamespace(interval="month", interval_count=1),
     )
     state.remote.checkout.Session.create.return_value = SimpleNamespace(id="cs_setup", url="https://checkout.stripe.com/test")
     result = state.service.setup_card("month", CONSENT_VERSION)
     agreement = state.service.agreement_repo.add.call_args.args[0]
     assert agreement.accepted_by == state.service.current_user.id
-    assert agreement.plan_version == 1
+    assert agreement.plan_version == 2
     assert agreement.stripe_price_id == "price_month"
     assert state.remote.checkout.Session.create.call_args.kwargs["mode"] == "setup"
     state.remote.Subscription.create.assert_not_called()
@@ -177,11 +177,35 @@ def test_foreign_setup_intent_cannot_authorize_payment(state):
 
 
 def test_confirm_card_uses_own_completed_setup(state):
+    state.agreement.payment_method_id = None
     state.agreement.checkout_session_id = "cs_own"
     state.remote.checkout.Session.retrieve.return_value = SimpleNamespace(status="complete", mode="setup", customer="cus_own", setup_intent="seti_own")
     state.remote.SetupIntent.retrieve.return_value = SimpleNamespace(status="succeeded", customer="cus_own", payment_method="pm_new")
     state.service.confirm_card()
     assert state.agreement.payment_method_id == "pm_new"
+
+
+def test_checkout_retry_does_not_restore_a_replaced_card(state):
+    state.org.subscription_id = "sub_own"
+    state.agreement.payment_method_id = "pm_replacement"
+    session = SimpleNamespace(mode="setup", customer="cus_own", setup_intent="seti_own")
+    state.remote.SetupIntent.retrieve.return_value = SimpleNamespace(status="succeeded", customer="cus_own", payment_method="pm_original")
+    state.service._save_card(state.org, state.agreement, session)
+    assert state.agreement.payment_method_id == "pm_replacement"
+    state.remote.Customer.modify.assert_not_called()
+
+
+def test_embedded_setup_returns_a_secret_not_a_redirect(state):
+    state.agreement.payment_method_id = None
+    state.remote.checkout.Session.create.return_value = stripe.StripeObject.construct_from({
+        "id": "cs_embedded", "url": None, "client_secret": "cs_test_secret",
+    }, None)
+    result = state.service.setup_card("month", CONSENT_VERSION, embedded=True)
+    assert result["url"] is None and result["client_secret"] == "cs_test_secret"
+    params = state.remote.checkout.Session.create.call_args.kwargs
+    assert params["ui_mode"] == "embedded_page"
+    assert params["redirect_on_completion"] == "never"
+    assert "success_url" not in params
 
 
 def test_api_failure_is_retried_not_silently_activated(state):
@@ -193,11 +217,11 @@ def test_api_failure_is_retried_not_silently_activated(state):
     state.service.db.rollback.assert_called_once()
 
 
-def test_summary_no_countdown_during_onboarding(state):
+def test_summary_automatic_countdown_ignores_onboarding(state):
     summary = state.service.summary(state.org, now=state.now)
-    assert summary["is_onboarding"]
-    assert summary["trial_days_left"] == 0
-    assert summary["trial_ends_at"] is None
+    assert not summary["is_onboarding"]
+    assert summary["trial_days_left"] == 14
+    assert summary["trial_ends_at"] == state.org.created_at + timedelta(days=14)
 
 
 def test_summary_uses_confirmed_trial_end_and_rounds_up(state):
@@ -261,6 +285,7 @@ def test_cancel_records_founder_forfeiture(state):
 
 def test_converted_summary_uses_standard_without_rewriting_consent(state):
     state.agreement.plan_code = "founding"
+    state.agreement.plan_version = 1
     state.service.conversion_repo.get_for_org.return_value = SimpleNamespace(
         status="converted", target_plan_version=1, notice_at=state.now - timedelta(days=40),
         effective_at=state.now, base_amount_cents=30000, additional_client_amount_cents=500, included_clients=10,
@@ -274,6 +299,7 @@ def test_converted_summary_uses_standard_without_rewriting_consent(state):
 
 def test_pending_notice_does_not_change_current_plan(state):
     state.agreement.plan_code = "founding"
+    state.agreement.plan_version = 1
     state.service.conversion_repo.get_for_org.return_value = SimpleNamespace(
         status="scheduled", target_plan_version=1, notice_at=state.now,
         effective_at=state.now + timedelta(days=40), base_amount_cents=30000, additional_client_amount_cents=500, included_clients=10,

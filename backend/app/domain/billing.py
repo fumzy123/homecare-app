@@ -46,7 +46,13 @@ _PLAN_DEFINITIONS = (
     PlanDefinition(PlanCode.standard, 1, BillingInterval.month, 30_000, 500),
     PlanDefinition(PlanCode.standard, 1, BillingInterval.year, 300_000, 500),
     PlanDefinition(PlanCode.founding, 1, BillingInterval.month, 20_000, 400),
+    PlanDefinition(PlanCode.standard, 2, BillingInterval.month, 35_000, 500),
+    PlanDefinition(PlanCode.standard, 2, BillingInterval.year, 336_000, 500),
 )
+
+
+def current_plan_version(code):
+    return 1 if code == "founding" else 2
 
 PLAN_CATALOG = MappingProxyType({
     (plan.code, plan.version, plan.base_interval): plan

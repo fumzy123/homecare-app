@@ -133,8 +133,8 @@ class FoundingConversionService:
             raise
 
     def _announce(self, org, offer, sub, now):
-        plan = get_plan("standard", "month", version=1)
-        target = settings.stripe_standard_monthly_v1_price_id
+        plan = get_plan("standard", "month", version=2)
+        target = settings.stripe_standard_monthly_v2_price_id
         if not target:
             raise AppError(503, "PRICING_NOT_CONFIGURED", "Standard pricing is not configured")
         price = stripe.Price.retrieve(target)
