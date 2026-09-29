@@ -16,6 +16,7 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
   const currentPage = Math.min(page, pages - 1)
   const displayed = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize)
   const money = (cents: number) => usageMoney(cents, period.currency)
+  if (data.trial_preview) return <p className="text-sm">Trial preview: {usage.active_client_count} clients have qualifying visits. Trial visits are free and are not carried into paid usage.</p>
 
   return <div className="space-y-5">
     <div className="space-y-1 text-sm">

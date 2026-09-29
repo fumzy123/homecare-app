@@ -7,7 +7,7 @@ import type { UpcomingBilling } from '../api'
 export function UpcomingBillingDetails({ data, timezone }: { data: UpcomingBilling; timezone: string }) {
   const { base } = data
   return <div className="space-y-5">
-    <p className="text-sm text-ink-soft">Amounts below are before tax. Your Stripe invoice confirms the final amount and collection date. These items may appear on separate invoices.</p>
+    <p className="text-sm text-ink-soft">Amounts are before tax. Your invoice confirms the final amount. {data.annual_settlement ? 'Annual renewal combines your next base subscription and the completed year’s usage.' : 'Corrections may appear separately.'}</p>
     <div className="border border-line-soft p-4 space-y-2">
       <h3 className="font-semibold">{base.state === 'first_payment' || base.state === 'after_trial' ? 'First base payment' : base.interval === 'year' ? 'Next annual base renewal' : 'Next monthly base renewal'}</h3>
       {base.state === 'not_selected' ? <p>Select a plan above to see your base subscription amount.</p>
@@ -17,7 +17,7 @@ export function UpcomingBillingDetails({ data, timezone }: { data: UpcomingBilli
               {base.amount_cents !== null && <p className="font-serif text-2xl">{usageMoney(base.amount_cents, 'cad')}</p>}
               <p>{base.scheduled_at ? `${base.state === 'first_payment' ? 'Trial ends' : 'Renewal date'}: ${usageDate(base.scheduled_at, timezone)}` : 'Due after your 14-day trial. The date will appear when your trial starts.'}</p>
             </>}
-      {base.interval === 'year' && <p className="text-sm">The annual base is charged once per year. Additional-client usage is billed monthly.</p>}
+      {base.interval === 'year' && <p className="text-sm">{data.annual_settlement ? 'Additional usage is collected at year-end, after the 72-hour correction window.' : 'The annual base is charged once per year. Additional-client usage is billed monthly.'}</p>}
       {base.interval === 'month' && base.state === 'scheduled' && <p className="text-sm">Monthly collection normally waits until the previous usage period is finalized, at least 72 hours after that period ends.</p>}
     </div>
     <div className="space-y-3">
@@ -30,7 +30,7 @@ export function UpcomingBillingDetails({ data, timezone }: { data: UpcomingBilli
           : period.usage_amount_cents === null ? <>
             <p>Awaiting finalization — amount not yet confirmed.</p>
             <p>Eligible for finalization: {usageDate(period.finalization_eligible_at, period.agency_timezone)}.</p>
-          </> : <p>{usageMoney(period.usage_amount_cents, period.currency)} finalized usage · awaiting invoice processing.</p>}
+          </> : <p>{usageMoney(period.usage_amount_cents, period.currency)} finalized usage{period.adjustment_amount_cents ? ' (includes approved corrections)' : ''} · {data.annual_settlement ? 'collected at year-end' : 'awaiting invoice processing'}.</p>}
       </div>)}
       <p className="text-sm text-ink-soft">Current-period usage is shown separately in Monthly client usage. Finalized amounts already invoiced appear in Invoice history.</p>
     </div>

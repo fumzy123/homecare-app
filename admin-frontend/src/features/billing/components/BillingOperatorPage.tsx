@@ -10,7 +10,7 @@ import { OperatorWebhookAlerts } from './OperatorWebhookAlerts'
 
 const button = 'border border-ink rounded-full px-4 py-2 text-sm disabled:opacity-40'
 const labels: Record<OperatorAction, string> = {
-  'trial-activation': 'Complete onboarding and request trial',
+  'trial-activation': 'Trials start automatically',
   'founding-offer': 'Reserve founding offer',
   'founding-offer/release': 'Release unused founding reservation',
   recheck: 'Recheck Stripe history',
@@ -85,14 +85,13 @@ function OperatorAgencyPanel({ org, access }: { org: string; access: OperatorAcc
     {data.founding && <p>Founding place {data.founding.slot}: {data.founding.released ? 'released' : data.founding.forfeited ? 'forfeited' : 'reserved / in use'}{data.founding.protection_ends_at && ` · Protected until ${new Date(data.founding.protection_ends_at).toLocaleString()}`}</p>}
     {data.conversion && <p>Move to Standard: {data.conversion.status.replaceAll('_', ' ')} · effective {new Date(data.conversion.effective_at).toLocaleString()} · notice {new Date(data.conversion.notice_at).toLocaleString()}.</p>}
     <div className="flex flex-wrap gap-3">
-      <button className={button} disabled={busy || !access.onboarding_enabled || !agency.onboarding_deadline_at || Boolean(agency.deleted_at || agency.onboarding_completed_at)} onClick={() => setConfirm('trial-activation')}>{labels['trial-activation']}</button>
       <button className={button} disabled={busy || !agency.onboarding_deadline_at || Boolean(agency.deleted_at || data.plan || data.founding || agency.subscription_status)} onClick={() => setConfirm('founding-offer')}>{labels['founding-offer']}</button>
       <button className={button} disabled={busy || !data.founding || data.founding.released || Boolean(data.plan || agency.subscription_status || agency.deleted_at)} onClick={() => setConfirm('founding-offer/release')}>{labels['founding-offer/release']}</button>
       <button className={button} disabled={busy || !access.onboarding_enabled || !agency.onboarding_deadline_at} onClick={() => setConfirm('recheck')}>{labels.recheck}</button>
     </div>
     {confirm && <div className="border border-ink p-4 space-y-3" role="group" aria-label="Confirm agency action">
       <p><strong>{labels[confirm]}</strong> for {agency.name}?</p>
-      <p>{confirm === 'trial-activation' ? 'Confirm the data import and office training are complete. This requests a 14-day trial, subject to the onboarding backstop and saved card/consent. Existing trial dates are not restarted.'
+      <p>{confirm === 'trial-activation' ? 'Trials start automatically at agency signup; onboarding does not change billing dates.'
         : confirm === 'founding-offer' ? 'Reserve one of three founding places: CAD 200/month with ten clients included, then CAD 4 per additional client. Reserve before the owner authorizes a plan.'
           : confirm === 'founding-offer/release' ? 'Release this unused place. This agency cannot reclaim its founding offer afterward.'
             : 'Read Stripe history and reconcile billing periods. This does not directly issue charges, refund payments, or reset failed settlement attempts. Normal enabled billing jobs can process recovered periods afterward.'}</p>

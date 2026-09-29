@@ -1,6 +1,7 @@
 import { apiClient } from '@/shared/lib/api-client'
 
 export interface BillingStatus {
+  annual_settlement?: boolean
   subscription_status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'incomplete' | 'paused' | null
   subscription_current_period_end: string | null
   is_trial_active: boolean
@@ -46,6 +47,21 @@ export interface CardInfo {
   exp_month: number
   exp_year: number
   postal_code: string | null
+}
+
+export interface BillingProfile {
+  name: string
+  email: string
+  address: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string }
+  cards: (CardInfo & { id: string; is_default: boolean })[]
+}
+
+export interface PlanPreview {
+  interval: 'month' | 'year'
+  effective_at: number
+  base_amount_cents: number
+  due_now_cents: number
+  token: string
 }
 
 export interface Invoice {
@@ -104,6 +120,8 @@ export interface BillingSettlement {
 }
 
 export interface UpcomingBilling {
+  annual_settlement?: boolean
+  collection_at?: string | null
   calculated_at: string
   history_needs_review: boolean
   tax_status: 'not_calculated'
@@ -121,6 +139,7 @@ export interface UpcomingBilling {
     finalization_eligible_at: string
     currency: string
     usage_amount_cents: number | null
+    adjustment_amount_cents?: number
     state: 'needs_review' | 'awaiting_finalization' | 'ready'
   }[]
   corrections: {
@@ -146,6 +165,7 @@ export interface CountedBillingClient {
 }
 
 export interface ReadyBillingUsage {
+  trial_preview?: boolean
   state: 'ready'
   period: {
     id: string
@@ -173,6 +193,16 @@ export interface ReadyBillingUsage {
 export type CurrentBillingUsage = ReadyBillingUsage | { state: 'not_started' | 'no_current_period'; usage: null }
 
 export const billingApi = {
+  cancelPlanChange: async () => (await apiClient.delete('/api/billing/plan/pending')).data,
+  confirmPaymentSetup: async (setup_intent_id: string) => (await apiClient.post('/api/billing/payment-methods/confirm', { setup_intent_id })).data,
+  previewPlan: async (interval: 'month' | 'year'): Promise<PlanPreview> => (await apiClient.post('/api/billing/plan/preview', { interval })).data,
+  changePlan: async (preview: PlanPreview): Promise<{ scheduled: boolean }> => (await apiClient.post('/api/billing/plan/change', preview)).data,
+  pendingPlan: async (): Promise<{ pending: { interval: 'month' | 'year'; effective_at: number } | null }> => (await apiClient.get('/api/billing/plan/pending')).data,
+  embeddedSetup: async (payload: { interval: 'month' | 'year'; consent_version: string; accepted: true }): Promise<{ client_secret?: string; payment_client_secret?: string }> => (await apiClient.post('/api/billing/onboarding/embedded-setup', payload)).data,
+  embeddedConfirm: async (): Promise<{ payment_client_secret?: string }> => (await apiClient.post('/api/billing/onboarding/embedded-confirm')).data,
+  getProfile: async (): Promise<BillingProfile> => (await apiClient.get('/api/billing/profile')).data,
+  updateProfile: async (payload: Omit<BillingProfile, 'cards'>) => (await apiClient.put('/api/billing/profile', payload)).data,
+  removeCard: async (id: string) => (await apiClient.delete(`/api/billing/payment-methods/${id}`)).data,
   getUpcoming: async (): Promise<UpcomingBilling> => (await apiClient.get('/api/billing/upcoming')).data,
   getInvoiceHistory: async (before?: string): Promise<{ invoices: HistoricalInvoice[]; next_cursor: string | null }> =>
     (await apiClient.get('/api/billing/invoices', { params: { before } })).data,

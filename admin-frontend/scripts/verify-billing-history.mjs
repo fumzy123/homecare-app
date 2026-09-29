@@ -38,6 +38,7 @@ try {
   }], next_cursor: 'in_unpaid' })
   assert.match(html, /400\.00/)
   assert.match(html, /Payment outstanding/)
+  assert.doesNotMatch(html, /Amount due/)
   assert.match(html, /Load older invoices/)
   assert.match(html, /Not available yet/)
   assert.doesNotMatch(html, /href=/)

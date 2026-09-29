@@ -1,8 +1,8 @@
-// Public estimates mirror backend/app/domain/billing.py, version 1.
+// Public estimates mirror backend/app/domain/billing.py, Standard version 2 / Founding version 1.
 // Checkout always uses server-owned prices and founding eligibility.
 export const pricingPlans = {
-  monthly: { label: 'Standard monthly', base: 30000, extra: 500, interval: 'month' },
-  annual: { label: 'Standard annual', base: 300000, extra: 500, interval: 'year' },
+  monthly: { label: 'Standard monthly', base: 35000, extra: 500, interval: 'month' },
+  annual: { label: 'Standard annual', base: 336000, extra: 500, interval: 'year' },
   founding: { label: 'Founding', base: 20000, extra: 400, interval: 'month' },
 } as const
 

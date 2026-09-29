@@ -118,7 +118,7 @@ export function LandingPage() {
               spreadsheet.
             </h1>
             <p className="text-[18px] max-md:text-[16px] text-ink-soft leading-relaxed max-w-lg mb-10">
-              Scheduling, client records, and team management for home care agencies. Get personal help with onboarding, then evaluate your agency’s workflow with a 14-day trial.
+              Scheduling, client records, and team management for home care agencies. Start your 14-day trial and get personal help with onboarding whenever you need it.
             </p>
             <div className="flex items-center gap-4 max-sm:flex-col max-sm:items-start">
               <Link to="/register">

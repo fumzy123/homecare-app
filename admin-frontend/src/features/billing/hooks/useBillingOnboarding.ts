@@ -12,8 +12,7 @@ export function useBillingOnboarding(userId: string | undefined, owner: boolean)
   } })
   const cancel = useMutation({ mutationFn: billingApi.cancelOnboarding, onSuccess: refresh })
   const portal = useMutation({ mutationFn: billingApi.createPortalSession })
-  const timezone = useMutation({ mutationFn: billingApi.setTimezone, onSuccess: refresh })
-  return { options, setup, confirm, cancel, portal, timezone }
+  return { options, setup, confirm, cancel, portal }
 }
 
 export function useBillingDetails(userId: string | undefined, enabled: boolean) {

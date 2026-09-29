@@ -3,10 +3,12 @@ import { useAuthStore } from '@/shared/stores/auth'
 import { useInvoiceHistory, usePeriodHistory, useUsageHistory } from '../hooks/useBillingHistory'
 import { usageDate, usageMoney } from '../utils/usage-format'
 import type { BillingSettlement } from '../api'
+import { BillingPanel } from './BillingPanel'
 
-const button = 'border border-ink rounded-full px-4 py-2 text-sm disabled:opacity-40'
+const button = 'border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase disabled:opacity-40'
 
 function settlementLabel(row: BillingSettlement): string {
+  if (row.state === 'accrued') return 'Accrued · collected at year-end'
   if (row.state === 'needs_review') return 'Support review required'
   if (row.payment_status === 'refund_pending') return 'Refund processing'
   if (row.state === 'credited') return 'Credit applied / refund issued'
@@ -20,24 +22,19 @@ export function InvoiceHistorySection({ compact = false }: { compact?: boolean }
   const userId = useAuthStore(s => s.user?.id)
   const query = useInvoiceHistory(userId)
   const invoices = query.data?.pages.flatMap(page => page.invoices) ?? []
-  return <section className={compact ? 'space-y-4' : 'border border-ink bg-paper p-6 space-y-4'} aria-label="Invoice history">
-    <div className="flex flex-wrap justify-between gap-3">
-      <h2 className={compact ? 'font-semibold text-lg' : 'font-serif text-2xl'}>Invoice history</h2>
-      <button className={button} disabled={query.isFetching} onClick={() => void query.refetch()}>{compact ? 'Refresh' : 'Refresh invoices'}</button>
-    </div>
+  return <BillingPanel label="Invoices" title="Invoice history" action={<button className={button} disabled={query.isFetching} onClick={() => void query.refetch()}>{compact ? 'Refresh' : 'Refresh invoices'}</button>}>
     {!compact && <p className="text-sm text-ink-soft">Invoice totals include applicable taxes. Open an invoice to see its charges, credits, and payment options.</p>}
     {query.isPending && <p role="status">Loading invoices…</p>}
     {query.isError && <p role="alert">Could not load invoices. Use Refresh invoices to try again.</p>}
-    {query.isSuccess && invoices.length === 0 && <p className="rounded-xl border border-line-soft p-5 text-sm text-ink-soft">No invoices yet.</p>}
-    {invoices.length > 0 && <div className="overflow-x-auto rounded-xl border border-line-soft px-5">
+    {query.isSuccess && invoices.length === 0 && <p className="font-mono text-[12px] text-ink-soft">No invoices yet.</p>}
+    {invoices.length > 0 && <div className="overflow-x-auto">
       <table className="w-full text-left text-sm min-w-[650px]">
-        <caption className="sr-only">Invoices, total amounts, balances due, and payment status</caption>
-        <thead><tr>{['Invoice', 'Date', 'Total', 'Amount due', 'Status', 'Details'].map(label => <th key={label} scope="col" className="py-3 pr-4 border-b border-ink">{label}</th>)}</tr></thead>
+        <caption className="sr-only">Invoices, total amounts, and payment status</caption>
+        <thead><tr>{['Invoice', 'Date', 'Total', 'Status', 'Details'].map(label => <th key={label} scope="col" className="py-3 pr-4 border-b border-ink">{label}</th>)}</tr></thead>
         <tbody>{invoices.map(invoice => <tr key={invoice.id}>
           <th scope="row" className="py-3 pr-4 border-b border-line-soft font-normal">{invoice.number ?? 'Draft invoice'}</th>
           <td className="py-3 pr-4 border-b border-line-soft">{new Date(invoice.created * 1000).toLocaleDateString()}</td>
           <td className="py-3 pr-4 border-b border-line-soft">{usageMoney(invoice.total, invoice.currency)}</td>
-          <td className="py-3 pr-4 border-b border-line-soft">{usageMoney(invoice.amount_remaining, invoice.currency)}</td>
           <td className="py-3 pr-4 border-b border-line-soft">{({ paid: 'Paid', open: 'Payment outstanding', draft: 'Draft — not final', void: 'Voided', uncollectible: 'Uncollectible' } as Record<string, string>)[invoice.status] ?? 'Status unavailable'}</td>
           <td className="py-3 border-b border-line-soft">{invoice.hosted_invoice_url
             ? <a className="underline" href={invoice.hosted_invoice_url} target="_blank" rel="noopener noreferrer" aria-label={`View invoice ${invoice.number ?? ''} in Stripe`}>View in Stripe ↗</a>
@@ -46,7 +43,7 @@ export function InvoiceHistorySection({ compact = false }: { compact?: boolean }
       </table>
     </div>}
     {query.hasNextPage && <button className={button} disabled={query.isFetching} onClick={() => void query.fetchNextPage()}>Load older invoices</button>}
-  </section>
+  </BillingPanel>
 }
 
 function PeriodCorrections({ periodId, originalAmount, currency }: { periodId: string; originalAmount: number; currency: string }) {
