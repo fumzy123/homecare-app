@@ -8,6 +8,7 @@ from app.repositories.billing_notice_repository import BillingNoticeRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
+from app.services.billing_upcoming_service import BillingUpcomingService
 
 
 def utc(value):
@@ -94,6 +95,42 @@ class BillingNoticeService:
                 if notification and notification.resolved_at is None:
                     notification.resolved_at = now
             self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def annual_reminder(self, org_id, now=None):
+        if not settings.billing_notifications_enabled:
+            return False
+        now = now or datetime.now(timezone.utc)
+        try:
+            org = self.org_repo.lock_by_id(org_id)
+            agreement = self.agreement_repo.get_for_org(org_id)
+            if (not org or org.deleted_at or not org.is_active or org.subscription_status != "active"
+                    or not agreement or agreement.base_interval != "year" or agreement.plan_version < 2
+                    or not org.subscription_current_period_end):
+                self.db.commit()
+                return False
+            end = utc(org.subscription_current_period_end)
+            remaining = end - now
+            if not timedelta(0) < remaining <= timedelta(days=30):
+                self.db.commit()
+                return False
+            days = 1 if remaining <= timedelta(days=1) else 7 if remaining <= timedelta(days=7) else 30
+            key = f"annual:{org_id}:{end.isoformat()}:{days}"
+            if self.notice_repo.get(key):
+                self.db.commit()
+                return False
+            summary = BillingUpcomingService(self.db, None, org_id).summary(now)
+            ready = not summary["history_needs_review"] and all(p["state"] == "ready" for p in summary["periods"])
+            accrued = sum(p["usage_amount_cents"] or 0 for p in summary["periods"])
+            created = self._create(org_id, key, NotificationType.billing_annual_reminder,
+                {"collection_at": (end + timedelta(hours=72)).isoformat(),
+                 "renewal_canceled": bool(agreement.canceled_at),
+                 "finalized_usage_cents": accrued if ready and not summary["corrections"] else None,
+                 "base_amount_cents": summary["base"]["amount_cents"]}, now)
+            self.db.commit()
+            return created
         except Exception:
             self.db.rollback()
             raise

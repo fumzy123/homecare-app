@@ -14,6 +14,8 @@ function notificationTitle(n: Notification): string {
     ? `${n.about_worker_first_name} ${n.about_worker_last_name}`
     : null
   switch (n.type as NotificationType) {
+    case 'billing_annual_reminder':
+      return `Annual ${n.payload.renewal_canceled ? 'final usage' : 'billing'} collection is expected ${new Date(String(n.payload.collection_at)).toLocaleDateString()}. ${n.payload.finalized_usage_cents != null ? `Finalized usage so far: CAD $${(Number(n.payload.finalized_usage_cents) / 100).toFixed(2)}. ` : ''}Current and future usage may add to this amount. Review Billing before collection.`
     case 'billing_trial_reminder':
       return `Your trial ends ${new Date(String(n.payload.trial_ends_at)).toLocaleString()}. ${n.payload.renewal_canceled ? 'Renewal is canceled. View your access and billing details.' : 'Your saved card will be charged when the trial ends. Review your plan or cancel renewal in Billing.'}`
     case 'billing_payment_failed':
@@ -42,6 +44,7 @@ function notificationTitle(n: Notification): string {
 
 function notificationDestination(n: Notification): string {
   switch (n.type as NotificationType) {
+    case 'billing_annual_reminder':
     case 'billing_trial_reminder':
     case 'billing_payment_failed':
     case 'founding_conversion_notice':

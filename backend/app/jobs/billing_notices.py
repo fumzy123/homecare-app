@@ -20,3 +20,11 @@ def send_billing_trial_reminders():
                 BillingNoticeService(db).trial_reminder(org_id, now)
         except Exception:
             logger.warning("Trial reminder failed for agency %s; next scan will retry", org_id)
+    with SessionLocal() as db:
+        annual_ids = BillingNoticeRepository(db).annual_org_ids(now, now + timedelta(days=30))
+    for org_id in annual_ids:
+        try:
+            with SessionLocal() as db:
+                BillingNoticeService(db).annual_reminder(org_id, now)
+        except Exception:
+            logger.warning("Annual reminder failed for agency %s; next scan will retry", org_id)

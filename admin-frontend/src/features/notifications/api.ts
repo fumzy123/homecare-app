@@ -2,6 +2,7 @@ import { apiClient } from '@/shared/lib/api-client'
 
 export type NotificationType =
   | 'billing_trial_reminder'
+  | 'billing_annual_reminder'
   | 'billing_payment_failed'
   | 'founding_conversion_notice'
   | 'profile_updated'

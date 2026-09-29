@@ -56,6 +56,45 @@ def test_trial_cadence_boundaries_and_duplicate_scans(fixture):
     assert service.notification_repo.create_reads_for_admins.call_count == 2
 
 
+def test_annual_reminders_dedupe_and_show_canceled_renewal(fixture, monkeypatch):
+    from app.services import billing_notice_service as module
+    db, org, service, _ = fixture
+    org.subscription_status = 'active'
+    org.subscription_current_period_end = NOW + timedelta(days=30)
+    agreement = db.query(BillingAgreement).one()
+    agreement.plan_version, agreement.base_interval, agreement.canceled_at = 2, 'year', NOW
+    db.commit()
+    upcoming = MagicMock()
+    upcoming.return_value.summary.return_value = dict(history_needs_review=False,
+        periods=[dict(state='ready', usage_amount_cents=25000)], corrections=[], base={'amount_cents': None})
+    monkeypatch.setattr(module, 'BillingUpcomingService', upcoming)
+    assert not service.annual_reminder(org.id, NOW - timedelta(seconds=1))
+    for days in (0, 23, 29):
+        assert service.annual_reminder(org.id, NOW + timedelta(days=days))
+        assert not service.annual_reminder(org.id, NOW + timedelta(days=days))
+    assert not service.annual_reminder(org.id, NOW + timedelta(days=30))
+    notices = db.query(Notification).all()
+    assert len(notices) == 3
+    assert all(n.payload['finalized_usage_cents'] == 25000 and n.payload['renewal_canceled'] for n in notices)
+    assert notices[0].payload['collection_at'] == (NOW + timedelta(days=33)).isoformat()
+
+
+def test_annual_reminder_does_not_present_incomplete_history_as_total(fixture, monkeypatch):
+    from app.services import billing_notice_service as module
+    db, org, service, _ = fixture
+    org.subscription_status = 'active'
+    org.subscription_current_period_end = NOW + timedelta(days=1)
+    agreement = db.query(BillingAgreement).one()
+    agreement.plan_version, agreement.base_interval = 2, 'year'
+    db.commit()
+    upcoming = MagicMock()
+    upcoming.return_value.summary.return_value = dict(history_needs_review=True,
+        periods=[], corrections=[], base={'amount_cents': 336000})
+    monkeypatch.setattr(module, 'BillingUpcomingService', upcoming)
+    assert service.annual_reminder(org.id, NOW)
+    assert db.query(Notification).one().payload['finalized_usage_cents'] is None
+
+
 def test_missed_window_sends_only_one_day_notice_and_portal_cancellation_is_respected(fixture):
     db, org, service, subscription = fixture
     subscription.cancel_at_period_end = True
