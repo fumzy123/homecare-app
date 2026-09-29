@@ -69,6 +69,21 @@ def test_recurring_series_started_years_ago_counts(window):
     assert len(count(window, UsageCandidate(series, ()))) == 1
 
 
+def test_expanded_occurrences_do_not_repeat_recurrence_validation(window, monkeypatch):
+    series = shift(datetime(2020, 1, 1, 9))
+    series.is_recurring = True
+    series.recurrence_rule = "FREQ=DAILY"
+    modifications = tuple(mod(date(2026, 9, day), status=Status.completed) for day in range(1, 31))
+
+    def unexpected_recheck(*args, **kwargs):
+        pytest.fail("Already-expanded dates must not traverse the recurrence rule again")
+
+    monkeypatch.setattr("app.domain.billing_usage.shift_has_occurrence_on", unexpected_recheck)
+    result = count(window, UsageCandidate(series, modifications))
+    assert len(result) == 1
+    assert result[0].completion_status == Status.completed
+
+
 def test_series_all_canceled_and_expired_series_do_not_count(window):
     series = shift(datetime(2026, 9, 1, 9))
     series.is_recurring = True

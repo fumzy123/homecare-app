@@ -110,6 +110,10 @@ def active_clients(candidates: Iterable[UsageCandidate], window: UsageWindow, ev
         # Include moved-in visits even if the master starts after this period.
         # Orphan overrides that never belonged to the series cannot invent visits.
         for mod in candidate.modifications:
+            # Expansion already verified these dates. Avoid reparsing and
+            # traversing the recurrence rule for each in-window override.
+            if mod.original_date in dates:
+                continue
             historical = mod.completion_status in HISTORICAL_STATUSES
             if (mod.new_start_time is not None or historical) and shift_has_occurrence_on(
                 shift, mod.original_date, include_truncated_history=historical,
