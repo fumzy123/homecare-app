@@ -11,7 +11,7 @@ function BillingPage() {
     <>
       <SettingsPaneHeader
         title="Billing"
-        sub="Subscription status and payment management via Stripe."
+        sub="Your plan, usage, and invoices."
       />
       <BillingSection />
     </>

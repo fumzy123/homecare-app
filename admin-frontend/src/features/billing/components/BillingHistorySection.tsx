@@ -16,20 +16,20 @@ function settlementLabel(row: BillingSettlement): string {
   return 'Processing — not yet confirmed'
 }
 
-export function InvoiceHistorySection() {
+export function InvoiceHistorySection({ compact = false }: { compact?: boolean }) {
   const userId = useAuthStore(s => s.user?.id)
   const query = useInvoiceHistory(userId)
   const invoices = query.data?.pages.flatMap(page => page.invoices) ?? []
-  return <section className="border border-ink bg-paper p-6 space-y-4" aria-label="Invoice history">
+  return <section className={compact ? 'space-y-4' : 'border border-ink bg-paper p-6 space-y-4'} aria-label="Invoice history">
     <div className="flex flex-wrap justify-between gap-3">
-      <h2 className="font-serif text-2xl">Invoice history</h2>
-      <button className={button} disabled={query.isFetching} onClick={() => void query.refetch()}>Refresh invoices</button>
+      <h2 className={compact ? 'font-semibold text-lg' : 'font-serif text-2xl'}>Invoice history</h2>
+      <button className={button} disabled={query.isFetching} onClick={() => void query.refetch()}>{compact ? 'Refresh' : 'Refresh invoices'}</button>
     </div>
-    <p className="text-sm text-ink-soft">Invoice totals include applicable taxes. Open an invoice to see its charges, credits, and payment options.</p>
+    {!compact && <p className="text-sm text-ink-soft">Invoice totals include applicable taxes. Open an invoice to see its charges, credits, and payment options.</p>}
     {query.isPending && <p role="status">Loading invoices…</p>}
     {query.isError && <p role="alert">Could not load invoices. Use Refresh invoices to try again.</p>}
-    {query.isSuccess && invoices.length === 0 && <p>No invoices yet.</p>}
-    {invoices.length > 0 && <div className="overflow-x-auto">
+    {query.isSuccess && invoices.length === 0 && <p className="rounded-xl border border-line-soft p-5 text-sm text-ink-soft">No invoices yet.</p>}
+    {invoices.length > 0 && <div className="overflow-x-auto rounded-xl border border-line-soft px-5">
       <table className="w-full text-left text-sm min-w-[650px]">
         <caption className="sr-only">Invoices, total amounts, balances due, and payment status</caption>
         <thead><tr>{['Invoice', 'Date', 'Total', 'Amount due', 'Status', 'Details'].map(label => <th key={label} scope="col" className="py-3 pr-4 border-b border-ink">{label}</th>)}</tr></thead>
