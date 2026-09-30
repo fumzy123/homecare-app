@@ -34,6 +34,9 @@ jobs:
       - name: Environment selection tests
         run: npm run test:env
 
+      - name: Home shift selection tests
+        run: node --test scripts/home-shifts.test.cjs
+
   expo-doctor:
     name: Mobile Expo Doctor
     runs-on: ubuntu-latest

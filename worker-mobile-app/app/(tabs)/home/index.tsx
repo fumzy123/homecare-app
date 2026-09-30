@@ -1,5 +1,8 @@
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { CurrentShiftCard } from '@/features/home/components/CurrentShiftCard';
+import { useHomeShifts } from '@/features/home/hooks/useHomeShifts';
 import { useTodayShifts } from '@/features/shifts/hooks/useMyShifts';
 import { useWorkerProfile } from '@/features/profile/hooks/useWorkerProfile';
 import { useWorkerStats } from '@/features/profile/hooks/useWorkerStats';
@@ -14,14 +17,8 @@ import { useMyCredentials } from '@/features/profile/hooks/useMyCredentials';
 import { useMyNotifications } from '@/features/notifications/hooks/useMyNotifications';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
-function partitionShifts(shifts: ShiftOccurrence[]) {
-  const active = shifts.filter((s) => s.completion_status !== 'cancelled');
-  const next = active.find((s) => s.completion_status !== 'completed') ?? null;
-  const later = active.filter((s) => s !== next && s.completion_status !== 'completed');
-  return { next, later, total: active.length };
-}
-
 export default function HomeScreen() {
+  const router = useRouter();
   const { data: shifts = [], isLoading: shiftsLoading, isError: shiftsError, refetch } = useTodayShifts();
   const { data: profile } = useWorkerProfile();
   const { data: stats } = useWorkerStats();
@@ -29,8 +26,11 @@ export default function HomeScreen() {
   const { data: notificationsData } = useMyNotifications();
   const { refreshing, onRefresh } = useRefreshControl(refetch);
 
-  const { next, later, total } = partitionShifts(shifts);
-  const nextIndex = next ? shifts.filter((s) => s.completion_status !== 'cancelled').indexOf(next) + 1 : 1;
+  const { current, next, later, total, nextIndex } = useHomeShifts(shifts);
+  const openShift = (shift: ShiftOccurrence) => router.push({
+    pathname: '/shifts/[shiftId]',
+    params: { shiftId: shift.shift_id, occurrenceDate: shift.date },
+  });
 
   const isLoading = shiftsLoading && !refreshing;
 
@@ -74,22 +74,24 @@ export default function HomeScreen() {
 
         {!isLoading && !shiftsError && (
           <>
+            {current ? <CurrentShiftCard shift={current} onPress={() => openShift(current)} /> : null}
             {next ? (
               <NextShiftCard
                 shift={next}
                 shiftIndex={nextIndex}
                 totalToday={total}
+                onDetailsPress={() => openShift(next)}
               />
             ) : (
               <View className="mt-4 rounded-2xl border border-cream-2 bg-paper px-5 py-6">
-                <Text className="font-serif text-xl text-ink">No shifts today.</Text>
+                <Text className="font-serif text-xl text-ink">{total ? 'No more upcoming shifts today.' : 'No shifts today.'}</Text>
                 <Text className="mt-2 font-sans text-sm text-muted">
-                  Enjoy your day off. Your next shift will appear here when it's scheduled.
+                  {total ? 'Check Schedule to see your other visits.' : "Your next shift will appear here when it's scheduled for today."}
                 </Text>
               </View>
             )}
 
-            <LaterTodaySection shifts={later} />
+            <LaterTodaySection shifts={later} onShiftPress={openShift} />
 
             <NeedsYouToday actions={[]} />
           </>
