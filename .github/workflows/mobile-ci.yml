@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: worker-mobile-app/package-lock.json
 
@@ -30,6 +30,9 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      - name: Environment selection tests
+        run: npm run test:env
 
   expo-doctor:
     name: Mobile Expo Doctor
@@ -44,7 +47,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: worker-mobile-app/package-lock.json
 

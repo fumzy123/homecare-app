@@ -214,11 +214,15 @@ VITE_SENTRY_DSN=                 # Optional
 VITE_APP_ENV=development
 ```
 
-### Mobile App (`worker-mobile-app/.env.local`)
+### Mobile App (selected environment file in `worker-mobile-app`)
+
+`start:local` reads `.env.local`, `start:staging` reads `.env.staging`, and
+`start:production` reads `.env.production`. Supply matching URLs and a public key
+from the same environment. Neither the Git branch nor `APP_ENV` alone selects these.
 
 ```
 EXPO_PUBLIC_BACKEND_API_URL=https://xxxxx.ngrok-free.app   # ngrok tunnel URL (see Mobile Dev Gotchas)
-EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_URL=   # Local phone preview also needs a reachable auth URL/tunnel
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY= # Publishable key — safe for frontend
 ```
 
@@ -254,7 +258,9 @@ npm run build        # TypeScript check + Vite build
 
 ```bash
 cd worker-mobile-app
-npx expo start --tunnel --clear
+npm run start:local -- --tunnel --go
+# Hosted staging accounts and backend:
+npm run start:staging -- --tunnel --go
 ```
 
 ---
@@ -460,14 +466,23 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 
 ### Running the Mobile App on a Physical Device
 
-The phone needs two connections: Metro bundler (JS bundle) and the backend API. Both are tunnelled through ngrok/Expo so the setup is the same on any network.
+For local testing, the phone needs three connections: Metro (the JS bundle), the
+backend API, and local Supabase Auth. Expo's tunnel covers only Metro.
 
 **Every time you start a dev session:**
 
-1. Start the backend: `docker compose up`
+1. Start local Supabase (`npx supabase start`) and the backend (`docker compose up`).
 2. Run `ngrok http 8000`, copy the `https://xxxxx.ngrok-free.app` URL into `worker-mobile-app/.env.local` → `EXPO_PUBLIC_BACKEND_API_URL`
-3. Run `cd worker-mobile-app && npx expo start --tunnel --clear`
-4. Scan QR code in Expo Go.
+3. Expose local Supabase to the phone, for example `npx localtunnel --port 54321`.
+   Set `EXPO_PUBLIC_SUPABASE_URL` in `.env.local` to that URL and use the local
+   Supabase publishable key. Keep both service tunnels running.
+4. Run `cd worker-mobile-app && npm run start:local -- --tunnel --go`.
+5. Scan the QR code in Expo Go compatible with SDK 57.
+
+For hosted staging, use `npm run start:staging -- --tunnel --go`; backend and auth
+tunnels are unnecessary. `start:production` explicitly selects production services.
+The launcher reads the matching environment file without overwriting `.env.local`.
+See `worker-mobile-app/README.md` for configuration and EAS build environment setup.
 
 **ngrok:** Microsoft Store install (v3.39.1), available in PATH as `ngrok`. Authtoken saved. Regenerate token at dashboard.ngrok.com if compromised.
 
