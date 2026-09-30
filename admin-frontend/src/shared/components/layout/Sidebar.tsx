@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { X, Settings, LogOut } from 'lucide-react'
@@ -66,14 +67,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-ink flex items-center justify-between">
         <Link to="/dashboard" onClick={onClose} className="flex items-center gap-2.5">
-          <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-            <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-            <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-            <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-          </svg>
+          <BoatLogo size={24} />
           <div>
-            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Homecare</p>
-            <p className="font-mono text-[8px] tracking-[0.18em] uppercase text-ink-soft mt-0.5">HOME CARE OS</p>
+            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Care Harbor</p>
           </div>
         </Link>
         <button

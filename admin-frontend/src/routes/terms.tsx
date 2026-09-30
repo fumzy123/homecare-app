@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
@@ -193,12 +194,8 @@ function LegalNav() {
   return (
     <div className="border-b border-ink px-8 py-4 flex items-center justify-between bg-paper">
       <Link to="/login" className="flex items-center gap-3 group">
-        <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-          <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-          <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-          <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-        </svg>
-        <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Homecare</span>
+        <BoatLogo size={22} />
+        <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Care Harbor</span>
       </Link>
       <div className="flex items-center gap-6 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
         <Link to="/terms" className="hover:text-ink transition-colors [&.active]:text-ink [&.active]:underline underline-offset-4">Terms</Link>

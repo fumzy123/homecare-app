@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
@@ -76,14 +77,10 @@ export function Topbar() {
         {/* Logo */}
         <Link to="/dashboard" className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-              <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-              <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-            </svg>
-            <span className="font-serif text-[22px] leading-none tracking-[-0.02em] font-medium">Homecare</span>
+            <BoatLogo size={28} />
+            <span className="font-serif text-[22px] leading-none tracking-[-0.02em] font-medium">Care Harbor</span>
           </div>
-          <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-ink-soft">HOME CARE OS</span>
+          <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-ink-soft">Care Harbor</span>
         </Link>
 
         {/* Nav pills */}

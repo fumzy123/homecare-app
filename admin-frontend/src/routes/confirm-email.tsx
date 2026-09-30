@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute } from '@tanstack/react-router'
 import { LegalFooter } from '@/shared/components/LegalFooter'
 import { ConfirmEmailForm } from '@/features/auth/components/ConfirmEmailForm'
@@ -14,14 +15,9 @@ function ConfirmEmailPage() {
       <div className="flex-1 flex flex-col justify-between px-16 py-14 border-r border-ink max-md:hidden">
 
         <div className="flex items-center gap-3">
-          <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
-            <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-            <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-            <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-          </svg>
+          <BoatLogo size={26} />
           <div>
-            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Homecare</p>
-            <p className="font-mono text-[8px] tracking-[0.18em] uppercase text-ink-soft mt-0.5">Home Care OS</p>
+            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Care Harbor</p>
           </div>
         </div>
 
