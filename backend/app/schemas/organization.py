@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from app.domain.billing_periods import validate_billing_timezone
 from uuid import UUID
 from datetime import datetime
 
@@ -7,6 +8,12 @@ class RegisterOrganizationSchema(BaseModel):
     organization_name: str
     first_name: str
     last_name: str
+    agency_timezone: str | None = None
+
+    @field_validator('agency_timezone')
+    @classmethod
+    def valid_timezone(cls, value: str | None) -> str | None:
+        return validate_billing_timezone(value) if value is not None else None
 
 
 class OrganizationUpdateSchema(BaseModel):

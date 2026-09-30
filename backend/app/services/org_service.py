@@ -82,6 +82,7 @@ class OrgService:
                 id=uuid.uuid4(),
                 name=payload.organization_name,
                 owner_id=person.id,
+                billing_timezone=payload.agency_timezone,
                 created_at=trial_start,
                 trial_starts_at=trial_start,
                 trial_ends_at=trial_start + timedelta(days=14),

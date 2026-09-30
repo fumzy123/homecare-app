@@ -33,6 +33,7 @@ export const authApi = {
     organization_name: string
     first_name: string
     last_name: string
+    agency_timezone: string
   }) => {
     const { data } = await apiClient.post('/api/organization', payload)
     return data

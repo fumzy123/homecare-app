@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 from app.core.enums import OrgMemberRole
 from app.core.exceptions import AppError
 from app.schemas.organization import RegisterOrganizationSchema
@@ -82,3 +83,23 @@ def test_confirmed_signup_creates_owner_and_updates_auth_metadata():
         assert org.trial_starts_at == org.created_at
         assert org.trial_ends_at == org.created_at + timedelta(days=14)
         assert org.onboarding_completed_at is None
+
+
+def test_signup_saves_agency_timezone_with_organization():
+    instance = service()
+    registration = RegisterOrganizationSchema(
+        organization_name='Test agency', first_name='Test', last_name='Owner',
+        agency_timezone='America/St_Johns',
+    )
+    with patch('app.services.org_service.get_supabase_client'):
+        asyncio.run(instance.register_organization(registration))
+    assert instance.org_repo.add.call_args.args[0].billing_timezone == 'America/St_Johns'
+
+
+@pytest.mark.parametrize('zone', ['', 'not-a-zone', 'localtime', '+03:00'])
+def test_signup_rejects_invalid_timezone(zone):
+    with pytest.raises(ValidationError):
+        RegisterOrganizationSchema(
+            organization_name='Test agency', first_name='Test', last_name='Owner',
+            agency_timezone=zone,
+        )

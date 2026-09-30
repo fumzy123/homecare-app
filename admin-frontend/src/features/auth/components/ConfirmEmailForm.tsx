@@ -7,6 +7,8 @@ import { useAuthStore } from '@/shared/stores/auth'
 import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 import { authApi } from '../api'
 import { VerificationNotice } from './VerificationNotice'
+import { AgencyTimezoneField } from '@/features/organization/components/AgencyTimezoneField'
+import { browserTimezone } from '@/features/organization/timezones'
 
 const profileSchema = z.object({ organization_name: z.string().trim().min(2), first_name: z.string().trim().min(1), last_name: z.string().trim().min(1) })
 
@@ -18,6 +20,7 @@ export function ConfirmEmailForm() {
   const [accepted, setAccepted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState({ organization_name: '', first_name: '', last_name: '' })
+  const [agencyTimezone, setAgencyTimezone] = useState(browserTimezone)
 
   useEffect(() => {
     let disposed = false
@@ -56,12 +59,13 @@ export function ConfirmEmailForm() {
     try {
       const parsed = profileSchema.safeParse(profile)
       if (!parsed.success) throw new Error('Enter your agency name, first name, and last name.')
+      if (!agencyTimezone) throw new Error('Choose your agency timezone.')
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || session.user.id !== user.id) throw new Error('Your session changed. Sign in again to continue.')
       useAuthStore.getState().setAuth(session.access_token, {
         id: user.id, email: user.email ?? '', firstName: '', lastName: '', role: '',
       })
-      await authApi.registerOrganization(parsed.data)
+      await authApi.registerOrganization({ ...parsed.data, agency_timezone: agencyTimezone })
       const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
       if (refreshError) throw refreshError
       if (!refreshed.session) throw new Error('Sign in again to finish setup.')
@@ -91,11 +95,12 @@ export function ConfirmEmailForm() {
       {{ organization_name: 'Agency name', first_name: 'First name', last_name: 'Last name' }[field]}
       <input required value={profile[field]} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} className="border border-ink bg-cream p-3" />
     </label>)}
+    <AgencyTimezoneField value={agencyTimezone} onChange={setAgencyTimezone} disabled={busy} />
     <label className="flex items-start gap-2">
       <input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />
       <span>I accept the <Link to="/terms" target="_blank" className="underline">Terms</Link>, <Link to="/privacy" target="_blank" className="underline">Privacy Policy</Link>, and <Link to="/dpa" target="_blank" className="underline">Data Processing Agreement</Link> on behalf of my agency.</span>
     </label>
     {error && <p role="alert" className="text-orange">{error}</p>}
-    <button disabled={busy || !accepted} className="bg-ink text-cream p-3 disabled:opacity-40">{busy ? 'Finishing setup…' : 'Continue to dashboard'}</button>
+    <button disabled={busy || !accepted || !agencyTimezone} className="bg-ink text-cream p-3 disabled:opacity-40">{busy ? 'Finishing setup…' : 'Continue to dashboard'}</button>
   </form>
 }
