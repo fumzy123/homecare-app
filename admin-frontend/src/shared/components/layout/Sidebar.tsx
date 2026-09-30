@@ -1,19 +1,19 @@
 import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { X, Settings, LogOut } from 'lucide-react'
+import { X, Settings, LogOut, LayoutGrid, UsersRound, HeartHandshake, CalendarDays, Clock3, ClipboardList } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
 import { Avatar } from '@/shared/components/ui'
 
 const NAV = [
-  { to: '/dashboard',            num: '01', label: 'Dashboard'  },
-  { to: '/dashboard/workers',    num: '02', label: 'Workers'    },
-  { to: '/dashboard/clients',    num: '03', label: 'Clients'    },
-  { to: '/dashboard/shifts',     num: '04', label: 'Schedule'   },
-  { to: '/dashboard/timesheet',  num: '05', label: 'Timesheets' },
-  { to: '/dashboard/placements', num: '06', label: 'Placements' },
+  { to: '/dashboard',            icon: LayoutGrid,     label: 'Dashboard'  },
+  { to: '/dashboard/workers',    icon: UsersRound,     label: 'Workers'    },
+  { to: '/dashboard/clients',    icon: HeartHandshake, label: 'Clients'    },
+  { to: '/dashboard/shifts',     icon: CalendarDays,   label: 'Schedule'   },
+  { to: '/dashboard/timesheet',  icon: Clock3,         label: 'Timesheets' },
+  { to: '/dashboard/placements', icon: ClipboardList,  label: 'Placements' },
 ]
 
 interface SidebarProps {
@@ -82,16 +82,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-2">
-        {NAV.map(({ to, num, label }) => (
-          <Link key={to} to={to} onClick={onClose}>
-            <div className={`flex items-center justify-between px-4 py-2.5 font-mono text-[11px] tracking-[0.03em] transition-colors border border-transparent ${
+      <nav className="flex-1 px-[12px] py-2">
+        {NAV.map(({ to, icon: Icon, label }) => (
+          <Link key={to} to={to} onClick={onClose} className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+            <div className={`flex items-center gap-2.5 px-3 py-2.5 font-mono text-[11px] tracking-[0.03em] transition-colors border border-transparent ${
               isActive(to)
                 ? 'bg-ink text-cream border-ink'
                 : 'text-ink-soft hover:text-ink hover:bg-cream-2'
             }`}>
+              <Icon size={16} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
               <span>{label}</span>
-              <span className={`text-[9px] ${isActive(to) ? 'opacity-50' : 'opacity-40'}`}>{num}</span>
             </div>
           </Link>
         ))}
