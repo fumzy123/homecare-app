@@ -5,11 +5,19 @@ from app.models.shift import Shift
 from app.models.employment import Employment
 from app.models.client import Client
 from app.core.exceptions import AppError
+from app.core.enums import ShiftStatus
 
 
 class ProgressNoteRepository:
     def __init__(self, db: Session):
         self.db = db
+
+    def list_for_worker(self, org_id, worker_id, from_date, to_date):
+        return self.db.query(ProgressNote).join(Shift, ProgressNote.shift_id == Shift.id).filter(
+            Shift.org_id == org_id, Shift.worker_id == worker_id,
+            Shift.deleted_at.is_(None), Shift.status == ShiftStatus.active,
+            ProgressNote.occurrence_date >= from_date, ProgressNote.occurrence_date <= to_date,
+        ).all()
 
     def get_shift(self, shift_id, org_id) -> Shift:
         """Fetch a non-deleted shift by primary key scoped to an organisation.

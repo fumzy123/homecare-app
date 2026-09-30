@@ -6,6 +6,7 @@ from app.schemas.progress_note import ProgressNoteUpsertSchema, ClientNoteItemRe
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 from app.repositories.progress_note_repository import ProgressNoteRepository
+from app.repositories.shift_repository import ShiftRepository
 
 
 class ProgressNoteService:
@@ -13,6 +14,7 @@ class ProgressNoteService:
     def __init__(self, db: Session, current_user: SupabaseUser):
         self.db = db
         self.note_repo = ProgressNoteRepository(db)
+        self.shift_repo = ShiftRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
 
     # ─────────────────────────────────────────
@@ -64,6 +66,7 @@ class ProgressNoteService:
     # ─────────────────────────────────────────
     async def upsert_note(self, shift_id: str, payload: ProgressNoteUpsertSchema):
         try:
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             self.note_repo.get_shift(shift_id, self.org_id)
 
             note = self.note_repo.get_by_shift_and_date(shift_id, payload.occurrence_date)
