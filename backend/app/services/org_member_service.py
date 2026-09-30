@@ -91,21 +91,16 @@ class OrgMemberService:
     # ─────────────────────────────────────────
     async def create_member(self, payload: AcceptInvitationSchema):
         try:
-            metadata = self.current_user.user_metadata or {}
-            role = metadata.get("role")
-            org_id = metadata.get("org_id")
-
-            if not role or not org_id:
-                raise AppError(
-                    status_code=400,
-                    code="MISSING_METADATA",
-                    message="Invite metadata missing role or org_id — invalid invite token",
-                )
-
-            invitation = self.invitation_repo.get_pending_by_email_and_org(
-                self.current_user.email, org_id
+            invitation = self.invitation_repo.get_pending_for_identity(
+                self.current_user.id, self.current_user.email, lock=True,
             )
             if not invitation:
+                # A retry after a committed acceptance is safe, including when
+                # the original response was lost. Never rebind by email here.
+                person = self.person_repo.get_by_supabase_user_id(self.current_user.id)
+                existing = self.employment_repo.get_active_by_person_id(person.id) if person else None
+                if existing and existing.employment_status == EmploymentStatus.active:
+                    return _flat_response(existing)
                 raise AppError(
                     status_code=404,
                     code="INVITATION_NOT_FOUND",
@@ -121,7 +116,9 @@ class OrgMemberService:
 
             BillingAccessService(self.db, self.current_user).require_org_write(invitation.org_id)
 
-            employment_type_str = metadata.get("employment_type")
+            role = invitation.role
+            org_id = invitation.org_id
+            employment_type_str = invitation.employment_type
             employment_type = EmploymentType(employment_type_str) if employment_type_str else None
             max_hours = _DEFAULT_HOURS.get(employment_type) if employment_type else None
 
@@ -130,11 +127,11 @@ class OrgMemberService:
             if person:
                 # Check they don't already have an active employment in this org
                 existing_emp = self.employment_repo.get_active_by_person_id(person.id)
-                if existing_emp and str(existing_emp.org_id) == str(org_id):
+                if existing_emp:
                     raise AppError(
                         status_code=409,
                         code="ALREADY_REGISTERED",
-                        message="This invite has already been accepted",
+                        message="This person already has an agency membership",
                     )
                 # Re-hire: bind new Supabase user id to existing Person and
                 # refresh their name from the accept-invite form.

@@ -52,15 +52,18 @@ export const authApi = {
   },
 
   acceptInvite: async (payload: { first_name: string; last_name: string; password: string }) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Open your invitation email or sign in to continue setup.')
     // Step 1: set password directly with Supabase (never sent to our backend)
     const { error } = await supabase.auth.updateUser({ password: payload.password })
-    if (error) throw new Error(error.message)
+    // Setup can be retried after the password saved but membership creation failed.
+    if (error && error.code !== 'same_password') throw new Error(error.message)
 
     // Step 2: create OrgMember + WorkerProfile on our backend
     const { data } = await apiClient.post('/api/org-members', {
       first_name: payload.first_name,
       last_name: payload.last_name,
-    })
+    }, { headers: { Authorization: `Bearer ${session.access_token}` } })
 
     // Step 3: the backend just wrote first_name/last_name (and role/org_id) into
     // Supabase user_metadata. Refresh the session so the JWT and Zustand store

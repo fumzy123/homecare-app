@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your agency invitation</title></head>
+<body style="margin:0;padding:24px 12px;background:#F2EEE5;color:#111111;font-family:Arial,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#F8F5EC;border:1px solid #111111;">
+<tr><td style="padding:32px;">
+<p style="font:28px Georgia,serif;margin:0 0 28px;">Care Harbor</p>
+<h1 style="font:32px Georgia,serif;">You’re invited to join {{ .Data.org_name }}.</h1>
+<p style="font-size:16px;line-height:1.6;">Your agency has invited you to set up your account. Use the button below to enter your name and create a password on our website.</p>
+<p style="margin:32px 0;"><a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:16px 24px;background:#FF5A1F;color:#111111;text-decoration:none;font-weight:bold;">Accept invitation</a></p>
+{{ if eq .Data.role "home_support_worker" }}
+<p style="font-size:16px;line-height:1.6;">Once your account is ready, sign in to the Homecare Worker app with the same email and password. You don’t need to install the app to accept this invitation. Your agency will provide download access when available.</p>
+{{ end }}
+<p style="font-size:14px;line-height:1.6;">If your invitation has expired, ask your agency to resend it. If you weren’t expecting this invitation, you can ignore this email.</p>
+</td></tr></table></td></tr></table>
+</body></html>

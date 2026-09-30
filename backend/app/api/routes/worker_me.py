@@ -15,8 +15,21 @@ from app.services.notification_service import NotificationService
 from app.services.placement_service import PlacementService
 from app.repositories.credential_repository import CredentialRepository
 from app.repositories.organization_repository import OrganizationRepository
+from app.services.worker_account_service import WorkerAccountService
+from app.schemas.worker_account import WorkerAccountResponse
 
 router = APIRouter(prefix="/me", tags=["Worker — Me"])
+
+
+def get_worker_account_service(
+    current_user=Depends(get_current_user), db: Session = Depends(get_db),
+) -> WorkerAccountService:
+    return WorkerAccountService(db, current_user)
+
+
+@router.get("/account", response_model=WorkerAccountResponse)
+def get_my_account(worker_account_service: WorkerAccountService = Depends(get_worker_account_service)):
+    return worker_account_service.get_account()
 
 # Fields that trigger a profile_updated notification when changed
 TRACKED_PROFILE_FIELDS = {
