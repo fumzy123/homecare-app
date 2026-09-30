@@ -9,6 +9,8 @@ const STATUS = {
   in_progress: { label: 'In progress', bg: 'bg-orange', text: 'text-white' },
   completed: { label: 'Completed', bg: 'bg-mint', text: 'text-ink-soft' },
   cancelled: { label: 'Cancelled', bg: 'bg-cream-2', text: 'text-muted' },
+  dropped: { label: 'Dropped', bg: 'bg-cream-2', text: 'text-muted' },
+  no_show: { label: 'Missed', bg: 'bg-rose', text: 'text-ink' },
 } as const;
 
 export function ScheduleTimeline({

@@ -1,4 +1,4 @@
-export type ShiftCompletionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+export type ShiftCompletionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'dropped' | 'no_show';
 export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing' | 'homemaking';
 
 export interface ShiftWorkerSummary {
