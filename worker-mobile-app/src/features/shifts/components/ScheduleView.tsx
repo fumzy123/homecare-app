@@ -1,128 +1,87 @@
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useRefreshControl } from '@/shared/hooks/useRefreshControl';
-import { useMyShifts } from '../hooks/useMyShifts';
-import {
-  addDays,
-  formatPeriodRange,
-  getPeriodDays,
-  scheduledHours,
-  shiftsForDate,
-  startOfMondayWeek,
-  toDateKey,
-  uniqueClientCount,
-  type SchedulePeriod,
-} from '../lib/schedule';
-import { DaySelector, PeriodNavigator, PeriodStats, PeriodToggle } from './ScheduleControls';
+import { Ionicons } from '@expo/vector-icons';
+import { Btn } from '@/shared/components/ui/Btn';
+import { ProgressNoteSheet, type NoteTarget } from '@/features/notes/components/ProgressNoteSheet';
+import { useWorkerSchedule } from '../hooks/useWorkerSchedule';
+import { formatPeriodRange, fromDateKey, toDateKey } from '../lib/schedule';
+import { shiftAddress } from '../lib/scheduleView';
+import type { ShiftOccurrence } from '../types';
+import { DaySelector, PeriodNavigator, PeriodSummary, PeriodToggle, ScheduleLayoutToggle } from './ScheduleControls';
+import { ScheduleDatePicker } from './ScheduleDatePicker';
+import { ScheduleAgenda } from './ScheduleAgenda';
+import { ScheduleCareDialog } from './ScheduleCareDialog';
 import { NoShiftsForDay, ScheduleTimeline } from './ScheduleTimeline';
 
+/** Layer 3: composes controlled UI, owns navigation and device actions; queries live in hooks. */
 export function ScheduleView() {
   const router = useRouter();
-  const today = useMemo(() => new Date(), []);
-  const [period, setPeriod] = useState<SchedulePeriod>('week');
-  const [periodStart, setPeriodStart] = useState(() => startOfMondayWeek(today));
-  const [selectedDate, setSelectedDate] = useState(() => toDateKey(today));
+  const schedule = useWorkerSchedule();
+  const { selection, shifts, notes, selectedDay } = schedule;
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [careShift, setCareShift] = useState<ShiftOccurrence | null>(null);
+  const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null);
+  const todayKey = toDateKey(new Date(schedule.now));
+  const hasData = shifts.isSuccess;
 
-  const days = useMemo(() => getPeriodDays(periodStart, period), [periodStart, period]);
-  const periodEnd = days[days.length - 1];
-  const fromDate = toDateKey(periodStart);
-  const toDate = toDateKey(periodEnd);
-  const { data: shifts = [], isLoading, isError, refetch } = useMyShifts(fromDate, toDate);
-  const { refreshing, onRefresh } = useRefreshControl(refetch);
-
-  const activeShifts = shifts.filter((shift) => shift.completion_status !== 'cancelled');
-  const selectedShifts = shiftsForDate(shifts, selectedDate);
-  const shiftDates = new Set(shifts.map((shift) => shift.date));
-
-  function changePeriod(nextPeriod: SchedulePeriod) {
-    setPeriod(nextPeriod);
-    const selected = startOfMondayWeek(new Date(`${selectedDate}T00:00:00`));
-    setPeriodStart(selected);
+  function openShift(shift: ShiftOccurrence) {
+    router.push({ pathname: '/shifts/[shiftId]', params: { shiftId: shift.shift_id, occurrenceDate: shift.date } });
+  }
+  function openNote(shift: ShiftOccurrence) {
+    setNoteTarget({ shiftId: shift.shift_id, occurrenceDate: shift.date, clientName: `${shift.client.first_name} ${shift.client.last_name}` });
+  }
+  async function openDirections(shift: ShiftOccurrence) {
+    const address = shiftAddress(shift);
+    if (!address) return;
+    try { await Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(address)}`); }
+    catch { Alert.alert('Could not open directions', `The visit address is ${address}.`); }
+  }
+  function selectCalendarDate(date: Date) {
+    schedule.selectDate(date);
+    setShowCalendar(false);
   }
 
-  function movePeriod(direction: -1 | 1) {
-    const interval = period === 'week' ? 7 : 14;
-    const nextStart = addDays(periodStart, direction * interval);
-    setPeriodStart(nextStart);
-    setSelectedDate(toDateKey(nextStart));
-  }
-
-  function returnToToday() {
-    setPeriodStart(startOfMondayWeek(today));
-    setSelectedDate(toDateKey(today));
-  }
-
-  const selectedLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  return (
-    <ScrollView
-      className="flex-1 px-5"
-      contentContainerStyle={{ paddingTop: 22, paddingBottom: 48 }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={(
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#FF5A1F"
-          colors={['#FF5A1F']}
-        />
-      )}
-    >
-      <Text className="font-serif-semibold text-4xl text-ink">My schedule</Text>
-
-      <PeriodToggle value={period} onChange={changePeriod} />
-      <PeriodNavigator
-        label={formatPeriodRange(periodStart, periodEnd)}
-        onPrevious={() => movePeriod(-1)}
-        onNext={() => movePeriod(1)}
-        onToday={returnToToday}
-      />
-
-      <PeriodStats
-        hours={scheduledHours(activeShifts)}
-        shifts={activeShifts.length}
-        clients={uniqueClientCount(activeShifts)}
-      />
-
-      <DaySelector
-        days={days}
-        selectedDate={selectedDate}
-        shiftDates={shiftDates}
-        onSelect={setSelectedDate}
-      />
-
-      <View className="mt-5 flex-row items-end justify-between border-b border-cream-2 pb-3">
-        <View>
-          <Text className="font-mono text-[10px] uppercase tracking-widest text-orange">Selected day</Text>
-          <Text className="mt-1 font-serif-medium text-xl text-ink">{selectedLabel}</Text>
-        </View>
-        <Text className="font-mono text-xs text-muted">
-          {selectedShifts.length} {selectedShifts.length === 1 ? 'shift' : 'shifts'}
-        </Text>
+  return <>
+    <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingTop: 22, paddingBottom: 28 }} showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={schedule.refresh.refreshing} onRefresh={schedule.refresh.onRefresh} tintColor="#FF5A1F" colors={['#FF5A1F']} />}>
+      <View className="mb-4 flex-row items-center justify-between gap-3">
+        <Text accessibilityRole="header" className="flex-1 font-serif text-4xl text-ink">My <Text className="font-serif-italic">schedule.</Text></Text>
+        <Pressable onPress={() => setShowCalendar(true)} accessibilityRole="button" accessibilityLabel="Choose a date" className="h-11 w-11 items-center justify-center rounded-full border border-cream-2 bg-paper">
+          <Ionicons name="calendar-outline" size={20} color="#111111" />
+        </Pressable>
       </View>
-
-      {isLoading && !refreshing ? (
-        <View className="items-center py-12"><ActivityIndicator color="#FF5A1F" /></View>
-      ) : isError ? (
-        <View className="mt-4 rounded-2xl bg-rose px-5 py-4">
-          <Text className="font-sans text-sm text-ink">Could not load your schedule. Pull down to try again.</Text>
+      <PeriodToggle value={selection.period} onChange={schedule.changePeriod} />
+      <View className="border-b border-cream-2 pb-4">
+        <PeriodNavigator label={formatPeriodRange(selection.start, schedule.end)} period={selection.period}
+          onPrevious={() => schedule.movePeriod(-1)} onNext={() => schedule.movePeriod(1)} onToday={schedule.returnToToday} onChooseDate={() => setShowCalendar(true)} />
+        <PeriodSummary hours={hasData ? schedule.hours : null} visits={schedule.visitCount} period={selection.period} loading={shifts.isPending} />
+        <DaySelector days={schedule.days} selectedDate={selection.selectedDate} todayKey={todayKey} hasData={hasData} onSelect={schedule.selectDate} />
+      </View>
+      <View className="mb-3 mt-5 flex-row flex-wrap items-center justify-between gap-2">
+        <Text accessibilityRole="header" className="font-serif text-2xl text-ink">
+          {selection.layout === 'list' ? selection.period === 'week' ? 'Your week' : 'Your two weeks'
+            : <>{selection.selectedDate === todayKey ? 'Today' : selectedDay.date.toLocaleDateString(undefined, { weekday: 'long' })}<Text className="font-serif text-xl text-ink-soft"> · {selectedDay.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text></>}
+        </Text>
+        <ScheduleLayoutToggle value={selection.layout} onChange={schedule.changeLayout} />
+      </View>
+      {shifts.isPending ? <View className="items-center py-12"><ActivityIndicator accessibilityLabel="Loading your schedule" color="#FF5A1F" /></View>
+        : shifts.isError ? <View className="rounded-2xl bg-orange-soft p-5">
+          <Text accessibilityRole="alert" className="mb-3 text-sm leading-5 text-ink">Could not load your schedule. Check your connection and try again.</Text>
+          <Btn onPress={schedule.refresh.onRefresh}>Try again</Btn>
         </View>
-      ) : selectedShifts.length ? (
-        <ScheduleTimeline
-          shifts={selectedShifts}
-          onSelectShift={(shift) => router.push({
-            pathname: '/shifts/[shiftId]',
-            params: { shiftId: shift.shift_id, occurrenceDate: shift.date },
-          })}
-        />
-      ) : (
-        <NoShiftsForDay />
-      )}
+        : selection.layout === 'list' ? <ScheduleAgenda days={schedule.days} todayKey={todayKey} onSelectDay={schedule.selectDate} onSelectShift={openShift} />
+        : selectedDay.visits.length ? <ScheduleTimeline day={selectedDay} now={schedule.now} onSelectShift={openShift} onDirections={shift => void openDirections(shift)} onCareInstructions={setCareShift} onNote={openNote} />
+        : <NoShiftsForDay nextDay={schedule.nextWorkingDay?.date} onNextDay={() => { if (schedule.nextWorkingDay) schedule.selectDate(schedule.nextWorkingDay.date); }} onChooseDate={() => setShowCalendar(true)} />}
+      {notes.isError && hasData ? <Pressable accessibilityRole="button" onPress={() => void notes.refetch()} className="mt-4 min-h-11 justify-center rounded-xl bg-orange-soft p-3">
+        <Text className="text-xs leading-5 text-ink-soft">Progress note status unavailable. Tap to retry.</Text>
+      </Pressable> : null}
+      <View className="mt-6 flex-row items-center gap-2 border-t border-cream-2 pt-4">
+        <Ionicons name="headset-outline" size={16} color="#4A453E" /><Text className="flex-1 text-xs leading-5 text-ink-soft">Need a schedule change? Contact your agency.</Text>
+      </View>
     </ScrollView>
-  );
+    {showCalendar ? <ScheduleDatePicker selectedDate={fromDateKey(selection.selectedDate)} todayKey={todayKey} onSelect={selectCalendarDate} onClose={() => setShowCalendar(false)} /> : null}
+    {careShift ? <ScheduleCareDialog shift={careShift} onClose={() => setCareShift(null)} /> : null}
+    {noteTarget ? <ProgressNoteSheet key={`${noteTarget.shiftId}:${noteTarget.occurrenceDate}`} target={noteTarget} onClose={() => setNoteTarget(null)} /> : null}
+  </>;
 }

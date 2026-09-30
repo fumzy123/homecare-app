@@ -437,7 +437,7 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 - [ ] **Phase 2**: Onboarding flow — pre-login 3-page intro, permissions screen, profile completion bar
 - [ ] **Phase 3**: Invite acceptance — deep link handling, token verification, profile setup form, `POST /api/me/complete-profile` (requires EAS build)
 - [x] **Phase 4**: Home screen — today's shifts summary, next shift card, warm empty state
-- [ ] **Phase 5**: Schedule / shifts — calendar view, shift detail screen, ShiftCard component
+- [x] **Phase 5**: Schedule / shifts — Sunday–Saturday week/two-week calendar, date picker, day itinerary/list views, shift details, directions, care instructions and progress-note access
 - [ ] **Phase 6**: Profile overview — read own profile (`GET /api/me/profile`), credentials view
 - [ ] **Phase 7**: Availability — weekly availability picker, `PATCH /api/me/availability`
 - [ ] **Phase 8**: Visit verification — GPS check-in, distance check against client address
@@ -449,6 +449,21 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 - [ ] **Phase 14**: Polish pass — animations, loading skeletons, empty states, error states, contextual nudges
 - [ ] **Phase 15**: EAS Build setup, TestFlight beta, internal testers
 - [ ] **Phase 16**: App Store submission (iOS) + Play Store submission (Android)
+
+### Worker schedule implementation
+
+`ScheduleView` is the Layer 3 coordinator. `useWorkerSchedule` owns period selection,
+query composition and refresh through the existing shift/note hooks. Calendar controls,
+date picker, visit cards, timeline and agenda are Layer 2 components that receive props.
+`ScheduleCareDialog` is Layer 3 because it fetches visit details through a custom hook.
+Pure date, selection and itinerary projections live in `features/shifts/lib/scheduleView.ts`.
+
+The two-week view preserves its date range when a date in the second week is selected.
+Totals are scheduled visit durations, excluding cancelled, dropped and missed visits;
+they are not verified worked hours or payroll. The app has no agency payroll calendar
+yet, so the label is **scheduled over 2 weeks**, not **pay period**. Note indicators
+come from occurrence-specific recorded notes; updated visits do not invent previous times.
+Run `npm run test:schedule` for date navigation, itinerary, hours and note-status checks.
 
 ### Backend Endpoints Still Needed (Mobile)
 

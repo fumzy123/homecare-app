@@ -47,6 +47,7 @@
     "ios": "node scripts/start.cjs local --ios",
     "web": "node scripts/start.cjs local --web",
     "test:env": "node --test scripts/environment.test.cjs",
+    "test:schedule": "node --test scripts/schedule.test.cjs",
     "typecheck": "tsc --noEmit"
   },
   "private": true
