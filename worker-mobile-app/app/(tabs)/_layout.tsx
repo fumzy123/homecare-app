@@ -54,6 +54,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="ranks/index"
         options={{
+          href: null,
           title: 'Rank',
           tabBarIcon: ({ color }) => <TabIcon name="trophy-outline" color={color} />,
         }}

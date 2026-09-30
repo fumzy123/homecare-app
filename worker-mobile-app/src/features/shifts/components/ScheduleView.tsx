@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Kicker } from '@/shared/components/ui';
 import { useRefreshControl } from '@/shared/hooks/useRefreshControl';
 import { useMyShifts } from '../hooks/useMyShifts';
 import {
@@ -74,8 +73,7 @@ export function ScheduleView() {
         />
       )}
     >
-      <Kicker>Schedule</Kicker>
-      <Text className="mt-1 font-serif-semibold text-4xl text-ink">My schedule</Text>
+      <Text className="font-serif-semibold text-4xl text-ink">My schedule</Text>
 
       <PeriodToggle value={period} onChange={changePeriod} />
       <PeriodNavigator
