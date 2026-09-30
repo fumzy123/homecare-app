@@ -121,16 +121,17 @@ def test_actual_api_write_routes_are_guarded_except_billing_and_legal():
 
 def test_expired_invitation_agency_is_checked_before_creating_person(monkeypatch):
     org_id = uuid4()
-    user = SimpleNamespace(email='worker@example.test', user_metadata={'org_id': str(org_id), 'role': 'home_support_worker'})
+    user = SimpleNamespace(id=uuid4(), email='worker@example.test', user_metadata={})
     service = OrgMemberService(MagicMock(), user)
     service.invitation_repo = MagicMock()
     service.person_repo = MagicMock()
-    service.invitation_repo.get_pending_by_email_and_org.return_value = SimpleNamespace(
+    service.invitation_repo.get_pending_for_identity.return_value = SimpleNamespace(
         org_id=org_id, invited_at=datetime.now(timezone.utc))
     guard = MagicMock(side_effect=AppError(403, 'BILLING_READ_ONLY', 'Read only'))
     monkeypatch.setattr(BillingAccessService, 'require_org_write', guard)
     with pytest.raises(AppError):
         asyncio.run(service.create_member(SimpleNamespace()))
     guard.assert_called_once_with(org_id)
+    service.invitation_repo.get_pending_for_identity.assert_called_once_with(user.id, user.email, lock=True)
     service.person_repo.get_by_email.assert_not_called()
     service.db.commit.assert_not_called()

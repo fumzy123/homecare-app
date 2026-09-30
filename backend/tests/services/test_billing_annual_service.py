@@ -15,7 +15,7 @@ from app.services.billing_settlement_service import SettlementReviewRequired
 from app.services import billing_annual_service as annual_module
 from app.services import stripe_usage_gateway as gateway_module
 from app.core.config import settings
-from tests.services.test_billing_settlement_service import service  # noqa: F401
+from tests.services.test_billing_settlement_service import service as service
 
 
 def obj(**values):
