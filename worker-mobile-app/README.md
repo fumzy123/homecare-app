@@ -1,5 +1,26 @@
 # Running the worker app
 
+## Home screen
+
+The Home route only supplies the page shell. `features/home/components/WorkerHome`
+orchestrates feature hooks and presentation-only cards. Pull-to-refresh updates
+visits, notes, profile, credentials, notifications, and stats together.
+
+- Weekly completed hours are **provisional scheduled durations of completed visits**,
+  not verified attendance or payroll. Home uses the backend's Sunday–Saturday week.
+- Punctuality stays unavailable until the backend supplies recorded attendance.
+  A visit whose scheduled time has begun is labelled **Scheduled now**, never checked in.
+- Workers can read and append progress-note entries for their own assigned occurrences
+  through `/api/me/shifts/{shift_id}/notes`. Existing entries are preserved; concurrent
+  changes require review. Note reminders cover completed visits in the last seven days.
+- Notes require the matching backend changes to be deployed. Load/save failures retain
+  unsaved editor text, and missing reminder data is not shown as an empty list.
+- Agency contact is omitted until an agency contact channel is available in the data;
+  the footer opens the worker's complete schedule.
+
+Validation: `npm run typecheck` and
+`node --test scripts/home-shifts.test.cjs scripts/environment.test.cjs`.
+
 Use Node.js 22.13 or newer. Run these commands from `worker-mobile-app`:
 
 On a new checkout, run `npm ci` first. Install Expo Go compatible with SDK 57 on

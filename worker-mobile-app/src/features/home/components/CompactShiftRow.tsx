@@ -30,6 +30,7 @@ export function CompactShiftRow({ shift, onPress, className = '' }: CompactShift
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
       className={`flex-row items-center rounded-xl border border-cream-2 bg-paper px-4 py-3 ${className}`}
     >
       <View className="mr-4 items-center" style={{ width: 64 }}>

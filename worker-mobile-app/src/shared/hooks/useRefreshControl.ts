@@ -5,8 +5,11 @@ export function useRefreshControl(refetch: () => Promise<unknown>) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   }, [refetch]);
 
   return { refreshing, onRefresh };
