@@ -10,14 +10,20 @@ CONSENT_TEXT = (
     "at the end of prepaid coverage; prepaid base fees are non-refundable."
 )
 
-FOUNDING_CONSENT_VERSION = "2026-09-29-founding-v3"
+FOUNDING_CONSENT_VERSION = "2026-09-29-founding-v4"
 FOUNDING_CONSENT_TEXT = (
     "I authorize Care Harbor to save my card and automatically charge CAD $200/month "
     "when my remaining free trial ends (or immediately if it has ended), plus CAD $4 per additional active client above 10 per monthly "
     "billing period and applicable taxes. These founding rates are guaranteed for my "
     "first 12 paid months. After that, standard rates in effect at that time apply, "
-    "with at least 30 days' notice of the new rates. I agree to one 30-minute feedback "
-    "session per month. The 14-day trial starts automatically when my agency account "
+    "with at least 30 days' notice of the new rates. While receiving founding pricing, "
+    "I agree to one 30-minute feedback session per month at a mutually agreed time "
+    "and to share honest feedback, whether positive or negative. Testimonials and "
+    "case studies are optional; declining does not affect founding pricing or access. "
+    "Publishing my agency's feedback, name, logo, or a representative's name or image "
+    "requires separate written approval of the final content, attribution and marketing "
+    "channels. Published endorsements will disclose the discounted founding relationship. "
+    "The 14-day trial starts automatically when my agency account "
     "is created. Subscribing preserves the remaining trial. Trial visits are free. I can cancel before conversion to avoid charges, or stop renewal after "
     "conversion at the end of prepaid coverage. Prepaid base fees are non-refundable. "
     "Founding pricing does not resume if I cancel and return."

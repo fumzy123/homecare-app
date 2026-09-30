@@ -5,7 +5,7 @@ export const Route = createFileRoute('/terms')({
   component: TermsPage,
 })
 
-const EFFECTIVE_DATE = 'Draft dated August 28, 2026'
+const EFFECTIVE_DATE = 'Draft dated September 29, 2026'
 
 function TermsPage() {
   return (
@@ -65,7 +65,10 @@ function TermsPage() {
             Each monthly usage period includes 10 active clients; additional clients cost $5 each for that period.</p>
           <p>A client counts once in a monthly billing period if they have a qualifying scheduled,
             in-progress, completed or no-show visit in that period. Cancelled visits do not count.
-            Monthly periods follow the subscription anniversary, including for annual subscriptions.</p>
+            Your first monthly usage period starts when your paid subscription begins. Each new period
+            starts on the same date of the following month: for example, a May 10 start means the next
+            period starts June 10. If a month has no matching date, its last day is used. This monthly
+            counting period also applies when you pay annually.</p>
           <p>Usage remains open for corrections until 72 hours after each monthly period ends.
             Later corrections require a recorded billing adjustment. Monthly usage is collected after
             this window closes. Annual usage accumulates during the prepaid year and is collected with
@@ -81,7 +84,21 @@ function TermsPage() {
             Cancellation does not remove charges already incurred.</p>
           <p>Invited founding agencies pay $200 per month plus $4 per additional client above 10.
             Founding pricing is protected for the first 12 paid months, then converts to Standard with
-            advance notice of the applicable rates. Founding billing is monthly only.</p>
+            at least 30 days' notice of the applicable rates. Founding billing is monthly only.</p>
+          <h3 className="font-semibold pt-2">Founding customer feedback and testimonials</h3>
+          <p>While receiving founding pricing, the Agency agrees to participate in one 30-minute
+            feedback session each month, at a mutually agreed time, and share honest feedback about
+            its experience with the Platform. Feedback may be positive or negative; positive feedback
+            is not a condition of founding pricing.</p>
+          <p>If the Agency finds the Platform useful, we may invite it to provide a testimonial or
+            participate in a case study. Participation is optional. Declining does not affect founding
+            pricing or access. These Terms do not grant permission to publish feedback or use the
+            Agency's name, logo, or a representative's name or image for marketing.</p>
+          <p>Before publication, we will obtain separate written approval from an authorised Agency
+            representative for the final wording, attribution, any name, logo or image used, and the
+            agreed marketing channels. Published material must accurately reflect the Agency's
+            experience and disclose its discounted founding customer relationship. Feedback and
+            testimonials must not include identifiable client information or confidential worker records.</p>
           <p>If payment is not completed when required, operational access may be restricted.
             Billing, payment recovery and invoice history remain accessible.</p>
         </Section>
