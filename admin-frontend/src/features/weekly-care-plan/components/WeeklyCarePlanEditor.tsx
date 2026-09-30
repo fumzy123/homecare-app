@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { TimeInput, Kicker, ProgressBar } from '@/shared/components/ui'
+import { TimeInput, ProgressBar } from '@/shared/components/ui'
 import { useWeeklyCarePlan, useSaveWeeklyCarePlan } from '../hooks/useWeeklyCarePlan'
 import { useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
 import { WEEKDAYS, SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
@@ -122,10 +122,12 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
       {/* header */}
       <div className="flex items-end justify-between px-6 py-5 border-b border-line-soft gap-4">
         <div>
-          <Kicker leader className="mb-2">
-            {enforceCompliance ? 'Care plan — delivers against the active authorization' : 'Weekly care plan — recurring weekly care'}
-          </Kicker>
-          <h3 className="font-serif text-[28px] leading-none tracking-[-0.02em]">Weekly schedule</h3>
+          <h2 className="font-serif text-[28px] leading-none tracking-[-0.02em]">Weekly care plan</h2>
+          <p className="mt-2 text-[13px] text-ink-soft">
+            {enforceCompliance
+              ? 'Set care times within the active authorization.'
+              : 'Set the days, times, and services this client needs each week.'}
+          </p>
         </div>
         {enforceCompliance && (
           <div className="flex items-center justify-end">

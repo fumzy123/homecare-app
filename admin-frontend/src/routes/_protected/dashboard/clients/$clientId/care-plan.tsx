@@ -26,10 +26,6 @@ function ClientCarePlan() {
   if (client && client.care_arrangement !== 'funded') {
     return (
       <div className="p-8 flex flex-col gap-[22px]">
-        <div>
-          <Kicker leader className="mb-2">The client's recurring weekly care</Kicker>
-          <h2 className="font-serif text-[28px] tracking-[-0.02em]">Weekly care plan</h2>
-        </div>
         <WeeklyCarePlanEditor clientId={clientId} enforceCompliance={false} />
       </div>
     )
