@@ -13,6 +13,16 @@ The repository consists of four main components:
 
 ---
 
+## Shift API time format
+
+Shift start/end times are agency-local wall times, stored without a timezone.
+Send `2026-09-30T18:00:00` for a 6 PM visit, not a UTC conversion or an
+offset-qualified timestamp. Create, edit, override, and overtime requests reject
+`Z` or numeric offsets with HTTP 422 to prevent database timezone conversion.
+This applies only to shift times; authentication and audit timestamps retain
+their timezone information. Mobile currently interprets shift times in the
+phone's timezone, so testing assumes the phone is in the agency's timezone.
+
 ## 🚀 Local Development Setup
 
 To ensure you don't pollute the Staging or Production databases, we run a completely isolated version of the app locally using Docker.

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, NaiveDatetime, model_validator
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
@@ -26,8 +26,8 @@ class RecurrenceSchema(BaseModel):
 class ShiftCreateSchema(BaseModel):
     worker_id:            UUID
     client_id:            UUID
-    start_time:           datetime
-    end_time:             datetime
+    start_time:           NaiveDatetime
+    end_time:             NaiveDatetime
     service_type:         ServiceType | None = None
     location:             str | None = None   # defaults to client's address in the service
     notes:                str | None = None
@@ -47,8 +47,8 @@ class ShiftCreateSchema(BaseModel):
 class ShiftUpdateSchema(BaseModel):
     worker_id:            UUID | None = None
     client_id:            UUID | None = None
-    start_time:           datetime | None = None
-    end_time:             datetime | None = None
+    start_time:           NaiveDatetime | None = None
+    end_time:             NaiveDatetime | None = None
     recurrence_end_date:  date | None = None
     recurrence:           RecurrenceSchema | None = None
     location:             str | None = None
@@ -68,8 +68,8 @@ class ShiftCancelSchema(BaseModel):
 # ─────────────────────────────────────────
 class ShiftModificationCreateSchema(BaseModel):
     original_date:        date
-    new_start_time:       datetime | None = None
-    new_end_time:         datetime | None = None
+    new_start_time:       NaiveDatetime | None = None
+    new_end_time:         NaiveDatetime | None = None
     completion_status:    ShiftCompletionStatus | None = None
     notes:                str | None = None
     cancellation_reason:  str | None = None
@@ -87,8 +87,8 @@ class ShiftModificationCreateSchema(BaseModel):
 # PATCH /shifts/{id}/modifications/{date} — update an existing modification
 # ─────────────────────────────────────────
 class ShiftModificationUpdateSchema(BaseModel):
-    new_start_time:       datetime | None = None
-    new_end_time:         datetime | None = None
+    new_start_time:       NaiveDatetime | None = None
+    new_end_time:         NaiveDatetime | None = None
     completion_status:    ShiftCompletionStatus | None = None
     notes:                str | None = None
     cancellation_reason:  str | None = None
@@ -115,8 +115,8 @@ class ShiftCancelFromSchema(BaseModel):
 # ─────────────────────────────────────────
 class ShiftEditFromSchema(BaseModel):
     occurrence_date:      date
-    new_start_time:       datetime | None = None
-    new_end_time:         datetime | None = None
+    new_start_time:       NaiveDatetime | None = None
+    new_end_time:         NaiveDatetime | None = None
     worker_id:            UUID | None = None
     client_id:            UUID | None = None
     service_type:         ServiceType | None = None
@@ -145,8 +145,8 @@ class OvertimeApprovalRequestSchema(BaseModel):
     # Full shift context — present when request originates from CreateShiftDrawer
     client_id:    UUID | None = None
     client_name:  str  | None = None
-    start_time:   datetime | None = None
-    end_time:     datetime | None = None
+    start_time:   NaiveDatetime | None = None
+    end_time:     NaiveDatetime | None = None
     is_recurring: bool = False
     recurrence:   RecurrenceSchema | None = None
     note:         str  | None = None
@@ -157,8 +157,8 @@ class OvertimeApprovalRequestSchema(BaseModel):
 # ─────────────────────────────────────────
 class OvertimeApproveSchema(BaseModel):
     notification_id: UUID
-    start_time:      datetime | None = None        # manager override
-    end_time:        datetime | None = None        # manager override
+    start_time:      NaiveDatetime | None = None        # manager override
+    end_time:        NaiveDatetime | None = None        # manager override
     is_recurring:    bool | None = None            # None = use notification payload value
     recurrence:      RecurrenceSchema | None = None
 
