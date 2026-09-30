@@ -430,6 +430,27 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 | `src/shared/components/ui/index.tsx` | Design system components |
 | `tailwind.config.js` | NativeWind — same tokens as admin-frontend |
 
+### Worker Clients tab
+
+The Clients tab lives in `app/(tabs)/clients/index.tsx`; client details live in
+`app/clients/[clientId].tsx`. Routes compose the Layer 3 components in
+`src/features/clients/components/`; queries and refresh orchestration live in
+named hooks in `features/clients/hooks/`. Client cards, care fields and visit
+cards are controlled Layer 2 components within the feature.
+
+`GET /api/me/clients`, `GET /api/me/clients/{client_id}` and
+`GET /api/me/clients/{client_id}/shifts?from_date=...&to_date=...` use
+WorkerClientService → WorkerClientRepository / ShiftRepository. Access requires
+an active worker and agency, and is scoped to the worker's agency and either
+primary client assignment or a retained active shift assigned to that worker.
+Deleted clients/shifts do not grant access. Only care-facing profile fields are
+returned; agency notes and financial details are excluded.
+
+Visit history is browsable by month (at most 31 days per request), includes
+cancelled occurrences, and opens the existing shift detail with its original
+occurrence date. The existing progress-note flow supports append-only follow-ups
+and corrections, preserving previous entries; it does not overwrite saved notes.
+
 ### Mobile Feature Roadmap
 
 - [x] **Phase 0**: Project scaffold, design system, NativeWind, shared components, Expo Router setup

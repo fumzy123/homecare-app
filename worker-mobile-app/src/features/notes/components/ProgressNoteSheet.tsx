@@ -59,7 +59,7 @@ function NoteEditor({ target, note, loadError, onClose, onReload }: Props & { no
       <Text className="font-mono text-xs text-ink-soft">{entry.time}</Text>
       <Text className="mt-1 text-sm leading-5 text-ink">{entry.content}</Text>
     </View>)}
-    <Text className="mb-3 text-sm text-ink-soft">Record the care provided and your observations. New entries are added to the visit’s existing record.</Text>
+    <Text className="mb-3 text-sm text-ink-soft">Record care, add a follow-up, or clarify an earlier entry. Corrections are added as a new entry so the original visit record stays intact.</Text>
     <form.Field name="content" validators={{ onChange: z.string().trim().min(1, 'Enter a progress note.').max(10000, 'Keep this entry under 10,000 characters.') }}>
       {field => <>
         <TextInput

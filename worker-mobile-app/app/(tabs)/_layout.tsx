@@ -52,6 +52,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="clients/index"
+        options={{
+          title: 'Clients',
+          tabBarIcon: ({ color }) => <TabIcon name="people-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="ranks/index"
         options={{
           href: null,

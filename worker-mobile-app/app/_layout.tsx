@@ -36,6 +36,7 @@ function Navigation() {
     <Stack.Protected guard={!!session && ready}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="shifts/[shiftId]" />
+      <Stack.Screen name="clients/[clientId]" />
       <Stack.Screen name="placements/[id]" />
       <Stack.Screen name="profile/index" />
       <Stack.Screen name="profile/edit" />
