@@ -91,6 +91,9 @@ export default function SettingsScreen() {
       </View>
 
       {/* ── App info ─────────────────────────────────────────────────────── */}
+      <Pressable onPress={() => router.push('/introduction')} className="mx-5 mt-6 border border-ink/[0.12] px-4 py-4">
+        <Text className="text-[13px] text-ink">How to use the worker app</Text>
+      </Pressable>
       <View className="mt-auto px-5 pb-6">
         <Text className="text-center font-mono text-[9px] text-muted">
           Northwind Field App · v1.0.0

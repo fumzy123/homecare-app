@@ -7,9 +7,7 @@ import { useSignIn } from '../hooks/useAuth';
 const emailSchema = z.string().email('Enter a valid email address');
 const passwordSchema = z.string().min(1, 'Password is required');
 
-type Props = { onSuccess: () => void };
-
-export function LoginForm({ onSuccess }: Props) {
+export function LoginForm() {
   const { mutate: signIn, isPending, error } = useSignIn();
 
   const form = useForm({
@@ -17,7 +15,6 @@ export function LoginForm({ onSuccess }: Props) {
     onSubmit: async ({ value }) => {
       signIn(
         { email: value.email.trim(), password: value.password },
-        { onSuccess },
       );
     },
   });
