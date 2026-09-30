@@ -68,3 +68,36 @@ confirm tax readiness.
 
 This audit records external configuration and observed checks. It does not
 supersede the current billing policy or certify production launch readiness.
+
+## Railway configuration follow-up — 2026-09-29
+
+- Inspected Railway project `keen-clarity`, production environment, service
+  `homecare-app`. The active deployment is
+  `297f4292-5479-425b-9f6f-52ed0bd00350`, from September 25, on `main` commit
+  `7e7a33282c733445a2451c121cac09772906a72e`. It predates this billing feature.
+- Hosted variable names confirmed that `STRIPE_SECRET_KEY` and
+  `STRIPE_WEBHOOK_SECRET` exist. Railway OAuth hides their values, so key mode,
+  validity, and signing-secret correspondence remain unverified.
+- Saved the three current live price mappings above to the hosted service with
+  `skipDeploys=true`. They apply on the next deployment; no redeploy was triggered.
+- Explicitly saved `false` for `BILLING_ONBOARDING_ENABLED`,
+  `BILLING_USAGE_FINALIZATION_ENABLED`, `BILLING_SETTLEMENT_ENABLED`,
+  `BILLING_SETTLEMENT_LIVE_ENABLED`, and `BILLING_NOTIFICATIONS_ENABLED`.
+  These flags guard the new implementation; they do not disable purchases in
+  the currently deployed legacy code. The old `STRIPE_PRICE_ID` was unchanged.
+- Re-read hosted variable names to verify the additions. Values are redacted;
+  the successful write response confirms the submitted configuration.
+- The live OpenAPI endpoint returned 200 and exposes only the legacy billing
+  routes. A harmless probe with an invalid Stripe signature returned
+  400 `INVALID_SIGNATURE`. No valid payment event was sent or replayed.
+- The inspected recent Railway HTTP log sample contained no requests, providing
+  no evidence of successful Stripe event delivery.
+- The live webhook event list remains unchanged. Deploy the compatible backend
+  and required database migrations before adding the missing invoice events and
+  verifying actual delivery, retries, and annual renewal holds.
+- Tax configuration remains unverified and was not changed. Complete that check
+  before enabling live billing; no tax registration or tax exemption is assumed.
+
+Next release sequence: finish sandbox acceptance, deploy this feature and its
+migrations, verify live credentials/configuration, update the webhook event list,
+and verify delivery before deliberately enabling the new billing workflow.
