@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
+import type { ColorValue } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/shared/lib/auth-store';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-function TabIcon({ name, color }: { name: IconName; color: string }) {
+function TabIcon({ name, color }: { name: IconName; color: ColorValue }) {
   return <Ionicons name={name} size={22} color={color} />;
 }
 

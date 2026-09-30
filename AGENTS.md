@@ -40,7 +40,7 @@ No monorepo tooling (Turborepo/Nx). Each app manages its own dependencies indepe
 | Payments | Stripe |
 | Task scheduler | APScheduler |
 | Web framework | React 19 + Vite + TypeScript |
-| Mobile framework| React Native (0.81.5) + Expo (SDK 54) + NativeWind v4 |
+| Mobile framework| React Native (0.86.3) + Expo (SDK 57) + NativeWind v4 |
 | Routing | TanStack Router (file-based) |
 | Server state | TanStack Query + Axios |
 | Client state | Zustand (auth only) |
@@ -400,9 +400,9 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 
 | Concern | Tool |
 |---|---|
-| Framework | React Native + Expo SDK 54 |
+| Framework | React Native + Expo SDK 57 |
 | Language | TypeScript (strict) |
-| Routing | Expo Router v4 (file-based, `app/` dir) |
+| Routing | Expo Router 57 (file-based, `app/` dir) |
 | Server state | TanStack Query v5 |
 | Client state | Zustand |
 | Styling | NativeWind v4 (Tailwind in React Native) |

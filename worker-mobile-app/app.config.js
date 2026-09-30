@@ -42,6 +42,7 @@ module.exports = {
         },
       ],
       'expo-splash-screen',
+      'expo-status-bar',
       'expo-web-browser',
     ],
     ios: {
