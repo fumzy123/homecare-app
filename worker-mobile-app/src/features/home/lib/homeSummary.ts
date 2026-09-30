@@ -3,6 +3,11 @@ import type { ShiftOccurrence } from '../../shifts/types';
 import type { RecordedNote } from '../../notes/api';
 import { partitionShifts } from './partitionShifts';
 
+export interface DailyCompletedHours {
+  date: string;
+  hours: number;
+}
+
 export function homeDateRange(now: number) {
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -21,8 +26,18 @@ export function homeSummary(shifts: ShiftOccurrence[], recordedNotes: RecordedNo
   const tomorrow = eligible.filter(s => toDateKey(new Date(s.start_time)) === toDateKey(range.tomorrow) && s.completion_status !== 'completed')
     .sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
   // Completed scheduled durations are provisional until EVV supplies actual time.
-  const completedHours = eligible.filter(s => s.completion_status === 'completed' && Date.parse(s.end_time) <= now)
-    .reduce((total, s) => total + Math.max(0, Math.min(Date.parse(s.end_time), range.weekEnd.getTime()) - Math.max(Date.parse(s.start_time), range.weekStart.getTime())) / 3_600_000, 0);
+  const completed = eligible.filter(s => s.completion_status === 'completed' && Date.parse(s.end_time) <= now);
+  const dailyCompletedHours: DailyCompletedHours[] = [];
+  // Split overnight visits at local midnight, including across DST and week boundaries.
+  for (let day = range.weekStart; day <= range.today; day = addDays(day, 1)) {
+    const dayEnd = addDays(day, 1).getTime();
+    dailyCompletedHours.push({
+      date: toDateKey(day),
+      hours: completed.reduce((total, s) => total + Math.max(0,
+        Math.min(Date.parse(s.end_time), dayEnd) - Math.max(Date.parse(s.start_time), day.getTime())) / 3_600_000, 0),
+    });
+  }
+  const completedHours = dailyCompletedHours.reduce((total, day) => total + day.hours, 0);
   const scheduledHours = eligible.reduce((total, s) => total + Math.max(0, Math.min(Date.parse(s.end_time), range.weekEnd.getTime()) - Math.max(Date.parse(s.start_time), range.weekStart.getTime())) / 3_600_000, 0);
   const recorded = new Set(recordedNotes.map(note => `${note.shift_id}:${note.occurrence_date}`));
   const pendingNotes = eligible.filter(s => s.completion_status === 'completed' && Date.parse(s.start_time) >= addDays(range.today, -6).getTime() && Date.parse(s.end_time) <= now && !recorded.has(`${s.shift_id}:${s.date}`))
@@ -30,7 +45,7 @@ export function homeSummary(shifts: ShiftOccurrence[], recordedNotes: RecordedNo
   const lastEnd = today.length ? Math.max(...today.map(s => Date.parse(s.end_time))) : null;
   const previous = partition.current ?? today.filter(s => Date.parse(s.end_time) <= now)
     .sort((a, b) => Date.parse(b.end_time) - Date.parse(a.end_time))[0];
-  return { ...partition, tomorrow, pendingNotes, completedHours, scheduledHours, lastEnd,
+  return { ...partition, tomorrow, pendingNotes, completedHours, dailyCompletedHours, scheduledHours, lastEnd,
     currentIndex: partition.current ? [...today].sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time)).indexOf(partition.current) + 1 : 0,
     gapMinutes: previous && partition.next ? Math.max(0, Math.round((Date.parse(partition.next.start_time) - Date.parse(previous.end_time)) / 60_000)) : null,
   };

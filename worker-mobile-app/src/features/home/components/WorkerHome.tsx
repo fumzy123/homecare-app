@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheet } from '@/shared/components/BottomSheet';
+import { Dialog } from '@/shared/components/Dialog';
 import { Btn } from '@/shared/components/ui/Btn';
 import { formatTime } from '@/shared/utils/formatTime';
 import type { ShiftOccurrence } from '@/features/shifts/types';
-import { ComplianceAlert } from '@/features/profile/components/ComplianceAlert';
-import { computeCredentialStatus } from '@/features/profile/types';
+import { computeCredentialStatus, DOCUMENT_TYPE_LABELS } from '@/features/profile/types';
 import { ProgressNoteSheet, type NoteTarget } from '@/features/notes/components/ProgressNoteSheet';
 import { useWorkerHome } from '../hooks/useWorkerHome';
 import { HomeHeader } from './HomeHeader';
@@ -15,9 +14,10 @@ import { WorkerStatsRow } from './WorkerStatsRow';
 import { CurrentShiftCard } from './CurrentShiftCard';
 import { NextShiftCard } from './NextShiftCard';
 import { LaterTodaySection } from './LaterTodaySection';
-import { NoteReminders } from './NoteReminders';
+import { NeedsYouToday, type UrgentAction } from './NeedsYouToday';
 import { TomorrowPreview } from './TomorrowPreview';
 import { CompactShiftRow } from './CompactShiftRow';
+import { WeeklyHoursBreakdown } from './WeeklyHoursBreakdown';
 
 /** Layer 3: owns home orchestration; cards are presentation-only compounds. */
 export function WorkerHome() {
@@ -25,7 +25,7 @@ export function WorkerHome() {
   const home = useWorkerHome();
   const { summary, shifts, notes, now, range } = home;
   const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null);
-  const [sheet, setSheet] = useState<'hours' | 'streak' | 'tomorrow' | 'notes' | null>(null);
+  const [sheet, setSheet] = useState<'hours' | 'streak' | 'tomorrow' | 'attention' | null>(null);
   function openShift(shift: ShiftOccurrence) {
     setSheet(null);
     router.push({ pathname: '/shifts/[shiftId]', params: { shiftId: shift.shift_id, occurrenceDate: shift.date } });
@@ -40,7 +40,31 @@ export function WorkerHome() {
     catch { Alert.alert('Could not open directions', `The visit address is ${address}.`); }
   }
   const hasSchedule = shifts.isSuccess;
-  const hasCredentialAlert = home.credentials.isSuccess && home.credentials.data.some(c => computeCredentialStatus(c.expiry_date) !== 'valid');
+  const credentialActions = (home.credentials.isSuccess ? home.credentials.data : [])
+    .map(credential => ({ credential, status: computeCredentialStatus(credential.expiry_date) }))
+    .filter(({ status }) => status !== 'valid')
+    .sort((a, b) => (a.credential.expiry_date ?? '').localeCompare(b.credential.expiry_date ?? ''))
+    .map(({ credential, status }) => ({
+      id: `credential:${credential.id}`,
+      label: `Review ${DOCUMENT_TYPE_LABELS[credential.document_type]}`,
+      description: `${status === 'expired' ? 'Expired' : 'Expires'} ${new Date(`${credential.expiry_date}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · Open your profile`,
+      status: status === 'expired' ? 'Expired credential' : 'Expiring soon',
+      onPress: () => { setSheet(null); router.push('/(tabs)/me'); },
+      expired: status === 'expired',
+    }));
+  const noteActions: UrgentAction[] = hasSchedule && notes.isSuccess ? summary.pendingNotes.map(shift => ({
+    id: `note:${shift.shift_id}:${shift.date}`,
+    label: `Add a note for ${shift.client.first_name} ${shift.client.last_name}`,
+    description: `${new Date(shift.start_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${formatTime(shift.start_time)} · Completed visit`,
+    status: 'Progress note needed',
+    onPress: () => openNote(shift),
+  })) : [];
+  // Action items reflect unresolved records, independently of notification read state.
+  const attentionActions: UrgentAction[] = [
+    ...credentialActions.filter(action => action.expired),
+    ...noteActions,
+    ...credentialActions.filter(action => !action.expired),
+  ];
   const hasCurrentNote = notes.isSuccess && summary.current != null && notes.data.some(n => n.shift_id === summary.current?.shift_id && n.occurrence_date === summary.current.date);
   return <>
     <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingTop: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}
@@ -52,17 +76,16 @@ export function WorkerHome() {
       </View> : <Text className="mb-5 text-sm text-ink-soft">{shifts.isPending ? 'Getting your day ready…' : 'Your schedule is unavailable'}</Text>}
       <WorkerStatsRow completedHours={hasSchedule ? summary.completedHours : null} scheduledHours={hasSchedule ? summary.scheduledHours : null}
         streak={home.stats.isSuccess ? home.stats.data.punctuality_streak : null} onHoursPress={() => setSheet('hours')} onStreakPress={() => setSheet('streak')} />
+      <NeedsYouToday actions={attentionActions} onViewAll={() => setSheet('attention')} />
+      {notes.isError ? <Pressable accessibilityRole="button" onPress={() => void notes.refetch()} className="mb-4 min-h-11 rounded-xl bg-orange-soft p-3">
+        <Text className="text-sm text-ink">Note reminders unavailable. Tap to retry.</Text>
+      </Pressable> : null}
       {shifts.isPending ? <View className="py-10"><ActivityIndicator accessibilityLabel="Loading your visits" color="#FF5A1F" /></View> : shifts.isError ? <View className="rounded-2xl bg-orange-soft p-4">
         <Text accessibilityRole="alert" className="mb-3 text-sm text-ink">Could not load your visits. Check your connection and try again.</Text>
         <Btn onPress={home.refresh.onRefresh}>Try again</Btn>
       </View> : <>
         {summary.current ? <CurrentShiftCard shift={summary.current} now={now} visitIndex={summary.currentIndex} total={summary.total} hasNote={hasCurrentNote}
           onPress={() => openShift(summary.current!)} onNotePress={() => openNote(summary.current!)} /> : null}
-        {notes.isSuccess ? <NoteReminders shifts={summary.pendingNotes.slice(0, 3)} onPress={openNote} /> : null}
-        {notes.isSuccess && summary.pendingNotes.length > 3 ? <Btn variant="ghost" className="my-2" onPress={() => setSheet('notes')}>View all {summary.pendingNotes.length} notes to finish</Btn> : null}
-        {notes.isError ? <Pressable accessibilityRole="button" onPress={() => void notes.refetch()} className="my-2 min-h-11 rounded-xl bg-orange-soft p-3">
-          <Text className="text-sm text-ink">Note reminders unavailable. Tap to retry.</Text>
-        </Pressable> : null}
         {summary.next ? <NextShiftCard shift={summary.next} shiftIndex={summary.nextIndex} totalToday={summary.total} gapMinutes={summary.gapMinutes}
           onDetailsPress={() => openShift(summary.next!)} onDirectionsPress={() => void openDirections(summary.next!)} /> : !summary.current ? <View className="mt-3 rounded-2xl border border-cream-2 bg-paper p-5">
           <Text className="font-serif text-2xl text-ink">{summary.total ? 'No more visits scheduled today.' : 'A little room to breathe.'}</Text>
@@ -71,28 +94,28 @@ export function WorkerHome() {
         <LaterTodaySection shifts={summary.later} onShiftPress={openShift} />
         <TomorrowPreview date={range.tomorrow} shifts={summary.tomorrow} onPress={() => setSheet('tomorrow')} />
       </>}
-      {hasCredentialAlert ? <Pressable accessibilityRole="button" accessibilityLabel="Review credentials in My profile" onPress={() => router.push('/(tabs)/me')}>
-        <ComplianceAlert credentials={home.credentials.data ?? []} className="mt-4 rounded-xl bg-orange-soft p-3.5" />
-      </Pressable> : null}
       {home.credentials.isError || home.notifications.isError || home.stats.isError ? <Text className="mt-4 text-xs leading-5 text-ink-soft">Some updates are unavailable. Pull down to refresh your stats, notifications, and credentials.</Text> : null}
       <Pressable onPress={() => router.push('/(tabs)/schedule')} accessibilityRole="button" className="min-h-12 flex-row items-center gap-2 py-4">
         <Ionicons name="calendar-outline" size={17} color="#4A453E" /><Text className="flex-1 text-xs text-ink-soft">See your full schedule</Text><Ionicons name="arrow-forward" size={15} color="#4A453E" />
       </Pressable>
     </ScrollView>
     {noteTarget ? <ProgressNoteSheet key={`${noteTarget.shiftId}:${noteTarget.occurrenceDate}`} target={noteTarget} onClose={() => setNoteTarget(null)} /> : null}
-    {sheet ? <BottomSheet title={sheet === 'hours' ? 'Your week so far' : sheet === 'streak' ? 'Showing up with care' : sheet === 'notes' ? 'Notes to finish' : 'A look at tomorrow'} onClose={() => setSheet(null)}>
-      {sheet === 'hours' ? <>
-        <Text className="text-sm text-ink-soft">Week of {range.weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</Text>
-        <Text className="my-4 font-serif text-3xl text-ink">{hasSchedule ? `${Number(summary.completedHours.toFixed(1))} hrs completed` : 'Hours unavailable'}</Text>
-        <Text className="text-sm leading-6 text-ink-soft">Completed hours are an estimate based on the scheduled duration of completed visits, not verified check-in and check-out times. Your current visit is excluded.</Text>
-        {hasSchedule ? <Text className="mt-4 text-sm text-ink">{Number(summary.scheduledHours.toFixed(1))} hours scheduled this week.</Text> : null}
-      </> : sheet === 'streak' ? <Text className="text-sm leading-6 text-ink-soft">{home.stats.data?.punctuality_streak != null ? `${home.stats.data.punctuality_streak} consecutive scheduled days on time.` : 'Punctuality will be available when visit check-ins are recorded. Scheduled start times alone cannot tell us whether you arrived on time.'}</Text>
-      : sheet === 'notes' ? <NoteReminders shifts={summary.pendingNotes} onPress={openNote} />
+    {sheet ? <Dialog title={sheet === 'hours' ? 'Your week so far' : sheet === 'streak' ? 'Showing up with care' : sheet === 'attention' ? 'Needs your attention' : 'A look at tomorrow'}
+      eyebrow={sheet === 'hours' ? 'This week' : sheet === 'streak' ? 'Punctuality' : sheet === 'attention' ? 'Action items' : 'Upcoming visits'} onClose={() => setSheet(null)}>
+      {sheet === 'hours' ? <WeeklyHoursBreakdown weekStart={range.weekStart} weekEnd={range.weekEnd} days={summary.dailyCompletedHours}
+        completedHours={hasSchedule ? summary.completedHours : null} scheduledHours={hasSchedule ? summary.scheduledHours : null}
+        loading={shifts.isPending} onRetry={() => void shifts.refetch()} />
+      : sheet === 'streak' ? <Text className="text-sm leading-6 text-ink-soft">{home.stats.data?.punctuality_streak != null ? `${home.stats.data.punctuality_streak} consecutive scheduled days on time.` : 'Punctuality will be available when visit check-ins are recorded. Scheduled start times alone cannot tell us whether you arrived on time.'}</Text>
+      : sheet === 'attention' ? <>
+        <Text className="mb-4 text-sm leading-6 text-ink-soft">Credential reminders and missing progress notes from visits completed in the last 7 days.</Text>
+        <NeedsYouToday actions={attentionActions} showHeading={false} />
+        {!attentionActions.length ? <Text className="text-sm text-ink-soft">No action items to show.</Text> : null}
+      </>
       : <>
         <Text className="mb-4 text-sm text-ink-soft">{range.tomorrow.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
         {summary.tomorrow.map(shift => <CompactShiftRow key={`${shift.shift_id}:${shift.date}`} shift={shift} onPress={() => openShift(shift)} className="mb-3" />)}
         {!summary.tomorrow.length ? <Text className="text-sm text-ink-soft">No visits scheduled for tomorrow.</Text> : null}
       </>}
-    </BottomSheet> : null}
+    </Dialog> : null}
   </>;
 }

@@ -98,3 +98,47 @@ test('empty days and unavailable attendance never become fabricated worked hours
     assert.equal(homeSummary([shift(status, '08:00', '10:00', status)], [], at('11:42')).pendingNotes.length, 0);
   }
 });
+
+test('daily completed hours accumulate into the weekly total without current or future visits', () => {
+  const result = homeSummary([
+    { ...shift('monday', '08:00', '14:00', 'completed'), start_time: '2026-09-28T08:00:00', end_time: '2026-09-28T14:00:00' },
+    { ...shift('tuesday', '08:00', '14:30', 'completed'), start_time: '2026-09-29T08:00:00', end_time: '2026-09-29T14:30:00' },
+    shift('wednesday', '08:00', '10:00', 'completed'),
+    shift('current', '11:00', '12:30', 'in_progress'),
+    shift('future-completed', '14:00', '15:00', 'completed'),
+    shift('cancelled', '08:00', '10:00', 'cancelled'),
+  ], [], at('11:42'));
+  assert.deepEqual(result.dailyCompletedHours, [
+    { date: '2026-09-27', hours: 0 },
+    { date: '2026-09-28', hours: 6 },
+    { date: '2026-09-29', hours: 6.5 },
+    { date: '2026-09-30', hours: 2 },
+  ]);
+  assert.equal(result.completedHours, 14.5);
+  assert.equal(result.scheduledHours, 17);
+});
+
+test('daily totals split completed overnight visits and exclude hours outside the reporting week', () => {
+  const result = homeSummary([
+    { ...shift('before-week', '23:00', '02:00', 'completed'), start_time: '2026-09-26T23:00:00', end_time: '2026-09-27T02:00:00' },
+    { ...shift('overnight', '23:00', '02:00', 'completed'), start_time: '2026-09-28T23:00:00', end_time: '2026-09-29T02:00:00' },
+  ], [], at('11:42'));
+  assert.deepEqual(result.dailyCompletedHours.map(day => day.hours), [2, 1, 2, 0]);
+  assert.equal(result.completedHours, 5);
+  assert.equal(result.dailyCompletedHours.reduce((sum, day) => sum + day.hours, 0), result.completedHours);
+});
+
+test('daily hours use elapsed time across the Newfoundland daylight-saving change', () => {
+  const previousTimeZone = process.env.TZ;
+  process.env.TZ = 'America/St_Johns';
+  try {
+    const result = homeSummary([
+      { ...shift('fall-back', '00:00', '04:00', 'completed'), start_time: '2026-11-01T00:00:00-02:30', end_time: '2026-11-01T04:00:00-03:30' },
+    ], [], Date.parse('2026-11-01T12:00:00-03:30'));
+    assert.deepEqual(result.dailyCompletedHours, [{ date: '2026-11-01', hours: 5 }]);
+    assert.equal(result.completedHours, 5);
+  } finally {
+    if (previousTimeZone == null) delete process.env.TZ;
+    else process.env.TZ = previousTimeZone;
+  }
+});
