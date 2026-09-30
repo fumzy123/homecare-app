@@ -7,14 +7,14 @@ import { AcceptInviteForm } from './AcceptInviteForm'
 const button = 'block w-full border border-ink bg-ink px-5 py-3 text-center text-sm text-cream disabled:opacity-50'
 const input = 'w-full border border-ink bg-cream px-3 py-3 text-base'
 
-function ResumeInvitation() {
+function ResumeInvitation({ showIntroduction = true }: { showIntroduction?: boolean }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   return <>
-    <h1 className="font-serif text-3xl">Finish joining your agency</h1>
-    <p className="my-4 text-sm text-ink-soft">Open the invitation email from your agency to set up your account. If you already created a password, sign in below to continue.</p>
+    {showIntroduction ? <><h1 className="font-serif text-3xl">Finish joining your agency</h1>
+    <p className="my-4 text-sm text-ink-soft">Open the invitation email from your agency to set up your account. If you already created a password, sign in below to continue.</p></> : null}
     <form className="space-y-4" onSubmit={async (event) => {
       event.preventDefault(); setPending(true); setError('')
       try { await authApi.signIn(email.trim(), password) }
@@ -57,10 +57,13 @@ export function InvitationJourney() {
   })
   const [signOutError, setSignOutError] = useState(false)
   let content
-  if (linkError) {
-    content = <><h1 className="font-serif text-3xl">This invitation link cannot be used.</h1><p className="mt-4 text-sm">It may have expired, been replaced, or already been used. If you finished setup, open the worker app and sign in. Otherwise ask your agency to resend your invitation.</p></>
-  } else if (loadingSession || (session && account.isPending)) {
+  // A repeat click can carry an expired/used-token error while the browser still
+  // has the session from the first click. Let the API verify that user's current
+  // invitation or membership before deciding whether setup can continue.
+  if (loadingSession || (session && account.isPending)) {
     content = <p role="status">Checking your agency invitation…</p>
+  } else if (linkError && !session) {
+    content = <><h1 className="font-serif text-3xl">This invitation link cannot be used.</h1><p className="mt-4 text-sm">This email link may have already been opened, expired, or been replaced. If you opened it earlier, return to the same browser to continue setup. If you already created a password, sign in below. Otherwise ask your agency for a new invitation.</p><div className="mt-6"><ResumeInvitation showIntroduction={false} /></div></>
   } else if (!session) {
     content = <>{sessionError ? <p role="alert">Your previous session could not be restored. Please sign in again.</p> : null}<ResumeInvitation /></>
   } else if (account.isError) {
