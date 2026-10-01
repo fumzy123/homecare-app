@@ -6,14 +6,13 @@ import { useTodayShifts, useWeekShifts, useDroppedShifts } from '@/features/shif
 import { useClients } from '@/features/clients/hooks/useClients'
 import { useWorkers } from '@/features/workers/hooks/useWorkers'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
-import { DayTimeline } from '@/features/shifts/components/DayTimeline'
-import { Card, Kicker } from '@/shared/components/ui'
+import { TodayShiftsTimeline } from '@/features/dashboard/components/TodayShiftsTimeline'
+import { Kicker } from '@/shared/components/ui'
 import { DashboardStatsStrip } from '@/features/dashboard/components/DashboardStatsStrip'
-import { DroppedShiftsAlert } from '@/features/dashboard/components/DroppedShiftsAlert'
+import { WeeklySchedulingGaps } from '@/features/dashboard/components/WeeklySchedulingGaps'
+import { NeedsAttentionPanel } from '@/features/dashboard/components/NeedsAttentionPanel'
 import { WorkerUtilizationCard } from '@/features/dashboard/components/WorkerUtilizationCard'
 import { ClientRosterCard } from '@/features/dashboard/components/ClientRosterCard'
-import { ComplianceAlertsPanel } from '@/features/workers/components/ComplianceAlertsPanel'
-import { AuthorizationsExpiringPanel } from '@/features/authorizations/components/AuthorizationsExpiringPanel'
 
 export const Route = createFileRoute('/_protected/dashboard/')({
   component: DashboardPage,
@@ -23,15 +22,13 @@ function DashboardPage() {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
   const { data: todayShifts   = [], isLoading: loadingToday } = useTodayShifts()
-  const { data: weekShifts    = [] }                          = useWeekShifts()
-  const { data: droppedShifts = [] }                          = useDroppedShifts()
-  const { data: clients       = [] }                          = useClients()
+  const { data: weekShifts = [], isLoading: loadingWeek, isError: weekError } = useWeekShifts()
+  const { data: droppedShifts = [], isPending: droppedPending, isError: droppedError, refetch: refetchDropped } = useDroppedShifts()
+  const { data: clients = [], isLoading: loadingClients, isError: clientsError } = useClients()
   const { data: workers       = [] }                          = useWorkers()
 
   const inProgress  = todayShifts.filter((s) => s.completion_status === 'in_progress')
   const scheduled   = todayShifts.filter((s) => s.completion_status === 'scheduled')
-  const sortedToday = [...todayShifts].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-  const completed   = todayShifts.filter((s) => s.completion_status === 'completed')
 
   return (
     <div className="min-h-full bg-cream">
@@ -67,40 +64,19 @@ function DashboardPage() {
 
       {/* ── Main grid ── */}
       <section className="px-10 max-md:px-4 grid grid-cols-3 max-md:grid-cols-1 gap-6 mb-8">
-        <Card className="col-span-2 max-md:col-span-1 p-0">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-ink">
-            <div>
-              <Kicker className="mb-1">A · Live Timeline</Kicker>
-              <h3 className="font-serif text-[26px] leading-none tracking-[-0.02em]">
-                Today's shifts <span className="font-serif italic text-muted">— {format(new Date(), 'EEE, MMM d')}</span>
-              </h3>
-            </div>
-            <div className="flex items-center gap-5 font-mono text-[10px]">
-              <span className="flex items-center gap-1.5"><span className="dot dot-mint" /> In progress {inProgress.length}</span>
-              <span className="flex items-center gap-1.5"><span className="dot dot-ink" /> Done {completed.length}</span>
-              <span className="flex items-center gap-1.5"><span className="dot dot-orange" /> Upcoming {scheduled.length}</span>
-            </div>
-          </div>
-          {loadingToday ? (
-            <p className="px-6 py-10 text-center font-mono text-[11px] text-muted tracking-wide">LOADING…</p>
-          ) : (
-            <DayTimeline shifts={sortedToday} onSelectShift={setSelectedShift} />
-          )}
-        </Card>
+        <TodayShiftsTimeline
+          shifts={todayShifts}
+          isLoading={loadingToday}
+          onSelectShift={setSelectedShift}
+        />
 
         <div className="flex flex-col gap-6">
-          <DroppedShiftsAlert droppedShifts={droppedShifts} onSelectShift={setSelectedShift} />
+          <NeedsAttentionPanel droppedShifts={droppedShifts} droppedPending={droppedPending} droppedError={droppedError}
+            onRetryDropped={() => void refetchDropped()} onSelectShift={setSelectedShift}>
+            <WeeklySchedulingGaps embedded clients={clients} weekShifts={weekShifts}
+              isLoading={loadingClients || loadingWeek} isError={clientsError || weekError} />
+          </NeedsAttentionPanel>
           <WorkerUtilizationCard workers={workers} weekShifts={weekShifts} />
-        </div>
-      </section>
-
-      {/* ── Compliance & authorization alerts ── */}
-      <section className="px-10 max-md:px-4 mb-8 grid grid-cols-3 max-md:grid-cols-1 gap-6 items-start">
-        <div className="col-span-2 max-md:col-span-1">
-          <AuthorizationsExpiringPanel />
-        </div>
-        <div>
-          <ComplianceAlertsPanel />
         </div>
       </section>
 

@@ -289,6 +289,9 @@ interface StatCardProps {
   label: string
   value: string | number
   sub?: string
+  description?: string
+  valueNote?: string
+  hoverVariant?: 'cream' | 'mint'
   valueColor?: string      // extra class on the value, e.g. 'text-orange'
   size?: 'sm' | 'md' | 'lg'  // 40 / 48 / 72px
   sublabelInline?: boolean // place sub next to value instead of below
@@ -296,11 +299,11 @@ interface StatCardProps {
 }
 
 export function StatCard({
-  label, value, sub, valueColor, size = 'md', sublabelInline = false, className,
+  label, value, sub, description, valueNote, hoverVariant = 'cream', valueColor, size = 'md', sublabelInline = false, className,
 }: StatCardProps) {
   const sizeClass = { sm: 'text-[40px]', md: 'text-[48px]', lg: 'text-[72px]' }[size]
   return (
-    <div className={cn('px-6 py-5 hover:bg-cream-2 transition-colors', className)}>
+    <div className={cn('px-6 py-5 transition-colors', hoverVariant === 'mint' ? 'hover:bg-mint-soft' : 'hover:bg-cream-2', className)}>
       <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft mb-3">{label}</p>
       {sublabelInline ? (
         <div className="flex items-baseline gap-3">
@@ -309,10 +312,14 @@ export function StatCard({
         </div>
       ) : (
         <>
-          <p className={cn(`font-serif ${sizeClass} leading-none`, valueColor ?? 'text-ink')}>{value}</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className={cn(`font-serif ${sizeClass} leading-none`, valueColor ?? 'text-ink')}>{value}</p>
+            {valueNote && <span className="font-mono text-[11px] text-ink-soft">{valueNote}</span>}
+          </div>
           {sub && <p className="font-mono text-[10px] text-ink-soft mt-1">{sub}</p>}
         </>
       )}
+      {description && <p className="text-[11px] text-ink-soft mt-2">{description}</p>}
     </div>
   )
 }
