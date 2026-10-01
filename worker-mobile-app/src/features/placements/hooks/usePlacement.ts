@@ -12,7 +12,7 @@ export function usePlacement(placementId: string) {
 export function useExpressInterest(placementId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (note?: string) => expressInterest(placementId, note),
+    mutationFn: ({ careSlotIds, note }: { careSlotIds: string[]; note?: string }) => expressInterest(placementId, careSlotIds, note),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['placement', placementId] });
     },

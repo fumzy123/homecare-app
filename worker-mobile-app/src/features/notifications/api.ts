@@ -5,6 +5,7 @@ export type NotificationType =
   | 'credential_uploaded'
   | 'shift_dropped'
   | 'overtime_approval_requested'
+  | 'placement_coverage_updated'
   | 'placement_created'
   | 'placement_filled'
   | 'placement_closed';

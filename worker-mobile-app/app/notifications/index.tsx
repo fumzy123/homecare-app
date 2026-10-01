@@ -22,6 +22,7 @@ function notificationTitle(n: WorkerNotification): string {
   const loc = n.payload.masked_location as string | undefined;
   const client = n.payload.client_name as string | undefined;
   const suffix = loc ? ` — ${loc}` : '';
+  if (typeof n.payload.message === 'string') return n.payload.message;
   switch (n.type) {
     case 'placement_created':
       // Lead with the client's name so the worker knows who they'd take on.
@@ -100,7 +101,7 @@ export default function NotificationsScreen() {
     if (
       n.type === 'placement_created' ||
       n.type === 'placement_filled' ||
-      n.type === 'placement_closed'
+      n.type === 'placement_closed' || n.type === 'placement_coverage_updated'
     ) {
       const placementId = n.payload.placement_id as string | undefined;
       if (placementId) {
