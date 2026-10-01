@@ -71,9 +71,9 @@ call repositories). A domain object is **not** a `Service`: no router factory, n
 transactions, no `current_user`. Two kinds:
 
 - **Pure functions** — data in, decision out, no I/O. E.g.
-  `domain/availability.py::availability_covers_care_plan(availability, care_plan)`;
+  `domain/availability.py::availability_covers_care_need(availability, care_slots)`;
   the occurrence/RRULE math in `domain/scheduling.py` (`expand_occurrences`,
-  `timeblock_for_occurrence`, `iso_week_range`, `weekly_entries_to_time_blocks`).
+  `timeblock_for_occurrence`, `iso_week_range`, `care_slots_to_time_blocks`).
 - **Repository-backed collaborators** — read-only, `__init__(self, db, org_id)`,
   no commits. E.g. `domain/scheduling.py::SchedulingChecker` (`find_conflicts`,
   `find_hours_violations`), used by both `ShiftService` and `PlacementService`.
@@ -304,66 +304,73 @@ lookback window, skip already-finalized rows) — see `app/jobs/shift_completion
 
 ---
 
-## The Care Chain — Authorization → Plan → Delivery
+## The Care Chain — Authorization → Weekly Care Need → Scheduled Care
 
-Three objects sit at three levels: **entitlement → demand → supply**. The
-client's weekly care plan is the linchpin — it's the only artifact that must
-satisfy both the funder's cap *and* the agency's labor supply at once.
+Authorization is the funding limit; a **Weekly Care Need** is the client's recurring demand;
+a **Care Slot** is one weekday, time interval and service within a version of that need.
+Worker availability is capacity, and approved shifts are scheduled delivery.
 
-| Layer | What it is | Owner | Unit |
+Use these names throughout the stack:
+
+| Concept | Model / frontend | Table | API |
 |---|---|---|---|
-| **Authorization hours** | The funder's cap, per service | Health institution / funder | Per service, normalized to the **bi-weekly** payment window |
-| **Weekly care plan** | Recurring weekly care entries (day/time/service) — `WeeklyCarePlanEntry` | Agency | **Weekly** (×2 to compare bi-weekly) |
-| **Worker availability** | Recurring weekly windows a worker can work — `WorkerAvailabilityEntry` (+ `max_hours_per_week`) | Worker / agency | Weekly interval entries |
+| Versioned weekly demand | `WeeklyCareNeed` | `weekly_care_needs` | `/clients/{id}/care-need` |
+| Individual recurring requirement | `CareSlot` | `care_slots` | Nested in the Weekly Care Need |
+| Approved slot coverage | `CareSlotAssignment` | `care_slot_assignments` | `/placements/{id}/approve` |
+| Worker availability | `WorkerAvailabilityEntry` | `worker_availability_entries` | `/org-members/{id}/availability` |
+| Scheduled visit series | `Shift` | `shifts` | `/shifts` |
 
-### Vocabulary — one name per concept, FE → BE → DB
+### Version and approval flow
 
-The scheduling concepts use **one consistent name at every layer** so a new dev
-never meets two names for one thing. The row-level noun is always **entry**.
+- Saving creates an immutable version with `created_at` and proposed `effective_from`.
+  Its Care Slots retain their IDs and history. Saving or posting never generates shifts.
+- **Post as open placement** advertises one whole version. Workers express interest in
+  one, several or all available Care Slots. Interest does not reserve coverage.
+- The admin selects interested workers, reviews availability/conflicts/hours/funding,
+  and chooses **Approve and schedule**. Partial approval is supported, with explicit
+  acknowledgment of the remaining uncovered Care Slots.
+- First approval records `scheduled_from` and activates the new version. In the same
+  transaction, all recurring coverage linked to the previous version ends the day before
+  that date. Old Friday coverage never continues merely because new Saturday is open.
+  Past visits and modifications remain. Unrelated one-off shifts are unaffected.
+- Subsequent approvals add only uncovered Care Slots. Organization-first locks, a reviewed
+  state token and unique slot assignments prevent stale/double approvals. Eligibility is
+  rechecked at confirmation. Ordinary shift edits cannot extend an ended version.
+- In-app notifications are written in the approval transaction: selected workers receive
+  confirmation and all active agency workers receive the approved and remaining slots.
+  No external message broker or background delivery process is required for this flow.
+- `/care-actions` supplies dashboard actions for unpublished versions, pending interest,
+  uncovered slots and proposed start dates reached before approval.
 
-| Concept | Frontend | Backend (model / service) | DB table | Route |
-|---|---|---|---|---|
-| Funder entitlement | `Authorization` | `Authorization` | `authorizations` | `/clients/{id}/authorizations` |
-| Client's weekly care plan | `WeeklyCarePlanEntry`, `WeeklyCarePlanEditor` | `WeeklyCarePlanEntry` / `WeeklyCarePlanService` | `weekly_care_plan_entries` | `/clients/{id}/care-plan` |
-| Worker availability | `AvailabilityEntry`, `WorkerAvailabilityEditor` | `WorkerAvailabilityEntry` / `WorkerAvailabilityService` | `worker_availability_entries` | `/org-members/{id}/availability` |
-| Scheduled care | `Shift` | `Shift` | `shifts` | `/shifts` |
-| Delivered care | (Attended shift — see Phase 8 EVV) | `Shift` (completed) | `shifts` | — |
+### Migration and history
 
-The weekly care plan has **no parent row** — it *is* the set of
-`WeeklyCarePlanEntry` rows for a client. For a **funded** client the tab is the
-**Authorized Weekly Care Plan** (capped by the funder); for a **self-pay** client
-it is simply the **Weekly Care Plan** (no cap, compliance off). Same route
-(`/care-plan`) and same editor for both — only the label and `enforceCompliance`
-differ. See [[project_org_member_architecture]] for the worker side.
+Migration `5961f453498d` preserves existing care rows under an explicitly imported baseline.
+Existing recurring shifts link to that baseline; exact slot links are not invented.
+Existing one-off shifts remain independent. Legacy placement snapshots are retained and
+read-only for assignment; save a new version to use slot approvals. The retired client
+`assigned_worker_id` data is preserved in the private `legacy_client_worker_assignments`
+archive. There is no single assigned-worker field in the live client model.
 
-### The relationships
-- **Authorization → Weekly care plan = a ceiling (enforced, hard).** Planned
-  hours per service must stay ≤ authorized hours. Enforced in the
-  `WeeklyCarePlanEditor` (funded clients only): `Within cap / Over cap` pills,
-  and **Save is blocked over cap**. Units differ (auth = bi-weekly, plan =
-  weekly), so the plan is normalized `weekly × 2` before comparing. This is why
-  the authorization card shows *only* authorized hours — comparing plan-vs-auth
-  in place mixes units.
-- **Weekly care plan → Worker availability = staffing feasibility.** The plan is
-  *demand* (when/what care is needed); availability is *capacity* (who can cover
-  it). A worker can take an entry only if available, under max hours, and not
-  double-booked. Enforced today: **double-booking** (409
-  `WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK`). Overtime/availability are
-  softer (overtime prevention is backlog; availability is an input to *who you'd
-  pick*, not a hard gate yet).
-- **Authorization ↔ Worker availability = no direct link.** They only meet
-  through the weekly care plan in the middle.
+A client's **Care team** is derived from scheduled coverage. Worker client access is based
+on retained, non-deleted shifts in the same agency, including past care history.
 
-### Two compliance moments (only the first is built)
-1. **Plan-time** — planned vs authorized. Hard block at save. ✅ built.
-2. **Delivery-time** — *actually delivered* care vs authorized ("did we stay
-   within the funding?"). This is the `Delivered` figure on the Overview
-   utilization meter and the future warn-with-override check on real shifts
-   (Phase 3). **Delivered care should be measured from Electronic Visit
-   Verification (EVV)** — real check-in/check-out at the point of care (GPS
-   arrival/departure, mobile Phase 8) — *not* from scheduled shift durations.
-   Until EVV lands, `Delivered` is an approximation derived from completed
-   shifts and should be treated as provisional.
+### Active and standby
+
+**Active clients** counts clients with Active relationship status. **Active workers** counts
+workers with Active employment status. Neither is a billing-period usage count.
+**On standby** is derived within the active workforce: no ongoing qualifying visit and no
+scheduled client visit from now through the next 14 days, inclusive. Cancelled, dropped,
+completed and missed visits do not count; inactive/deleted clients do not keep a worker
+scheduled. A distant next shift is shown separately. Employment status stays Active.
+The indicator is computed from schedule data on reads (the roster refreshes every minute),
+so no status-changing background worker or backdated assignment timer is needed.
+
+### Funding
+
+Funded care is checked per service at the proposed/approved start date. Weekly hours are
+multiplied by two to compare with bi-weekly authorizations. Save and approval reject
+exceeded caps. Worker eligibility checks only selected Care Slots, rather than demanding
+one worker cover the entire week. Delivered hours remain provisional until EVV.
 
 ---
 
@@ -441,8 +448,7 @@ cards are controlled Layer 2 components within the feature.
 `GET /api/me/clients`, `GET /api/me/clients/{client_id}` and
 `GET /api/me/clients/{client_id}/shifts?from_date=...&to_date=...` use
 WorkerClientService → WorkerClientRepository / ShiftRepository. Access requires
-an active worker and agency, and is scoped to the worker's agency and either
-primary client assignment or a retained active shift assigned to that worker.
+an active worker and agency, and is scoped to the worker's agency and a retained active shift assigned to that worker.
 Deleted clients/shifts do not grant access. Only care-facing profile fields are
 returned; agency notes and financial details are excluded.
 
