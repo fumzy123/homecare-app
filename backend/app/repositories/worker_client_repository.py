@@ -1,4 +1,3 @@
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.enums import ShiftStatus
@@ -12,8 +11,7 @@ class WorkerClientRepository:
         self.db = db
 
     def _visible_clients(self, org_id, worker_id):
-        # Include past clients with retained shifts, not just the current primary
-        # assignment. EXISTS avoids duplicate clients for recurring/one-off care.
+        # Include clients with retained scheduled care, including past visits. EXISTS avoids duplicate clients for recurring/one-off care.
         own_shift = self.db.query(Shift.id).filter(
             Shift.client_id == Client.id, Shift.org_id == org_id,
             Shift.worker_id == worker_id, Shift.deleted_at.is_(None),
@@ -21,7 +19,7 @@ class WorkerClientRepository:
         ).exists()
         return self.db.query(Client).filter(
             Client.org_id == org_id, Client.deleted_at.is_(None),
-            or_(Client.assigned_worker_id == worker_id, own_shift),
+            own_shift,
         )
 
     def list_for_worker(self, org_id, worker_id):

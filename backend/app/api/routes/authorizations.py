@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -67,13 +68,14 @@ async def cancel_authorization(
     return service.cancel(authorization_id)
 
 
-# ── Compliance (planned weekly care plan vs authorized) ───────────────────────
+# ── Compliance (planned weekly care need vs authorized) ───────────────────────
 
 @router.get("/clients/{client_id}/authorization-compliance", response_model=AuthorizationComplianceResponse)
 async def get_authorization_compliance(
     client_id: UUID,
+    on_date: date | None = None,
     current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     org_id = OrgService.get_user_org_id(current_user, db)
-    return AuthorizationComplianceService(db).check(client_id, org_id)
+    return AuthorizationComplianceService(db).check(client_id, org_id, on_date)

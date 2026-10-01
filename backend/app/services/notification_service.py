@@ -288,3 +288,40 @@ class NotificationService:
             created_at=notif.created_at,
             read_at=read.read_at if read else None,
         )
+
+    def notify_placement_interest(self, org_id, placement_id, worker_id, care_slot_ids):
+        notification = self.repo.create(org_id=org_id, type=NotificationType.placement_interest_received,
+            payload={'placement_id': str(placement_id), 'care_slot_ids': care_slot_ids},
+            requires_action=True, about_worker_id=worker_id, triggered_by_id=worker_id)
+        self.repo.create_reads_for_admins(notification.id, org_id)
+
+    def notify_coverage_approved(self, org_id, placement, workers, selections, remaining, starts_on):
+        slots = {s['id']: s for s in placement.care_slot_snapshot}
+        days = {'MO': 'Mon', 'TU': 'Tue', 'WE': 'Wed', 'TH': 'Thu', 'FR': 'Fri', 'SA': 'Sat', 'SU': 'Sun'}
+        def label(slot):
+            return f"{days.get(slot['day_of_week'], slot['day_of_week'])} {slot['start_time'][:5]}–{slot['end_time'][:5]}"
+        approved = []
+        for worker in workers:
+            selected = [slots[str(s.care_slot_id)] for s in selections if str(s.employment_id) == worker['worker_id']]
+            description = ', '.join(label(s) for s in selected)
+            approved.append(f"{worker['worker_name']}: {description}")
+            notice = self.repo.create(org_id=org_id, type=NotificationType.placement_filled,
+                payload={'placement_id': str(placement.id), 'masked_location': placement.masked_location,
+                    'message': f'Your Care Slots are approved from {starts_on}: {description}'},
+                requires_action=False, target_audience=TargetAudience.individual,
+                recipient_id=UUID(worker['worker_id']), triggered_by_id=self.current_user_id)
+            self.repo.create_read_for_individual(notice.id, UUID(worker['worker_id']))
+        available = ', '.join(label(slots[str(s.id)]) for s in remaining)
+        message = '; '.join(approved) + (f'. Still available: {available}' if available else '. This placement is fully covered.')
+        notice = self.repo.create(org_id=org_id, type=NotificationType.placement_coverage_updated,
+            payload={'placement_id': str(placement.id), 'message': message,
+                'client_name': f'{placement.client.first_name} {placement.client.last_name}'},
+            requires_action=False, target_audience=TargetAudience.workers_only,
+            triggered_by_id=self.current_user_id)
+        self.repo.create_reads_for_workers(notice.id, org_id)
+
+    def resolve_placement_interest(self, org_id, placement_id, open_slot_ids):
+        self.repo.resolve_placement_interest(org_id, placement_id, open_slot_ids, self.current_user_id)
+
+    def resolve_worker_interest(self, org_id, placement_id, worker_id):
+        self.repo.resolve_worker_interest(org_id, placement_id, worker_id, self.current_user_id)

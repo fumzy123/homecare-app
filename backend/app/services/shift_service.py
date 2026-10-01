@@ -25,6 +25,7 @@ from app.repositories.shift_repository import ShiftRepository, ShiftModification
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
 from app.repositories.client_repository import ClientRepository
+from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 from app.domain.scheduling import (
     DEFAULT_RECURRENCE_HORIZON_DAYS,
     SchedulingChecker,
@@ -47,6 +48,7 @@ class ShiftService:
         self.modification_repo = ShiftModificationRepository(db)
         self.employment_repo = EmploymentRepository(db)
         self.client_repo = ClientRepository(db)
+        self.care_need_repo = WeeklyCareNeedRepository(db)
         org_repo = OrganizationRepository(db)
         current_employment = org_repo.get_active_employment_for_user(current_user.id)
         if not current_employment:
@@ -65,6 +67,20 @@ class ShiftService:
 
     def _get_active_shift(self, shift_id: str) -> Shift:
         return self.shift_repo.get_active_shift(shift_id, self.org_id)
+
+    def _check_coverage_bounds(self, shift, start, end_date, recurring, client_id=None):
+        need_id = getattr(shift, 'weekly_care_need_id', None)
+        if not need_id:
+            return
+        need = self.care_need_repo.get(need_id, self.org_id)
+        if not need:
+            raise AppError(409, 'CARE_NEED_NOT_FOUND', 'The source Weekly Care Need could not be found')
+        if client_id and str(client_id) != str(need.client_id):
+            raise AppError(409, 'CARE_NEED_CLIENT_MISMATCH', 'Create a separate shift for a different client')
+        if need.scheduled_from and start.date() < need.scheduled_from:
+            raise AppError(409, 'CARE_NEED_NOT_STARTED', 'This shift cannot start before its approved Weekly Care Need')
+        if need.ends_on and (start.date() > need.ends_on or (recurring and (end_date is None or end_date > need.ends_on))):
+            raise AppError(409, 'CARE_NEED_ENDED', 'This Weekly Care Need has ended; schedule against the replacement version')
 
     def _validate_shift_participants(self, client_id, worker_id):
         """Resolve shift participants within the authenticated organization.
@@ -567,6 +583,7 @@ class ShiftService:
                     (new_start_time.date(), new_start_time, new_end_time)
                 ]
 
+            self._check_coverage_bounds(shift, new_start_time, new_end_date, shift.is_recurring, payload.client_id)
             schedule_changed = (
                 new_worker_id != shift.worker_id
                 or new_start_time != shift.start_time
@@ -648,6 +665,7 @@ class ShiftService:
                     payload.original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or (new_start + duration)
+                self._check_coverage_bounds(master, new_start, new_start.date(), False)
                 self._enforce_scheduling_rules(
                     worker_id=master.worker_id,
                     proposed_time_blocks=[(payload.original_date, new_start, new_end)],
@@ -708,6 +726,7 @@ class ShiftService:
                     original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or mod.new_end_time or (new_start + duration)
+                self._check_coverage_bounds(master, new_start, new_start.date(), False)
                 self._enforce_scheduling_rules(
                     worker_id=master.worker_id,
                     proposed_time_blocks=[(original_date, new_start, new_end)],
@@ -794,6 +813,7 @@ class ShiftService:
                 else:
                     proposed_time_blocks = [(new_start_time.date(), new_start_time, new_end_time)]
 
+                self._check_coverage_bounds(shift, new_start_time, new_end_date, shift.is_recurring, payload.client_id)
                 self._enforce_scheduling_rules(
                     worker_id=new_worker_id,
                     proposed_time_blocks=proposed_time_blocks,
@@ -858,12 +878,15 @@ class ShiftService:
                 override_hours_check=payload.override_hours_check,
             )
 
+            self._check_coverage_bounds(shift, new_start, new_end_date, shift.is_recurring, payload.client_id)
             shift.recurrence_end_date = occurrence_date - timedelta(days=1)
             self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
             new_shift = Shift(
                 id=uuid.uuid4(),
                 org_id=shift.org_id,
+                weekly_care_need_id=shift.weekly_care_need_id,
+                care_slot_id=shift.care_slot_id,
                 worker_id=new_worker_id,
                 client_id=payload.client_id or shift.client_id,
                 created_by=self.current_employment_id,

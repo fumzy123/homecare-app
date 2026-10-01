@@ -105,6 +105,8 @@ class NotificationType(str, enum.Enum):
     placement_created            = "placement_created"
     placement_filled             = "placement_filled"
     placement_closed             = "placement_closed"
+    placement_coverage_updated   = "placement_coverage_updated"
+    placement_interest_received  = "placement_interest_received"
 
 class TargetAudience(str, enum.Enum):
     admins_only = "admins_only"

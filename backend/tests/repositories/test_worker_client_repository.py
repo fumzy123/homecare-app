@@ -34,15 +34,17 @@ def test_clients_are_scoped_to_worker_and_tenant_including_retained_history():
                 start_time=datetime(2020, 1, 1, 9), end_time=datetime(2020, 1, 1, 10),
             ) | changes)))
 
-        assigned = client(assigned_worker_id=worker)
-        historical = client(assigned_worker_id=other)
+        assigned = client()
+        shift(assigned)
+        no_visits = client()
+        historical = client()
         shift(historical)
         shift(historical)  # Multiple visits still produce one client.
-        unrelated = client(assigned_worker_id=other)
+        unrelated = client()
         shift(unrelated, worker_id=other)
-        foreign = client(org_id=uuid4(), assigned_worker_id=worker)
+        foreign = client(org_id=uuid4())
         shift(foreign)
-        removed = client(deleted_at=datetime.now(), assigned_worker_id=worker)
+        removed = client(deleted_at=datetime.now())
         shift(removed)
         deleted_visit = client()
         shift(deleted_visit, deleted_at=datetime.now())
@@ -53,7 +55,7 @@ def test_clients_are_scoped_to_worker_and_tenant_including_retained_history():
         repo = WorkerClientRepository(db)
         assert {c.id for c in repo.list_for_worker(org, worker)} == {assigned.id, historical.id}
         assert repo.get_for_worker(historical.id, org, worker).id == historical.id
-        for hidden in [unrelated, foreign, removed, deleted_visit, foreign_visit]:
+        for hidden in [no_visits, unrelated, foreign, removed, deleted_visit, foreign_visit]:
             with pytest.raises(AppError) as error:
                 repo.get_for_worker(hidden.id, org, worker)
             assert error.value.status_code == 404

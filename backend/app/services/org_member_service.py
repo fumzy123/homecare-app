@@ -194,7 +194,10 @@ class OrgMemberService:
     async def get_all_members(self, role: OrgMemberRole | None = None):
         try:
             employments = self.employment_repo.get_all_active_by_org(self.org_id, role)
-            return [_flat_response(e) for e in employments]
+            rows = [_flat_response(e) for e in employments]
+            from app.domain.workforce import Workforce
+            statuses = Workforce(self.db, self.org_id).worker_statuses(rows)
+            return [{**row, **statuses[row["id"]]} for row in rows]
 
         except AppError:
             raise
@@ -207,7 +210,9 @@ class OrgMemberService:
     async def get_member(self, member_id: str):
         try:
             employment = self.employment_repo.get_active_by_id_and_org(member_id, self.org_id)
-            return _flat_response(employment)
+            from app.domain.workforce import Workforce
+            row = _flat_response(employment)
+            return {**row, **Workforce(self.db, self.org_id).worker_statuses([row])[row['id']]}
 
         except AppError:
             raise

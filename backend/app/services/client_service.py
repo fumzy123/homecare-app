@@ -1,4 +1,5 @@
 from collections import defaultdict
+from app.domain.workforce import Workforce
 from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -13,7 +14,7 @@ from app.services.billing_cutoff_service import BillingCutoffService
 from app.repositories.client_repository import ClientRepository
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.authorization_repository import AuthorizationRepository
-from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
+from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 import uuid
 
 
@@ -25,7 +26,7 @@ class ClientService:
         self.client_repo = ClientRepository(db)
         self.shift_repo = ShiftRepository(db)
         self.auth_repo = AuthorizationRepository(db)
-        self.plan_repo = WeeklyCarePlanRepository(db)
+        self.care_need_repo = WeeklyCareNeedRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
         self.evidence_service = BillingEvidenceService(db, self.org_id)
         self.cutoff_service = BillingCutoffService(db)
@@ -37,7 +38,7 @@ class ClientService:
     ) -> Client:
         """Attach derived data onto a client instance for the ClientResponse.
 
-        `service_types` come from the client's care plan (what we actually
+        `service_types` come from the client's care need (what we actually
         deliver), falling back to the active authorization's services when the
         plan is empty. Coverage only means anything for funded clients —
         self-pay clients are never "lapsed"."""
@@ -68,7 +69,8 @@ class ClientService:
             return None
         auths = self.auth_repo.list_for_client(client.id, self.org_id)
         superseded = {a.supersedes_id for a in auths if a.supersedes_id}
-        plan = self.plan_repo.service_types_by_client([client.id]).get(client.id, set())
+        plan = self.care_need_repo.service_types_by_client([client.id]).get(client.id, set())
+        client.care_team = Workforce(self.db, self.org_id).care_teams().get(client.id, [])
         return self._derive(client, auths, superseded, date.today(), plan)
 
     def _attach_many(self, clients: list[Client]) -> list[Client]:
@@ -77,9 +79,11 @@ class ClientService:
         for a in all_auths:
             by_client[a.client_id].append(a)
         superseded = {a.supersedes_id for a in all_auths if a.supersedes_id}
-        plans = self.plan_repo.service_types_by_client([c.id for c in clients])
+        plans = self.care_need_repo.service_types_by_client([c.id for c in clients])
         today = date.today()
+        teams = Workforce(self.db, self.org_id).care_teams()
         for c in clients:
+            c.care_team = teams.get(c.id, [])
             self._derive(c, by_client.get(c.id, []), superseded, today, plans.get(c.id, set()))
         return clients
 
@@ -106,7 +110,7 @@ class ClientService:
             self.client_repo.add(client)
             self.db.commit()
             self.db.refresh(client)
-            return self._attach_one(self.client_repo.get_with_worker_by_id(client.id))
+            return self._attach_one(self.client_repo.get_by_id(client.id))
 
         except AppError:
             raise
@@ -151,7 +155,7 @@ class ClientService:
 
             self.db.commit()
             self.db.refresh(client)
-            return self._attach_one(self.client_repo.get_with_worker_by_id(client.id))
+            return self._attach_one(self.client_repo.get_by_id(client.id))
 
         except AppError:
             raise

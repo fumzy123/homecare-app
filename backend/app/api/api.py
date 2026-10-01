@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.api.billing_access import require_operational_access
 from app.api.routes import worker_notes, worker_clients
-from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, worker_shifts, credentials, notifications, compliance, placements, authorizations, weekly_care_plan
+from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, worker_shifts, credentials, notifications, compliance, placements, authorizations, weekly_care_need
 
 router = APIRouter(prefix="/api")
 
@@ -27,5 +27,5 @@ operations.include_router(compliance.router)
 operations.include_router(notifications.router)
 operations.include_router(placements.router)
 operations.include_router(authorizations.router)
-operations.include_router(weekly_care_plan.router)
+operations.include_router(weekly_care_need.router)
 router.include_router(operations)

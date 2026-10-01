@@ -218,6 +218,11 @@ class ShiftRepository:
             ShiftModification.original_date >= from_date,
         ).delete(synchronize_session=False)
 
+    def for_care_need(self, need_id, org_id):
+        return self.db.query(Shift).options(joinedload(Shift.modifications), joinedload(Shift.worker).joinedload(Employment.person)).filter(
+            Shift.weekly_care_need_id == need_id, Shift.org_id == org_id,
+            Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None)).order_by(Shift.id).all()
+
 
 class ShiftModificationRepository:
     def __init__(self, db: Session):

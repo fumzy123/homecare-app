@@ -27,12 +27,12 @@ WEEKDAY_INDEX = {
 }
 
 
-def weekly_entries_to_time_blocks(entries, start_date: date, end_date: date) -> list[tuple[date, datetime, datetime]]:
+def care_slots_to_time_blocks(entries, start_date: date, end_date: date) -> list[tuple[date, datetime, datetime]]:
     """Project recurring weekly entries (each exposing day_of_week / start_time /
     end_time) into concrete (date, start, end) blocks across [start_date, end_date].
 
     Used to feed availability-agnostic checks (conflicts, hours) from a weekly
-    care plan, and shared by placement eligibility and fill-time generation."""
+    care need, and shared by placement eligibility and fill-time generation."""
     by_weekday: dict[int, list] = {}
     for e in entries:
         by_weekday.setdefault(WEEKDAY_INDEX[e.day_of_week], []).append(e)

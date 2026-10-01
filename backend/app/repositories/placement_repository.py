@@ -32,7 +32,7 @@ class PlacementRepository:
         masked_location: str,
         requirements: str | None,
         start_date=None,
-        care_plan_snapshot: list | None = None,
+        care_slot_snapshot: list | None = None,
     ) -> Placement:
         placement = Placement(
             org_id=org_id,
@@ -42,7 +42,7 @@ class PlacementRepository:
             masked_location=masked_location,
             requirements=requirements,
             start_date=start_date,
-            care_plan_snapshot=care_plan_snapshot,
+            care_slot_snapshot=care_slot_snapshot,
             status=PlacementStatus.open,
         )
         self.db.add(placement)
@@ -111,4 +111,16 @@ class PlacementRepository:
 
     def remove_interest(self, interest: PlacementInterest) -> None:
         self.db.delete(interest)
+        self.db.flush()
+
+    def assignments(self, placement_id):
+        from app.models.placement import CareSlotAssignment
+        return self.db.query(CareSlotAssignment).options(joinedload(CareSlotAssignment.employment).joinedload(Employment.person)).filter(
+            CareSlotAssignment.placement_id == placement_id).all()
+
+    def for_care_need(self, need_id):
+        return self.db.query(Placement).filter(Placement.weekly_care_need_id == need_id).first()
+
+    def add_assignment(self, assignment):
+        self.db.add(assignment)
         self.db.flush()

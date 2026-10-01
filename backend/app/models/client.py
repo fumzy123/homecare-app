@@ -27,7 +27,6 @@ class Client(Base):
 
     # Organization & Assignment
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
-    assigned_worker_id = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
 
     # Medical
     medical_conditions = Column(Text, nullable=True)
@@ -55,12 +54,11 @@ class Client(Base):
 
     # Relationships
     organization = relationship("Organization", back_populates="clients")
-    assigned_worker = relationship("Employment")
     authorizations = relationship(
         "Authorization", back_populates="client",
         foreign_keys="Authorization.client_id", cascade="all, delete-orphan",
     )
-    weekly_care_plan_entries = relationship(
-        "WeeklyCarePlanEntry", back_populates="client",
-        foreign_keys="WeeklyCarePlanEntry.client_id", cascade="all, delete-orphan",
+    care_slots = relationship(
+        "CareSlot", back_populates="client",
+        foreign_keys="CareSlot.client_id", cascade="all, delete-orphan",
     )

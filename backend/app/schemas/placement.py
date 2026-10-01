@@ -1,11 +1,12 @@
 from datetime import datetime, date
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.core.enums import PlacementStatus
 
 
 class PlacementCreateSchema(BaseModel):
-    # The address and weekly care plan shown on a placement are snapshotted from
+    weekly_care_need_id: UUID
+    # The address and weekly care need shown on a placement are snapshotted from
     # the client at post time (see PlacementService.create_placement) — the admin
     # chooses the client, when care starts, and optional requirements.
     client_id:    UUID
@@ -19,6 +20,7 @@ class PlacementCloseSchema(BaseModel):
 
 class PlacementInterestSchema(BaseModel):
     note: str | None = None
+    care_slot_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
 class PlacementFillSchema(BaseModel):
@@ -26,7 +28,7 @@ class PlacementFillSchema(BaseModel):
 
 
 class InterestEligibility(BaseModel):
-    """Whether this worker can actually be assigned the placement's care plan —
+    """Whether this worker can actually be assigned the placement's care need —
     computed fresh on read. Fill is gated on `all_clear`."""
     availability_ok: bool
     no_conflicts:    bool
@@ -36,6 +38,7 @@ class InterestEligibility(BaseModel):
 
 
 class InterestWorkerSummary(BaseModel):
+    care_slot_ids: list[UUID] = []
     employment_id: UUID
     first_name:    str
     last_name:     str
@@ -47,6 +50,11 @@ class InterestWorkerSummary(BaseModel):
 
 
 class PlacementResponse(BaseModel):
+    scheduled_from: date | None = None
+    weekly_care_need_id: UUID | None = None
+    care_slots: list[dict] = []
+    covered_count: int = 0
+    transition_applied: bool = False
     id:                UUID
     org_id:            UUID
     client_id:         UUID
@@ -78,6 +86,10 @@ class PlacementAssignmentPreview(BaseModel):
 
 
 class WorkerPlacementResponse(BaseModel):
+    scheduled_from: date | None = None
+    interest_note: str | None = None
+    care_slots: list[dict] = []
+    interested_care_slot_ids: list[UUID] = []
     id:                UUID
     status:            PlacementStatus
     client_first_name: str
@@ -90,3 +102,14 @@ class WorkerPlacementResponse(BaseModel):
     has_interest:      bool
 
     model_config = {"from_attributes": True}
+
+class CareSlotSelection(BaseModel):
+    care_slot_id: UUID
+    employment_id: UUID
+
+
+class PlacementApproval(BaseModel):
+    selections: list[CareSlotSelection] = Field(min_length=1, max_length=100)
+    starts_on: date
+    accept_uncovered: bool = False
+    review_token: str | None = None

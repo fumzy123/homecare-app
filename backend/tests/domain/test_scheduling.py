@@ -13,7 +13,7 @@ from app.domain.scheduling import (
     shift_has_occurrence_on,
     timeblock_for_occurrence,
     times_overlap,
-    weekly_entries_to_time_blocks,
+    care_slots_to_time_blocks,
 )
 
 
@@ -31,7 +31,7 @@ def _make_shift(start, end, is_recurring=False, rule=None, recurrence_end=None):
 
 
 def _make_entry(day: WeekDay, start: time, end: time):
-    """Build a minimal weekly-entry-like object (care plan or availability)."""
+    """Build a minimal weekly-entry-like object (care need or availability)."""
     return SimpleNamespace(day_of_week=day, start_time=start, end_time=end)
 
 
@@ -277,12 +277,12 @@ class TestIsoWeekRange:
         assert (sat - sun).days == 6
 
 
-# ── weekly_entries_to_time_blocks ────────────────────────────────────────────
+# ── care_slots_to_time_blocks ────────────────────────────────────────────
 
 class TestWeeklyEntriesToTimeBlocks:
     def test_single_entry_one_week(self):
         entries = [_make_entry(WeekDay.MO, time(9, 0), time(11, 0))]
-        blocks = weekly_entries_to_time_blocks(entries, date(2026, 1, 5), date(2026, 1, 11))
+        blocks = care_slots_to_time_blocks(entries, date(2026, 1, 5), date(2026, 1, 11))
         assert len(blocks) == 1
         d, start, end = blocks[0]
         assert d == date(2026, 1, 5)  # Monday
@@ -291,7 +291,7 @@ class TestWeeklyEntriesToTimeBlocks:
 
     def test_two_weeks_doubles_occurrences(self):
         entries = [_make_entry(WeekDay.MO, time(9, 0), time(11, 0))]
-        blocks = weekly_entries_to_time_blocks(entries, date(2026, 1, 5), date(2026, 1, 18))
+        blocks = care_slots_to_time_blocks(entries, date(2026, 1, 5), date(2026, 1, 18))
         mondays = [b[0] for b in blocks]
         assert mondays == [date(2026, 1, 5), date(2026, 1, 12)]
 
@@ -300,16 +300,16 @@ class TestWeeklyEntriesToTimeBlocks:
             _make_entry(WeekDay.TU, time(8, 0), time(10, 0)),
             _make_entry(WeekDay.TU, time(14, 0), time(16, 0)),
         ]
-        blocks = weekly_entries_to_time_blocks(entries, date(2026, 1, 6), date(2026, 1, 6))
+        blocks = care_slots_to_time_blocks(entries, date(2026, 1, 6), date(2026, 1, 6))
         assert len(blocks) == 2
 
     def test_no_matching_days_returns_empty(self):
         entries = [_make_entry(WeekDay.SA, time(9, 0), time(11, 0))]
-        blocks = weekly_entries_to_time_blocks(entries, date(2026, 1, 5), date(2026, 1, 9))  # Mon-Fri
+        blocks = care_slots_to_time_blocks(entries, date(2026, 1, 5), date(2026, 1, 9))  # Mon-Fri
         assert blocks == []
 
     def test_empty_entries(self):
-        assert weekly_entries_to_time_blocks([], date(2026, 1, 1), date(2026, 12, 31)) == []
+        assert care_slots_to_time_blocks([], date(2026, 1, 1), date(2026, 12, 31)) == []
 
 
 # ── hours_by_week ────────────────────────────────────────────────────────────

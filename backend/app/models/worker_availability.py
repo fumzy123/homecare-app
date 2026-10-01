@@ -10,7 +10,7 @@ from app.core.enums import WeekDay
 class WorkerAvailabilityEntry(Base):
     """A single entry in a worker's weekly availability — one recurring window
     they can work (day + start/end time), concrete enough to compare directly
-    against a weekly care plan entry or shift to decide whether the worker can
+    against a Care Slot or shift to decide whether the worker can
     cover it. Availability lives on the Person (it follows the worker across
     employments)."""
     __tablename__ = "worker_availability_entries"
