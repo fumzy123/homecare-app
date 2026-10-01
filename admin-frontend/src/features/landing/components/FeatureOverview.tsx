@@ -37,7 +37,7 @@ export function FeatureOverview({
         <article className="feature-card">
           <div className="mini-plan">
             <div className="mini-card-label">
-              MARGARET’S CARE PLAN <span>↗</span>
+              MARGARET’S CARE NEED <span>↗</span>
             </div>
             <div className="week-chips">
               <span className="filled">M</span>
@@ -55,7 +55,7 @@ export function FeatureOverview({
             </div>
           </div>
           <div className="feature-copy">
-            <span className="micro">CLIENTS &amp; CARE PLANS</span>
+            <span className="micro">CLIENTS &amp; CARE NEEDS</span>
             <h3>
               A plan with the
               <br />
@@ -69,7 +69,7 @@ export function FeatureOverview({
               className="inline-link"
               onClick={() => onExplore('clients')}
             >
-              Explore care plans <span>↗</span>
+              Explore care needs <span>↗</span>
             </button>
           </div>
         </article>

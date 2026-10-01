@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { shiftsApi, type DayOfWeek, type RecurrenceFrequency, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { orgMembersApi, type WeekDay } from '@/features/org-members/api'
 import { useAvailableMembers, useWorkerAvailability } from '@/features/org-members/hooks/useWorkerAvailability'
-import { useWeeklyCarePlan } from '@/features/weekly-care-plan/hooks/useWeeklyCarePlan'
+import { useWeeklyCareNeed } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
 import { clientsApi } from '@/features/clients/api'
 import { SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import type { ServiceType } from '@/features/authorizations/api'
@@ -210,9 +210,9 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
   const selectedAvailable = availableIds.includes(watchWorker)
 
   // Soft checks (advisory only — never block). Each is silent unless the
-  // underlying data exists: no availability set / no care plan → no banner.
+  // underlying data exists: no availability set / no care need → no banner.
   const { data: workerAvailability = [] } = useWorkerAvailability(watchWorker)
-  const { data: planEntries = [] } = useWeeklyCarePlan(watchClient)
+  const { data: planEntries = [] } = useWeeklyCareNeed(watchClient)
   const hasAvailabilitySet = workerAvailability.length > 0
 
   const hhmm = (t: string) => t.slice(0, 5)
@@ -443,12 +443,12 @@ export function CreateShiftDrawer({ initialDate, initialEndDate, onFormChange, o
             </form.Field>
           </div>
 
-          {/* Care-plan match — relates to the day + time above */}
+          {/* Care-need match — relates to the day + time above */}
           {hasPlan && sameDayBlock && (
             <p className={`-mt-2 font-mono text-[10px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}>
               {matchedPlanEntry
-                ? "✓ This shift matches the client's weekly care plan."
-                : "⚠ This shift you are about to create falls outside the client's weekly care plan — you can still schedule it if you want."}
+                ? "✓ This shift matches the client's weekly care need."
+                : "⚠ This shift you are about to create falls outside the client's weekly care need — you can still schedule it if you want."}
             </p>
           )}
 

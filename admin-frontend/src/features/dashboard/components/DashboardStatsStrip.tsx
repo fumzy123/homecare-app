@@ -22,7 +22,9 @@ export function DashboardStatsStrip({ clients, workers, todayShifts, weekShifts,
   const onHoldClients = clients.filter((c) => c.status === 'on_hold')
   const workersOnLeave = workers.filter((w) => w.employment_status === 'on_leave').length
   const terminatedWorkers = workers.filter((w) => w.employment_status === 'terminated').length
+  const standbyWorkers = activeWorkers.filter((w) => w.on_standby).length
   const workerStatusSummary = [
+    standbyWorkers > 0 ? `${standbyWorkers} on standby` : '',
     workersOnLeave > 0 ? `${workersOnLeave} on leave` : '',
     terminatedWorkers > 0 ? `${terminatedWorkers} terminated` : '',
   ].filter(Boolean).join(' · ')

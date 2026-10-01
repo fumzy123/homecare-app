@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Kicker, DateInput } from '@/shared/components/ui'
+import { Kicker } from '@/shared/components/ui'
 import { toast } from '@/shared/stores/toast'
 import { useClient } from '@/features/clients/hooks/useClients'
-import { useWeeklyCarePlan } from '@/features/weekly-care-plan/hooks/useWeeklyCarePlan'
+import { useCareNeedVersions, useWeeklyCareNeed } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
 import { WEEKDAY_LABELS, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import { useCreatePlacement } from '../hooks/usePlacements'
 import type { PlacementCreatePayload } from '../api'
@@ -39,26 +39,28 @@ export function PostPlacementDrawer({
   onSuccess,
 }: PostPlacementDrawerProps) {
   const [clientId, setClientId]       = useState(preselectedClientId ?? '')
-  const [startDate, setStartDate]     = useState(() => new Date().toISOString().slice(0, 10))
   const [requirements, setRequirements] = useState('')
   const [serverError, setServerError] = useState<string | null>(null)
   const { mutateAsync: createPlacement, isPending } = useCreatePlacement()
 
-  // The address + care plan a worker will see are snapshotted from the client
+  // The address + care need a worker will see are snapshotted from the client
   // server-side when posting — shown here read-only so the admin can confirm.
   const { data: client }            = useClient(clientId)
-  const { data: planEntries = [] }  = useWeeklyCarePlan(clientId)
+  const { data: careSlots = [] }  = useWeeklyCareNeed(clientId)
 
+  const { data: versions = [] } = useCareNeedVersions(clientId)
+  const latest = versions[0]
   const address = client
     ? `${client.street}, ${client.city}, ${client.province} ${client.postal_code}`
     : null
 
   async function handleSubmit() {
-    if (!clientId || !startDate) return
+    if (!clientId || !latest) return
     setServerError(null)
     const payload: PlacementCreatePayload = {
       client_id: clientId,
-      start_date: startDate,
+      start_date: latest.effective_from,
+      weekly_care_need_id: latest.id,
       ...(requirements ? { requirements } : {}),
     }
     try {
@@ -70,8 +72,8 @@ export function PostPlacementDrawer({
       })
       onSuccess?.()
       onClose()
-    } catch {
-      setServerError('Failed to post placement. Please try again.')
+    } catch (error) {
+      setServerError((error as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Failed to post placement. Please try again.')
     }
   }
 
@@ -127,23 +129,23 @@ export function PostPlacementDrawer({
             )}
           </div>
 
-          {/* Weekly care plan — snapshotted, shown to workers */}
+          {/* Weekly care need — snapshotted, shown to workers */}
           <div>
-            <label className={labelClass}>Weekly Care Plan</label>
+            <label className={labelClass}>Weekly Care Need</label>
             <p className="font-mono text-[9px] text-ink-soft mb-1.5">
               The recurring care this client needs — shown to workers
             </p>
             {!clientId ? (
               <p className="border border-dashed border-line-soft px-3 py-2.5 font-mono text-[11px] text-muted">
-                Select a client to see their weekly care plan
+                Select a client to see their weekly care need
               </p>
-            ) : planEntries.length === 0 ? (
+            ) : careSlots.length === 0 ? (
               <p className="border border-dashed border-line-soft px-3 py-3 font-mono text-[11px] text-muted">
-                No weekly care plan set for this client yet
+                No weekly care need set for this client yet
               </p>
             ) : (
               <div className="border border-ink bg-cream">
-                {planEntries.map((e, i) => (
+                {careSlots.map((e, i) => (
                   <div
                     key={e.id}
                     className={`grid grid-cols-[44px_1fr_auto] items-center gap-3 px-3 py-2 ${i ? 'border-t border-dashed border-line-soft' : ''}`}
@@ -161,9 +163,9 @@ export function PostPlacementDrawer({
           <div>
             <label className={labelClass}>Care starts</label>
             <p className="font-mono text-[9px] text-ink-soft mb-1.5">
-              When the shifts begin — shown to workers and used to schedule on fill
+              Proposed start shown to workers. Shifts are created only after approval.
             </p>
-            <DateInput value={startDate} min={new Date().toISOString().slice(0, 10)} onChange={setStartDate} />
+            <p className="text-sm">{latest?.effective_from ?? 'Save a Weekly Care Need first'}</p>
           </div>
 
           {/* Requirements */}
@@ -179,6 +181,7 @@ export function PostPlacementDrawer({
             />
           </div>
 
+          {latest?.imported && <p className="text-sm text-ink-soft">Save a new Weekly Care Need version on the client profile before posting replacement coverage.</p>}
           {serverError && (
             <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">
               {serverError}
@@ -191,7 +194,7 @@ export function PostPlacementDrawer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isPending || !clientId || !startDate}
+            disabled={isPending || !clientId || !latest || latest.imported || careSlots.length === 0}
             className="flex-1 bg-ink text-cream px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.06em] hover:bg-orange hover:border-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isPending ? 'Posting…' : 'Post Placement'}

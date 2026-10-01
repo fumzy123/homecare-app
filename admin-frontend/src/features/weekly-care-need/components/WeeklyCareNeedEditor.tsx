@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { format } from 'date-fns'
+import { CareNeedHistory } from './CareNeedHistory'
 import { TimeInput, ProgressBar } from '@/shared/components/ui'
-import { useWeeklyCarePlan, useSaveWeeklyCarePlan } from '../hooks/useWeeklyCarePlan'
+import { useWeeklyCareNeed, useSaveWeeklyCareNeed } from '../hooks/useWeeklyCareNeed'
 import { useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
 import { WEEKDAYS, SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import { fmtHours } from '@/features/authorizations/utils'
-import type { WeeklyCarePlanEntryInput } from '../api'
+import type { CareSlotInput } from '../api'
 import type { ServiceType, WeekDay } from '@/features/authorizations/api'
 
 // We need a class for inputs in the table to match the square box design from the screenshot
@@ -13,7 +15,7 @@ const selectClass = `${inputClass} appearance-none`
 
 interface Row { day_of_week: WeekDay; start_time: string; end_time: string; service_type: ServiceType }
 
-function entryHours(start: string, end: string): number {
+function slotHours(start: string, end: string): number {
   if (!start || !end) return 0
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
@@ -22,7 +24,7 @@ function entryHours(start: string, end: string): number {
 
 function errorMessage(err: unknown): string {
   return (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
-    ?? 'Failed to save the care plan. Please try again.'
+    ?? 'Failed to save the care need. Please try again.'
 }
 
 function CompliancePill({ over }: { over: boolean }) {
@@ -37,15 +39,16 @@ function CompliancePill({ over }: { over: boolean }) {
 }
 
 /**
- * The client's weekly care plan — the recurring entries of care we intend to
+ * The client's weekly care need — the recurring Care Slots of care we intend to
  * deliver. When `enforceCompliance` is set (funded clients), per-service
  * compliance is computed live (planned weekly vs the authorized cap) and
  * saving is hard-blocked while any service is over cap.
  */
-export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
-  const { data: entries } = useWeeklyCarePlan(clientId)
-  const { data: compliance } = useAuthorizationCompliance(clientId)
-  const { mutateAsync: save, isPending } = useSaveWeeklyCarePlan(clientId)
+export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
+  const [effectiveFrom, setEffectiveFrom] = useState(() => format(new Date(), 'yyyy-MM-dd'))
+  const { data: careSlots, isPending: loadingNeed, isError: needError } = useWeeklyCareNeed(clientId)
+  const { data: compliance, isPending: loadingCompliance, isError: complianceError } = useAuthorizationCompliance(clientId, effectiveFrom)
+  const { mutateAsync: save, isPending } = useSaveWeeklyCareNeed(clientId)
 
   const [rows, setRows] = useState<Row[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -54,10 +57,10 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   // Seed the editable rows from the loaded plan. Done during render (not in an
   // effect) so it can't cascade an extra render; re-seeds whenever the query
   // returns a new array reference (initial load or after a save/refetch).
-  const [seededFrom, setSeededFrom] = useState<typeof entries>(undefined)
-  if (entries && entries !== seededFrom) {
-    setSeededFrom(entries)
-    setRows(entries.map((e) => ({
+  const [seededFrom, setSeededFrom] = useState<typeof careSlots>(undefined)
+  if (careSlots && careSlots !== seededFrom) {
+    setSeededFrom(careSlots)
+    setRows(careSlots.map((e) => ({
       day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
     })))
   }
@@ -79,7 +82,7 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   // The schedule defines a single week, so rows directly equal weekly planned hours.
   const plannedWeekly = new Map<ServiceType, number>()
   for (const r of rows) {
-    plannedWeekly.set(r.service_type, (plannedWeekly.get(r.service_type) ?? 0) + entryHours(r.start_time, r.end_time))
+    plannedWeekly.set(r.service_type, (plannedWeekly.get(r.service_type) ?? 0) + slotHours(r.start_time, r.end_time))
   }
   
   // Authorized hours come as bi-weekly, so we divide by 2 for the weekly display.
@@ -97,7 +100,7 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   )
   const anyOver = enforceCompliance && overplanned.length > 0
 
-  const totalWeeklyHours = rows.reduce((sum, r) => sum + entryHours(r.start_time, r.end_time), 0)
+  const totalWeeklyHours = rows.reduce((sum, r) => sum + slotHours(r.start_time, r.end_time), 0)
   
   // Overall authorized bi-weekly hours (sum across all services)
   const totalAuthorizedBiweekly = (compliance?.services ?? []).reduce((sum, s) => sum + s.authorized_biweekly, 0)
@@ -106,11 +109,11 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   async function handleSave() {
     setError(null)
     setSaved(false)
-    const payload: WeeklyCarePlanEntryInput[] = rows.map((r) => ({
+    const payload: CareSlotInput[] = rows.map((r) => ({
       day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time, service_type: r.service_type,
     }))
     try {
-      await save(payload)
+      await save({ effective_from: effectiveFrom, care_slots: payload })
       setSaved(true)
     } catch (err) {
       setError(errorMessage(err))
@@ -118,11 +121,13 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
   }
 
   return (
-    <div className="border border-ink bg-paper">
+    <><CareNeedHistory clientId={clientId} /><div className="border border-ink bg-paper">
+      {needError && <p role="alert" className="p-4 text-orange">Could not load the current Weekly Care Need. Refresh before editing.</p>}
+      {enforceCompliance && complianceError && <p role="alert" className="p-4 text-orange">Could not check authorization. Refresh before saving.</p>}
       {/* header */}
       <div className="flex items-end justify-between px-6 py-5 border-b border-line-soft gap-4">
         <div>
-          <h2 className="font-serif text-[28px] leading-none tracking-[-0.02em]">Weekly care plan</h2>
+          <h2 className="font-serif text-[28px] leading-none tracking-[-0.02em]">Weekly care need</h2>
           <p className="mt-2 text-[13px] text-ink-soft">
             {enforceCompliance
               ? 'Set care times within the active authorization.'
@@ -170,6 +175,10 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
         </div>
       )}
 
+      <label className="block px-6 pt-5 text-sm">New version starts
+        <input type="date" className={inputClass} value={effectiveFrom} min={format(new Date(), 'yyyy-MM-dd')} onChange={e => setEffectiveFrom(e.target.value)} />
+        <span className="block mt-2 text-ink-soft">Saving preserves earlier versions. Post the saved version as an open placement to find coverage.</span>
+      </label>
       {/* table header */}
       <div className="grid grid-cols-[100px_160px_160px_1fr_80px] gap-4 bg-paper px-6 pt-6 pb-2">
         {['Day', 'Start', 'End', 'Service', 'Hrs'].map((h, i) => (
@@ -179,14 +188,14 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
 
       {rows.length === 0 && (
         <p className="px-6 py-8 font-mono text-[10px] text-muted tracking-wide text-center">
-          NO ENTRIES YET — ADD WHEN CARE TIMES ARE KNOWN
+          NO CARE SLOTS YET — ADD WHEN CARE TIMES ARE KNOWN
         </p>
       )}
 
       {/* table rows */}
       <div className="flex flex-col">
         {rows.map((r, i) => {
-          const hrs = entryHours(r.start_time, r.end_time)
+          const hrs = slotHours(r.start_time, r.end_time)
           return (
             <div key={i} className={`grid grid-cols-[100px_160px_160px_1fr_80px] items-center gap-4 px-6 py-3 ${i ? 'border-t border-dashed border-line-soft' : ''}`}>
               <div>
@@ -214,7 +223,7 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
       <div className="flex items-center justify-between px-6 py-5 border-t border-line-soft bg-paper mt-3">
         <button type="button" onClick={addRow}
           className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-opacity">
-          ＋ Add entry
+          ＋ Add Care Slot
         </button>
 
         <div className="flex items-center gap-6">
@@ -231,13 +240,13 @@ export function WeeklyCarePlanEditor({ clientId, enforceCompliance = true }: { c
           <div className="flex items-center gap-4 pl-4">
             {saved && <span className="font-mono text-[10px] text-ink-soft">✓ Saved</span>}
             {error && <span className="font-mono text-[10px] text-orange">{error}</span>}
-            <button onClick={handleSave} disabled={isPending || anyOver}
+            <button onClick={handleSave} disabled={loadingNeed || needError || (enforceCompliance && (loadingCompliance || complianceError)) || isPending || anyOver || !effectiveFrom || rows.length === 0}
               className="rounded-full bg-ink text-cream px-6 py-2.5 font-mono text-[11px] tracking-[0.03em] hover:bg-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
-              {isPending ? 'Saving…' : 'Save plan'}
+              {isPending ? 'Saving…' : 'Save new version'}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div></>
   )
 }

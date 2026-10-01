@@ -8,6 +8,7 @@ import { useExpiringCredentials } from '@/features/workers/hooks/useExpiringCred
 import { useExpiringAuthorizations } from '@/features/authorizations/hooks/useAuthorizations'
 import { DOCUMENT_LABELS } from '@/features/workers/constants'
 import { AttentionReviewSection } from './AttentionReviewSection'
+import { CareActions } from './CareActions'
 
 interface NeedsAttentionPanelProps {
   droppedShifts: ShiftOccurrence[]
@@ -91,7 +92,7 @@ export function NeedsAttentionPanel({
           emptyMessage="No upcoming expirations. Client records may still have missing or already expired authorizations."
           emptyAction={<Link to="/dashboard/clients" className="inline-flex items-center gap-2 hover:underline">Review clients<ArrowRight size={14} aria-hidden="true" /></Link>}>
           {expiringAuthorizations.map((authorization) => <li key={authorization.authorization_id}>
-            <Link to="/dashboard/clients/$clientId/care-plan" params={{ clientId: authorization.client_id }}
+            <Link to="/dashboard/clients/$clientId/care-need" params={{ clientId: authorization.client_id }}
               className="flex items-start justify-between gap-3 px-6 py-4 hover:bg-cream-2 transition-colors">
               <span className="min-w-0"><span className="block text-[12px] font-medium">{authorization.client_first_name} {authorization.client_last_name}</span>
                 <span className="block mt-1 font-mono text-[10px] text-ink-soft break-words">{authorization.funder} · {authorization.authorization_number}</span></span>
@@ -100,6 +101,7 @@ export function NeedsAttentionPanel({
           </li>)}
         </AttentionReviewSection>
         {children}
+        <CareActions />
       </section>
     </Card>
   )

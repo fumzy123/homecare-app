@@ -1,3 +1,4 @@
+import type { CareSlot } from '@/features/weekly-care-need/api'
 import { apiClient } from '@/shared/lib/api-client'
 
 export type PlacementStatus = 'open' | 'filled' | 'closed'
@@ -11,6 +12,7 @@ export interface InterestEligibility {
 }
 
 export interface InterestWorkerSummary {
+  care_slot_ids: string[]
   employment_id: string
   first_name: string
   last_name: string
@@ -20,6 +22,11 @@ export interface InterestWorkerSummary {
 }
 
 export interface Placement {
+  scheduled_from: string | null
+  weekly_care_need_id: string | null
+  care_slots: (CareSlot & { worker_id: string | null; worker_name: string | null })[]
+  covered_count: number
+  transition_applied: boolean
   id: string
   org_id: string
   client_id: string
@@ -49,6 +56,7 @@ export interface AssignmentPreview {
 }
 
 export interface PlacementCreatePayload {
+  weekly_care_need_id: string
   client_id: string
   start_date: string
   requirements?: string
@@ -58,7 +66,11 @@ export interface PlacementFillPayload {
   employment_id: string
 }
 
+export interface ApprovalPayload { selections: { care_slot_id: string; employment_id: string }[]; starts_on: string; accept_uncovered?: boolean; review_token?: string }
+export interface ApprovalReview { review_token: string; starts_on: string; ends_previous_schedule: boolean; old_shifts: { shift_id: string; worker_name: string; description: string; start_time: string; recurrence_rule: string | null }[]; uncovered_slots: CareSlot[]; all_clear: boolean; workers: { worker_id: string; worker_name: string; eligibility: InterestEligibility }[] }
 export const placementsApi = {
+  review: async (id: string, payload: ApprovalPayload): Promise<ApprovalReview> => (await apiClient.post(`/api/placements/${id}/approval-review`, payload)).data,
+  approve: async (id: string, payload: ApprovalPayload): Promise<PlacementDetail> => (await apiClient.post(`/api/placements/${id}/approve`, payload)).data,
   previewAssignment: async (id: string, worker: string): Promise<AssignmentPreview> =>
     (await apiClient.get(`/api/placements/${id}/workers/${worker}/eligibility`)).data,
   assign: async (id: string, payload: PlacementFillPayload): Promise<PlacementDetail> =>

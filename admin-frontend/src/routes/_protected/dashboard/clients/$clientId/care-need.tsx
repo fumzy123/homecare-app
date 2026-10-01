@@ -10,31 +10,31 @@ import { ActiveAuthHero } from '@/features/authorizations/components/ActiveAuthH
 import { AuthHistory } from '@/features/authorizations/components/AuthHistory'
 import { AuthorizationDrawer } from '@/features/authorizations/components/AuthorizationDrawer'
 import { activeAuthorization } from '@/features/authorizations/utils'
-import { WeeklyCarePlanEditor } from '@/features/weekly-care-plan/components/WeeklyCarePlanEditor'
+import { WeeklyCareNeedEditor } from '@/features/weekly-care-need/components/WeeklyCareNeedEditor'
 import { useClient } from '@/features/clients/hooks/useClients'
 import type { Authorization } from '@/features/authorizations/api'
 
-export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/care-plan')({
-  component: ClientCarePlan,
+export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/care-need')({
+  component: ClientCareNeed,
 })
 
-function ClientCarePlan() {
+function ClientCareNeed() {
   const { clientId } = Route.useParams()
   const { data: client } = useClient(clientId)
 
-  // Self-pay clients have no authorization — this tab is just their weekly care plan.
+  // Self-pay clients have no authorization — this tab is just their weekly care need.
   if (client && client.care_arrangement !== 'funded') {
     return (
       <div className="p-8 flex flex-col gap-[22px]">
-        <WeeklyCarePlanEditor clientId={clientId} enforceCompliance={false} />
+        <WeeklyCareNeedEditor clientId={clientId} enforceCompliance={false} />
       </div>
     )
   }
 
-  return <FundedCarePlan clientId={clientId} />
+  return <FundedCareNeed clientId={clientId} />
 }
 
-function FundedCarePlan({ clientId }: { clientId: string }) {
+function FundedCareNeed({ clientId }: { clientId: string }) {
   const { data: authorizations = [], isLoading } = useClientAuthorizations(clientId)
   const { data: compliance } = useAuthorizationCompliance(clientId)
   const { mutate: cancel, isPending: cancelling } = useCancelAuthorization(clientId)
@@ -50,7 +50,7 @@ function FundedCarePlan({ clientId }: { clientId: string }) {
       <div className="flex items-end justify-between gap-6">
         <div>
           <Kicker leader className="mb-2">Funding controls what you can plan &amp; bill</Kicker>
-          <h2 className="font-serif text-[28px] tracking-[-0.02em] whitespace-nowrap">Authorization &amp; care plan</h2>
+          <h2 className="font-serif text-[28px] tracking-[-0.02em] whitespace-nowrap">Authorization &amp; care need</h2>
         </div>
         <button onClick={() => setForm({})}
           className="rounded-full border border-ink bg-ink text-cream px-4 py-2 font-mono text-[12px] tracking-[0.03em] hover:bg-orange hover:border-orange transition-colors">
@@ -77,7 +77,7 @@ function FundedCarePlan({ clientId }: { clientId: string }) {
             onCancel={cancel}
             cancelling={cancelling}
           />
-          <WeeklyCarePlanEditor clientId={clientId} />
+          <WeeklyCareNeedEditor clientId={clientId} />
           <AuthHistory authorizations={authorizations} />
         </>
       ) : (
@@ -92,6 +92,7 @@ function FundedCarePlan({ clientId }: { clientId: string }) {
               ＋ Add authorization
             </button>
           </div>
+          <WeeklyCareNeedEditor clientId={clientId} />
           <AuthHistory authorizations={authorizations} />
         </>
       )}

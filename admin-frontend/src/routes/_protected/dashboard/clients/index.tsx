@@ -49,7 +49,7 @@ function ClientsPage() {
           <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
             Clients &{' '}
             <span className="font-serif italic text-muted">
-              care plans.
+              care needs.
             </span>
           </h1>
         </div>

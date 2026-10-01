@@ -13,7 +13,7 @@ export function LandingPrinciples() {
         <span className="principle-icon">02</span>
         <p>
           <b>One connected workspace</b>
-          <span>From the care plan to the calendar.</span>
+          <span>From the care need to the calendar.</span>
         </p>
       </div>
       <div>

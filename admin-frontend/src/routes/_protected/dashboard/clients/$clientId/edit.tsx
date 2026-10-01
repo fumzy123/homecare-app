@@ -246,12 +246,12 @@ function ClientEditForm({ client }: { client: Client }) {
             ))}
           </div>
 
-          {/* Boundary note: care planning lives elsewhere */}
+          {/* Boundary note: care needning lives elsewhere */}
           <div className="mt-[18px] px-3 py-3 border border-dashed border-line-soft bg-paper">
             <p className="font-mono text-[9px] tracking-[0.08em] uppercase text-ink-soft mb-1.5">Not edited here</p>
             <p className="text-[11.5px] text-ink-soft leading-[1.5]">
               {funded
-                ? <>Authorizations &amp; the care plan are managed in the <strong>Authorization</strong> tab — they follow the funder's lifecycle, not the profile's.</>
+                ? <>Authorizations &amp; the care need are managed in the <strong>Authorization</strong> tab — they follow the funder's lifecycle, not the profile's.</>
                 : <>The weekly care schedule is managed in the <strong>Schedule</strong> tab, not on the profile.</>}
             </p>
           </div>
@@ -441,9 +441,9 @@ function ClientEditForm({ client }: { client: Client }) {
                   Care start: {client.care_start ? format(new Date(client.care_start), 'yyyy-MM-dd') : '—'}
                 </span>
               </div>
-              <Link to="/dashboard/clients/$clientId/care-plan" params={{ clientId: client.id } as never}
+              <Link to="/dashboard/clients/$clientId/care-need" params={{ clientId: client.id } as never}
                 className="inline-flex mt-2.5 font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink">
-                {funded ? 'Manage in Authorized Weekly Care Plan tab →' : 'Manage in Weekly Care Plan tab →'}
+                {funded ? 'Manage in Authorized Weekly Care Need tab →' : 'Manage in Weekly Care Need tab →'}
               </Link>
             </div>
 

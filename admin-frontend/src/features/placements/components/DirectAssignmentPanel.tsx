@@ -13,7 +13,7 @@ export function AssignmentReview({ preview, busy, onConfirm }: { preview: Assign
     {preview.eligibility.all_clear ? <>
       <p>Availability, existing shifts, and weekly hours checks passed. They will be checked again when you assign.</p>
       <label className="flex gap-2 items-start"><input type="checkbox" checked={confirmed} disabled={busy} onChange={e => setConfirmed(e.target.checked)} className="mt-1" />
-        <span>I have arranged this assignment with the worker and reviewed the placement’s requirements. Create recurring shifts from the care plan saved with this placement.</span>
+        <span>I have arranged this assignment with the worker and reviewed the placement’s requirements. Create recurring shifts from the care need saved with this placement.</span>
       </label>
       <button className={button} disabled={busy || !confirmed} onClick={onConfirm}>{busy ? 'Assigning…' : 'Confirm assignment and create shifts'}</button>
     </> : <div role="status"><p>This worker cannot currently cover this placement:</p><ul className="list-disc pl-5">{preview.eligibility.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul></div>}

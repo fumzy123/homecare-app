@@ -46,7 +46,7 @@ export function AuthorizationsExpiringPanel() {
         {expiring.map((a, i) => (
           <Link
             key={a.authorization_id}
-            to="/dashboard/clients/$clientId/care-plan"
+            to="/dashboard/clients/$clientId/care-need"
             params={{ clientId: a.client_id } as never}
             className={`flex items-center justify-between px-5 py-3.5 hover:bg-line-faint transition-colors ${
               i > 0 ? 'border-t border-dashed border-line-soft' : ''

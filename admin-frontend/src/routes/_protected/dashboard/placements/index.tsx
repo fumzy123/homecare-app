@@ -91,7 +91,7 @@ function PlacementsPage() {
           <div className="flex flex-col gap-0 border border-ink">
             {/* Table header */}
             <div className="grid grid-cols-[2fr_1.5fr_2fr_80px_80px_100px] bg-cream-2 border-b border-ink">
-              {['Client', 'Address', 'Care plan', 'Interest', 'Posted', 'Status'].map((h) => (
+              {['Client', 'Address', 'Care need', 'Interest', 'Posted', 'Status'].map((h) => (
                 <div key={h} className="px-4 py-3 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-soft">
                   {h}
                 </div>
@@ -116,7 +116,8 @@ function PlacementsPage() {
                     {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}
                   </div>
                   <div className="px-4 py-3">
-                    <Tag variant={st.variant}>{st.label}</Tag>
+                    <Tag variant={st.variant}>{p.status === 'open' && p.covered_count > 0 ? 'Partial' : p.status === 'filled' ? 'Fully covered' : st.label}</Tag>
+                    {p.weekly_care_need_id && <p className="font-mono text-[10px] mt-1">{p.covered_count}/{p.care_slots.length} covered</p>}
                   </div>
                 </Link>
               )

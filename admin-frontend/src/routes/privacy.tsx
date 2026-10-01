@@ -49,7 +49,7 @@ function PrivacyPage() {
         <Section number="2" title="Information We Collect">
           <p><strong>Agency account data:</strong> Organisation name, administrator names, email addresses, billing information.</p>
           <p><strong>Worker data:</strong> Names, contact details, employment information, shift schedules, availability.</p>
-          <p><strong>Client data:</strong> Names, dates of birth, addresses, care start dates, service types, and other care plan information entered by the Agency.</p>
+          <p><strong>Client data:</strong> Names, dates of birth, addresses, care start dates, service types, and other care need information entered by the Agency.</p>
           <p><strong>Usage data:</strong> Log data, IP addresses, browser type, pages visited, and timestamps — collected automatically when you use the Platform.</p>
           <Placeholder>
             Review this list with your lawyer and add any additional data points your system collects

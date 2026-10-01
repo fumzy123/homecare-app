@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { placementsApi } from '../api'
-import type { PlacementCreatePayload, PlacementFillPayload, PlacementStatus } from '../api'
+import type { ApprovalPayload, PlacementCreatePayload, PlacementFillPayload, PlacementStatus } from '../api'
 
 export function usePlacements(status?: PlacementStatus) {
   return useQuery({
@@ -22,7 +22,7 @@ export function useCreatePlacement() {
   return useMutation({
     mutationFn: (payload: PlacementCreatePayload) => placementsApi.create(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['placements'] })
+      qc.invalidateQueries({ queryKey: ['placements'] }); qc.invalidateQueries({ queryKey: ['care-actions'] })
     },
   })
 }
@@ -33,7 +33,7 @@ export function useFillPlacement() {
     mutationFn: ({ id, payload }: { id: string; payload: PlacementFillPayload }) =>
       placementsApi.fill(id, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['placements'] })
+      qc.invalidateQueries({ queryKey: ['placements'] }); qc.invalidateQueries({ queryKey: ['care-actions'] })
       qc.invalidateQueries({ queryKey: ['shifts'] })
     },
   })
@@ -46,7 +46,7 @@ export function usePlacementAssignment(id: string, worker: string) {
   const assign = useMutation({
     mutationFn: () => placementsApi.assign(id, { employment_id: worker }),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['placements'] })
+      qc.invalidateQueries({ queryKey: ['placements'] }); qc.invalidateQueries({ queryKey: ['care-actions'] })
       qc.invalidateQueries({ queryKey: ['shifts'] })
       qc.invalidateQueries({ queryKey: ['notifications'] })
     },
@@ -59,7 +59,15 @@ export function useClosePlacement() {
   return useMutation({
     mutationFn: (id: string) => placementsApi.close(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['placements'] })
+      qc.invalidateQueries({ queryKey: ['placements'] }); qc.invalidateQueries({ queryKey: ['care-actions'] })
     },
   })
+}
+
+export function useApproveCareSlots(id: string) {
+  const qc = useQueryClient()
+  const review = useMutation({ mutationFn: (payload: ApprovalPayload) => placementsApi.review(id, payload) })
+  const approve = useMutation({ mutationFn: (payload: ApprovalPayload) => placementsApi.approve(id, payload),
+    onSuccess: () => { for (const key of ['placements', 'shifts', 'workers', 'worker', 'clients', 'weekly-care-need', 'notifications', 'care-actions']) qc.invalidateQueries({ queryKey: [key] }) } })
+  return { review, approve }
 }

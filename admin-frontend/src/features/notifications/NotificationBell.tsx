@@ -35,6 +35,8 @@ function notificationTitle(n: Notification): string {
       return `${workerName} dropped a shift — ${n.payload.client_name ?? ''}`
     case 'overtime_approval_requested':
       return `${n.payload.requesting_member_name ?? 'Someone'} requested overtime for ${workerName}`
+    case 'placement_interest_received':
+      return `${workerName} expressed interest in Care Slots`
     case 'placement_created':
       return `New placement available — ${n.payload.masked_location ?? ''}`
     default:
@@ -55,6 +57,7 @@ function notificationDestination(n: Notification): string {
       return `/dashboard/workers/${n.about_worker_id}/edit`
     case 'shift_dropped':
       return `/dashboard/workers/${n.about_worker_id}`
+    case 'placement_interest_received':
     case 'placement_created':
       return `/dashboard/placements/${n.payload.placement_id}`
     default:

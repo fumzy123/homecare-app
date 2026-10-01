@@ -56,8 +56,8 @@ export function ClientCard({ client }: { client: Client }) {
         <div>
           <p className="text-xs text-gray-400">Worker</p>
           <p className="text-gray-700 truncate">
-            {client.assigned_worker
-              ? `${client.assigned_worker.first_name} ${client.assigned_worker.last_name}`
+            {client.care_team?.length
+              ? client.care_team.map(w => `${w.first_name} ${w.last_name}`).join(', ')
               : '—'}
           </p>
         </div>

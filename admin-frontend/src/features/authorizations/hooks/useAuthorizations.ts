@@ -16,10 +16,10 @@ export function useExpiringAuthorizations() {
   })
 }
 
-export function useAuthorizationCompliance(clientId: string) {
+export function useAuthorizationCompliance(clientId: string, onDate?: string) {
   return useQuery({
-    queryKey: ['authorization-compliance', clientId],
-    queryFn: () => authorizationsApi.compliance(clientId),
+    queryKey: ['authorization-compliance', clientId, onDate],
+    queryFn: () => authorizationsApi.compliance(clientId, onDate),
     enabled: !!clientId,
   })
 }

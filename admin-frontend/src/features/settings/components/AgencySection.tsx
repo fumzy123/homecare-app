@@ -139,7 +139,7 @@ export function AgencySection() {
             <p className="font-mono text-[11px] tracking-[0.04em] uppercase text-ink mb-1.5">Funder authorizations</p>
             <p className="text-[13px] text-ink-soft leading-relaxed">
               Turn this on if your agency works with health-authority authorizations — you'll be able to record
-              authorized services &amp; hours per client and the care plan will be checked against them. Leave it off
+              authorized services &amp; hours per client and the care need will be checked against them. Leave it off
               to use the app as a straightforward scheduler. New clients default to {org?.uses_authorizations ? <b>funded</b> : <b>self-pay</b>}; you can still change it per client.
             </p>
             {!isOwner && (

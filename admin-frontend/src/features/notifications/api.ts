@@ -9,6 +9,7 @@ export type NotificationType =
   | 'credential_uploaded'
   | 'shift_dropped'
   | 'overtime_approval_requested'
+  | 'placement_interest_received'
   | 'placement_created'
 
 export type TargetAudience = 'admins_only' | 'workers_only' | 'all' | 'individual'

@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Trash2, RotateCcw } from 'lucide-react'
-import { orgMembersApi, type OrgMember } from '@/features/org-members/api'
-import { invitationsApi } from '@/features/invitations/api'
+import { type OrgMember } from '@/features/org-members/api'
+import { useInvitations, useRevokeInvitation, useResendInvitation } from '@/features/invitations/hooks/useInvitations'
+import { useWorkers } from '@/features/workers/hooks/useWorkers'
+import { WorkerSchedulingStatus } from '@/features/workers/components/WorkerSchedulingStatus'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
 import { ROLE_LABELS } from '@/features/invitations/constants'
 import { Avatar, Card, Kicker, StatusDot, Tag, Btn } from '@/shared/components/ui'
@@ -21,37 +23,18 @@ function WorkersPage() {
   const [showModal, setShowModal] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: workers = [], isLoading, isError } = useQuery({
-    queryKey: ['workers'],
-    queryFn: () => orgMembersApi.listByRole('home_support_worker'),
-  })
-
-  const { data: invitations = [], isLoading: invLoading } = useQuery({
-    queryKey: ['invitations'],
-    queryFn: invitationsApi.listInvitations,
-  })
-
-  const revoke = useMutation({
-    mutationFn: invitationsApi.revokeInvitation,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invitations'] }),
-  })
+  const { data: workers = [], isLoading, isError } = useWorkers()
+  const { data: invitations = [], isLoading: invLoading } = useInvitations()
+  const revoke = useRevokeInvitation()
 
   const [resendCooldowns, setResendCooldowns] = useState<Set<string>>(new Set())
   const RESEND_COOLDOWN_MS = 5 * 60 * 1000
 
-  const resend = useMutation({
-    mutationFn: invitationsApi.resendInvitation,
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['invitations'] })
-      setResendCooldowns(prev => new Set([...prev, id]))
-      setTimeout(() => {
-        setResendCooldowns(prev => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
-      }, RESEND_COOLDOWN_MS)
-    },
+  const resend = useResendInvitation((id) => {
+    setResendCooldowns(prev => new Set([...prev, id]))
+    setTimeout(() => setResendCooldowns(prev => {
+      const next = new Set(prev); next.delete(id); return next
+    }), RESEND_COOLDOWN_MS)
   })
 
   return (
@@ -215,6 +198,7 @@ function WorkerRow({ worker, index }: { worker: OrgMember; index: number }) {
         <p className="font-mono text-[10px] text-ink-soft mt-0.5 truncate">{worker.email}</p>
         <div className="mt-2">
           <StatusDot status={worker.is_active ? 'active' : 'inactive'} />
+          <WorkerSchedulingStatus worker={worker} />
         </div>
       </div>
     </Link>

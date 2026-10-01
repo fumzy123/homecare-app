@@ -33,8 +33,7 @@ export interface Client {
   province: string
   postal_code: string
   org_id: string
-  assigned_worker_id: string | null
-  assigned_worker: { id: string; first_name: string; last_name: string } | null
+  care_team: { id: string; first_name: string; last_name: string; coverage: string[] }[]
   medical_conditions: string | null
   allergies: string | null
   medications: string | null

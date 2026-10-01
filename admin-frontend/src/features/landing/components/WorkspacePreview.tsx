@@ -97,7 +97,7 @@ export function WorkspacePreview({
               onClick={() => onViewChange('clients')}
               onKeyDown={(event) => handleTabKey(event, 'clients')}
             >
-              <span aria-hidden="true">◎</span> Care plans{' '}
+              <span aria-hidden="true">◎</span> Care needs{' '}
               <span className="tab-arrow" aria-hidden="true">
                 ↗
               </span>
@@ -315,7 +315,7 @@ export function WorkspacePreview({
               <h2>
                 Every detail. <em>Connected.</em>
               </h2>
-              <span className="app-button static">Weekly care plan</span>
+              <span className="app-button static">Weekly care need</span>
             </div>
             <div className="client-profile">
               <span className="avatar large mint-avatar">MW</span>

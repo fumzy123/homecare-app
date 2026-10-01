@@ -37,11 +37,11 @@ export function WeeklySchedulingGaps({ clients, weekShifts, isLoading, isError, 
         <span className="text-ink-soft ml-2">/ {from} – {to}</span>
       </summary>
       <div className="border-t border-line-soft px-5 py-4">
-        <p className="text-[12px] text-ink-soft mb-3">Review their care plans; some clients may not need weekly visits. Cancelled and dropped visits are excluded.</p>
+        <p className="text-[12px] text-ink-soft mb-3">Review their care needs; some clients may not need weekly visits. Cancelled and dropped visits are excluded.</p>
         <ul className={embedded ? 'grid gap-2' : 'grid gap-2 sm:grid-cols-2 lg:grid-cols-3'}>
           {unscheduled.map((client) => (
             <li key={client.id}>
-              <Link to="/dashboard/clients/$clientId/care-plan" params={{ clientId: client.id }} className="text-[12px] underline underline-offset-4 hover:text-orange">
+              <Link to="/dashboard/clients/$clientId/care-need" params={{ clientId: client.id }} className="text-[12px] underline underline-offset-4 hover:text-orange">
                 {client.first_name} {client.last_name}
               </Link>
             </li>
