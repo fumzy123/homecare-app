@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { Avatar } from '@/shared/components/ui/Avatar';
 import { Btn } from '@/shared/components/ui/Btn';
 import { useMyClient } from '../hooks/useMyClients';
 import { useRefreshClient } from '../hooks/useRefreshClient';
-import { ClientStatus } from './ClientCard';
+import { ClientProfileHeader } from './ClientProfileHeader';
 import { ClientCareProfile } from './ClientCareProfile';
 import { ClientVisits } from './ClientVisits';
 
@@ -25,12 +24,9 @@ export function ClientDetailView({ clientId }: { clientId: string }) {
   const client = query.data;
   return <ScrollView className="flex-1" contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}
     refreshControl={<RefreshControl refreshing={refresh.refreshing} onRefresh={refresh.onRefresh} tintColor="#FF5A1F" />}>
-    <View className="mb-5 rounded-2xl bg-ink p-5">
-      <View className="flex-row items-center justify-between"><Avatar initials={`${client.first_name.charAt(0)}${client.last_name.charAt(0)}`} size="lg" className="bg-lavender" /><ClientStatus status={client.status} /></View>
-      <Text accessibilityRole="header" className="mt-4 font-serif text-4xl text-cream">{client.first_name}{'\n'}<Text className="font-serif-italic">{client.last_name}</Text></Text>
-      <Text className="mt-3 font-sans text-sm text-cream">{client.city}</Text>
-      <Text className="mt-2 font-mono text-[10px] text-cream">Born {new Date(`${client.date_of_birth}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
-    </View>
+    <ClientProfileHeader client={client}
+      onDirections={() => void openLink(`https://maps.google.com/?q=${encodeURIComponent([client.street, client.city, client.province, client.postal_code].filter(Boolean).join(', '))}`)}
+      onCall={phone => void openLink(`tel:${phone.replace(/[^+\d]/g, '')}`)} />
     <View className="mb-5 flex-row rounded-full bg-cream-2 p-1">
       {(['visits', 'profile'] as const).map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)}
         className={`min-h-11 flex-1 items-center justify-center rounded-full ${tab === value ? 'bg-paper' : ''}`}>
@@ -38,7 +34,6 @@ export function ClientDetailView({ clientId }: { clientId: string }) {
       </Pressable>)}
     </View>
     {tab === 'visits' ? <ClientVisits clientId={clientId} /> : <ClientCareProfile client={client}
-      onDirections={() => void openLink(`https://maps.google.com/?q=${encodeURIComponent(`${client.street}, ${client.city}, ${client.province} ${client.postal_code}`)}`)}
       onCall={phone => void openLink(`tel:${phone.replace(/[^+\d]/g, '')}`)} />}
   </ScrollView>;
 }
