@@ -29,6 +29,22 @@ class WeeklyCareNeedService:
         try:
             org = self.org_repo.lock_by_id(self.org_id)
             client = self.client_repo.get_active_client(client_id, self.org_id)
+            latest = self.care_need_repo.latest(client_id)
+            # Compare under the organization lock, before validation or side effects:
+            # retries must preserve the existing placement and its interests.
+            def slots_key(slots):
+                return sorted(
+                    (s.day_of_week, s.start_time, s.end_time, s.service_type)
+                    for s in slots
+                )
+
+            if (
+                latest
+                and latest.effective_from == payload.effective_from
+                and slots_key(latest.care_slots) == slots_key(payload.care_slots)
+            ):
+                self.db.commit()
+                return latest
             today = datetime.now(
                 ZoneInfo(org.billing_timezone or "America/St_Johns")
             ).date()
@@ -36,7 +52,6 @@ class WeeklyCareNeedService:
                 raise AppError(
                     400, "PAST_EFFECTIVE_DATE", "Choose today or a future date"
                 )
-            latest = self.care_need_repo.latest(client_id)
             if (
                 latest
                 and latest.activated_at

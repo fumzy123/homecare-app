@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import { CareNeedHistory } from './CareNeedHistory'
 import { TimeInput, ProgressBar } from '@/shared/components/ui'
-import { useWeeklyCareNeed, useSaveWeeklyCareNeed } from '../hooks/useWeeklyCareNeed'
+import { useCareNeedVersions, useSaveWeeklyCareNeed } from '../hooks/useWeeklyCareNeed'
 import { useAuthorizationCompliance } from '@/features/authorizations/hooks/useAuthorizations'
 import { WEEKDAYS, SERVICE_TYPES, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import { fmtHours } from '@/features/authorizations/utils'
@@ -14,6 +14,16 @@ const inputClass = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[
 const selectClass = `${inputClass} appearance-none`
 
 interface Row { day_of_week: WeekDay; start_time: string; end_time: string; service_type: ServiceType }
+
+function needKey(date: string, slots: CareSlotInput[]): string {
+  const timeKey = (value: string) => {
+    const [hours, minutes, seconds = '0'] = value.split(':')
+    return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds)
+  }
+  return JSON.stringify([date, slots.map(slot => JSON.stringify([
+    slot.day_of_week, timeKey(slot.start_time), timeKey(slot.end_time), slot.service_type,
+  ])).sort()])
+}
 
 function slotHours(start: string, end: string): number {
   if (!start || !end) return 0
@@ -46,7 +56,8 @@ function CompliancePill({ over }: { over: boolean }) {
  */
 export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
   const [effectiveFrom, setEffectiveFrom] = useState(() => format(new Date(), 'yyyy-MM-dd'))
-  const { data: careSlots, isPending: loadingNeed, isError: needError } = useWeeklyCareNeed(clientId)
+  const { data: versions, isPending: loadingNeed, isError: needError } = useCareNeedVersions(clientId)
+  const latest = versions?.[0]
   const { data: compliance, isPending: loadingCompliance, isError: complianceError } = useAuthorizationCompliance(clientId, effectiveFrom)
   const { mutateAsync: save, isPending } = useSaveWeeklyCareNeed(clientId)
 
@@ -57,13 +68,19 @@ export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { c
   // Seed the editable rows from the loaded plan. Done during render (not in an
   // effect) so it can't cascade an extra render; re-seeds whenever the query
   // returns a new array reference (initial load or after a save/refetch).
-  const [seededFrom, setSeededFrom] = useState<typeof careSlots>(undefined)
-  if (careSlots && careSlots !== seededFrom) {
-    setSeededFrom(careSlots)
-    setRows(careSlots.map((e) => ({
+  const [seededFrom, setSeededFrom] = useState<typeof versions>(undefined)
+  const [baseline, setBaseline] = useState('')
+  if (versions && versions !== seededFrom) {
+    setSeededFrom(versions)
+    const date = latest?.effective_from ?? format(new Date(), 'yyyy-MM-dd')
+    setEffectiveFrom(date)
+    setBaseline(needKey(date, latest?.care_slots ?? []))
+    setRows((latest?.care_slots ?? []).map((e) => ({
       day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
     })))
   }
+
+  const hasChanges = needKey(effectiveFrom, rows) !== baseline
 
   function update(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
@@ -107,13 +124,15 @@ export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { c
   const totalAuthorizedWeekly = totalAuthorizedBiweekly / 2
 
   async function handleSave() {
+    if (!hasChanges || isPending) return
     setError(null)
     setSaved(false)
     const payload: CareSlotInput[] = rows.map((r) => ({
       day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time, service_type: r.service_type,
     }))
     try {
-      await save({ effective_from: effectiveFrom, care_slots: payload })
+      const result = await save({ effective_from: effectiveFrom, care_slots: payload })
+      setBaseline(needKey(result.effective_from, result.care_slots))
       setSaved(true)
     } catch (err) {
       setError(errorMessage(err))
@@ -176,7 +195,7 @@ export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { c
       )}
 
       <label className="block px-6 pt-5 text-sm">New version starts
-        <input type="date" className={inputClass} value={effectiveFrom} min={format(new Date(), 'yyyy-MM-dd')} onChange={e => setEffectiveFrom(e.target.value)} />
+        <input type="date" className={inputClass} value={effectiveFrom} min={format(new Date(), 'yyyy-MM-dd')} onChange={e => { setEffectiveFrom(e.target.value); setSaved(false) }} />
         <span className="block mt-2 text-ink-soft">Saving preserves earlier versions. Post the saved version as an open placement to find coverage.</span>
       </label>
       {/* table header */}
@@ -240,7 +259,7 @@ export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { c
           <div className="flex items-center gap-4 pl-4">
             {saved && <span className="font-mono text-[10px] text-ink-soft">✓ Saved</span>}
             {error && <span className="font-mono text-[10px] text-orange">{error}</span>}
-            <button onClick={handleSave} disabled={loadingNeed || needError || (enforceCompliance && (loadingCompliance || complianceError)) || isPending || anyOver || !effectiveFrom || rows.length === 0}
+            <button onClick={handleSave} disabled={!hasChanges || loadingNeed || needError || (enforceCompliance && (loadingCompliance || complianceError)) || isPending || anyOver || !effectiveFrom || rows.length === 0}
               className="rounded-full bg-ink text-cream px-6 py-2.5 font-mono text-[11px] tracking-[0.03em] hover:bg-orange transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
               {isPending ? 'Saving…' : 'Save new version'}
             </button>
