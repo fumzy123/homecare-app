@@ -372,6 +372,39 @@ multiplied by two to compare with bi-weekly authorizations. Save and approval re
 exceeded caps. Worker eligibility checks only selected Care Slots, rather than demanding
 one worker cover the entire week. Delivered hours remain provisional until EVV.
 
+### Admin Action Tower
+
+`GET /api/attention-items` is an admin-only, organization-scoped read model:
+`AttentionService` → `AttentionRepository`, with pure care-stage projection in
+`domain/attention.py`. It combines the latest Weekly Care Need's posting, interest,
+and uncovered-slot stages into one stable case per version, plus dropped visit
+occurrences, expiring credentials, uploaded credentials awaiting verification,
+expiring authorizations, and active clients without weekly visits. Specific coverage
+cases suppress duplicate weekly-gap prompts. Dates use the agency's billing timezone;
+recurring visit targets retain their original occurrence date even when rescheduled.
+
+`features/attention/` owns the shared frontend hook, typed destinations and controlled
+list. The protected shell hosts one provider: dashboard embeds the square list;
+other admin routes show a circular launcher and rounded nonmodal panel. Selecting an
+item opens the existing record workflow and minimizes the panel. Hide is session-only;
+the topbar restores it. Existing modal overlays take precedence. Successful record
+invalidations, focus and a 60-second poll refresh the feed; viewing an item does not
+resolve it. No action table, migration, or manual completion endpoint is introduced.
+
+Current windows remain 30 days for credential expiry, 15 for authorization expiry,
+and 7 days back / 60 ahead for dropped visits. Missing/expired-record compliance rules,
+onboarding, overtime requests and billing notices are not new tower checks; existing
+notifications and workflows remain available. Empty categories are omitted and a
+failed feed is never displayed as all clear.
+
+Validation: backend attention tests cover progression, deduplication, effective dates
+and agency isolation. `admin-frontend/attention.browser.test.cjs` exercises all six
+destination types and shared UI behavior using intercepted fictional fixtures.
+Run against local Vite with dummy public configuration (`VITE_SUPABASE_URL` and
+`VITE_BACKEND_API_URL` matching `ATTENTION_TEST_URL`, default `http://127.0.0.1:5197`;
+dummy publishable auth/Stripe keys). Set `PLAYWRIGHT_MODULE` to a shared Playwright
+installation if it is not installed locally; `BROWSER_CHANNEL` defaults to `msedge`.
+
 ---
 
 ## MVP Scope — Home Care Agency Admin

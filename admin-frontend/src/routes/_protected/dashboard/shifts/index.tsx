@@ -1,18 +1,24 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
+import { calendarDate, recordId } from '@/features/attention/search'
 import { Kicker, Btn } from '@/shared/components/ui'
 import { ShiftCalendar } from '@/features/shifts/components/ShiftCalendar'
 
 export const Route = createFileRoute('/_protected/dashboard/shifts/')({
-  validateSearch: (search: Record<string, unknown>): { worker?: string } => ({
-    worker: typeof search.worker === 'string' ? search.worker : undefined,
+  validateSearch: (search: Record<string, unknown>) => ({
+    worker: recordId(search.worker),
+    client: recordId(search.client),
+    shift: recordId(search.shift),
+    date: calendarDate(search.date),
+    occurrence: calendarDate(search.occurrence),
   }),
   component: ShiftsPage,
 })
 
 function ShiftsPage() {
-  const { worker } = Route.useSearch()
+  const { worker, client, shift, date, occurrence } = Route.useSearch()
+  const attentionNavigationId = useRouterState({ select: s => s.location.state.attentionNavigationId })
   const [showNewShift, setShowNewShift] = useState(false)
 
   return (
@@ -21,7 +27,7 @@ function ShiftsPage() {
         <div>
           <Kicker leader className="mb-4">04 / Schedule</Kicker>
           <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
-            {format(new Date(), 'MMMM yyyy')}{' '}
+            {format(date ? parseISO(date) : new Date(), 'MMMM yyyy')}{' '}
             <span className="font-serif italic text-muted">— schedule</span>
           </h1>
         </div>
@@ -29,7 +35,7 @@ function ShiftsPage() {
           ＊ New shift
         </Btn>
       </div>
-      <ShiftCalendar showNewShiftDrawer={showNewShift} onNewShiftDrawerClose={() => setShowNewShift(false)} initialWorkerId={worker} />
+      <ShiftCalendar key={[worker, client, shift, date, occurrence, attentionNavigationId].join(':')} showNewShiftDrawer={showNewShift} onNewShiftDrawerClose={() => setShowNewShift(false)} initialWorkerId={worker} initialClientId={client} initialDate={date} targetShiftId={shift} targetOccurrence={occurrence ?? date} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 import { format } from 'date-fns'
 import { CareNeedHistory } from './CareNeedHistory'
 import { TimeInput, ProgressBar } from '@/shared/components/ui'
@@ -54,7 +55,7 @@ function CompliancePill({ over }: { over: boolean }) {
  * compliance is computed live (planned weekly vs the authorized cap) and
  * saving is hard-blocked while any service is over cap.
  */
-export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { clientId: string; enforceCompliance?: boolean }) {
+export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true, attentionNeedId }: { clientId: string; enforceCompliance?: boolean; attentionNeedId?: string }) {
   const [effectiveFrom, setEffectiveFrom] = useState(() => format(new Date(), 'yyyy-MM-dd'))
   const { data: versions, isPending: loadingNeed, isError: needError } = useCareNeedVersions(clientId)
   const latest = versions?.[0]
@@ -67,20 +68,23 @@ export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { c
 
   // Seed the editable rows from the loaded plan. Done during render (not in an
   // effect) so it can't cascade an extra render; re-seeds whenever the query
-  // returns a new array reference (initial load or after a save/refetch).
+  // returns a new array reference, unless the admin has unsaved edits.
   const [seededFrom, setSeededFrom] = useState<typeof versions>(undefined)
   const [baseline, setBaseline] = useState('')
   if (versions && versions !== seededFrom) {
     setSeededFrom(versions)
-    const date = latest?.effective_from ?? format(new Date(), 'yyyy-MM-dd')
-    setEffectiveFrom(date)
-    setBaseline(needKey(date, latest?.care_slots ?? []))
-    setRows((latest?.care_slots ?? []).map((e) => ({
-      day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
-    })))
+    if (!baseline || needKey(effectiveFrom, rows) === baseline) {
+      const date = latest?.effective_from ?? format(new Date(), 'yyyy-MM-dd')
+      setEffectiveFrom(date)
+      setBaseline(needKey(date, latest?.care_slots ?? []))
+      setRows((latest?.care_slots ?? []).map((e) => ({
+        day_of_week: e.day_of_week, start_time: e.start_time, end_time: e.end_time, service_type: e.service_type,
+      })))
+    }
   }
 
   const hasChanges = needKey(effectiveFrom, rows) !== baseline
+  useUnsavedChanges(!!seededFrom && hasChanges && !isPending)
 
   function update(i: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
@@ -140,7 +144,7 @@ export function WeeklyCareNeedEditor({ clientId, enforceCompliance = true }: { c
   }
 
   return (
-    <><CareNeedHistory clientId={clientId} /><div className="border border-ink bg-paper">
+    <><CareNeedHistory clientId={clientId} attentionNeedId={attentionNeedId} /><div className="border border-ink bg-paper">
       {needError && <p role="alert" className="p-4 text-orange">Could not load the current Weekly Care Need. Refresh before editing.</p>}
       {enforceCompliance && complianceError && <p role="alert" className="p-4 text-orange">Could not check authorization. Refresh before saving.</p>}
       {/* header */}

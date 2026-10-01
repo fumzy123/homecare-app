@@ -31,6 +31,7 @@ export function useCreateAuthorization(clientId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['authorizations', clientId] })
       qc.invalidateQueries({ queryKey: ['authorization-compliance', clientId] })
+      qc.invalidateQueries({ queryKey: ['expiring-authorizations'] })
     },
   })
 }
@@ -42,6 +43,7 @@ export function useCancelAuthorization(clientId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['authorizations', clientId] })
       qc.invalidateQueries({ queryKey: ['authorization-compliance', clientId] })
+      qc.invalidateQueries({ queryKey: ['expiring-authorizations'] })
     },
   })
 }

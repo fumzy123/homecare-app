@@ -10,6 +10,8 @@ import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
+import { AttentionProvider } from '@/features/attention/components/AttentionProvider'
+import { AttentionRestoreButton } from '@/features/attention/components/AttentionRestoreButton'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: async () => {
@@ -88,7 +90,7 @@ function ProtectedLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-cream overflow-hidden">
+    <AttentionProvider key={user?.id} userId={user?.id ?? ''}><div className="flex h-screen bg-cream overflow-hidden">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-ink/30 max-lg:block hidden"
@@ -119,6 +121,7 @@ function ProtectedLayout() {
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
+            <AttentionRestoreButton />
             <NotificationBell />
             <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft max-sm:hidden">
               WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}
@@ -137,6 +140,6 @@ function ProtectedLayout() {
       </div>
 
       <OvertimeReviewDrawer />
-    </div>
+    </div></AttentionProvider>
   )
 }

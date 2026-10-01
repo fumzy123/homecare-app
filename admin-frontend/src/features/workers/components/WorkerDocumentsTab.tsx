@@ -4,6 +4,7 @@ import { orgMembersApi } from '@/features/org-members/api'
 import { useWorkerCredentials, useVerifyCredential, useUploadCredential } from '../hooks/useWorkerCredentials'
 import { DateInput } from '@/shared/components/ui'
 import type { WorkerCredential } from '@/features/org-members/api'
+import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 
 // ── Types & constants ──────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ function ManagePanel({
   const [previewState, setPreviewState]   = useState<'idle' | 'loading' | string>('idle')
   const { mutate: verify, isPending: isVerifying } = useVerifyCredential(workerId)
   const { mutate: upload, isPending: isUploading } = useUploadCredential(workerId)
+  useUnsavedChanges(expiryInput !== (credential?.expiry_date ?? '') && !isVerifying)
 
   const hasFile    = !!credential?.file_url
   const isUnverified = status === 'needs_review'
@@ -310,9 +312,11 @@ function CredentialRow({
 
 // ── Main export ────────────────────────────────────────────────────────────────
 
-export function WorkerDocumentsTab({ workerId }: { workerId: string }) {
+export function WorkerDocumentsTab({ workerId, initialDocumentType }: { workerId: string; initialDocumentType?: string }) {
   const { data: credentials = [], isLoading } = useWorkerCredentials(workerId)
-  const [managedType, setManagedType] = useState<string | null>(null)
+  const [managedType, setManagedType] = useState<string | null>(initialDocumentType ?? null)
+  const [previousDocument, setPreviousDocument] = useState(initialDocumentType)
+  if (previousDocument !== initialDocumentType) { setPreviousDocument(initialDocumentType); setManagedType(initialDocumentType ?? null) }
 
   if (isLoading) return <p className="font-mono text-[11px] text-muted">Loading…</p>
 

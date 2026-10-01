@@ -1,7 +1,10 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useForm } from '@tanstack/react-form'
+import { createFileRoute, Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useForm, useStore } from '@tanstack/react-form'
+import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useWorker } from '@/features/workers/hooks/useWorkers'
+import { DOCUMENT_LABELS } from '@/features/workers/constants'
 import { orgMembersApi, type OrgMember, type EmploymentType, EMPLOYMENT_TYPE_LABELS } from '@/features/org-members/api'
 import { WorkerAvailabilityEditor } from '@/features/org-members/components/WorkerAvailabilityEditor'
 import { Avatar, DateInput, Kicker } from '@/shared/components/ui'
@@ -11,6 +14,7 @@ import { useWorkerCredentials } from '@/features/workers/hooks/useWorkerCredenti
 import { validatePhone, formatPhone } from '@/shared/lib/phone'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
+  validateSearch: (search: Record<string, unknown>): { document?: string } => ({ document: typeof search.document === 'string' && Object.hasOwn(DOCUMENT_LABELS, search.document) ? search.document : undefined }),
   component: WorkerEditPage,
 })
 
@@ -18,15 +22,13 @@ export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/ed
 
 function WorkerEditPage() {
   const { workerId } = Route.useParams()
-  const { data: worker, isLoading, isError } = useQuery({
-    queryKey: ['worker', workerId],
-    queryFn: () => orgMembersApi.getOrgMember(workerId),
-  })
+  const attentionNavigationId = useRouterState({ select: s => s.location.state.attentionNavigationId })
+  const { data: worker, isLoading, isError } = useWorker(workerId)
 
   if (isLoading) return <div className="p-10 font-mono text-[11px] text-muted">Loading…</div>
   if (isError || !worker) return <div className="p-10 font-mono text-[11px] text-orange">Worker not found.</div>
 
-  return <WorkerEditForm worker={worker} />
+  return <WorkerEditForm key={`${workerId}:${attentionNavigationId}`} worker={worker} />
 }
 
 // ── Shared field styles ────────────────────────────────────────────────────────
@@ -87,6 +89,8 @@ const SECTIONS: Array<{ id: SectionId; num: string; label: string }> = [
 ]
 
 function WorkerEditForm({ worker }: { worker: OrgMember }) {
+  const { document: attentionDocument } = Route.useSearch()
+  useEffect(() => { if (attentionDocument) document.getElementById('compliance')?.scrollIntoView({ block: 'start' }) }, [attentionDocument])
   const navigate    = useNavigate()
   const queryClient = useQueryClient()
   const [serverError, setServerError]     = useState<string | null>(null)
@@ -179,6 +183,7 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
         })
         queryClient.invalidateQueries({ queryKey: ['worker', worker.id] })
         queryClient.invalidateQueries({ queryKey: ['workers'] })
+        form.reset(value)
         navigate({ to: '/dashboard/workers/$workerId', params: { workerId: worker.id } })
       } catch (err: unknown) {
         setServerError(err instanceof Error ? err.message : 'Something went wrong')
@@ -186,6 +191,8 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
     },
   })
 
+  const dirty = useStore(form.store, s => s.isDirty && !s.isSubmitting)
+  useUnsavedChanges(dirty)
   const initials = `${worker.first_name[0] ?? ''}${worker.last_name[0] ?? ''}`.toUpperCase()
 
   function scrollTo(id: SectionId) {
@@ -569,7 +576,7 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
               </p>
             </div>
             <div className="p-7">
-              <WorkerDocumentsTab workerId={worker.id} />
+              <WorkerDocumentsTab workerId={worker.id} initialDocumentType={attentionDocument} />
             </div>
           </section>
 

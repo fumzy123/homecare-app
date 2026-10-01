@@ -9,8 +9,7 @@ import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawe
 import { TodayShiftsTimeline } from '@/features/dashboard/components/TodayShiftsTimeline'
 import { Kicker } from '@/shared/components/ui'
 import { DashboardStatsStrip } from '@/features/dashboard/components/DashboardStatsStrip'
-import { WeeklySchedulingGaps } from '@/features/dashboard/components/WeeklySchedulingGaps'
-import { NeedsAttentionPanel } from '@/features/dashboard/components/NeedsAttentionPanel'
+import { DashboardAttention } from '@/features/attention/components/DashboardAttention'
 import { WorkerUtilizationCard } from '@/features/dashboard/components/WorkerUtilizationCard'
 import { ClientRosterCard } from '@/features/dashboard/components/ClientRosterCard'
 
@@ -22,9 +21,9 @@ function DashboardPage() {
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
 
   const { data: todayShifts   = [], isLoading: loadingToday } = useTodayShifts()
-  const { data: weekShifts = [], isLoading: loadingWeek, isError: weekError } = useWeekShifts()
-  const { data: droppedShifts = [], isPending: droppedPending, isError: droppedError, refetch: refetchDropped } = useDroppedShifts()
-  const { data: clients = [], isLoading: loadingClients, isError: clientsError } = useClients()
+  const { data: weekShifts = [] } = useWeekShifts()
+  const { data: droppedShifts = [] } = useDroppedShifts()
+  const { data: clients = [] } = useClients()
   const { data: workers       = [] }                          = useWorkers()
 
   const inProgress  = todayShifts.filter((s) => s.completion_status === 'in_progress')
@@ -71,11 +70,7 @@ function DashboardPage() {
         />
 
         <div className="flex flex-col gap-6">
-          <NeedsAttentionPanel droppedShifts={droppedShifts} droppedPending={droppedPending} droppedError={droppedError}
-            onRetryDropped={() => void refetchDropped()} onSelectShift={setSelectedShift}>
-            <WeeklySchedulingGaps embedded clients={clients} weekShifts={weekShifts}
-              isLoading={loadingClients || loadingWeek} isError={clientsError || weekError} />
-          </NeedsAttentionPanel>
+          <DashboardAttention />
           <WorkerUtilizationCard workers={workers} weekShifts={weekShifts} />
         </div>
       </section>

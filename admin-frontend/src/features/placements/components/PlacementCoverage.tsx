@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import { usePlacement, useApproveCareSlots, useClosePlacement } from '../hooks/usePlacements'
 import type { ApprovalReview } from '../api'
+import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 
 const control = 'border border-ink bg-paper px-3 py-2 text-sm'
 function message(error: unknown) {
@@ -21,6 +22,7 @@ export function PlacementCoverage({ placementId }: { placementId: string }) {
   const [acceptGaps, setAcceptGaps] = useState(false)
   const [error, setError] = useState('')
   const [closing, setClosing] = useState(false)
+  useUnsavedChanges(Object.values(selected).some(Boolean) && !approve.isPending)
   if (query.isPending) return <p role="status" className="p-8">Loading placement…</p>
   if (query.isError || !query.data) return <p role="alert" className="p-8">Could not load placement. <button onClick={() => void query.refetch()}>Retry</button></p>
   const p = query.data
