@@ -30,9 +30,9 @@ export function BillingUsageSummary({ data, upcoming }: { data: ReadyBillingUsag
   const correctionPending = Boolean(upcoming?.corrections.length)
   const annual = upcoming?.annual_settlement
   return <div className="space-y-5">
-    <p className="font-mono text-[11px] text-ink-soft">{usageDate(period.starts_at, period.agency_timezone)} → {usageDate(period.ends_at, period.agency_timezone)}</p>
+    <p className="font-mono text-[11px] text-ink-soft">Billing period: {usageDate(period.starts_at, period.agency_timezone)} → {usageDate(period.ends_at, period.agency_timezone)}</p>
     <dl className="grid grid-cols-3 divide-x divide-line-soft">
-      {[['Active clients', usage.active_client_count], ['Included', period.included_clients], ['Additional', usage.additional_clients]].map(([label, value]) =>
+      {[['Clients counted this billing period', usage.active_client_count], ['Included', period.included_clients], ['Additional', usage.additional_clients]].map(([label, value]) =>
         <div key={label} className="px-3 first:pl-0"><dt className="text-xs sm:text-sm text-ink-soft">{label}</dt><dd className="mt-2 font-serif text-3xl sm:text-4xl tabular-nums">{value}</dd></div>)}
     </dl>
     <div className="border border-ink bg-cream-2 p-5">

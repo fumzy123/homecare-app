@@ -25,7 +25,7 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
       <p className="text-ink-soft">Calculated {usageDate(usage.calculated_at, period.agency_timezone)}</p>
     </div>
     <dl className="grid gap-4 sm:grid-cols-3">
-      <div className="border border-line-soft p-4"><dt className="text-sm text-ink-soft">Active clients</dt><dd className="text-3xl font-serif">{usage.active_client_count}</dd></div>
+      <div className="border border-line-soft p-4"><dt className="text-sm text-ink-soft">Clients counted this billing period</dt><dd className="text-3xl font-serif">{usage.active_client_count}</dd></div>
       <div className="border border-line-soft p-4"><dt className="text-sm text-ink-soft">Included each month</dt><dd className="text-3xl font-serif">{period.included_clients}</dd></div>
       <div className="border border-line-soft p-4"><dt className="text-sm text-ink-soft">Additional clients</dt><dd className="text-3xl font-serif">{usage.additional_clients}</dd></div>
     </dl>
@@ -37,7 +37,7 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
       <p className="text-sm">The correction window ends {usageDate(period.finalization_eligible_at, period.agency_timezone)}. This is not a finalized invoice.</p>
     </div>
     <div className="space-y-3">
-      <h3 className="font-semibold">Clients counted this period</h3>
+      <h3 className="font-semibold">Clients counted this billing period</h3>
       <p className="text-sm">Each client counts once. One qualifying visit is shown as evidence, even if they have many visits. Scheduled, in-progress, completed and no-show visits count; canceled and dropped visits do not.</p>
       {usage.active_client_count === 0 ? <p className="border border-dashed border-line-soft p-4">No clients have a qualifying visit in this period yet.</p> : <>
         <label className="block text-sm">Find a client
