@@ -33,7 +33,7 @@ export function NeedsYouToday({ actions, onViewAll, showHeading = true }: NeedsY
           key={action.id}
           onPress={action.onPress}
           accessibilityRole="button"
-          className="mb-2 min-h-14 flex-row items-center justify-between rounded-xl border border-orange-soft bg-orange-soft px-4 py-3"
+          className="mb-2 min-h-14 flex-row items-center justify-between rounded-xl border border-ink bg-orange-soft px-4 py-3"
         >
           <View className="flex-1 pr-3">
             <Text className="mb-1 font-mono text-[10px] uppercase tracking-wider text-orange">{action.status}</Text>
