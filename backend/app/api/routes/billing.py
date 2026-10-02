@@ -38,6 +38,9 @@ class PlanQuotePayload(PlanIntervalPayload):
     effective_at: int
     trial: bool
     base_amount_cents: int
+    additional_client_amount_cents: int = Field(ge=0)
+    included_clients: int = Field(ge=0)
+    plan_version: int = Field(ge=1)
     due_now_cents: Literal[0]
     currency: Literal["cad"]
     expires_at: int

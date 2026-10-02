@@ -16,8 +16,8 @@ from app.services import billing_onboarding_service as module
 def state(monkeypatch):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     monkeypatch.setattr(settings, "billing_onboarding_enabled", True)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v2_price_id", "price_month")
-    monkeypatch.setattr(settings, "stripe_standard_annual_v2_price_id", "price_year")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_v3_price_id", "price_year")
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
     service = module.BillingOnboardingService(MagicMock(), SimpleNamespace(id=uuid4()), uuid4())
@@ -35,7 +35,7 @@ def state(monkeypatch):
         subscription_current_period_end=None,
     )
     agreement = SimpleNamespace(
-        id=uuid4(), org_id=org.id, plan_code="standard", plan_version=2,
+        id=uuid4(), org_id=org.id, plan_code="standard", plan_version=3,
         base_interval="month", stripe_price_id="price_month", canceled_at=None,
         consent_version=CONSENT_VERSION,
         customer_attempted_at=None, checkout_session_id=None, payment_method_id="pm_own",
@@ -151,7 +151,7 @@ def test_setup_is_charge_free_and_records_server_selected_terms(state):
     result = state.service.setup_card("month", CONSENT_VERSION)
     agreement = state.service.agreement_repo.add.call_args.args[0]
     assert agreement.accepted_by == state.service.current_user.id
-    assert agreement.plan_version == 2
+    assert agreement.plan_version == 3
     assert agreement.stripe_price_id == "price_month"
     assert state.remote.checkout.Session.create.call_args.kwargs["mode"] == "setup"
     state.remote.Subscription.create.assert_not_called()
@@ -248,7 +248,7 @@ def test_reserved_founder_gets_only_monthly_offer_and_correct_usage_rate(state):
     assert len(options["plans"]) == 1
     assert options["plans"][0]["code"] == "founding"
     assert options["plans"][0]["base_amount_cents"] == 20000
-    assert options["plans"][0]["additional_client_amount_cents"] == 400
+    assert options["plans"][0]["additional_client_amount_cents"] == 500
     with pytest.raises(AppError):
         state.service.setup_card("year", options["consent_version"])
 
@@ -264,7 +264,7 @@ def test_browser_cannot_claim_founding_without_allocation(state):
 
 def test_founder_setup_uses_server_founding_price(state, monkeypatch):
     from app.domain.billing_consent import FOUNDING_CONSENT_VERSION
-    monkeypatch.setattr(settings, "stripe_founding_monthly_v1_price_id", "price_founding")
+    monkeypatch.setattr(settings, "stripe_founding_monthly_v2_price_id", "price_founding")
     state.service.agreement_repo.get_for_org.return_value = None
     state.service.founding_offer_repo.get_for_org.return_value = SimpleNamespace(released_at=None, forfeited_at=None)
     state.service.agreement_repo.add.side_effect = lambda agreement: setattr(state.service.agreement_repo.get_for_org, "return_value", agreement)

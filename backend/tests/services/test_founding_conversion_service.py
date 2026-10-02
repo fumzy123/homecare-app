@@ -20,7 +20,7 @@ def state(monkeypatch):
     now = datetime(2027, 8, 17, tzinfo=timezone.utc)
     end = datetime(2027, 10, 1, tzinfo=timezone.utc)
     monkeypatch.setattr(settings, "billing_onboarding_enabled", True)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v2_price_id", "price_standard")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_standard")
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
     svc = module.FoundingConversionService(MagicMock())
@@ -60,7 +60,7 @@ def test_notice_and_schedule_preserve_twelve_months_and_snapshot_rates(state):
     assert conversion.notice_at == state.now
     assert conversion.status == "scheduled"
     assert conversion.base_amount_cents == 35000
-    assert conversion.additional_client_amount_cents == 500
+    assert conversion.additional_client_amount_cents == 1000
     assert state.agreement.plan_code == "founding"
     state.svc.notification_repo.create.assert_called_once()
     args = state.remote.SubscriptionSchedule.modify.call_args.kwargs

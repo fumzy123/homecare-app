@@ -10,7 +10,7 @@ import stripe
 from app.core.config import settings
 from app.core.exceptions import AppError
 from app.core.stripe_objects import stripe_field, subscription_period_end
-from app.domain.billing import get_plan
+from app.domain.billing import get_plan, current_plan_version
 from app.services.billing_prices import price_id, standard_prices
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
@@ -70,8 +70,8 @@ class BillingPlanService:
         items = stripe_field(stripe_field(sub, "items", {}), "data", [])
         if len(items) != 1 or stripe_field(items[0], "quantity") != 1 or stripe_field(stripe_field(items[0], "price", {}), "id") != agreement.stripe_price_id:
             raise AppError(409, "PRICE_MISMATCH", "Subscription pricing needs review")
-        plan = get_plan("standard", interval, version=2)
-        target_price = price_id("standard", interval, 2)
+        plan = get_plan("standard", interval, version=current_plan_version("standard"))
+        target_price = price_id("standard", interval, plan.version)
         price = stripe.Price.retrieve(target_price)
         if not price.active or price.currency != "cad" or price.unit_amount != plan.base_amount_cents or not price.recurring or price.recurring.interval != interval or price.recurring.interval_count != 1:
             raise AppError(503, "PRICE_MISMATCH", "Pricing is temporarily unavailable")
@@ -87,7 +87,9 @@ class BillingPlanService:
         return {"org_id": str(org.id), "subscription_id": sub.id, "interval": interval,
             "price_id": target_price, "current_price_id": agreement.stripe_price_id,
             "effective_at": int(end.timestamp()), "trial": sub.status == "trialing",
-            "base_amount_cents": plan.base_amount_cents, "due_now_cents": 0, "currency": "cad"}
+            "base_amount_cents": plan.base_amount_cents,
+            "additional_client_amount_cents": plan.additional_client_amount_cents,
+            "included_clients": plan.included_clients, "plan_version": plan.version, "due_now_cents": 0, "currency": "cad"}
 
     @staticmethod
     def _signature(payload):

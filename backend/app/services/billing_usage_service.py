@@ -16,7 +16,7 @@ from app.repositories.trial_activation_repository import TrialActivationReposito
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
 from app.repositories.founding_conversion_repository import FoundingConversionRepository
 from app.domain.billing_periods import monthly_usage_window, validate_billing_timezone
-from app.domain.billing import get_plan
+from app.domain.billing import get_plan, current_plan_version
 from app.domain.billing_access import billing_access
 from app.models.billing_period import BillingPeriod
 from app.core.stripe_objects import stripe_field
@@ -106,13 +106,16 @@ class BillingUsageService:
                 end = access.trial_ends_at
                 start = end - timedelta(days=14)
                 timezone_name = org.billing_timezone
+                agreement = self.agreement_repo.get_for_org(org.id)
+                plan = get_plan(agreement.plan_code, agreement.base_interval, version=agreement.plan_version) if agreement else get_plan(
+                    "standard", "month", version=current_plan_version("standard"))
                 self.db.commit()
                 usage = self.estimate(start, end, timezone_name)
                 return {"state": "ready", "trial_preview": True, "period": {
                     "id": f"trial:{self.org_id}", "starts_at": start, "ends_at": end,
                     "agency_timezone": timezone_name, "included_clients": 10,
-                    "additional_client_amount_cents": 500, "currency": "cad", "base_interval": "month",
-                    "finalization_eligible_at": end, "plan_code": "standard", "plan_version": 2,
+                    "additional_client_amount_cents": plan.additional_client_amount_cents, "currency": plan.currency, "base_interval": plan.base_interval,
+                    "finalization_eligible_at": end, "plan_code": plan.code, "plan_version": plan.version,
                 }, "usage": {**usage, "calculated_at": now,
                     "additional_clients": max(0, usage["active_client_count"] - 10),
                     "estimated_usage_amount_cents": 0,

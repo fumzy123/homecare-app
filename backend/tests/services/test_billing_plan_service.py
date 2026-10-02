@@ -16,8 +16,8 @@ def obj(**values):
 def state(monkeypatch):
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v2_price_id", "price_month")
-    monkeypatch.setattr(settings, "stripe_standard_annual_v2_price_id", "price_year")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_v3_price_id", "price_year")
     service = module.BillingPlanService(MagicMock(), NS(id="owner"), "org")
     service.org_repo = MagicMock()
     service.agreement_repo = MagicMock()
@@ -101,3 +101,14 @@ def test_cancel_pending_does_not_cancel_subscription(state):
     state.service.cancel_pending()
     state.remote.SubscriptionSchedule.release.assert_called_once_with("sched_own", preserve_cancel_date=True)
     state.remote.Subscription.cancel.assert_not_called()
+
+
+def test_quote_survives_http_validation_and_includes_usage_rate(state):
+    from app.api.routes.billing import PlanQuotePayload
+    quote = state.service.preview("year")
+    assert quote["additional_client_amount_cents"] == 1000
+    assert quote["included_clients"] == 10
+    assert quote["plan_version"] == 3
+    payload = PlanQuotePayload.model_validate(quote)
+    state.service.change(payload.model_dump())
+    state.remote.SubscriptionSchedule.modify.assert_called_once()

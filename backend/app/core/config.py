@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     stripe_standard_monthly_v2_price_id: str = ""
     stripe_standard_annual_v2_price_id: str = ""
     stripe_founding_monthly_v1_price_id: str = ""
+    stripe_standard_monthly_v3_price_id: str = ""
+    stripe_standard_annual_v3_price_id: str = ""
+    stripe_founding_monthly_v2_price_id: str = ""
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 

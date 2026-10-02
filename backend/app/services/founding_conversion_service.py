@@ -7,7 +7,8 @@ import stripe
 from app.core.config import settings
 from app.core.enums import NotificationType
 from app.core.exceptions import AppError
-from app.domain.billing import get_plan
+from app.domain.billing import get_plan, current_plan_version
+from app.services.billing_prices import price_id as configured_price_id
 from app.domain.founding import conversion_boundary, offer_available
 from app.models.founding_conversion import FoundingConversion
 from app.repositories.billing_agreement_repository import BillingAgreementRepository
@@ -133,8 +134,8 @@ class FoundingConversionService:
             raise
 
     def _announce(self, org, offer, sub, now):
-        plan = get_plan("standard", "month", version=2)
-        target = settings.stripe_standard_monthly_v2_price_id
+        plan = get_plan("standard", "month", version=current_plan_version("standard"))
+        target = configured_price_id("standard", "month", plan.version)
         if not target:
             raise AppError(503, "PRICING_NOT_CONFIGURED", "Standard pricing is not configured")
         price = stripe.Price.retrieve(target)

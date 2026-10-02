@@ -35,7 +35,7 @@ class BillingAnnualService(BillingSettlementService):
                 return  # Recovery/finalization must finish all twelve months first.
             cursor, entries = start, []
             for period, snapshot in rows:
-                if utc(period.starts_at) != cursor or period.base_interval != "year" or period.plan_version != 2:
+                if utc(period.starts_at) != cursor or period.base_interval != "year" or period.plan_version not in (2, 3):
                     raise SettlementReviewRequired("ANNUAL_PERIOD_MISMATCH")
                 cursor = utc(period.ends_at)
                 source = self.settlement_repo.by_source(f"usage:{period.id}")

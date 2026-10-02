@@ -22,8 +22,8 @@ def obj(**values):
     return stripe.StripeObject.construct_from(values, None)
 
 
-@pytest.fixture
-def year(service, monkeypatch):
+@pytest.fixture(params=[2, 3])
+def year(service, monkeypatch, request):
     BillingInvoiceHold.__table__.create(service.db.get_bind())
     start = datetime(2025, 1, 1, tzinfo=timezone.utc)
     end = start + relativedelta(years=1)
@@ -35,10 +35,10 @@ def year(service, monkeypatch):
         pid = uuid4()
         ids.append(pid)
         terms = dict(subscription_id="sub_test", starts_at=a.isoformat(), ends_at=b.isoformat(),
-            base_interval="year", plan_version=2, additional_client_amount_cents=500, currency="cad")
+            base_interval="year", plan_version=request.param, additional_client_amount_cents=500, currency="cad")
         service.db.add(BillingPeriod(id=pid, org_id=org_id, subscription_id="sub_test", starts_at=a, ends_at=b,
             source_invoice_id="in_year", source_invoice_line_id="il_base", anchor_at=start, agency_timezone="UTC",
-            plan_code="standard", plan_version=2, base_interval="year", included_clients=10,
+            plan_code="standard", plan_version=request.param, base_interval="year", included_clients=10,
             additional_client_amount_cents=500, currency="cad", finalization_eligible_at=b + timedelta(hours=72)))
         service.db.add(BillingUsageSnapshot(period_id=pid, org_id=org_id, finalized_at=b + timedelta(hours=72),
             active_client_count=30, additional_clients=20, usage_amount_cents=10000, payload={"period": terms}))
