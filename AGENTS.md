@@ -589,3 +589,16 @@ See `worker-mobile-app/README.md` for configuration and EAS build environment se
 
 ### Expo Go vs Development Builds
 - `expo-notifications` (starting SDK 53) will crash Expo Go immediately on import because native push capabilities were stripped from the Go app. It is currently commented out in `app/onboarding/permissions.tsx`. A custom development build must be created when we are ready to implement Push Notifications.
+
+### Push registration foundation (2026-10-02)
+
+The `development-staging` EAS profile now installs a staging dev client, using
+the preview environment and staging Firebase config. Push imports are guarded
+before loading native notifications, so Expo Go can still run ordinary flows.
+Settings offers an explicit phone-notification permission/registration action.
+`features/notifications` owns the provider, named mutation hook and serialized
+device lifecycle. The backend uses PushDeviceService → PushDeviceRepository;
+Alembic `0ab31e782c90` creates the private, RLS-enabled `push_devices` table.
+Logout revokes this installation before signing out locally; offline failures
+show a retry message. No scheduling-event sender is implemented yet. Android
+device delivery testing, receipts/retries and production setup remain required.

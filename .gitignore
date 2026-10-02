@@ -68,3 +68,6 @@ supabase/.temp/
 
 # OS
 .DS_Store
+
+# Local Firebase staging configuration
+google-services.staging.json

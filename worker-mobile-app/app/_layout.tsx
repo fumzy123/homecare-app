@@ -11,6 +11,7 @@ import { queryClient } from '@/shared/lib/query-client';
 import { supabase } from '@/shared/lib/api-client';
 import { useAuthStore } from '@/shared/lib/auth-store';
 import { useWorkerEntry } from '@/features/auth/hooks/useWorkerEntry';
+import { PushProvider } from '@/features/notifications/components/PushProvider';
 import {
   Newsreader_400Regular,
   Newsreader_400Regular_Italic,
@@ -93,7 +94,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <StatusBar style="dark" />
-      <Navigation />
+      <PushProvider><Navigation /></PushProvider>
     </QueryClientProvider>
   );
 }

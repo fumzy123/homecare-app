@@ -38,3 +38,11 @@ export async function getMyNotifications(): Promise<NotificationListResponse> {
 export async function markNotificationRead(id: string): Promise<void> {
   await apiClient.patch(`/me/notifications/${id}/read`);
 }
+
+export async function savePushDevice(id: string, secret: string, token: string, appId: string): Promise<void> {
+  await apiClient.put(`/me/push-devices/${id}`, { secret, token, app_id: appId });
+}
+
+export async function revokePushDevice(id: string, secret: string): Promise<void> {
+  await apiClient.post(`/push-devices/${id}/revoke`, { secret });
+}

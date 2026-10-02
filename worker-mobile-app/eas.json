@@ -4,6 +4,10 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "development-staging": {
+      "extends": "preview",
+      "developmentClient": true
+    },
     "development": {
       "environment": "development",
       "developmentClient": true,
