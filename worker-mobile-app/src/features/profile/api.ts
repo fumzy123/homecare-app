@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/lib/api-client';
-import type { WorkerProfile, WorkerProfileUpdatePayload, WorkerStats, Credential, ComplianceDocumentType } from './types';
+import type { AvailabilityEntry, WorkerProfile, WorkerProfileUpdatePayload, WorkerStats, Credential, ComplianceDocumentType } from './types';
 
 export async function getMyProfile(): Promise<WorkerProfile> {
   const { data } = await apiClient.get<WorkerProfile>('/me/profile');
@@ -18,6 +18,13 @@ export async function getMyCredentials(): Promise<Credential[]> {
 
 export async function updateMyProfile(payload: WorkerProfileUpdatePayload): Promise<WorkerProfile> {
   const { data } = await apiClient.patch<WorkerProfile>('/me/profile', payload);
+  return data;
+}
+
+export async function updateMyAvailability(entries: AvailabilityEntry[]): Promise<WorkerProfile> {
+  const { data } = await apiClient.patch<WorkerProfile>('/me/availability', {
+    entries: entries.map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time })),
+  });
   return data;
 }
 

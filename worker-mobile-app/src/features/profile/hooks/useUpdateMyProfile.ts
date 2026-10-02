@@ -6,8 +6,8 @@ export function useUpdateMyProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: WorkerProfileUpdatePayload) => updateMyProfile(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['worker-profile'] });
+    onSuccess: profile => {
+      queryClient.setQueryData(['worker-profile'], profile);
     },
   });
 }

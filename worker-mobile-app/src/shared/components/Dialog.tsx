@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,12 +16,12 @@ export function Dialog({ title, eyebrow, onClose, children }: DialogProps) {
   const { height } = useWindowDimensions();
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 items-center justify-center bg-black/40 px-6"
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 items-center justify-center bg-black/40 px-6"
         style={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}>
         <Pressable className="absolute inset-0" onPress={onClose} accessibilityRole="button" accessibilityLabel="Close dialog" />
         <View accessibilityViewIsModal onAccessibilityEscape={onClose}
           className="w-full max-w-[400px] rounded-3xl border border-cream-2 bg-paper p-5"
-          style={{ maxHeight: Math.max(0, height - insets.top - insets.bottom - 48) }}>
+          style={{ flexShrink: 1, maxHeight: Math.max(0, height - insets.top - insets.bottom - 48) }}>
           <View className="mb-3 flex-row items-center justify-between gap-3">
             <Text className="flex-1 font-mono text-xs uppercase tracking-widest text-ink-soft">{eyebrow}</Text>
             <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close dialog"
@@ -34,7 +34,7 @@ export function Dialog({ title, eyebrow, onClose, children }: DialogProps) {
             {children}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

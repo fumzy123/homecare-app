@@ -113,6 +113,30 @@ npm run test:env
 
 When finished, press Ctrl+C in the Expo terminal and stop any local tunnels you started.
 
+## My Profile
+
+The Me tab composes `features/profile/components/WorkerMe`. Personal details open
+from **View profile** beneath the worker's identity. Employment is read-only;
+documents, care preferences and emergency contact live under **Ready for care**.
+Notification preferences and time-off requests are not part of this screen.
+
+Availability is Sunday-first, with separate hours and optional multiple windows
+per day. Saving replaces the worker's whole availability through
+`PATCH /api/me/availability`; it does not change existing visits. Deploy the
+matching backend with this app version. The profile API also supplies the agency
+name. No database migration is needed. Workers cannot edit their employment type,
+status, pay or weekly cap through the self-service profile endpoint.
+
+Credential status uses agency verification, with a 30-day renewal window.
+Replacement uploads require verification again. Agency phone numbers are not
+stored yet, so the coordinator dialog directs workers to their onboarding contact
+information instead of providing a call action.
+
+Run `npm run typecheck` and `npm run test:profile` for profile checks. Backend
+coverage lives in `tests/services/test_worker_profile.py`. Android/iOS bundle
+exports check compilation; device testing is still required for keyboards, file
+picking, document viewing, offline saving and navigation with a worker account.
+
 ## EAS builds and updates
 
 EAS uses server-managed environment variables, not this local startup launcher.

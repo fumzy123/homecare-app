@@ -52,6 +52,7 @@
     "test:env": "node --test scripts/environment.test.cjs",
     "test:push": "node --test scripts/push.test.cjs",
     "test:schedule": "node --test scripts/schedule.test.cjs",
+    "test:profile": "node --test scripts/profile.test.cjs",
     "typecheck": "tsc --noEmit"
   },
   "private": true
