@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
 from app.core.enums import ClientStatus, ServiceType, AuthorizationCoverage, CareArrangement
+from app.schemas.weekly_care_need import WeeklyCareNeedResponse
 
 
 class CareTeamMember(BaseModel):
@@ -112,6 +113,7 @@ class ClientResponse(BaseModel):
     # Organization & Assignment
     org_id: UUID
     care_team: list[CareTeamMember] = []
+    current_care_need: WeeklyCareNeedResponse | None = None
 
     # Medical
     medical_conditions: Optional[str]

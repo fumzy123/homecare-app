@@ -1,5 +1,6 @@
 from collections import defaultdict
 from app.domain.workforce import Workforce
+from app.domain.client_care import current_care_by_client
 from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -71,6 +72,9 @@ class ClientService:
         superseded = {a.supersedes_id for a in auths if a.supersedes_id}
         plan = self.care_need_repo.service_types_by_client([client.id]).get(client.id, set())
         client.care_team = Workforce(self.db, self.org_id).care_teams().get(client.id, [])
+        client.current_care_need = current_care_by_client(
+            self.care_need_repo.versions(client.id), date.today()
+        ).get(client.id)
         return self._derive(client, auths, superseded, date.today(), plan)
 
     def _attach_many(self, clients: list[Client]) -> list[Client]:
@@ -82,8 +86,10 @@ class ClientService:
         plans = self.care_need_repo.service_types_by_client([c.id for c in clients])
         today = date.today()
         teams = Workforce(self.db, self.org_id).care_teams()
+        current_needs = current_care_by_client(self.care_need_repo.list_for_org(self.org_id), today)
         for c in clients:
             c.care_team = teams.get(c.id, [])
+            c.current_care_need = current_needs.get(c.id)
             self._derive(c, by_client.get(c.id, []), superseded, today, plans.get(c.id, set()))
         return clients
 
