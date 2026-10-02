@@ -72,10 +72,15 @@ def test_token_cannot_be_duplicated(service):
 @pytest.mark.parametrize('case', ['missing', 'admin', 'inactive', 'agency'])
 def test_invalid_worker_cannot_register(service, case):
     worker = service.org_repo.get_active_employment_for_user.return_value
-    if case == 'missing': service.org_repo.get_active_employment_for_user.return_value = None
-    if case == 'admin': worker.role = OrgMemberRole.manager
-    if case == 'inactive': worker.employment_status = EmploymentStatus.terminated
-    if case == 'agency': service.org_repo.get_by_id.return_value.is_active = False
-    with pytest.raises(AppError) as exc: service.register(uuid4(), payload())
+    if case == 'missing':
+        service.org_repo.get_active_employment_for_user.return_value = None
+    if case == 'admin':
+        worker.role = OrgMemberRole.manager
+    if case == 'inactive':
+        worker.employment_status = EmploymentStatus.terminated
+    if case == 'agency':
+        service.org_repo.get_by_id.return_value.is_active = False
+    with pytest.raises(AppError) as exc:
+        service.register(uuid4(), payload())
     assert exc.value.status_code == 403
     assert service.db.query(PushDevice).count() == 0

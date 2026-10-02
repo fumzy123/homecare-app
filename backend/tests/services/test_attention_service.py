@@ -1,4 +1,4 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from types import SimpleNamespace as NS
 from unittest.mock import MagicMock
 from uuid import uuid4

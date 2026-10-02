@@ -113,7 +113,14 @@ def test_actual_api_write_routes_are_guarded_except_billing_and_legal():
         if not getattr(route, 'methods', set()) & {'POST', 'PUT', 'PATCH', 'DELETE'}:
             continue
         guarded = require_operational_access in dependencies(route.dependant)
-        if route.path.startswith(('/api/billing/', '/api/legal/')):
+        if route.path == '/api/push-devices/{installation_id}/revoke':
+            # Cleanup must work after logout/session expiry. This route only
+            # accepts a device capability and cannot register or read devices.
+            from app.api.routes.push_devices import get_push_device_cleanup_service
+            assert get_push_device_cleanup_service in dependencies(route.dependant)
+            assert route.methods == {'POST'}
+            assert not guarded
+        elif route.path.startswith(('/api/billing/', '/api/legal/')):
             assert not guarded, route.path
         else:
             assert guarded, route.path

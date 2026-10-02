@@ -7,6 +7,7 @@ from app.schemas.push_device import PushDeviceProof, PushDeviceRegistration
 from app.services.push_device_service import PushDeviceService
 
 router = APIRouter(tags=["Worker — Push devices"])
+cleanup_router = APIRouter(tags=["Worker — Push devices"])
 
 
 def get_push_device_service(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
@@ -24,7 +25,7 @@ def register_device(installation_id: UUID, payload: PushDeviceRegistration,
     return Response(status_code=204)
 
 
-@router.post("/push-devices/{installation_id}/revoke", status_code=204)
+@cleanup_router.post("/push-devices/{installation_id}/revoke", status_code=204)
 def revoke_device(installation_id: UUID, payload: PushDeviceProof,
                   push_device_service=Depends(get_push_device_cleanup_service)):
     push_device_service.revoke(installation_id, payload)

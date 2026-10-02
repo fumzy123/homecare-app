@@ -22,6 +22,8 @@ def require_operational_access(request: Request, service: BillingAccessService =
         ("DELETE", "/api/organization"),  # Account closure remains available.
         ("PATCH", "/api/notifications/{notification_id}/read"),
         ("PATCH", "/api/activity/read"),
+        # Device settings remain available while clinical writes are restricted.
+        ("PUT", "/api/me/push-devices/{installation_id}"),
     }:
         return
     service.require_write()
