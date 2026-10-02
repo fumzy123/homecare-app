@@ -516,25 +516,79 @@ cancelled occurrences, and opens the existing shift detail with its original
 occurrence date. The existing progress-note flow supports append-only follow-ups
 and corrections, preserving previous entries; it does not overwrite saved notes.
 
-### Mobile Feature Roadmap
+### Worker Android MVP — agreed scope (2026-10-02)
 
-- [x] **Phase 0**: Project scaffold, design system, NativeWind, shared components, Expo Router setup
-- [x] **Phase 1**: Authentication — sign in, JWT storage, Zustand auth store, protected routes
-- [ ] **Phase 2**: Onboarding flow — pre-login 3-page intro, permissions screen, profile completion bar
-- [ ] **Phase 3**: Invite acceptance — deep link handling, token verification, profile setup form, `POST /api/me/complete-profile` (requires EAS build)
-- [x] **Phase 4**: Home screen — today's shifts summary, next shift card, warm empty state
-- [x] **Phase 5**: Schedule / shifts — Sunday–Saturday week/two-week calendar, date picker, day itinerary/list views, shift details, directions, care instructions and progress-note access
-- [ ] **Phase 6**: Profile overview — read own profile (`GET /api/me/profile`), credentials view
-- [ ] **Phase 7**: Availability — weekly availability picker, `PATCH /api/me/availability`
-- [ ] **Phase 8**: Visit verification — GPS check-in, distance check against client address
-- [ ] **Phase 9**: Progress notes — note editor per shift occurrence, voice-to-text
-- [ ] **Phase 10**: Digital flowsheet — per-client task checklist during shift
-- [ ] **Phase 11**: Notifications — push notification setup, notification centre screen
-- [ ] **Phase 12**: Compliance documents — upload docs to profile, view uploaded docs
-- [ ] **Phase 13**: Leaderboard — attendance ranking among org workers
-- [ ] **Phase 14**: Polish pass — animations, loading skeletons, empty states, error states, contextual nudges
-- [ ] **Phase 15**: EAS Build setup, TestFlight beta, internal testers
-- [ ] **Phase 16**: App Store submission (iOS) + Play Store submission (Android)
+This defines the worker app's first Google Play release, separately from the
+original agency-admin MVP above. Ship the existing core workflows plus push
+notifications. Do not expand this release into the deferred features below.
+Implementation checkmarks are not device-test or production-readiness sign-off.
+The detailed release and device checklist is in
+`worker-mobile-app/GOOGLE_PLAY_RELEASE.md`.
+
+#### Core workflows implemented; still require release testing
+
+- [x] App scaffold, design system, routing, sign-in, session storage and protected routes.
+- [x] Web invitation/password setup followed by mobile sign-in; worker welcome,
+      short introduction, skip and replay. In-app invitation acceptance is deferred.
+- [x] Home, attention items, current/upcoming visits and estimated completed hours.
+- [x] Schedule, week/two-week navigation, shift details, directions and care instructions.
+- [x] Assigned clients, care-facing information and visit history.
+- [x] Typed progress notes and append-only follow-ups per visit occurrence.
+- [x] Own profile viewing/editing and credential upload/viewing.
+- [x] In-app notification inbox and read state. Phone push delivery is not implemented.
+
+#### Must complete before the Android MVP release
+
+- [ ] **Push notifications:** implement permission handling, device registration
+      and removal/reassignment on sign-out/account changes, Android delivery
+      credentials, backend dispatch and tap navigation. Minimum worker events:
+      new assignments and schedule changes/cancellations. Keep patient details
+      out of lock-screen text; opening a notification must still enforce access.
+      Verify delivery and taps in foreground, background and closed-app states,
+      plus denied permissions and invalid device tokens. Keep the inbox usable
+      when phone notifications are disabled.
+- [ ] **Minimum onboarding and truthful UI:** test web invitation → mobile login
+      → welcome/skip → Home, returning sessions, and pending/expired/no-access
+      accounts. Add contextual push permission handling. Remove or redirect old
+      onboarding routes with sample completion data or promises of GPS,
+      flowsheets and voice notes. Do not add a richer onboarding flow for MVP.
+      Remove unused location permission requests/declarations. Keep weekly hours
+      explicitly estimated and do not present punctuality as a working feature.
+- [ ] **Production connections and account recovery:** configure the production
+      website URL, verify compatible backend/auth services, and test privacy and
+      password-reset links. Make recovery reachable before sign-in as well as
+      from Settings. Finalize app name/version presentation and working actions.
+- [ ] **Android release testing and necessary fixes:** create a signed build,
+      test every core workflow on an Android phone with fictional records, and
+      fix crashes, blocked journeys, lost notes, misleading errors and access
+      failures. Cover denied permissions, network loss, session expiry, keyboard,
+      back navigation and small screens. Cosmetic enhancements are not a gate.
+- [ ] **Google Play submission:** verified developer access, final privacy policy,
+      support details, accurate app/data declarations and applicable deletion
+      flow, icon/screenshots/feature graphic, reviewer demo access, signed bundle,
+      required testing for the account, and submission for review. Record the
+      actual submission result; a bundle export or upload alone is not review.
+
+#### After the Android MVP release
+
+Next release, as requested:
+- [ ] Visit check-in/check-out, GPS arrival/departure verification and handling
+      denied or unavailable location.
+- [ ] Actual worked hours and punctuality calculations based on recorded attendance.
+
+Later releases (order to be decided after MVP feedback):
+- [ ] Worker self-service availability editor and its complete save/test workflow.
+      Partial implementation in the working tree does not make this an MVP gate.
+- [ ] Invitation links opening the app and native account/profile setup.
+- [ ] Richer onboarding: real profile-completion percentage and personalized
+      missing-item checklist; additional guidance when useful.
+- [ ] Voice-to-text progress notes.
+- [ ] Digital flowsheets and per-visit care-task checklists.
+- [ ] Attendance leaderboard, after attendance data exists.
+- [ ] Additional animations, loading skeletons and contextual nudges beyond the
+      loading/error/empty states required for reliable MVP use.
+- [ ] iOS release testing, TestFlight and App Store submission; current launch
+      focus is Android.
 
 ### Worker schedule implementation
 
@@ -551,15 +605,15 @@ yet, so the label is **scheduled over 2 weeks**, not **pay period**. Note indica
 come from occurrence-specific recorded notes; updated visits do not invent previous times.
 Run `npm run test:schedule` for date navigation, itinerary, hours and note-status checks.
 
-### Backend Endpoints Still Needed (Mobile)
+### Mobile backend status
 
-| Endpoint | Phase | Purpose |
-|---|---|---|
-| `GET /api/me/profile` | 6 | Worker reads own profile |
-| `PATCH /api/me/availability` | 7 | Worker updates own availability |
-| `POST /api/me/shifts/{id}/check-in` | 8 | GPS check-in |
-| `GET /api/me/notifications` | 11 | Notification history |
-| `GET /api/leaderboard` | 13 | Org attendance ranking |
+Profile read/update, credentials, notification history/read state, shifts,
+clients and visit notes have worker endpoints. They are not missing MVP API work.
+Push device registration and delivery remain MVP backend work; route contracts
+must be designed with the implementation. Attendance/check-in/check-out and
+leaderboard APIs are deferred. Availability work is also deferred from the MVP;
+the current working tree has an availability endpoint/hook under development,
+which is not evidence of a completed, tested mobile workflow.
 
 ---
 
