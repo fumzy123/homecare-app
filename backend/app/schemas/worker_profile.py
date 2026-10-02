@@ -1,14 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
-from typing import Optional, List, Any
+from typing import Optional, List
 from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus, ComplianceDocumentType
+from app.schemas.worker_availability import AvailabilityEntryInput, AvailabilityEntryResponse, AvailabilityPutSchema
 
 
 class WorkerProfileResponse(BaseModel):
     # Identity
     id: UUID
+    agency_name: str
     first_name: str
     last_name: str
     email: str
@@ -31,7 +33,7 @@ class WorkerProfileResponse(BaseModel):
     postal_code: Optional[str]
 
     # Scheduling & preferences
-    availability: Optional[Any]
+    availability: list[AvailabilityEntryResponse]
     max_hours_per_week: Optional[int]
     pet_tolerance: Optional[str]
     preferred_client_types: Optional[List[str]]
@@ -94,6 +96,8 @@ class CredentialUpsertSchema(BaseModel):
 
 
 class WorkerProfileUpdateSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     phone_number: Optional[str] = None
     gender: Optional[str] = None
     street: Optional[str] = None
@@ -104,6 +108,24 @@ class WorkerProfileUpdateSchema(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    pet_tolerance: Optional[str] = Field(default=None, max_length=200)
+    has_vehicle: Optional[bool] = None
+
+
+class WorkerAvailabilityEntryInput(AvailabilityEntryInput):
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def local_wall_time(cls, value):
+        if value.tzinfo is not None:
+            raise ValueError("Use local times without a timezone offset")
+        return value
+
+
+class WorkerAvailabilityUpdateSchema(AvailabilityPutSchema):
+    model_config = ConfigDict(extra="forbid")
+    entries: list[WorkerAvailabilityEntryInput]
 
 
 class WorkerStatsResponse(BaseModel):
