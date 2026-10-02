@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends
 from app.api.billing_access import require_operational_access
 from app.api.routes import worker_notes, worker_clients
 from app.api.routes import attention
+from app.api.routes import push_devices
 from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, worker_shifts, credentials, notifications, compliance, placements, authorizations, weekly_care_need
 
 router = APIRouter(prefix="/api")
+router.include_router(push_devices.router)
 
 # Billing (including signed webhooks) and legal acceptance retain their own
 # authorization. Every operational router shares the same write guard.
