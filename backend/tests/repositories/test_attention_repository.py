@@ -42,20 +42,20 @@ def test_credentials_scope_active_workers_and_expiry_boundaries():
         today_id = candidate(today)
         boundary = candidate(today + timedelta(days=30))
         uploaded = candidate(None, verified=False)
-        for days in [-1, 31]:
-            candidate(today + timedelta(days=days))
+        expired = candidate(today - timedelta(days=1))
+        candidate(today + timedelta(days=31))
         candidate(today, org_id=uuid4())
         candidate(today, role=OrgMemberRole.owner)
         candidate(today, employment_status=EmploymentStatus.terminated)
         candidate(today, deleted_at=datetime.now())
         db.commit()
-        assert {row[1] for row in AttentionRepository(db).credentials(org, today)} == {today_id, boundary, uploaded}
+        assert {row[1] for row in AttentionRepository(db).credentials(org, today)} == {today_id, boundary, uploaded, expired}
     engine.dispose()
 
 
 def test_related_reads_enforce_tenant_latest_version_and_effective_visit_window():
     engine = create_engine('sqlite://')
-    for model in [Client, WeeklyCareNeed, CareSlot, Placement, PlacementInterest, CareSlotAssignment, Shift, ShiftModification, Authorization]:
+    for model in [Person, Employment, Client, WeeklyCareNeed, CareSlot, Placement, PlacementInterest, CareSlotAssignment, Shift, ShiftModification, Authorization]:
         model.__table__.create(engine)
     org, foreign, worker = uuid4(), uuid4(), uuid4()
     today = date(2026, 10, 1)
@@ -94,7 +94,15 @@ def test_related_reads_enforce_tenant_latest_version_and_effective_visit_window(
         db.commit()
         repo = AttentionRepository(db)
         assert {c.id for c in repo.clients(org)} == {local.id}
-        assert [n.id for n in repo.care_needs(org)] == [latest.id]
+        assert [n.id for n in repo.care_needs(org, today)] == [latest.id]
+        current = db.query(WeeklyCareNeed).filter_by(client_id=local.id, version=1).one()
+        current.activated_at = datetime.now()
+        current.scheduled_from = today
+        db.commit()
+        assert {n.id for n in repo.care_needs(org, today)} == {current.id, latest.id}
+        current.ends_on = today - timedelta(days=1)
+        db.commit()
+        assert [n.id for n in repo.care_needs(org, today)] == [latest.id]
         assert [p.id for p in repo.placements(org, [latest.id, other_need.id])] == [places[0].id]
         assert [p for p, _ in repo.assignments(org, [p.id for p in places])] == [places[0].id]
         assert [a.id for a in repo.authorizations(org)] == [auths[0].id]

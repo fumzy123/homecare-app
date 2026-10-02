@@ -32,6 +32,7 @@ def service(entries):
     svc = ProgressNoteService.__new__(ProgressNoteService)
     svc.db, svc.shift_repo, svc.note_repo = MagicMock(), MagicMock(), MagicMock()
     svc.org_id = uuid4()
+    svc.current_user = SimpleNamespace(id=uuid4())
     svc.note_repo.get_by_shift_and_date.return_value = SimpleNamespace(entries=entries) if entries is not None else None
     return svc
 

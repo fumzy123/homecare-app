@@ -21,6 +21,7 @@ def require_operational_access(request: Request, service: BillingAccessService =
         ("POST", "/api/org-members"),
         ("DELETE", "/api/organization"),  # Account closure remains available.
         ("PATCH", "/api/notifications/{notification_id}/read"),
+        ("PATCH", "/api/activity/read"),
     }:
         return
     service.require_write()

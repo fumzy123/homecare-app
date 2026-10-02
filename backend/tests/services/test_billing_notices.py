@@ -1,3 +1,4 @@
+from app.models.activity import ActivityEvent
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from unittest.mock import MagicMock
@@ -27,7 +28,7 @@ NOW = datetime(2026, 9, 28, tzinfo=timezone.utc)
 def fixture(monkeypatch):
     monkeypatch.setattr(settings, "billing_notifications_enabled", True)
     engine = create_engine("sqlite://")
-    for model in (Organization, BillingAgreement, Notification, NotificationRead, BillingNotice):
+    for model in (ActivityEvent, Organization, BillingAgreement, Notification, NotificationRead, BillingNotice):
         model.__table__.create(engine)
     with Session(engine) as db:
         org = Organization(id=uuid4(), owner_id=uuid4(), name="Agency", stripe_customer_id="cus_one", subscription_id="sub_one",

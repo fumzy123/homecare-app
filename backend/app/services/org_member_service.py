@@ -238,6 +238,9 @@ class OrgMemberService:
                 elif field in _EMPLOYMENT_FIELDS:
                     setattr(employment, field, value)
 
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'worker:{member_id}', 'workers',
+                'Updated worker profile', '', {'kind': 'worker', 'record_id': str(member_id)})
             self.db.commit()
             self.db.refresh(employment)
             return _flat_response(employment)

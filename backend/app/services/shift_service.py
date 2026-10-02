@@ -216,7 +216,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 1. Create a single or recurring shift
     # ─────────────────────────────────────────
-    async def create_shift(self, payload: ShiftCreateSchema):
+    async def create_shift(self, payload: ShiftCreateSchema, *, commit=True):
         try:
             self.cutoff_service.seal_due(self.org_id)
             client = self._validate_shift_participants(
@@ -265,8 +265,14 @@ class ShiftService:
                 overtime_approved=payload.override_hours_check or False,
             )
             self.shift_repo.add(shift)
-            self.db.commit()
-            self.db.refresh(shift)
+            self.db.flush()
+            if commit:
+                from app.repositories.activity_repository import ActivityRepository
+                ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift.id}:{payload.start_time.date()}', 'schedule',
+                    'Scheduled care', f'{client.first_name} {client.last_name}',
+                    {'kind': 'visit', 'record_id': str(shift.id), 'occurrence_date': payload.start_time.date().isoformat()})
+                self.db.commit()
+                self.db.refresh(shift)
             return shift
 
         except AppError:
@@ -533,7 +539,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 4. Update master shift (affects all future occurrences)
     # ─────────────────────────────────────────
-    async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema):
+    async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema, *, commit=True):
         try:
             self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
@@ -614,7 +620,13 @@ class ShiftService:
             if schedule_changed and payload.override_hours_check:
                 shift.overtime_approved = True
 
-            self.db.commit()
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+            if commit:
+                self.db.commit()
+            self.db.flush()
             self.db.refresh(shift)
             return shift
 
@@ -638,6 +650,10 @@ class ShiftService:
             shift.status = ShiftStatus.cancelled
             shift.deleted_at = datetime.now(timezone.utc)
             shift.cancellation_reason = payload.cancellation_reason
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Cancelled visit series', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
 
             return {"message": "Shift cancelled successfully"}
@@ -652,7 +668,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 6. Create a modification for a specific occurrence
     # ─────────────────────────────────────────
-    async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema):
+    async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema, *, commit=True):
         try:
             self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
@@ -693,7 +709,13 @@ class ShiftService:
 
             self.db.flush()
             self.evidence_service.correct(master, existing, evidence, payload.model_fields_set)
-            self.db.commit()
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = payload.original_date
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+            if commit:
+                self.db.commit()
+            self.db.flush()
             self.db.refresh(existing)
             return existing
 
@@ -740,6 +762,10 @@ class ShiftService:
 
             self.db.flush()
             self.evidence_service.correct(master, mod, evidence, payload.model_fields_set)
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = original_date
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
             self.db.refresh(mod)
             return mod
@@ -772,6 +798,10 @@ class ShiftService:
                 shift.cancellation_reason = payload.cancellation_reason
                 self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Ended visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
             return {"message": "Occurrences cancelled successfully"}
 
@@ -785,7 +815,7 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 9. Edit this occurrence and all following (splits the series)
     # ─────────────────────────────────────────
-    async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema):
+    async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema, *, commit=True):
         try:
             self.cutoff_service.seal_due(self.org_id)
             self.shift_repo.lock_shift(shift_id, self.org_id)
@@ -840,7 +870,12 @@ class ShiftService:
                     shift.recurrence_end_date = payload.recurrence_end_date
                 if payload.notes is not None:
                     shift.notes = payload.notes
-                self.db.commit()
+                from app.repositories.activity_repository import ActivityRepository
+                activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+                ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                    'Updated visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+                if commit:
+                    self.db.commit()
                 return {"message": "Shift updated"}
 
             original_end_date = shift.recurrence_end_date
@@ -901,7 +936,12 @@ class ShiftService:
                 overtime_approved=payload.override_hours_check or False,
             )
             self.shift_repo.add(new_shift)
-            self.db.commit()
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+            if commit:
+                self.db.commit()
             return {"message": "Shift updated from this occurrence"}
 
         except AppError:

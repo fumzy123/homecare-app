@@ -94,6 +94,10 @@ class BillingNoticeService:
                 notification = self.notification_repo.get_by_id(notice.notification_id) if notice and notice.notification_id else None
                 if notification and notification.resolved_at is None:
                     notification.resolved_at = now
+                    from app.repositories.activity_repository import ActivityRepository
+                    ActivityRepository(self.db).record(org.id, None, f'invoice:{invoice.id}', 'billing',
+                        'Payment alert resolved', 'Invoice paid' if invoice.status == 'paid' else 'Invoice voided',
+                        {'kind': 'billing', 'record_id': str(org.id)})
             self.db.commit()
         except Exception:
             self.db.rollback()

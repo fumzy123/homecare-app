@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from app.core.enums import CareArrangement, ComplianceDocumentType, ShiftCompletionStatus
+from app.core.enums import CareArrangement, ComplianceDocumentType, ShiftCompletionStatus, OrgMemberRole
 from app.services.attention_service import AttentionService
 
 
@@ -17,6 +17,12 @@ def service(monkeypatch):
     monkeypatch.setattr('app.services.attention_service.datetime', Clock)
     service = AttentionService.__new__(AttentionService)
     service.org_id = uuid4()
+    service.member = NS(id=uuid4(), org_id=service.org_id, role=OrgMemberRole.owner)
+    service.activity_repo = MagicMock()
+    service.activity_repo.unread_by_situation.return_value = {}
+    service.activity_repo.pending_overtime.return_value = []
+    service.activity_repo.unread_notices.return_value = []
+    service.activity_repo.unresolved_payments.return_value = []
     service.org_repo = MagicMock()
     service.org_repo.get_by_id.return_value = NS(billing_timezone='America/St_Johns')
     service.attention_repo = MagicMock()
@@ -68,7 +74,11 @@ def test_dropped_visit_keeps_original_occurrence_identity_and_effective_date(ser
     assert items[0].due_on == date(2026, 10, 1)
     assert items[0].id == f'visit:{s.id}:{original}'
     s.modifications[0].new_start_time = datetime(2027, 1, 1, 9)
-    assert all(i.stage != 'replace_worker' for i in service.list_items().items)
+    assert any(i.stage == 'replace_worker' for i in service.list_items().items)
+    s.modifications[0].new_start_time = datetime(2026, 8, 1, 9)
+    assert any(i.stage == 'review_dropped_visit' for i in service.list_items().items)
+    s.modifications[0].completion_status = ShiftCompletionStatus.no_show
+    assert all(i.stage not in {'replace_worker', 'review_dropped_visit'} for i in service.list_items().items)
 
 
 def test_renewed_document_progresses_to_verification_then_disappears(service):
@@ -104,3 +114,35 @@ def test_failed_source_is_not_reported_as_all_clear(service):
     service.attention_repo.credentials.side_effect = RuntimeError('Unavailable')
     with pytest.raises(RuntimeError):
         service.list_items()
+
+
+def test_workers_share_one_situation_and_progress_to_complete(service):
+    from datetime import time
+    from app.core.enums import WeekDay, PlacementStatus, NotificationType
+    c = client()
+    slots = [NS(id=uuid4(), day_of_week=WeekDay.MO, start_time=time(9), end_time=time(11)),
+             NS(id=uuid4(), day_of_week=WeekDay.TU, start_time=time(9), end_time=time(11))]
+    need = NS(id=uuid4(), client_id=c.id, imported=False, ends_on=None, effective_from=date(2026,10,1), scheduled_from=None, care_slots=slots)
+    workers = [NS(id=uuid4(), person=NS(first_name=name,last_name='Test')) for name in ['Sophie','Daniel']]
+    placement = NS(id=uuid4(), status=PlacementStatus.open, weekly_care_need_id=need.id,
+        interests=[NS(employment=w, care_slot_ids=[str(slot.id)]) for w, slot in zip(workers,slots)])
+    service.attention_repo.clients.return_value = [c]
+    service.attention_repo.care_needs.return_value = [need]
+    service.attention_repo.placements.return_value = [placement]
+    service.attention_repo.shifts.return_value = [shift(c,date(2026,10,1))]
+    notice = NS(id=uuid4(), situation_key=f'care:{need.id}',about_worker_id=workers[1].id,
+        type=NotificationType.placement_interest_received,created_at=datetime.now())
+    service.activity_repo.unread_notices.return_value = [(notice,None)]
+    service.activity_repo.unread_by_situation.return_value = {notice.situation_key:1}
+    item = service.list_items().items[0]
+    assert len(item.interested_workers) == 2
+    assert [w.unread for w in item.interested_workers] == [False,True]
+    assert item.covered_slots == 0 and item.total_slots == 2
+    service.activity_repo.unread_notices.return_value = []
+    service.attention_repo.assignments.return_value = [(placement.id,slots[0].id)]
+    partial = service.list_items().items[0]
+    assert partial.id == item.id and partial.covered_slots == 1
+    assert [w.name for w in partial.interested_workers] == ['Daniel Test']
+    service.activity_repo.unread_notices.return_value = []
+    service.attention_repo.assignments.return_value = [(placement.id,s.id) for s in slots]
+    assert not service.list_items().items

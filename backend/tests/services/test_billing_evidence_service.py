@@ -1,3 +1,4 @@
+from app.models.activity import ActivityEvent
 import asyncio
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import MagicMock
@@ -25,7 +26,7 @@ from app.services.shift_completion_service import ShiftCompletionService
 @pytest.fixture
 def db():
     engine = create_engine("sqlite://")
-    for model in (Shift, ShiftModification, BillingVisitEvidence):
+    for model in (ActivityEvent, Shift, ShiftModification, BillingVisitEvidence):
         model.__table__.create(engine)
     with Session(engine) as session:
         yield session
@@ -54,6 +55,7 @@ def estimate(db, org, month=9):
 
 def shift_service(db, shift):
     service = ShiftService.__new__(ShiftService)
+    service.current_employment_id = uuid4()
     service.db, service.org_id = db, shift.org_id
     service.shift_repo = ShiftRepository(db)
     service.modification_repo = ShiftModificationRepository(db)

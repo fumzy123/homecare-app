@@ -38,6 +38,13 @@ class NotificationRepository:
         )
         self.db.add(notification)
         self.db.flush()
+        from app.domain.activity import notification_key
+        notification.situation_key = notification_key(type, payload, about_worker_id, notification.id)
+        if type == NotificationType.placement_interest_received:
+            from app.models.placement import Placement
+            placement = self.db.query(Placement).filter(Placement.id == payload.get('placement_id'), Placement.org_id == org_id).first()
+            if placement and placement.weekly_care_need_id:
+                notification.situation_key = f'care:{placement.weekly_care_need_id}'
         return notification
 
     def create_reads_for_admins(self, notification_id: UUID, org_id: UUID) -> None:
@@ -96,21 +103,6 @@ class NotificationRepository:
         notification.resolved_by = resolved_by
         self.db.flush()
         return notification
-
-    def purge_old_reads(self, cutoff: datetime) -> int:
-        rows = (
-            self.db.query(Notification)
-            .filter(
-                Notification.resolved_at.isnot(None),
-                Notification.created_at < cutoff,
-            )
-            .all()
-        )
-        count = len(rows)
-        for row in rows:
-            self.db.delete(row)
-        self.db.flush()
-        return count
 
     # ── Read ──────────────────────────────────────────────────────────────────
 

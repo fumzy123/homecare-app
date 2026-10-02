@@ -181,7 +181,10 @@ class PlacementService:
                 requirements=payload.requirements,
                 commit=False,
             )
-
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.employment_id, f'care:{need.id}', 'coverage',
+                'Posted open placement', f'{client.first_name} {client.last_name}',
+                {'kind': 'placement', 'record_id': str(placement.id)})
             self.db.commit()
         except Exception:
             self.db.rollback()
@@ -342,6 +345,11 @@ class PlacementService:
                 commit=False,
             )
 
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.employment_id,
+                f'care:{placement.weekly_care_need_id}' if placement.weekly_care_need_id else f'placement:{placement.id}',
+                'coverage', 'Closed placement', placement.masked_location,
+                {'kind': 'placement', 'record_id': str(placement.id)})
             self.db.commit()
         except Exception:
             self.db.rollback()
@@ -1000,6 +1008,11 @@ class PlacementService:
             NotificationService(self.db, self.employment_id).notify_coverage_approved(
                 self.org_id, p, checks, payload.selections, remaining, payload.starts_on
             )
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.employment_id, f'care:{need.id}', 'coverage',
+                'Completed care coverage' if not remaining else f'Approved {len(payload.selections)} care slots',
+                f'{client.first_name} {client.last_name} · {len(remaining)} slots remaining' if remaining else f'{client.first_name} {client.last_name} · All slots covered',
+                {'kind': 'placement', 'record_id': str(p.id)})
             self.db.commit()
             return self._to_detail(p)
         except Exception:

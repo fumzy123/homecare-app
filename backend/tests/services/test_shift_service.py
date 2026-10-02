@@ -14,6 +14,7 @@ from app.services.shift_service import ShiftService
 
 def _service(role=OrgMemberRole.manager):
     service = ShiftService.__new__(ShiftService)
+    service.current_employment_id = uuid4()
     service.current_member_role = role
     service.checker = MagicMock()
     service.shift_repo = MagicMock()

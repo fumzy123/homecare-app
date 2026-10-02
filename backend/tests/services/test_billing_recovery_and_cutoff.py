@@ -1,3 +1,4 @@
+from app.models.activity import ActivityEvent
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -38,7 +39,7 @@ def dt(month, day=1, year=2026):
 @pytest.fixture
 def db():
     engine = create_engine("sqlite://")
-    for model in (Organization, BillingAgreement, FoundingConversion, BillingPeriod, BillingUsageCutoff,
+    for model in (ActivityEvent, Organization, BillingAgreement, FoundingConversion, BillingPeriod, BillingUsageCutoff,
                   BillingVisitEvidence, BillingUsageSnapshot, BillingSettlement, Shift, ShiftModification):
         model.__table__.create(engine)
     with Session(engine, autoflush=False) as session:
@@ -157,6 +158,7 @@ def test_delayed_job_uses_pre_late_edit_count_even_when_period_was_missing(db, m
     sid, client = visit(db, org)
     deadline = dt(10, 4)
     service = ShiftService.__new__(ShiftService)
+    service.current_employment_id = uuid4()
     service.db, service.org_id = db, org
     service.shift_repo = ShiftRepository(db)
     service._get_active_shift = lambda _: db.get(Shift, sid)

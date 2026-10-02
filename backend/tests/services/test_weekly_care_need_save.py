@@ -28,7 +28,7 @@ def setup_save(effective=None):
     service.org_repo = MagicMock()
     service.org_repo.lock_by_id.return_value = NS(billing_timezone="America/St_Johns")
     service.client_repo = MagicMock()
-    service.client_repo.get_active_client.return_value = NS(care_arrangement=CareArrangement.self_pay)
+    service.client_repo.get_active_client.return_value = NS(care_arrangement=CareArrangement.self_pay, first_name='Sample', last_name='Client')
     service.care_need_repo = MagicMock()
     service.care_need_repo.latest.return_value = latest
     service.care_need_repo.versions.return_value = []

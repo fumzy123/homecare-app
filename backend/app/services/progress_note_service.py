@@ -14,6 +14,7 @@ class ProgressNoteService:
 
     def __init__(self, db: Session, current_user: SupabaseUser):
         self.db = db
+        self.current_user = current_user
         self.note_repo = ProgressNoteRepository(db)
         self.shift_repo = ShiftRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
@@ -35,6 +36,9 @@ class ProgressNoteService:
             else:
                 note = ProgressNote(shift_id=shift_id, occurrence_date=payload.occurrence_date, entries=entries)
                 self.note_repo.add(note)
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'visit:{shift_id}:{payload.occurrence_date}', 'documentation',
+                'Added visit note entry', str(payload.occurrence_date), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': payload.occurrence_date.isoformat()})
             self.db.commit()
             self.db.refresh(note)
             return note
@@ -108,6 +112,9 @@ class ProgressNoteService:
                 )
                 self.note_repo.add(note)
 
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'visit:{shift_id}:{payload.occurrence_date}', 'documentation',
+                'Saved visit notes', str(payload.occurrence_date), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': payload.occurrence_date.isoformat()})
             self.db.commit()
             self.db.refresh(note)
             return note

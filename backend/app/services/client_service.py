@@ -114,6 +114,9 @@ class ClientService:
                 **data,
             )
             self.client_repo.add(client)
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'client:{client.id}', 'clients',
+                'Created client profile', f'{client.first_name} {client.last_name}', {'kind': 'client', 'record_id': str(client.id)})
             self.db.commit()
             self.db.refresh(client)
             return self._attach_one(self.client_repo.get_by_id(client.id))
@@ -159,6 +162,9 @@ class ClientService:
             for field, value in updates.items():
                 setattr(client, field, value)
 
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'client:{client.id}', 'clients',
+                'Updated client profile', f'{client.first_name} {client.last_name}', {'kind': 'client', 'record_id': str(client.id)})
             self.db.commit()
             self.db.refresh(client)
             return self._attach_one(self.client_repo.get_by_id(client.id))

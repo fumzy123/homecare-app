@@ -47,48 +47,6 @@ class NotificationService:
         self.repo.create_reads_for_admins(notification.id, org_id)
         self.db.commit()
 
-    def notify_overtime_approval_requested(
-        self,
-        org_id: UUID,
-        requesting_member_id: UUID,
-        requesting_member_name: str,
-        worker_id: UUID,
-        week_start: str,
-        week_end: str,
-        total_hours: float,
-        client_id: UUID | None = None,
-        client_name: str | None = None,
-        start_time: str | None = None,
-        end_time: str | None = None,
-        is_recurring: bool = False,
-        recurrence: dict | None = None,
-        note: str | None = None,
-    ) -> None:
-        notification = self.repo.create(
-            org_id=org_id,
-            type=NotificationType.overtime_approval_requested,
-            payload={
-                "requesting_member_id": str(requesting_member_id),
-                "requesting_member_name": requesting_member_name,
-                "week_start": week_start,
-                "week_end": week_end,
-                "total_hours": total_hours,
-                "client_id": str(client_id) if client_id else None,
-                "client_name": client_name,
-                "start_time": start_time,
-                "end_time": end_time,
-                "is_recurring": is_recurring,
-                "recurrence": recurrence,
-                "note": note,
-            },
-            requires_action=True,
-            target_audience=TargetAudience.admins_only,
-            about_worker_id=worker_id,
-            triggered_by_id=requesting_member_id,
-        )
-        self.repo.create_reads_for_approvers(notification.id, org_id)
-        self.db.commit()
-
     def notify_shift_dropped(
         self, org_id: UUID, worker_id: UUID, shift_id: UUID,
         occurrence_date: str, client_name: str
@@ -255,6 +213,9 @@ class NotificationService:
                            message="This notification does not require action")
         if notification.type == NotificationType.billing_payment_failed:
             raise AppError(409, "PAYMENT_NOT_CONFIRMED", "Payment alerts are resolved automatically when the invoice is paid or voided")
+        if notification.type in (NotificationType.overtime_approval_requested, NotificationType.credential_uploaded,
+                                  NotificationType.shift_dropped, NotificationType.placement_interest_received):
+            raise AppError(409, 'WORKFLOW_ACTION_REQUIRED', 'Complete the corresponding workflow to resolve this situation')
         self.repo.mark_resolved(notification, member.id)
         self.repo.mark_read(notification_id, member.id)
         self.db.commit()

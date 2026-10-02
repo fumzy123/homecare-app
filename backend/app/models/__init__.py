@@ -1,4 +1,5 @@
 from app.models.base import Base as Base
+from app.models.activity import ActivityEvent as ActivityEvent, ActivityRead as ActivityRead, OvertimeRequest as OvertimeRequest
 from app.models.organization import Organization as Organization
 from app.models.trial_activation import TrialActivation as TrialActivation
 from app.models.billing_agreement import BillingAgreement as BillingAgreement

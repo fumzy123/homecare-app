@@ -79,6 +79,7 @@ def test_guard_blocks_all_mutation_methods_before_handler_but_allows_reads_and_e
         calls.append(True)
         return {'ok': True}
 
+    operational.add_api_route('/activity/read', handler, methods=['PATCH'])
     operational.add_api_route('/clients', handler, methods=['GET', 'POST', 'PATCH', 'PUT', 'DELETE'])
     operational.add_api_route('/organization', handler, methods=['POST', 'DELETE'])
     operational.add_api_route('/org-members', handler, methods=['POST'])
@@ -98,6 +99,7 @@ def test_guard_blocks_all_mutation_methods_before_handler_but_allows_reads_and_e
         assert client.delete('/api/organization').status_code == 200
         assert client.post('/api/org-members').status_code == 200
         assert client.patch('/api/notifications/one/read').status_code == 200
+        assert client.patch('/api/activity/read').status_code == 200
         assert client.patch('/api/notifications/one/resolve').status_code == 403
         service.require_write.side_effect = None
         assert client.post('/api/clients').status_code == 200

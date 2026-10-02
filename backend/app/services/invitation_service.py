@@ -113,7 +113,9 @@ class InvitationService:
 
             if invite_response and invite_response.user:
                 invitation.supabase_user_id = invite_response.user.id
-
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'invitation:{invitation.id}', 'workers',
+                'Invited a team member', payload.email)
             self.db.commit()
             return {"message": f"Invite sent to {payload.email}"}
 

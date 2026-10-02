@@ -138,6 +138,12 @@ class ShiftEditFromSchema(BaseModel):
 # POST /shifts/request-overtime-approval
 # ─────────────────────────────────────────
 class OvertimeApprovalRequestSchema(BaseModel):
+    service_type: ServiceType | None = None
+    location: str | None = None
+    notes: str | None = None
+    shift_id: UUID | None = None
+    edit_scope: Literal["this", "following", "all"] | None = None
+    changes: dict | None = None
     worker_id:    UUID
     week_start:   str          # YYYY-MM-DD
     week_end:     str          # YYYY-MM-DD
