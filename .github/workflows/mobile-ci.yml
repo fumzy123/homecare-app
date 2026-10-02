@@ -37,6 +37,9 @@ jobs:
       - name: Home shift selection tests
         run: node --test scripts/home-shifts.test.cjs
 
+      - name: Push registration lifecycle tests
+        run: npm run test:push
+
   expo-doctor:
     name: Mobile Expo Doctor
     runs-on: ubuntu-latest
