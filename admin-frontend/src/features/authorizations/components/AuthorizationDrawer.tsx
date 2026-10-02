@@ -1,270 +1,353 @@
 import { useState } from 'react'
-import { Kicker, DateInput } from '@/shared/components/ui'
+import { Plus, Trash2 } from 'lucide-react'
+import { ClientDialog } from '@/features/clients/components/ClientWorkspaceUI'
+import { errorMessage } from '@/features/clients/lib/care'
 import { useCreateAuthorization } from '../hooks/useAuthorizations'
-import { SERVICE_TYPES, SERVICE_TYPE_LABELS, HOURS_PERIOD_LABELS } from '../constants'
+import {
+  SERVICE_TYPES,
+  SERVICE_TYPE_LABELS,
+  HOURS_PERIOD_LABELS,
+} from '../constants'
 import type {
   Authorization,
   AuthorizationCreatePayload,
-  AuthorizationServiceInput,
   HoursPeriod,
   ServiceType,
 } from '../api'
 
-const labelClass  = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
-const inputClass  = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink resize-none'
-const selectClass = inputClass + ' appearance-none'
-
-interface Props {
+export function AuthorizationDrawer({
+  clientId,
+  amends,
+  onClose,
+}: {
   clientId: string
   amends?: Authorization
   onClose: () => void
-}
-
-interface ServiceRow {
-  service_type: ServiceType
-  hours: string
-}
-
-export function AuthorizationDrawer({ clientId, amends, onClose }: Props) {
-  const { mutateAsync: create, isPending } = useCreateAuthorization(clientId)
-  const [serverError, setServerError] = useState<string | null>(null)
-
-  const [funder, setFunder]                 = useState(amends?.funder ?? '')
-  const [fileNumber, setFileNumber]         = useState(amends?.funder_file_number ?? '')
-  const [authNumber, setAuthNumber]         = useState(amends?.authorization_number ?? '')
-  const [coveringStart, setCoveringStart]   = useState(amends?.covering_start ?? '')
-  const [coveringEnd, setCoveringEnd]       = useState(amends?.covering_end ?? '')
-  const [dateIssued, setDateIssued]         = useState(amends?.date_issued ?? '')
-  const [authorizedBy, setAuthorizedBy]     = useState(amends?.authorized_by ?? '')
-  const [hoursPeriod, setHoursPeriod]       = useState<HoursPeriod>(amends?.hours_period ?? 'bi_weekly')
-  const [contribution, setContribution]     = useState(
-    amends?.client_monthly_contribution_amount != null ? String(amends.client_monthly_contribution_amount) : '',
+}) {
+  const create = useCreateAuthorization(clientId)
+  const [error, setError] = useState('')
+  const [values, setValues] = useState({
+    funder: amends?.funder || '',
+    authorization_number: amends?.authorization_number || '',
+    funder_file_number: amends?.funder_file_number || '',
+    covering_start: amends?.covering_start || '',
+    covering_end: amends?.covering_end || '',
+    date_issued: amends?.date_issued || '',
+    authorized_by: amends?.authorized_by || '',
+    hours_period: amends?.hours_period || ('bi_weekly' as HoursPeriod),
+    contribution: amends?.client_monthly_contribution_amount?.toString() || '',
+    invoice_to: amends?.invoice_to || '',
+    notes: '',
+  })
+  const [rows, setRows] = useState(
+    () =>
+      amends?.services.map((s) => ({
+        key: crypto.randomUUID(),
+        service_type: s.service_type as ServiceType | '',
+        hours: String(s.authorized_hours),
+      })) || [
+        {
+          key: crypto.randomUUID(),
+          service_type: '' as ServiceType | '',
+          hours: '',
+        },
+      ],
   )
-  const [invoiceTo, setInvoiceTo]           = useState(amends?.invoice_to ?? '')
-  const [notes, setNotes]                   = useState('')
-  const [services, setServices]             = useState<ServiceRow[]>(
-    amends?.services.map((s) => ({ service_type: s.service_type, hours: String(s.authorized_hours) }))
-      ?? [{ service_type: 'personal_care', hours: '' }],
-  )
-
-  function updateService(i: number, patch: Partial<ServiceRow>) {
-    setServices((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)))
-  }
-  function addService() {
-    setServices((prev) => [...prev, { service_type: 'homemaking', hours: '' }])
-  }
-  function removeService(i: number) {
-    setServices((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setServerError(null)
-
-    if (!funder.trim() || !authNumber.trim() || !coveringStart) {
-      setServerError('Funder, authorization number, and covering start are required.')
-      return
-    }
-    const parsedServices: AuthorizationServiceInput[] = []
-    for (const s of services) {
-      const hours = parseFloat(s.hours)
-      if (!Number.isFinite(hours) || hours <= 0) {
-        setServerError('Every service needs a positive number of hours.')
-        return
-      }
-      parsedServices.push({ service_type: s.service_type, authorized_hours: hours })
-    }
-    if (parsedServices.length === 0) {
-      setServerError('Add at least one service.')
-      return
-    }
-    if (new Set(parsedServices.map((s) => s.service_type)).size !== parsedServices.length) {
-      setServerError('Each service can only appear once.')
-      return
-    }
-
-    const payload: AuthorizationCreatePayload = {
-      funder: funder.trim(),
-      funder_file_number: fileNumber.trim() || null,
-      authorization_number: authNumber.trim(),
-      covering_start: coveringStart,
-      covering_end: coveringEnd || null,
-      date_issued: dateIssued || null,
-      authorized_by: authorizedBy.trim() || null,
-      hours_period: hoursPeriod,
-      client_monthly_contribution_amount: contribution ? parseFloat(contribution) : null,
-      invoice_to: invoiceTo.trim() || null,
-      notes: notes.trim() || null,
-      supersedes_id: amends?.id ?? null,
-      services: parsedServices,
-    }
-
-    try {
-      await create(payload)
+  const set = (key: keyof typeof values, value: string) =>
+    setValues((prev) => ({ ...prev, [key]: value }))
+  const [dirty, setDirty] = useState(false)
+  const close = () => {
+    if (create.isPending) return
+    if (!dirty || window.confirm('Discard your unsaved authorization?'))
       onClose()
-    } catch {
-      setServerError('Failed to save authorization. Please try again.')
+  }
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (
+      !rows.length ||
+      rows.some(
+        (r) =>
+          !r.service_type ||
+          !Number.isFinite(Number(r.hours)) ||
+          Number(r.hours) <= 0,
+      )
+    ) {
+      setError('Select a service and enter positive hours for every row.')
+      return
+    }
+    if (new Set(rows.map((r) => r.service_type)).size !== rows.length) {
+      setError('Each service can only appear once.')
+      return
+    }
+    if (values.covering_end && values.covering_end < values.covering_start) {
+      setError('End date must be on or after the start date.')
+      return
+    }
+    const payload: AuthorizationCreatePayload = {
+      funder: values.funder.trim(),
+      authorization_number: values.authorization_number.trim(),
+      covering_start: values.covering_start,
+      covering_end: values.covering_end || null,
+      funder_file_number: values.funder_file_number || null,
+      date_issued: values.date_issued || null,
+      authorized_by: values.authorized_by || null,
+      hours_period: values.hours_period,
+      client_monthly_contribution_amount: values.contribution
+        ? Number(values.contribution)
+        : null,
+      invoice_to: values.invoice_to || null,
+      notes: values.notes || null,
+      supersedes_id: amends?.id || null,
+      services: rows.map((r) => ({
+        service_type: r.service_type as ServiceType,
+        authorized_hours: Number(r.hours),
+      })),
+    }
+    try {
+      await create.mutateAsync(payload)
+      onClose()
+    } catch (err) {
+      setError(errorMessage(err))
     }
   }
-
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
-
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-12 pointer-events-none">
-        <div className="pointer-events-auto relative flex w-full max-w-[620px] max-h-full flex-col bg-paper border border-ink">
-
-          {/* Aesthetic corner brackets */}
-          <div className="absolute top-3 left-3 w-2 h-2 border-t border-l border-ink pointer-events-none" />
-          <div className="absolute top-3 right-3 w-2 h-2 border-t border-r border-ink pointer-events-none" />
-          <div className="absolute bottom-3 left-3 w-2 h-2 border-b border-l border-ink pointer-events-none" />
-          <div className="absolute bottom-3 right-3 w-2 h-2 border-b border-r border-ink pointer-events-none" />
-
-          {/* Header */}
-          <div className="relative flex flex-col px-8 pt-8 pb-5 border-b-[2px] border-dashed border-line-soft">
-            <button onClick={onClose} className="absolute top-6 right-8 font-mono text-[22px] text-ink-soft hover:text-ink leading-none">×</button>
-            <Kicker className="mb-2 tracking-[0.1em]">{amends ? 'Amend' : 'New'} · Authorization</Kicker>
-            <h2 className="font-serif italic text-[28px] leading-none tracking-tight text-ink">
-              {amends ? 'Amend Authorization' : 'New Authorization'}
-            </h2>
-          </div>
-
-          {amends && (
-            <p className="px-8 py-2 bg-cream-2 border-b border-line-soft font-mono text-[10px] text-ink-soft">
-              Supersedes {amends.authorization_number} — the previous authorization stays on record.
-            </p>
-          )}
-
-          <form className="flex flex-1 flex-col min-h-0" onSubmit={handleSubmit}>
-            <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-5 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div>
-            <label className={labelClass}>Funder</label>
-            <input className={inputClass} value={funder} onChange={(e) => setFunder(e.target.value)}
-              placeholder="e.g. NL Health Services / Eastern Health" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Authorization #</label>
-              <input className={inputClass} value={authNumber} onChange={(e) => setAuthNumber(e.target.value)}
-                placeholder="e.g. R-ES-1372537" />
-            </div>
-            <div>
-              <label className={labelClass}>Funder File #</label>
-              <input className={inputClass} value={fileNumber} onChange={(e) => setFileNumber(e.target.value)}
-                placeholder="e.g. 431576" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Covering Start</label>
-              <DateInput value={coveringStart} onChange={setCoveringStart} />
-            </div>
-            <div>
-              <label className={labelClass}>Covering End <span className="opacity-40">(optional)</span></label>
-              <DateInput value={coveringEnd} onChange={setCoveringEnd} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Date Issued <span className="opacity-40">(optional)</span></label>
-              <DateInput value={dateIssued} onChange={setDateIssued} />
-            </div>
-            <div>
-              <label className={labelClass}>Hours Period</label>
-              <select className={selectClass} value={hoursPeriod} onChange={(e) => setHoursPeriod(e.target.value as HoursPeriod)}>
-                {(Object.keys(HOURS_PERIOD_LABELS) as HoursPeriod[]).map((p) => (
-                  <option key={p} value={p}>{HOURS_PERIOD_LABELS[p]}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Services */}
-          <div>
-            <label className={labelClass}>Authorized Services</label>
-            <div className="flex flex-col gap-2">
-              {services.map((s, i) => (
-                <div key={i} className="grid grid-cols-[minmax(0,1fr)_5rem_auto] items-center gap-2">
-                  <div className="relative min-w-0">
-                    <select
-                      className={selectClass + ' w-full pr-7'}
-                      value={s.service_type}
-                      onChange={(e) => updateService(i, { service_type: e.target.value as ServiceType })}
-                    >
-                      {SERVICE_TYPES.map((t) => (
-                        <option key={t} value={t}>{SERVICE_TYPE_LABELS[t]}</option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[9px] text-ink-soft">▾</span>
-                  </div>
-                  <input
-                    className="w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink"
-                    type="number" min="0" step="0.5" placeholder="hrs"
-                    value={s.hours}
-                    onChange={(e) => updateService(i, { hours: e.target.value })}
-                  />
-                  {services.length > 1 ? (
-                    <button type="button" onClick={() => removeService(i)}
-                      className="font-mono text-[16px] text-ink-soft hover:text-orange leading-none px-1">×</button>
-                  ) : (
-                    <span className="w-[1.25rem]" />
-                  )}
-                </div>
+    <ClientDialog
+      title={amends ? 'Amend authorization' : 'Add authorization'}
+      onClose={close}
+    >
+      <form
+        className="cw-stack"
+        onSubmit={(e) => void submit(e)}
+        onChange={() => setDirty(true)}
+      >
+        {amends && (
+          <p className="cw-muted">
+            Previous authorization retained: {amends.authorization_number}
+          </p>
+        )}
+        <div className="cw-form-grid">
+          <label className="cw-field cw-form-full">
+            Funder *
+            <input
+              className="cw-input"
+              value={values.funder}
+              onChange={(e) => set('funder', e.target.value)}
+              required
+            />
+          </label>
+          <label className="cw-field">
+            Reference *
+            <input
+              className="cw-input"
+              value={values.authorization_number}
+              onChange={(e) => set('authorization_number', e.target.value)}
+              required
+            />
+          </label>
+          <label className="cw-field">
+            Funding frequency
+            <select
+              className="cw-input"
+              value={values.hours_period}
+              onChange={(e) => set('hours_period', e.target.value)}
+            >
+              {(Object.keys(HOURS_PERIOD_LABELS) as HoursPeriod[]).map((p) => (
+                <option key={p} value={p}>
+                  {HOURS_PERIOD_LABELS[p]}
+                </option>
               ))}
-            </div>
-            <button type="button" onClick={addService}
-              className="mt-2 font-mono text-[10px] uppercase tracking-[0.05em] text-ink-soft hover:text-ink">
-              ＋ Add service
-            </button>
-            <p className="mt-1 font-mono text-[9px] text-ink-soft">Hours are per the selected period.</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Authorized By <span className="opacity-40">(optional)</span></label>
-              <input className={inputClass} value={authorizedBy} onChange={(e) => setAuthorizedBy(e.target.value)}
-                placeholder="e.g. Lois Hussey" />
-            </div>
-            <div>
-              <label className={labelClass}>Contribution $/mo <span className="opacity-40">(optional)</span></label>
-              <input className={inputClass} type="number" min="0" step="0.01" value={contribution}
-                onChange={(e) => setContribution(e.target.value)} placeholder="0" />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Invoice To <span className="opacity-40">(optional)</span></label>
-            <textarea className={inputClass} rows={2} value={invoiceTo} onChange={(e) => setInvoiceTo(e.target.value)}
-              placeholder="Eastern Health — Client Services Division, Mt. Pearl" />
-          </div>
-
-          <div>
-            <label className={labelClass}>Notes <span className="opacity-40">(optional)</span></label>
-            <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-
-              {serverError && (
-                <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{serverError}</p>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="border-t-[2px] border-dashed border-line-soft px-8 py-5 flex justify-end gap-3">
-              <button type="button" onClick={onClose}
-                className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors">
-                Cancel
-              </button>
-              <button type="submit" disabled={isPending}
-                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
-                {isPending ? 'Saving…' : amends ? 'Save Amendment' : 'Add Authorization'}
-              </button>
-            </div>
-          </form>
+            </select>
+          </label>
+          <label className="cw-field">
+            Start date *
+            <input
+              type="date"
+              className="cw-input"
+              value={values.covering_start}
+              onChange={(e) => set('covering_start', e.target.value)}
+              required
+            />
+          </label>
+          <label className="cw-field">
+            End date
+            <input
+              type="date"
+              className="cw-input"
+              min={values.covering_start}
+              value={values.covering_end}
+              onChange={(e) => set('covering_end', e.target.value)}
+            />
+          </label>
         </div>
-      </div>
-    </>
+        <section>
+          <div className="cw-between mb-5">
+            <h3>Authorized services</h3>
+            <span className="cw-muted">
+              {HOURS_PERIOD_LABELS[values.hours_period]} limits
+            </span>
+          </div>
+          <div className="cw-stack">
+            {rows.map((row, index) => (
+              <div
+                key={row.key}
+                className="grid grid-cols-[minmax(0,1fr)_110px_auto] gap-3 items-end"
+              >
+                <label className="cw-field">
+                  Service
+                  <select
+                    aria-label={`Authorized service ${index + 1}`}
+                    className="cw-input"
+                    value={row.service_type}
+                    onChange={(e) =>
+                      setRows((prev) =>
+                        prev.map((r) =>
+                          r.key === row.key
+                            ? {
+                                ...r,
+                                service_type: e.target.value as ServiceType,
+                              }
+                            : r,
+                        ),
+                      )
+                    }
+                    required
+                  >
+                    <option value="">Select service</option>
+                    {SERVICE_TYPES.map((s) => (
+                      <option key={s} value={s}>
+                        {SERVICE_TYPE_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="cw-field">
+                  Hours
+                  <input
+                    aria-label={`Authorized hours ${index + 1}`}
+                    className="cw-input"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={row.hours}
+                    onChange={(e) =>
+                      setRows((prev) =>
+                        prev.map((r) =>
+                          r.key === row.key
+                            ? { ...r, hours: e.target.value }
+                            : r,
+                        ),
+                      )
+                    }
+                    required
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="cw-icon"
+                  aria-label={`Remove service ${index + 1}`}
+                  onClick={() => {
+                    setRows((prev) => prev.filter((r) => r.key !== row.key))
+                    setDirty(true)
+                  }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="cw-btn mt-5"
+            onClick={() => {
+              setRows((prev) => [
+                ...prev,
+                { key: crypto.randomUUID(), service_type: '', hours: '' },
+              ])
+              setDirty(true)
+            }}
+          >
+            <Plus size={15} /> Add service
+          </button>
+        </section>
+        <details>
+          <summary className="cw-link">
+            Additional authorization details
+          </summary>
+          <div className="cw-form-grid mt-5">
+            {(
+              [
+                ['funder_file_number', 'Funder file number'],
+                ['date_issued', 'Date issued'],
+                ['authorized_by', 'Authorized by'],
+                ['contribution', 'Monthly contribution'],
+              ] as const
+            ).map(([key, label]) => (
+              <label className="cw-field" key={key}>
+                {label}
+                <input
+                  className="cw-input"
+                  type={
+                    key === 'date_issued'
+                      ? 'date'
+                      : key === 'contribution'
+                        ? 'number'
+                        : 'text'
+                  }
+                  min={key === 'contribution' ? 0 : undefined}
+                  step={key === 'contribution' ? '0.01' : undefined}
+                  value={values[key]}
+                  onChange={(e) => set(key, e.target.value)}
+                />
+              </label>
+            ))}
+            <label className="cw-field cw-form-full">
+              Invoice to
+              <textarea
+                className="cw-input"
+                rows={2}
+                value={values.invoice_to}
+                onChange={(e) => set('invoice_to', e.target.value)}
+              />
+            </label>
+          </div>
+        </details>
+        <label className="cw-field">
+          Reason / notes
+          <textarea
+            className="cw-input"
+            rows={3}
+            value={values.notes}
+            onChange={(e) => set('notes', e.target.value)}
+          />
+        </label>
+        {error && (
+          <p role="alert" className="cw-error">
+            {error}
+          </p>
+        )}
+        <footer className="cw-row justify-end">
+          <button
+            type="button"
+            className="cw-btn"
+            onClick={close}
+            disabled={create.isPending}
+          >
+            Cancel
+          </button>
+          <button
+            className="cw-btn cw-btn-primary"
+            type="submit"
+            disabled={create.isPending}
+          >
+            {create.isPending
+              ? 'Saving…'
+              : amends
+                ? 'Save amendment'
+                : 'Save authorization'}
+          </button>
+        </footer>
+      </form>
+    </ClientDialog>
   )
 }

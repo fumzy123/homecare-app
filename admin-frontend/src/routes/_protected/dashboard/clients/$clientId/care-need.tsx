@@ -1,117 +1,44 @@
-import { createFileRoute, useRouterState } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Kicker } from '@/shared/components/ui'
 import {
-  useClientAuthorizations,
-  useAuthorizationCompliance,
-  useCancelAuthorization,
-} from '@/features/authorizations/hooks/useAuthorizations'
-import { ActiveAuthHero } from '@/features/authorizations/components/ActiveAuthHero'
-import { AuthHistory } from '@/features/authorizations/components/AuthHistory'
-import { AuthorizationDrawer } from '@/features/authorizations/components/AuthorizationDrawer'
-import { activeAuthorization } from '@/features/authorizations/utils'
+  createFileRoute,
+  Navigate,
+  useRouterState,
+} from '@tanstack/react-router'
 import { WeeklyCareNeedEditor } from '@/features/weekly-care-need/components/WeeklyCareNeedEditor'
 import { useClient } from '@/features/clients/hooks/useClients'
-import type { Authorization } from '@/features/authorizations/api'
 import { recordId } from '@/features/attention/search'
-
-export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/care-need')({
-  validateSearch: (search: Record<string, unknown>): { authorization?: string; need?: string } => ({ authorization: recordId(search.authorization), need: recordId(search.need) }),
-  component: ClientCareNeed,
+export const Route = createFileRoute(
+  '/_protected/dashboard/clients/$clientId/care-need',
+)({
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { authorization?: string; need?: string } => ({
+    authorization: recordId(s.authorization),
+    need: recordId(s.need),
+  }),
+  component: CareNeed,
 })
-
-function ClientCareNeed() {
+function CareNeed() {
   const { clientId } = Route.useParams()
-  const attentionNavigationId = useRouterState({ select: s => s.location.state.attentionNavigationId })
-  const { need } = Route.useSearch()
-  const { data: client } = useClient(clientId)
-
-  // Self-pay clients have no authorization — this tab is just their weekly care need.
-  if (client && client.care_arrangement !== 'funded') {
+  const { authorization, need } = Route.useSearch()
+  const navigation = useRouterState({
+    select: (s) => s.location.state.attentionNavigationId,
+  })
+  const client = useClient(clientId)
+  if (authorization)
     return (
-      <div className="p-8 flex flex-col gap-[22px]">
-        <WeeklyCareNeedEditor key={`${clientId}:${attentionNavigationId}`} clientId={clientId} enforceCompliance={false} attentionNeedId={need} />
-      </div>
+      <Navigate
+        to="/dashboard/clients/$clientId/funding"
+        params={{ clientId }}
+        search={{ authorization }}
+        replace
+      />
     )
-  }
-
-  return <FundedCareNeed key={`${clientId}:${attentionNavigationId}`} clientId={clientId} />
-}
-
-function FundedCareNeed({ clientId }: { clientId: string }) {
-  const { authorization: attentionAuthorization, need } = Route.useSearch()
-  const { data: authorizations = [], isLoading } = useClientAuthorizations(clientId)
-  const { data: compliance } = useAuthorizationCompliance(clientId)
-  const { mutate: cancel, isPending: cancelling } = useCancelAuthorization(clientId)
-
-  const [form, setForm] = useState<{ amends?: Authorization } | null>(null)
-
-  const selectedAuth = attentionAuthorization ? authorizations.find(a => a.id === attentionAuthorization) : undefined
-  const auth = selectedAuth?.status === 'active' ? selectedAuth : activeAuthorization(authorizations)
-  const lapsed = compliance?.coverage === 'lapsed'
-
   return (
-    <div className="p-8 flex flex-col gap-[22px]">
-      {/* header */}
-      {attentionAuthorization && !isLoading && !selectedAuth && <p role="status" className="border border-orange p-4 text-sm">The requested authorization is no longer available. Review this client's current records.</p>}
-      {selectedAuth && <p role="status" className="border border-line-soft px-4 py-3 text-sm">Selected authorization: {selectedAuth.authorization_number} · {selectedAuth.status}{selectedAuth.status !== 'active' && '. This record is in authorization history below.'}</p>}
-      <div className="flex items-end justify-between gap-6">
-        <div>
-          <Kicker leader className="mb-2">Funding controls what you can plan &amp; bill</Kicker>
-          <h2 className="font-serif text-[28px] tracking-[-0.02em] whitespace-nowrap">Authorization &amp; care need</h2>
-        </div>
-        <button onClick={() => setForm({})}
-          className="rounded-full border border-ink bg-ink text-cream px-4 py-2 font-mono text-[12px] tracking-[0.03em] hover:bg-orange hover:border-orange transition-colors">
-          ＋ Add authorization
-        </button>
-      </div>
-
-      {lapsed && (
-        <div className="border border-orange bg-orange-soft px-4 py-3">
-          <p className="font-mono text-[10px] tracking-[0.08em] uppercase text-orange mb-0.5">⚠ Coverage lapsed</p>
-          <p className="text-[13px] text-ink">
-            This active client has no current authorization. Renew with the funder to stay compliant.
-          </p>
-        </div>
-      )}
-
-      {isLoading ? (
-        <p className="font-mono text-[10px] text-muted tracking-wide">LOADING…</p>
-      ) : auth ? (
-        <>
-          <ActiveAuthHero
-            auth={auth}
-            onAmend={(a) => setForm({ amends: a })}
-            onCancel={cancel}
-            cancelling={cancelling}
-          />
-          <WeeklyCareNeedEditor clientId={clientId} attentionNeedId={need} />
-          <AuthHistory authorizations={authorizations} selectedId={attentionAuthorization} />
-        </>
-      ) : (
-        <>
-          <div className="border border-dashed border-ink px-8 py-12 text-center">
-            <p className="font-serif text-[22px] mb-1.5">No active authorization</p>
-            <p className="font-mono text-[10px] text-muted tracking-wide mb-5">
-              ADD THE FUNDER'S AUTHORIZATION TO PLAN CARE AND TRACK COMPLIANCE
-            </p>
-            <button onClick={() => setForm({})}
-              className="inline-flex rounded-full border border-ink bg-ink text-cream px-5 py-2.5 font-mono text-[12px] tracking-[0.03em] hover:bg-orange hover:border-orange transition-colors">
-              ＋ Add authorization
-            </button>
-          </div>
-          <WeeklyCareNeedEditor clientId={clientId} attentionNeedId={need} />
-          <AuthHistory authorizations={authorizations} selectedId={attentionAuthorization} />
-        </>
-      )}
-
-      {form && (
-        <AuthorizationDrawer
-          clientId={clientId}
-          amends={form.amends}
-          onClose={() => setForm(null)}
-        />
-      )}
-    </div>
+    <WeeklyCareNeedEditor
+      key={`${clientId}:${need}:${navigation}`}
+      clientId={clientId}
+      enforceCompliance={client.data?.care_arrangement === 'funded'}
+      attentionNeedId={need}
+    />
   )
 }

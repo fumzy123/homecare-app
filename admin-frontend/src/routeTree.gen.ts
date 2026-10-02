@@ -47,6 +47,7 @@ import { Route as ProtectedDashboardWorkersWorkerIdEditRouteImport } from './rou
 import { Route as ProtectedDashboardWorkersWorkerIdAttendanceRouteImport } from './routes/_protected/dashboard/workers/$workerId/attendance'
 import { Route as ProtectedDashboardClientsClientIdVisitsRouteImport } from './routes/_protected/dashboard/clients/$clientId/visits'
 import { Route as ProtectedDashboardClientsClientIdNotesRouteImport } from './routes/_protected/dashboard/clients/$clientId/notes'
+import { Route as ProtectedDashboardClientsClientIdFundingRouteImport } from './routes/_protected/dashboard/clients/$clientId/funding'
 import { Route as ProtectedDashboardClientsClientIdEditRouteImport } from './routes/_protected/dashboard/clients/$clientId/edit'
 import { Route as ProtectedDashboardClientsClientIdCareNeedRouteImport } from './routes/_protected/dashboard/clients/$clientId/care-need'
 
@@ -256,6 +257,12 @@ const ProtectedDashboardClientsClientIdNotesRoute =
     path: '/notes',
     getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
+const ProtectedDashboardClientsClientIdFundingRoute =
+  ProtectedDashboardClientsClientIdFundingRouteImport.update({
+    id: '/funding',
+    path: '/funding',
+    getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
+  } as any)
 const ProtectedDashboardClientsClientIdEditRoute =
   ProtectedDashboardClientsClientIdEditRouteImport.update({
     id: '/edit',
@@ -302,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
   '/dashboard/clients/$clientId/care-need': typeof ProtectedDashboardClientsClientIdCareNeedRoute
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/dashboard/clients/$clientId/funding': typeof ProtectedDashboardClientsClientIdFundingRoute
   '/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
   '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
@@ -340,6 +348,7 @@ export interface FileRoutesByTo {
   '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
   '/dashboard/clients/$clientId/care-need': typeof ProtectedDashboardClientsClientIdCareNeedRoute
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/dashboard/clients/$clientId/funding': typeof ProtectedDashboardClientsClientIdFundingRoute
   '/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
   '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
@@ -383,6 +392,7 @@ export interface FileRoutesById {
   '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
   '/_protected/dashboard/clients/$clientId/care-need': typeof ProtectedDashboardClientsClientIdCareNeedRoute
   '/_protected/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/_protected/dashboard/clients/$clientId/funding': typeof ProtectedDashboardClientsClientIdFundingRoute
   '/_protected/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/_protected/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
   '/_protected/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
@@ -426,6 +436,7 @@ export interface FileRouteTypes {
     | '/dashboard/workers/'
     | '/dashboard/clients/$clientId/care-need'
     | '/dashboard/clients/$clientId/edit'
+    | '/dashboard/clients/$clientId/funding'
     | '/dashboard/clients/$clientId/notes'
     | '/dashboard/clients/$clientId/visits'
     | '/dashboard/workers/$workerId/attendance'
@@ -464,6 +475,7 @@ export interface FileRouteTypes {
     | '/dashboard/workers'
     | '/dashboard/clients/$clientId/care-need'
     | '/dashboard/clients/$clientId/edit'
+    | '/dashboard/clients/$clientId/funding'
     | '/dashboard/clients/$clientId/notes'
     | '/dashboard/clients/$clientId/visits'
     | '/dashboard/workers/$workerId/attendance'
@@ -506,6 +518,7 @@ export interface FileRouteTypes {
     | '/_protected/dashboard/workers/'
     | '/_protected/dashboard/clients/$clientId/care-need'
     | '/_protected/dashboard/clients/$clientId/edit'
+    | '/_protected/dashboard/clients/$clientId/funding'
     | '/_protected/dashboard/clients/$clientId/notes'
     | '/_protected/dashboard/clients/$clientId/visits'
     | '/_protected/dashboard/workers/$workerId/attendance'
@@ -800,6 +813,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardClientsClientIdNotesRouteImport
       parentRoute: typeof ProtectedDashboardClientsClientIdRoute
     }
+    '/_protected/dashboard/clients/$clientId/funding': {
+      id: '/_protected/dashboard/clients/$clientId/funding'
+      path: '/funding'
+      fullPath: '/dashboard/clients/$clientId/funding'
+      preLoaderRoute: typeof ProtectedDashboardClientsClientIdFundingRouteImport
+      parentRoute: typeof ProtectedDashboardClientsClientIdRoute
+    }
     '/_protected/dashboard/clients/$clientId/edit': {
       id: '/_protected/dashboard/clients/$clientId/edit'
       path: '/edit'
@@ -841,6 +861,7 @@ const ProtectedSettingsRouteWithChildren =
 interface ProtectedDashboardClientsClientIdRouteChildren {
   ProtectedDashboardClientsClientIdCareNeedRoute: typeof ProtectedDashboardClientsClientIdCareNeedRoute
   ProtectedDashboardClientsClientIdEditRoute: typeof ProtectedDashboardClientsClientIdEditRoute
+  ProtectedDashboardClientsClientIdFundingRoute: typeof ProtectedDashboardClientsClientIdFundingRoute
   ProtectedDashboardClientsClientIdNotesRoute: typeof ProtectedDashboardClientsClientIdNotesRoute
   ProtectedDashboardClientsClientIdVisitsRoute: typeof ProtectedDashboardClientsClientIdVisitsRoute
   ProtectedDashboardClientsClientIdIndexRoute: typeof ProtectedDashboardClientsClientIdIndexRoute
@@ -852,6 +873,8 @@ const ProtectedDashboardClientsClientIdRouteChildren: ProtectedDashboardClientsC
       ProtectedDashboardClientsClientIdCareNeedRoute,
     ProtectedDashboardClientsClientIdEditRoute:
       ProtectedDashboardClientsClientIdEditRoute,
+    ProtectedDashboardClientsClientIdFundingRoute:
+      ProtectedDashboardClientsClientIdFundingRoute,
     ProtectedDashboardClientsClientIdNotesRoute:
       ProtectedDashboardClientsClientIdNotesRoute,
     ProtectedDashboardClientsClientIdVisitsRoute:

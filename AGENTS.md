@@ -409,6 +409,32 @@ installation if it is not installed locally; `BROWSER_CHANNEL` defaults to `msed
 
 ## MVP Scope — Home Care Agency Admin
 
+### Client workspace (2026-10-01)
+
+The admin client routes now share the Care Harbor workspace layout: client directory,
+Overview (the client index), Visits & metrics, Weekly care need, Funding, Progress
+notes, and grouped profile editing. The header is the single profile-edit entry.
+Client creation uses a three-step intake drawer. Components and query/mutation hooks
+live in `features/clients`; routes only compose them.
+
+Use **revision** in the weekly-care UI. The existing `version` API/database field is
+retained for compatibility. Creating a revision preserves history and creates no
+visits; posting and approving still use the existing placement workflow and checks.
+Funding compares only the currently effective activated/imported care need with
+the current authorization. Proposed revisions are checked in the care-need editor.
+Each service's two-week care need is its weekly slot hours multiplied by two.
+
+Client responses include `current_care_need`, derived in bulk for the directory.
+`POST /api/shifts/{id}/notes/entries` appends admin follow-ups with an expected entry
+count under the same shift lock used by worker notes. It preserves existing entries
+and rejects stale writes. Monthly client notes include `worker_id` for filtering.
+
+Validation: frontend `tests/client-care.test.mjs` covers current revision selection,
+funding and slot/visit calculations; backend `test_client_workspace.py` covers the
+current-care projection and safe note appends. `admin-frontend/tests/client-workspace.html`
+is a development-only component verification host with an in-memory API adapter;
+it is not a production entry point and never reads or writes agency records.
+
 ### 1. Profile Management
 - **Clients**: Create, Read, Update, Delete
 - **Workers**: Create (via Supabase invite), Read (profile + shifts), Update, Delete
