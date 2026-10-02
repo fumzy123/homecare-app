@@ -51,6 +51,7 @@ module.exports = {
     },
     android: {
       package: bundleId,
+      ...(IS_STAGING ? { googleServicesFile: './google-services.staging.json' } : {}),
       adaptiveIcon: {
         foregroundImage: './assets/android-icon-foreground.png',
         backgroundColor: '#F2EEE5',

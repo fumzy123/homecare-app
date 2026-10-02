@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "118822022614",
+    "project_id": "homecare-staging-2026",
+    "storage_bucket": "homecare-staging-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118822022614:android:3273f37b7302f4c9bec877",
+        "android_client_info": {
+          "package_name": "com.homecareapp.worker.staging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOj_zCFyUcpl6QWIHU0IFNDqJ0L3JLVfc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

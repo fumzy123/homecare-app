@@ -127,3 +127,42 @@ development builds. These remote values are not provisioned by the local scripts
 Keep `APP_ENV` consistent with the build profile. If EAS Update is enabled later,
 select the matching EAS environment explicitly with `--environment` when publishing;
 the local start commands do not publish updates or deploy anything.
+
+## Android staging push development
+
+Use the `development-staging` EAS profile. It inherits staging services from
+`preview`, uses `com.homecareapp.worker.staging`, and includes `expo-dev-client`.
+The staging Firebase app configuration is `google-services.staging.json`.
+The private FCM service-account key stays in EAS credentials, never in the app.
+
+Install the APK supplied by EAS, then start Metro with:
+
+```powershell
+npm run start:staging:dev -- --tunnel
+```
+
+Open **HomeCare Worker App (Staging)** on the phone and connect to that server.
+Sign in, finish the introduction, then go to **Settings → Phone notifications →
+Enable notifications**. A granted Android permission alone is not registration:
+the status confirms registration only after the backend saves the token.
+Expo Go remains usable for ordinary testing but cannot register for Android push.
+
+Deploy the backend and Alembic revision `0ab31e782c90` before phone registration.
+The authenticated registration endpoint derives the worker from the signed-in
+account. The installation proof is kept in SecureStore; the backend stores its
+hash. The revoke endpoint accepts only this device's proof, returns no records,
+and works after session expiry. Registrations are serialized with logout cleanup;
+failed logout cleanup keeps the account signed in and asks for a network retry.
+Sign-out is local to this device. Foreground refresh retries registration and
+cleans up registrations after account changes or revoked OS permissions.
+
+This is the registration foundation, not scheduling-event delivery. The backend
+still needs delivery jobs, retries/receipts, invalid-token cleanup, and safe
+occurrence-specific notification destinations. Taps currently open the inbox.
+Any sender must recheck active employment/agency access, select the correct app
+environment, and keep client/care information out of lock-screen messages.
+
+Checks: `npm run typecheck`, `npm run test:push`, and backend
+`python -m pytest tests/services/test_push_device.py`. Physical-phone delivery,
+background/closed-app taps, permissions, account switching and sign-out require
+device testing before release. No production Firebase configuration is added.
