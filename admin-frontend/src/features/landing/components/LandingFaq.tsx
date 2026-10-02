@@ -56,7 +56,7 @@ export function LandingFaq() {
           <p>
             You pay the $3,360 base upfront for your subscription year. It
             includes 10 active clients in each monthly billing period. Each
-            month, we calculate $5 for every active client above 10. These
+            month, we calculate $10 for every active client above 10. These
             monthly charges accumulate and are collected after your subscription
             year ends and its three-day correction window closes. Adding clients
             does not trigger an upfront charge for the remaining months.
@@ -65,8 +65,8 @@ export function LandingFaq() {
             For example, suppose you have 10 active clients for the first eight
             months, then 20 in each of the last four months. Your additional
             charges are $0 for the first eight months, then{' '}
-            <strong>$50 + $50 + $50 + $50 = $200 CAD</strong>. Your base plus
-            additional-client charges for that year total $3,560 before tax. If
+            <strong>$100 + $100 + $100 + $100 = $400 CAD</strong>. Your base plus
+            additional-client charges for that year total $3,760 before tax. If
             your active-client count changes, each month's charge changes with
             it.
           </p>
@@ -102,9 +102,9 @@ export function LandingFaq() {
           </summary>
           <p>
             The founding offer starts at $200 CAD/month for 10 active clients,
-            then $4 per additional client. It’s for the first three customers,
+            then $5 per additional client. It’s for the first three customers,
             subject to availability and approval, and includes a monthly
-            30-minute session for honest feedback. Testimonials are optional and
+            30-minute session for honest feedback. Testimonials and logo use are requested after you have experienced value, are optional and
             require your written approval before publication. Rates are
             protected for the first 12 paid months, then Standard rates apply
             with at least 30 days’ notice.

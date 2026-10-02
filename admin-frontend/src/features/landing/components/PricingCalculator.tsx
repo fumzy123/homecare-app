@@ -4,7 +4,7 @@ import { estimatePricing, pricingMoney, pricingPlans } from '../pricing'
 import { PricingHelp } from './PricingHelp'
 
 const annualFinePrint =
-  'Prices above are before tax. The base is paid annually. The slider estimates additional-client charges for one monthly period: $5 per active client above the included 10. Actual amounts depend on each month’s active-client count. We add those monthly charges together at the end of your subscription year and collect payment after a three-day correction window. The 20% saving applies only to the base.'
+  'Prices above are before tax. The base is paid annually. The slider estimates additional-client charges for one monthly period: $10 per active client above the included 10. Actual amounts depend on each month’s active-client count. We add those monthly charges together at the end of your subscription year and collect payment after a three-day correction window. The 20% saving applies only to the base.'
 
 // Layer 2: landing-page presentation and local UI interactions.
 export function PricingCalculator({

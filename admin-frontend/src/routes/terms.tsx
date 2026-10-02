@@ -6,7 +6,7 @@ export const Route = createFileRoute('/terms')({
   component: TermsPage,
 })
 
-const EFFECTIVE_DATE = 'Draft dated September 29, 2026'
+const EFFECTIVE_DATE = 'Draft dated October 2, 2026'
 
 function TermsPage() {
   return (
@@ -63,7 +63,7 @@ function TermsPage() {
         <Section number="4" title="Subscription and Payment">
           <p>All prices are in Canadian dollars, before applicable taxes. Standard costs $350 per month
             or $3,360 per year paid in advance. Annual billing saves 20% on the base subscription.
-            Each monthly usage period includes 10 active clients; additional clients cost $5 each for that period.</p>
+            Each monthly usage period includes 10 active clients; additional clients cost $10 each for that period.</p>
           <p>A client counts once in a monthly billing period if they have a qualifying scheduled,
             in-progress, completed or no-show visit in that period. Cancelled visits do not count.
             Your first monthly usage period starts when your paid subscription begins. Each new period
@@ -83,7 +83,7 @@ function TermsPage() {
             Prepaid annual base fees are non-refundable, subject to applicable rights. Annual cancellation
             results in a final usage-only invoice after the prepaid year and its correction window end.
             Cancellation does not remove charges already incurred.</p>
-          <p>Invited founding agencies pay $200 per month plus $4 per additional client above 10.
+          <p>Invited founding agencies pay $200 per month plus $5 per additional client above 10.
             Founding pricing is protected for the first 12 paid months, then converts to Standard with
             at least 30 days' notice of the applicable rates. Founding billing is monthly only.</p>
           <h3 className="font-semibold pt-2">Founding customer feedback and testimonials</h3>

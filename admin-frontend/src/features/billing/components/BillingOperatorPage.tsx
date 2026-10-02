@@ -92,7 +92,7 @@ function OperatorAgencyPanel({ org, access }: { org: string; access: OperatorAcc
     {confirm && <div className="border border-ink p-4 space-y-3" role="group" aria-label="Confirm agency action">
       <p><strong>{labels[confirm]}</strong> for {agency.name}?</p>
       <p>{confirm === 'trial-activation' ? 'Trials start automatically at agency signup; onboarding does not change billing dates.'
-        : confirm === 'founding-offer' ? 'Reserve one of three founding places: CAD 200/month with ten clients included, then CAD 4 per additional client. Reserve before the owner authorizes a plan.'
+        : confirm === 'founding-offer' ? 'Reserve one of three founding places: CAD 200/month with ten clients included, then CAD 5 per additional client. Reserve before the owner authorizes a plan.'
           : confirm === 'founding-offer/release' ? 'Release this unused place. This agency cannot reclaim its founding offer afterward.'
             : 'Read Stripe history and reconcile billing periods. This does not directly issue charges, refund payments, or reset failed settlement attempts. Normal enabled billing jobs can process recovered periods afterward.'}</p>
       <button className={button} disabled={busy} onClick={() => action.mutate(confirm, { onSuccess: () => setConfirm(null) })}>Confirm {labels[confirm].toLowerCase()}</button>

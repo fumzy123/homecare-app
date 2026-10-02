@@ -34,6 +34,7 @@ export function CompareBillingPlans({ status }: { status: BillingStatus }) {
     <p><Link to="/settings/billing" className="text-sm underline">Payment methods, invoices and cancellation</Link></p>
     {confirming && preview.data && <BillingDialog title="Confirm plan change" busy={change.isPending} onClose={() => setConfirming(false)}>
       <div className="space-y-5"><p>{money(preview.data.base_amount_cents)} CAD / {preview.data.interval === 'year' ? 'year' : 'month'} starting {date(preview.data.effective_at)}.</p>
+        <p>{preview.data.included_clients} active clients included, then {money(preview.data.additional_client_amount_cents)} per additional client per month.</p>
         <p>Nothing due today. Your remaining trial or prepaid access is kept. Additional usage is calculated monthly and collected {interval === 'year' ? 'at year-end' : 'monthly'}, plus applicable tax.</p>
         {preview.data.interval === 'year' && <p>Annual prepayment covers the base only and is non-refundable.</p>}
         {change.isError && <p role="alert" className="text-orange">{change.error instanceof ApiError ? change.error.message : 'Could not change your plan. Please try again.'}</p>}

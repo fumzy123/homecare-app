@@ -57,6 +57,9 @@ export interface BillingProfile {
 }
 
 export interface PlanPreview {
+  additional_client_amount_cents: number
+  included_clients: number
+  plan_version: number
   interval: 'month' | 'year'
   effective_at: number
   base_amount_cents: number
