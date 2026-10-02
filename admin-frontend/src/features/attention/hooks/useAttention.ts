@@ -10,8 +10,6 @@ export interface AttentionContextValue {
   onExpanded: (id: string, open: boolean) => void
   onSelect: (item: AttentionItem) => void
   onRetry: () => void
-  hidden: boolean
-  restore: () => void
 }
 
 export const AttentionContext = createContext<AttentionContextValue | null>(null)

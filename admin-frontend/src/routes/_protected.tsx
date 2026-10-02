@@ -11,7 +11,6 @@ import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
 import { AttentionProvider } from '@/features/attention/components/AttentionProvider'
-import { AttentionRestoreButton } from '@/features/attention/components/AttentionRestoreButton'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: async () => {
@@ -121,7 +120,6 @@ function ProtectedLayout() {
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <AttentionRestoreButton />
             <NotificationBell />
             <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft max-sm:hidden">
               WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}

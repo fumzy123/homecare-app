@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
-import { ListChecks, Minus, EyeOff } from 'lucide-react'
+import { ListChecks, Minus } from 'lucide-react'
 import { useAttentionItems } from '../hooks/useAttentionItems'
 import { attentionDestination } from '../navigation'
 import { AttentionList } from './AttentionList'
@@ -18,7 +18,6 @@ export function AttentionProvider({ userId, children }: { userId: string; childr
   const [expanded, setExpanded] = useState<string[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
-  const [hidden, setHidden] = useState(false)
   const [obscured, setObscured] = useState(false)
   const launcher = useRef<HTMLButtonElement>(null)
   const minimizer = useRef<HTMLButtonElement>(null)
@@ -56,7 +55,6 @@ export function AttentionProvider({ userId, children }: { userId: string; childr
     items: query.data?.items ?? [], loading: query.isPending, error: query.isError, selectedId, expanded,
     onExpanded: (id, show) => setExpanded(current => show ? [...new Set([...current, id])] : current.filter(v => v !== id)),
     onRetry: () => { void query.refetch() },
-    hidden, restore: () => { setHidden(false); setOpen(true) },
     onSelect: item => {
       const destination = attentionDestination(item)
       const href = router.buildLocation(destination).href
@@ -71,9 +69,9 @@ export function AttentionProvider({ userId, children }: { userId: string; childr
   const visible = !dashboard && !obscured
   return <AttentionContext.Provider value={value}>{children}
     {createPortal(<>
-      {visible && !hidden && <>
+      {visible && <>
         {open && <div id="action-tower-panel" role="dialog" aria-label="Action Tower" className="fixed bottom-[100px] right-6 z-30 flex max-h-[calc(100dvh-124px)] w-[360px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-ink bg-paper shadow-xl max-sm:right-4">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ink px-5 py-4"><h2 className="font-mono text-xs uppercase tracking-widest">Action Tower</h2><div className="flex items-center gap-2"><button ref={minimizer} aria-label="Minimize Action Tower" onClick={() => { setOpen(false); launcher.current?.focus() }} className="p-2 hover:bg-cream-2"><Minus size={17} /></button><button aria-label="Hide Action Tower button" onClick={() => { setOpen(false); setHidden(true); requestAnimationFrame(() => document.getElementById('restore-action-tower')?.focus()) }} className="p-2 hover:bg-cream-2"><EyeOff size={17} /></button></div></div>
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ink px-5 py-4"><h2 className="font-mono text-xs uppercase tracking-widest">Action Tower</h2><button ref={minimizer} aria-label="Minimize Action Tower" onClick={() => { setOpen(false); launcher.current?.focus() }} className="p-2 hover:bg-cream-2"><Minus size={17} /></button></div>
           {selectedId && <button onClick={() => void navigate({ to: '/dashboard' })} className="border-b border-line-soft px-5 py-3 text-left font-mono text-xs underline">← Needs attention</button>}
           <div className="overflow-y-auto overscroll-contain"><AttentionList {...value} /></div>
         </div>}
