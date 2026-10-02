@@ -1,7 +1,7 @@
 import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { useState, useRef, useEffect } from 'react'
-import { X, Settings, LogOut, LayoutGrid, UsersRound, HeartHandshake, CalendarDays, Clock3, ClipboardList } from 'lucide-react'
+import { X, Settings, LogOut, LayoutGrid, UsersRound, HeartHandshake, CalendarDays, Clock3, ClipboardList, CheckCheck } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/shared/stores/auth'
 import { authApi } from '@/features/auth/api'
@@ -9,6 +9,7 @@ import { Avatar } from '@/shared/components/ui'
 
 const NAV = [
   { to: '/dashboard',            icon: LayoutGrid,     label: 'Dashboard'  },
+  { to: '/dashboard/activity', icon: CheckCheck, label: 'Activity' },
   { to: '/dashboard/workers',    icon: UsersRound,     label: 'Workers'    },
   { to: '/dashboard/clients',    icon: HeartHandshake, label: 'Clients'    },
   { to: '/dashboard/shifts',     icon: CalendarDays,   label: 'Schedule'   },

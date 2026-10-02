@@ -15,6 +15,8 @@ export type NotificationType =
 export type TargetAudience = 'admins_only' | 'workers_only' | 'all' | 'individual'
 
 export interface OvertimeNotificationPayload {
+  shift_id?: string
+  edit_scope?: "this" | "following" | "all"
   requesting_member_id: string
   requesting_member_name: string
   week_start: string
@@ -42,6 +44,9 @@ export interface PlacementNotificationPayload {
 }
 
 export interface Notification {
+  can_decide?: boolean
+  request_status?: string
+  decision_note?: string | null
   id: string
   type: NotificationType
   target_audience: TargetAudience

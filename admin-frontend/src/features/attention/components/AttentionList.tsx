@@ -1,40 +1,265 @@
-import { ArrowUpRight, ChevronRight } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
-import type { AttentionCategory, AttentionItem } from '../types'
-import { actionLabels } from '../types'
-import { DOCUMENT_LABELS } from '@/features/workers/constants'
+import { useState } from "react";
+import { ArrowUpRight, ChevronDown, Check, Clock3 } from "lucide-react";
+import type { AttentionItem, AttentionCategory } from "../types";
+import { actionLabels, categoryLabels } from "../types";
+import { ActivityFeed } from "./ActivityFeed";
+import "../tower.css";
+
 interface Props {
-  items: AttentionItem[]; loading: boolean; error: boolean; selectedId: string | null
-  expanded: string[]; onExpanded: (id: string, open: boolean) => void
-  onSelect: (item: AttentionItem) => void; onRetry: () => void
+  actionError?: string;
+  items: AttentionItem[];
+  loading: boolean;
+  error: boolean;
+  selectedId: string | null;
+  expanded: string[];
+  onExpanded: (id: string, open: boolean) => void;
+  onSelect: (item: AttentionItem) => void;
+  onRetry: () => void;
+  unreadCount?: number;
 }
-const categories: Array<[AttentionCategory, string, string]> = [
-  ['coverage', 'Care coverage', 'Placements & visits'], ['credentials', 'Worker credentials', 'Expiring within 30 days & awaiting verification'],
-  ['authorizations', 'Expiring authorizations', 'Within 15 days'], ['schedule', 'No visits this week', 'Active clients to review'],
-]
-// Layer 2: one controlled list for the dashboard and floating panel.
-export function AttentionList({ items, loading, error, selectedId, expanded, onExpanded, onSelect, onRetry }: Props) {
-  if (loading) return <p role="status" className="px-6 py-5 text-sm">Checking what needs attention…</p>
-  if (error) return <div role="alert" className="px-6 py-5 text-sm"><p>Could not refresh attention checks.</p><button className="mt-3 underline underline-offset-4" onClick={onRetry}>Retry checks</button></div>
-  const urgent = items.find(i => i.urgency === 'urgent')
-  function row(item: AttentionItem, prominent = false) {
-    return <div key={item.id} className={`px-6 py-4 ${selectedId === item.id ? 'border-l-[3px] border-ink' : ''}`}>
-      <p className="text-sm font-medium">{item.subject}</p><p className="mt-1 text-xs text-ink-soft">{item.category === 'credentials' && item.target.document_type ? DOCUMENT_LABELS[item.target.document_type] ?? item.detail : item.detail}</p>
-      {item.due_on && <p className="mt-1 font-mono text-[11px]">{format(parseISO(item.due_on), 'MMM d, yyyy')}</p>}
-      <button onClick={() => onSelect(item)} className={prominent ? 'mt-4 inline-flex items-center gap-2 rounded-full border border-ink bg-ink px-4 py-2 font-mono text-xs text-cream hover:bg-paper hover:text-ink' : 'mt-3 inline-flex items-center gap-2 text-left font-mono text-xs underline underline-offset-4 hover:text-orange'}>{actionLabels[item.stage]}<ArrowUpRight size={14} aria-hidden="true" /></button>
+const order: AttentionCategory[] = [
+  "coverage",
+  "schedule",
+  "workers",
+  "credentials",
+  "clients",
+  "authorizations",
+  "documentation",
+  "billing",
+];
+
+// Controlled workflow cards. History delegates data ownership to ActivityFeed.
+export function AttentionList({
+  actionError,
+  items,
+  loading,
+  error,
+  selectedId,
+  expanded,
+  onExpanded,
+  onSelect,
+  onRetry,
+  unreadCount = 0,
+}: Props) {
+  const [view, setView] = useState<"work" | "updates">("work");
+  const [history, setHistory] = useState<string | null>(null);
+  const actions = items.filter(
+    (i) => i.urgency !== "waiting" && i.action_required !== false,
+  ).length;
+  return (
+    <div className="tower-body">
+      {actionError && (
+        <p role="alert" className="p-5 text-sm">
+          {actionError}
+        </p>
+      )}
+      <div className="tower-tabs" aria-label="Action Tower views">
+        <button aria-pressed={view === "work"} onClick={() => setView("work")}>
+          Your work <span>{actions}</span>
+        </button>
+        <button
+          aria-pressed={view === "updates"}
+          onClick={() => setView("updates")}
+        >
+          Recent activity{" "}
+          {unreadCount > 0 && (
+            <span className="tower-unread-count">{unreadCount}</span>
+          )}
+        </button>
+      </div>
+      {view === "updates" ? (
+        <ActivityFeed filters={{ scope: "agency" }} compact />
+      ) : (
+        <>
+          {loading ? (
+            <p role="status" className="p-6 text-sm">
+              Checking your work…
+            </p>
+          ) : error ? (
+            <div role="alert" className="p-6 text-sm">
+              Could not refresh your work.{" "}
+              <button className="underline" onClick={onRetry}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="tower-summary">
+                <span>
+                  {actions
+                    ? `${actions} situation${actions === 1 ? "" : "s"} need attention`
+                    : "No actions in the current checks"}
+                </span>
+                {items.some((i) => i.urgency === "waiting") && (
+                  <span>
+                    <Clock3 size={12} />{" "}
+                    {items.filter((i) => i.urgency === "waiting").length}{" "}
+                    waiting
+                  </span>
+                )}
+              </div>
+              {!items.length && (
+                <div className="tower-empty">
+                  <Check size={25} />
+                  <p>You’re up to date with these checks.</p>
+                  <button
+                    className="tower-link"
+                    onClick={() => setView("updates")}
+                  >
+                    See recent progress <ArrowUpRight size={14} />
+                  </button>
+                </div>
+              )}
+              {order.map((category) => {
+                const members = items.filter((i) => i.category === category);
+                if (!members.length) return null;
+                const open = expanded.includes(category);
+                const newCount = members.reduce(
+                  (total, item) => total + (item.unread_count ?? 0),
+                  0,
+                );
+                return (
+                  <section className="tower-category" key={category}>
+                    <button
+                      className="tower-category-heading"
+                      aria-expanded={open}
+                      onClick={() => onExpanded(category, !open)}
+                    >
+                      <span>
+                        {categoryLabels[category]}
+                        {newCount > 0 && <small>{newCount} new</small>}
+                      </span>
+                      <span className="tower-category-count">
+                        {members.length}
+                        <ChevronDown
+                          size={15}
+                          className={open ? "rotate-180" : ""}
+                        />
+                      </span>
+                    </button>
+                    {open && (
+                      <div className="tower-cards">
+                        {members.map((item) => (
+                          <article
+                            key={item.id}
+                            className={`tower-card ${item.urgency} ${selectedId === item.id ? "selected" : ""}`}
+                          >
+                            <div className="tower-card-top">
+                              <span className="tower-state">
+                                {item.action_required === false
+                                  ? "Update"
+                                  : item.urgency === "waiting"
+                                    ? "Waiting"
+                                    : item.urgency === "urgent"
+                                      ? "Needs attention"
+                                      : "Next step"}
+                              </span>
+                              {(item.unread_count ?? 0) > 0 && (
+                                <span className="tower-new">
+                                  {item.unread_count} new
+                                </span>
+                              )}
+                            </div>
+                            <h3>{item.subject}</h3>
+                            <p className="tower-detail">{item.detail}</p>
+                            {item.due_on && (
+                              <p className="tower-date">
+                                {new Intl.DateTimeFormat("en-CA", {
+                                  month: "short",
+                                  day: "numeric",
+                                }).format(new Date(item.due_on + "T12:00:00"))}
+                              </p>
+                            )}
+                            {item.total_slots != null && (
+                              <div className="tower-coverage">
+                                <div>
+                                  <span>Care slots covered</span>
+                                  <strong>
+                                    {item.covered_slots ?? 0} /{" "}
+                                    {item.total_slots}
+                                  </strong>
+                                </div>
+                                <progress
+                                  value={item.covered_slots ?? 0}
+                                  max={item.total_slots || 1}
+                                  aria-label="Care slots covered"
+                                />
+                              </div>
+                            )}
+                            {!!item.interested_workers?.length && (
+                              <ul className="tower-workers">
+                                {item.interested_workers.map((worker) => (
+                                  <li key={worker.id}>
+                                    <span className="tower-avatar">
+                                      {worker.name
+                                        .split(" ")
+                                        .map((part) => part[0])
+                                        .slice(0, 2)
+                                        .join("")}
+                                    </span>
+                                    <div>
+                                      <p>
+                                        {worker.name}
+                                        {worker.unread && (
+                                          <span className="tower-new">New</span>
+                                        )}
+                                      </p>
+                                      <p className="tower-detail">
+                                        {worker.slots.join(" · ")}
+                                      </p>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="tower-card-actions">
+                              <button
+                                className="tower-primary"
+                                onClick={() => onSelect(item)}
+                              >
+                                {actionLabels[item.stage]}
+                                <ArrowUpRight size={14} />
+                              </button>
+                              <button
+                                className="tower-link"
+                                aria-expanded={history === item.id}
+                                onClick={() =>
+                                  setHistory(
+                                    history === item.id ? null : item.id,
+                                  )
+                                }
+                              >
+                                History
+                              </button>
+                            </div>
+                            {history === item.id && (
+                              <div className="tower-card-history">
+                                <ActivityFeed
+                                  filters={{ situation: item.id }}
+                                  compact
+                                />
+                              </div>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+              <details className="tower-checks">
+                <summary>What’s included</summary>
+                <p>
+                  Care coverage, dropped visits, credentials, funding renewals,
+                  overtime and billing alerts. Updates and completed actions are
+                  retained in Recent activity. Date-based checks are a review
+                  aid, not a complete compliance audit.
+                </p>
+              </details>
+            </>
+          )}
+        </>
+      )}
     </div>
-  }
-  function group(id: string, title: string, subtitle: string, members: AttentionItem[]) {
-    if (!members.length) return null
-    const open = expanded.includes(id)
-    const urgentCount = members.filter(i => i.urgency === 'urgent').length
-    return <section key={id} className="border-t border-line-soft"><button aria-expanded={open} onClick={() => onExpanded(id, !open)} className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left hover:bg-cream-2"><span><span className="block text-sm">{title}</span><span className="mt-1 block font-mono text-[11px] text-ink-soft">{urgentCount > 0 ? <span className="text-orange">{urgentCount} urgent</span> : subtitle}</span></span><span className="flex items-center gap-3"><span className="font-serif text-3xl">{members.length}</span><ChevronRight size={15} className={open ? 'rotate-90' : ''} aria-hidden="true" /></span></button>{open && <div className="divide-y divide-line-soft border-t border-line-soft">{members.map(i => row(i))}</div>}</section>
-  }
-  return <>
-    {urgent && <section className="border-b border-ink bg-orange"><div className="px-6 pt-5"><p className="font-mono text-[11px] uppercase tracking-widest">Needs action</p><h3 className="mt-3 font-serif text-[32px] leading-[1.05]">{urgent.stage === 'replace_worker' ? 'A visit needs a worker.' : urgent.category === 'coverage' ? 'Care coverage is due.' : urgent.category === 'credentials' ? 'A credential needs attention.' : 'Authorization ends today.'}</h3></div>{row(urgent, true)}</section>}
-    {categories.map(([id, label, subtitle]) => group(id, label, subtitle, items.filter(i => i.category === id && i.id !== urgent?.id && i.urgency !== 'waiting')))}
-    {group('waiting', 'Waiting for a response', 'Tracked · No immediate action', items.filter(i => i.urgency === 'waiting'))}
-    {items.length === 0 && <p className="px-6 py-5 text-sm">No outstanding items in these checks.</p>}
-    <details className="border-t border-line-soft px-6 py-4"><summary className="cursor-pointer font-mono text-[11px] text-ink-soft">About these checks</summary><p className="mt-3 text-xs leading-relaxed text-ink-soft">Dropped visits: past 7 and next 60 days. Credentials: expiring within 30 days or uploaded and awaiting verification. Authorizations: expiring within 15 days. Missing and already expired records are not comprehensively checked. No weekly visits is a review prompt, not evidence of missed care.</p></details>
-  </>
+  );
 }

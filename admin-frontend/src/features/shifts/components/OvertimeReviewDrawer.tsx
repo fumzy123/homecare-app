@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format, differenceInMinutes } from 'date-fns'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { useOvertimeReviewStore } from '@/features/notifications/useOvertimeReviewStore'
 import { useApproveOvertime, useRejectOvertime } from '@/features/shifts/hooks/useOvertimeMutations'
-import { useMarkResolved } from '@/features/notifications/hooks'
 import type { OvertimeNotificationPayload } from '@/features/notifications/api'
 import {
   type DayOfWeek,
@@ -32,6 +31,23 @@ const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-i
 
 export function OvertimeReviewDrawer() {
   const { notification, close } = useOvertimeReviewStore()
+  const dialog = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!notification) return
+    const previous = document.activeElement as HTMLElement | null
+    const element = dialog.current
+    const controls = () => [...(element?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') ?? [])].filter(el => el.getClientRects().length)
+    controls()[0]?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); close() }
+      if (event.key !== 'Tab') return
+      const items = controls(), first = items[0], last = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    }
+    element?.addEventListener('keydown', onKey)
+    return () => { element?.removeEventListener('keydown', onKey); previous?.focus() }
+  }, [notification, close])
   const [mode, setMode]                   = useState<DrawerMode>('default')
   const [rejectReason, setRejectReason]   = useState('')
   const [error, setError]                 = useState<string | null>(null)
@@ -48,7 +64,6 @@ export function OvertimeReviewDrawer() {
 
   const { mutate: approveOvertime, isPending: approving } = useApproveOvertime()
   const { mutate: rejectOvertime,  isPending: rejecting  } = useRejectOvertime()
-  const { mutate: markResolved,    isPending: marking    } = useMarkResolved()
 
   // Reset the edit form whenever a different notification is opened. Done during
   // render (not in an effect) so the reset doesn't cascade an extra render; the
@@ -79,7 +94,7 @@ export function OvertimeReviewDrawer() {
   if (!notification) return null
 
   const p          = notification.payload as unknown as OvertimeNotificationPayload
-  const isResolved = notification.resolved_at !== null
+  const isResolved = notification.resolved_at !== null || notification.can_decide === false
   const hasFullCtx = !!(p.client_id && p.start_time && p.end_time)
 
   // Read-only display values
@@ -135,32 +150,30 @@ export function OvertimeReviewDrawer() {
     setError(null)
     rejectOvertime(
       { notification_id: notification!.id, reason: rejectReason || undefined },
-      { onSuccess: () => close() },
+      { onSuccess: () => close(), onError: err => setError(err instanceof Error ? err.message : 'Could not reject the request') },
     )
-  }
-
-  function handleMarkReviewed() {
-    markResolved(notification!.id, { onSuccess: () => close() })
   }
 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-ink/20" onClick={close} />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col bg-paper border-l border-ink">
+      <div ref={dialog} role="dialog" aria-modal="true" aria-label="Overtime request" className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col bg-paper border-l border-ink">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
           <Kicker>Overtime Request</Kicker>
-          <button onClick={close} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
+          <button aria-label="Close overtime request" onClick={close} className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none">×</button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5">
 
           {isResolved && (
             <p className="font-mono text-[10px] text-ink-soft border border-line-faint px-3 py-2">
-              This request has already been resolved.
+              {notification.can_decide === false && !notification.resolved_at ? 'Waiting for an owner or manager to review this request.' : `This request was ${notification.request_status ?? 'reviewed'}.`}
             </p>
           )}
+
+          {notification.decision_note && <p className="text-sm text-ink-soft">{notification.decision_note}</p>}
 
           {/* Worker */}
           <div>
@@ -175,6 +188,8 @@ export function OvertimeReviewDrawer() {
               <p className="font-mono text-[12px] text-ink">{p.client_name ?? '—'}</p>
             </div>
           )}
+
+          {p.shift_id && <p className="text-sm text-ink-soft">Change to {p.edit_scope === 'this' ? 'this visit' : p.edit_scope === 'following' ? 'this and following visits' : 'the visit series'}. Approval updates the existing schedule.</p>}
 
           {/* Proposed shift — read-only summary */}
           {hasFullCtx && shiftDate && mode === 'default' && (
@@ -204,7 +219,7 @@ export function OvertimeReviewDrawer() {
             <div className="border border-orange bg-cream-2 px-4 py-3">
               <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-orange mb-1.5">Overtime Warning</p>
               <p className="font-mono text-[10px] text-ink leading-relaxed">
-                Approving this shift would bring {notification.about_worker_first_name} to{' '}
+                At request time, this visit was expected to bring {notification.about_worker_first_name} to{' '}
                 <strong>{p.total_hours}h</strong> for the week of{' '}
                 {format(parseLocalDate(p.week_start), 'MMM d')}–{format(parseLocalDate(p.week_end), 'MMM d, yyyy')},
                 above the 40h threshold.
@@ -395,12 +410,12 @@ export function OvertimeReviewDrawer() {
                 >
                   {approving ? 'Approving…' : 'Approve'}
                 </button>
-                <button
+                {!p.shift_id && <button
                   onClick={() => setMode('edit')}
                   className="w-full border border-ink py-2.5 font-mono text-[10px] tracking-[0.08em] uppercase text-ink hover:bg-cream-2 transition-colors"
                 >
                   Approve with edits
-                </button>
+                </button>}
                 <button
                   onClick={() => setMode('reject')}
                   className="w-full border border-orange py-2.5 font-mono text-[10px] tracking-[0.08em] uppercase text-orange hover:bg-orange/5 transition-colors"
@@ -448,14 +463,14 @@ export function OvertimeReviewDrawer() {
           /* No full context — ShiftDetailDrawer case */
           <div className="border-t border-ink px-6 py-4 flex flex-col gap-3">
             <p className="font-mono text-[10px] text-ink-soft leading-relaxed">
-              To approve, find the shift in the worker's schedule and save it directly — as a manager or owner you can override the overtime check.
+              This older request has incomplete visit details. Reject it and submit a complete request before approval.
             </p>
             <button
-              onClick={handleMarkReviewed}
-              disabled={marking}
+              onClick={handleReject}
+              disabled={rejecting}
               className="w-full bg-ink text-cream py-2.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
             >
-              {marking ? 'Marking…' : 'Mark as Reviewed'}
+              {rejecting ? 'Rejecting...' : 'Reject incomplete request'}
             </button>
           </div>
         )}

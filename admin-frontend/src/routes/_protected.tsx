@@ -8,7 +8,6 @@ import { isAdminRole } from '@/shared/lib/roles'
 import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
-import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
 import { AttentionProvider } from '@/features/attention/components/AttentionProvider'
 
@@ -120,7 +119,6 @@ function ProtectedLayout() {
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <NotificationBell />
             <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft max-sm:hidden">
               WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}
             </span>

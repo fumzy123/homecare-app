@@ -1,11 +1,11 @@
+import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useState, useRef } from 'react'
 import { getStatusToken, STATUS_TOKENS, ADMIN_SELECTABLE_STATUSES } from '@/shared/lib/shiftStatus'
 import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { shiftsApi, type ShiftOccurrence, type NoteEntry, type RecurrenceFrequency, type DayOfWeek, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
-import { orgMembersApi } from '@/features/org-members/api'
-import { clientsApi } from '@/features/clients/api'
+import { useShiftDetailWorkers, useShiftDetailClients, useShiftDetailWrite, useShiftDetailNote, useSaveShiftDetailNote } from '../hooks/useShiftDetail'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
 import { Avatar, Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
@@ -52,6 +52,7 @@ interface ShiftDetailDrawerProps {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDetailDrawerProps) {
+  const requestOvertime = useRequestOvertime()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing]         = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -87,26 +88,16 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     totalHours?: number
   } | null>(null)
   const [approvalRequested, setApprovalRequested] = useState(false)
+  const requestedScope = useRef<RecurringScope>('all')
   const overrideRef                           = useRef(false)
   const pendingOverrideFnRef                  = useRef<(() => void) | null>(null)
   const [saved, setSaved]                     = useState(false)
 
-  const { data: workers = [] } = useQuery({
-    queryKey: ['workers'],
-    queryFn: () => orgMembersApi.listByRole('home_support_worker'),
-    enabled: isEditing,
-  })
+  const { data: workers = [] } = useShiftDetailWorkers(isEditing)
+  const { data: clients = [] } = useShiftDetailClients(isEditing)
 
-  const { data: clients = [] } = useQuery({
-    queryKey: ['clients'],
-    queryFn: () => clientsApi.listClients(),
-    enabled: isEditing,
-  })
-
-  const saveMutation = useMutation({
-    mutationFn: (fn: () => Promise<void>) => fn(),
+  const saveMutation = useShiftDetailWrite({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shifts'] })
       setSaved(true)
       setIsEditing(false)
       setShowSaveModal(false)
@@ -150,10 +141,8 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     },
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: (fn: () => Promise<void>) => fn(),
+  const deleteMutation = useShiftDetailWrite({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shifts'] })
       onClose()
     },
   })
@@ -203,6 +192,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   function executeSave(scope: RecurringScope) {
+    requestedScope.current = scope
     const override = overrideRef.current
     overrideRef.current = false
 
@@ -438,7 +428,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
               {approvalRequested && (
                 <p className="font-mono text-[10px] text-ink border border-mint bg-cream-2 px-3 py-2">
-                  Manager notified — they will review and approve the shift.
+                  Request sent — track the review in the Action Tower.
                 </p>
               )}
 
@@ -452,12 +442,36 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                         onClick={async () => {
                           if (!pendingOverride.workerIdForApproval) return
                           try {
-                            await shiftsApi.requestOvertimeApproval({
+                            await requestOvertime.mutateAsync({
                               worker_id:   pendingOverride.workerIdForApproval,
                               week_start:  pendingOverride.weekStart!,
                               week_end:    pendingOverride.weekEnd!,
                               total_hours: pendingOverride.totalHours!,
+                              shift_id: shift.shift_id,
+                              edit_scope: requestedScope.current,
+                              client_id: requestedScope.current === 'this' ? shift.client.id : clientId,
+                              start_time: `${date}T${startTime}:00`,
+                              end_time: `${endDate}T${endTime}:00`,
+                              is_recurring: shift.is_recurring && requestedScope.current !== 'this',
+                              recurrence: shift.is_recurring && requestedScope.current !== 'this' ? buildRecurrencePayload() : undefined,
+                              changes: requestedScope.current === 'this' ? {
+                                original_date: shift.date, new_start_time: `${date}T${startTime}:00`,
+                                new_end_time: `${endDate}T${endTime}:00`, completion_status: completionStatus, notes: notes || undefined,
+                              } : requestedScope.current === 'following' ? {
+                                occurrence_date: shift.date, new_start_time: `${date}T${startTime}:00`,
+                                new_end_time: `${endDate}T${endTime}:00`, worker_id: workerId, client_id: clientId,
+                                location: location || undefined, notes: notes || undefined,
+                                recurrence_end_date: recurrenceEndDate || undefined,
+                                recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
+                              } : {
+                                start_time: `${date}T${startTime}:00`, end_time: `${endDate}T${endTime}:00`,
+                                worker_id: workerId, client_id: clientId, location: location || undefined, notes: notes || undefined,
+                                recurrence_end_date: recurrenceEndDate || undefined,
+                                recurrence: recurrenceChanged() ? buildRecurrencePayload() : undefined,
+                              },
                             })
+                            void queryClient.invalidateQueries({ queryKey: ['attention-items'] })
+                            void queryClient.invalidateQueries({ queryKey: ['activity'] })
                             setPendingOverride(null)
                             setApprovalRequested(true)
                           } catch {
@@ -698,7 +712,6 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 // ─── Progress Notes ───────────────────────────────────────────────────────────
 
 function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
-  const queryClient = useQueryClient()
   const shiftStart = format(new Date(shift.start_time), 'HH:mm')
   const shiftEnd   = format(new Date(shift.end_time),   'HH:mm')
 
@@ -706,21 +719,12 @@ function ProgressNotesSection({ shift }: { shift: ShiftOccurrence }) {
   const [newTime, setNewTime]         = useState(shiftStart)
   const [newContent, setNewContent]   = useState('')
 
-  const { data: note } = useQuery({
-    queryKey: ['progress-note', shift.shift_id, shift.date],
-    queryFn: () => shiftsApi.getProgressNote(shift.shift_id, shift.date),
-  })
+  const { data: note } = useShiftDetailNote(shift.shift_id, shift.date)
 
   const entries: NoteEntry[] = note?.entries ?? []
   const sorted = [...entries].sort((a, b) => a.time.localeCompare(b.time))
 
-  const saveMutation = useMutation({
-    mutationFn: (updated: NoteEntry[]) =>
-      shiftsApi.upsertProgressNote(shift.shift_id, shift.date, updated),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['progress-note', shift.shift_id, shift.date] })
-    },
-  })
+  const saveMutation = useSaveShiftDetailNote(shift.shift_id, shift.date)
 
   function handleAdd() {
     if (!newContent.trim()) return

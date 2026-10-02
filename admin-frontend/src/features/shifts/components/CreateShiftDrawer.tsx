@@ -1,3 +1,4 @@
+import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useForm, useStore } from '@tanstack/react-form'
 import { useState, useRef, useEffect } from 'react'
 import { z } from 'zod'
@@ -96,6 +97,7 @@ export function CreateShiftDrawer({
   onClose,
   onSuccess,
 }: CreateShiftDrawerProps) {
+  const requestOvertime = useRequestOvertime()
   const defaultDate = initialDate ? format(initialDate, 'yyyy-MM-dd') : ''
   const defaultStartTime = initialDate ? format(initialDate, 'HH:mm') : '09:00'
   const defaultEndTime = initialEndDate
@@ -348,8 +350,11 @@ export function CreateShiftDrawer({
       safeEndDate = nextDay(values.date)
     }
     try {
-      await shiftsApi.requestOvertimeApproval({
+      await requestOvertime.mutateAsync({
         worker_id: pendingOverride.workerIdForApproval,
+        service_type: values.service_type || undefined,
+        location: location || undefined,
+        notes: values.notes || undefined,
         week_start: pendingOverride.weekStart!,
         week_end: pendingOverride.weekEnd!,
         total_hours: pendingOverride.totalHours!,
