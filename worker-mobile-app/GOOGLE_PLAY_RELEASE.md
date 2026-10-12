@@ -10,7 +10,9 @@ for feature scope is the Worker Android MVP section in `../AGENTS.md`.
 Ship the working agency worker experience: sign-in after a web agency invitation,
 Home, scheduled visits, assigned clients and care information, progress notes,
 profile and credential uploads, the in-app notification inbox, and basic worker
-push notifications. Push notifications still need to be implemented and tested.
+push notifications. Registration, transactional delivery and inbox tap handling are
+implemented; deployment, Android credentials and physical-device delivery still
+need verification. See `../backend/WORKER_PUSH.md` for rollout and retry behavior.
 
 Do not advertise verified attendance, GPS check-in/out, payroll, voice notes,
 flowsheets, offline saving, or attendance rankings in this release. Advertise
@@ -43,15 +45,39 @@ Play review submission. Existing automated checks do not complete the device gat
 
 The normal entry path is login → worker welcome → a three-step introduction
 (or Skip) → Home. Introduction completion is saved per worker/employment, and
-Settings can replay it. Invitation and password setup remain on the website.
+Settings offers introduction replay. The agency's invitation email starts web
+account setup before the worker downloads the app. Mobile has no sign-up or
+account-setup redirect; pending access states offer agency support guidance.
+Password recovery and public legal links remain available.
 This is enough onboarding for MVP once the journey is tested on Android.
 
-The older `app/(auth)/onboarding/` screens are not the normal entry path, but
-remain routes in the app. They include a fixed 60% profile-completion screen,
-sample missing items, and descriptions of unbuilt GPS/flowsheet/voice features.
-The MVP task is to prevent workers reaching misleading screens and request push
-permission appropriately. A live completion meter, personalized checklist and
-native invitation acceptance are future improvements, not MVP prerequisites.
+The older `app/(auth)/onboarding/` URLs now redirect to the normal entry point.
+The sample profile-completion screen and GPS/flowsheet/voice promises are removed.
+The existing welcome and three-step introduction remain. A live completion meter,
+personalized checklist and native invitation acceptance are future improvements.
+
+### Recovery and permission cleanup — 2026-10-03
+
+- [x] Add a pre-sign-in **Forgot password?** link to the selected environment's
+      website `/forgot-password` page. Password reset remains on the web; the
+      worker returns to the app to sign in. Missing configuration or browser
+      failures show a recoverable error rather than opening another environment.
+- [x] Redirect every retired onboarding route to `/`, which selects login,
+      worker welcome or Home based on the existing session and entry checks.
+- [x] Remove `expo-location`, its config plugin and location requests. Android
+      explicitly blocks coarse, fine and background location permissions.
+- [ ] Configure `EXPO_PUBLIC_FRONTEND_URL` in each release's EAS environment,
+      including production. The local staging file now uses the supplied staging
+      website. No production URL is guessed or copied from staging.
+- [ ] On an installed Android build, request a reset email, follow it, set a new
+      password, and sign in again. Check pending/expired/no-access invitations and
+      returning sessions separately. Automated link checks do not complete this.
+- [ ] Inspect the newly built Android manifest. Existing installed builds and
+      Expo Go retain their own native permissions until rebuilt/replaced.
+
+Contextual push permission handling, public privacy access and production recovery
+verification remain release gates. Removing location access does not remove the
+external directions action, which passes the visit address to the maps app.
 
 ## After the Android MVP release
 
@@ -123,9 +149,14 @@ credential uploads, and agency notifications.
       deletion requests and any care-record retention obligations before publishing.
 - [ ] Accurate Data safety, health-app, content-rating, target-audience and ads
       declarations based on the actual app and services. Do not submit guesses.
-- [ ] Assess Google's account-deletion requirements for this invitation-based
-      account setup. If applicable, supply an in-app request and public web request
-      path; explain retained records in the final policy.
+- [ ] Confirm the release remains existing-account login only: agency email →
+      web account setup → app download → mobile sign-in. No mobile sign-up or
+      account-setup redirect. This flow supports an outside-scope interpretation
+      of Google's account-creation deletion trigger; it is not Google sign-off.
+      Complete Data safety answers accurately and reassess if the flow changes.
+      Dedicated mobile deletion-request entries are removed. The separate web
+      privacy-request channel and operator helper remain; see
+      `PRIVACY_REVIEW.md` and `backend/ACCOUNT_DELETION.md` for operational readiness.
 - [ ] Confirm production backend, auth and website URLs in EAS **production**.
       Local `.env.production` does not configure a cloud build. Website is needed
       for Settings password reset and privacy links.
@@ -162,6 +193,8 @@ note on a demo visit, view credentials and notifications, and open Settings.
 - [ ] Fresh install, sign-in, wrong password, session restore and sign-out.
 - [ ] Web invitation/password setup → first mobile login → welcome or Skip → Home;
       returning login and pending/expired/no-access states; no sample onboarding.
+- [ ] No mobile sign-up, account-setup redirect or dedicated deletion-request
+      entry. Account help directs workers to their agency; recovery still works.
 - [ ] Home, schedule navigation, clients and visit details load from production.
 - [ ] Save and reopen a progress note; a failed save preserves the draft.
 - [ ] Upload and reopen a supported credential document.
@@ -185,6 +218,31 @@ These results describe earlier checks, not sign-off on later working-tree change
   after the Settings fixes. This is not a signed Android App Bundle.
 - Native device walkthrough, signed release bundle and Google review submission
   have not been completed by this preparation.
+
+### Recovery cleanup checks recorded 2026-10-03
+
+- TypeScript check and all 10 website-link/environment tests passed.
+- Android Expo manifest and JavaScript bundle served successfully after restarting
+  the staging preview; the bundle contains the recovery action and staging website.
+- Expo native-config introspection marks coarse, fine and background location for
+  removal and contains no iOS location usage-description keys.
+- Staging recovery/privacy/terms/DPA URLs returned HTTP 200 without authentication.
+- These checks do not verify email receipt, password-reset completion, physical
+  device behavior, a signed production bundle, or a Google Play submission.
+
+### Settings and legal review recorded 2026-10-03
+
+- Me now exposes Settings with real phone notification controls, public legal
+  links, password recovery and introduction replay. Sign-in exposes Privacy/Terms.
+- Mobile TypeScript and all 10 environment/website-link tests pass; the admin
+  website production build passes (existing bundle-size warning).
+- Privacy/Terms/DPA draft source now describes the mobile implementation. It has
+  not been deployed or approved as final; the version remains `0.1-draft`.
+- [PRIVACY_REVIEW.md](PRIVACY_REVIEW.md) records the existing-account mobile flow,
+  separate web privacy requests, acceptance authorization issue and legal/operational confirmations.
+  These remain release work, not completed compliance checks.
+- Physical-phone Settings interaction, email receipt/password change and signed
+  Android permission behavior still need the user/device walkthrough.
 
 ## Official references
 

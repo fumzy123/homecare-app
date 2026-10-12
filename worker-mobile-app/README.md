@@ -159,6 +159,27 @@ Use the `development-staging` EAS profile. It inherits staging services from
 The staging Firebase app configuration is `google-services.staging.json`.
 The private FCM service-account key stays in EAS credentials, never in the app.
 
+### Keeping Firebase configuration outside Git
+
+The staging configuration file is ignored by Git. A local copy can live at
+`worker-mobile-app/google-services.staging.json`; do not force-add it.
+Download a replacement from Firebase project settings → General → Your apps →
+the staging Android app (`com.homecareapp.worker.staging`) → google-services.json.
+This file is client configuration, distinct from the private service-account JSON.
+
+For cloud builds, upload it as an EAS **file** environment variable named
+`GOOGLE_SERVICES_JSON`, with secret visibility, in the **preview** environment
+(used by preview and development-staging builds). `app.config.js` uses the file
+path supplied by EAS, falling back to the ignored local staging file. Use the
+production Firebase file in the production environment; never reuse staging there.
+Secret visibility keeps the uploaded file out of Git and ordinary dashboard output;
+its client configuration is still incorporated in the built Android app.
+This code change does not upload the file or provision EAS credentials for you.
+
+Backend delivery setup and remaining phone tests are in `../backend/WORKER_PUSH.md`.
+
+### Testing the installed staging app
+
 Install the APK supplied by EAS, then start Metro with:
 
 ```powershell
@@ -190,3 +211,40 @@ Checks: `npm run typecheck`, `npm run test:push`, and backend
 `python -m pytest tests/services/test_push_device.py`. Physical-phone delivery,
 background/closed-app taps, permissions, account switching and sign-out require
 device testing before release. No production Firebase configuration is added.
+
+## Password recovery and MVP onboarding
+
+The sign-in screen's **Forgot password?** link opens `/forgot-password` on
+`EXPO_PUBLIC_FRONTEND_URL`. Use the website for the same auth environment as the
+app. The worker requests the reset email and sets a password on the web, then
+returns to mobile sign-in. No password or email is put in the browser URL.
+
+Set this public website URL in `.env.local`, `.env.staging` or `.env.production`
+for local previews, and separately in the matching EAS environment for cloud
+builds. Restart Metro after changing an environment file. A missing URL shows
+an error; it never falls back to another environment.
+
+Retired `/onboarding/*` routes redirect to the existing session-aware entry point.
+The current worker welcome/skip/three-step introduction is unchanged. The MVP no
+longer includes the location package, permission prompt or GPS/flowsheet promises.
+A new native build is needed to apply permission changes; Expo Go has its own
+permissions. Directions still open the phone's maps app with the visit address.
+
+Run `npm run test:website-links` for recovery/privacy link handling checks.
+End-to-end email recovery and first/returning-login testing on Android remain on
+the release checklist.
+
+## Settings and legal documents
+
+Open **Me → Settings** for phone notification status/permission controls, Privacy
+Policy, Terms of Service, the agency DPA, password recovery and introduction
+replay. Notification controls open the phone's app settings when permission is
+blocked or the device is registered; there is no inbox shortcut in Settings.
+Expo Go explains why phone push controls require an installed Android build.
+
+Privacy and Terms are also available before sign-in. All legal links open the
+matching website selected by `EXPO_PUBLIC_FRONTEND_URL`. Local webpage edits do
+not change the hosted staging documents until the website is deployed.
+
+See [PRIVACY_REVIEW.md](PRIVACY_REVIEW.md) for the draft document review, unresolved
+business details, agency/worker acceptance distinction and account-deletion gap.

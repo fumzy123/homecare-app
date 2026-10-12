@@ -324,7 +324,7 @@ Use these names throughout the stack:
 
 - Saving creates an immutable version with `created_at` and proposed `effective_from`.
   Its Care Slots retain their IDs and history. Saving or posting never generates shifts.
-- **Post as open placement** advertises one whole version. Workers express interest in
+- **Post care request** advertises one whole version. Workers express interest in
   one, several or all available Care Slots. Interest does not reserve coverage.
 - The admin selects interested workers, reviews availability/conflicts/hours/funding,
   and chooses **Approve and schedule**. Partial approval is supported, with explicit
@@ -350,6 +350,36 @@ Existing one-off shifts remain independent. Legacy placement snapshots are retai
 read-only for assignment; save a new version to use slot approvals. The retired client
 `assigned_worker_id` data is preserved in the private `legacy_client_worker_assignments`
 archive. There is no single assigned-worker field in the live client model.
+
+### Assignment management (2026-10-09)
+
+Worker Overview and client Weekly care need compose the same Layer 3
+`features/assignments/components/AssignmentsPanel`. Controlled cards and the
+review dialog are Layer 2; API queries/mutations live in named feature hooks.
+Admins select recurring Care Slots and **Stop visits from** an agency-local date,
+enter a reason, review, then confirm. This changes assignments, not employment.
+
+`/api/assignments` uses AssignmentService → AssignmentRepository. Ending uses
+organization-first locks, assignment/shift locks and a reviewed-state token.
+`CareSlotAssignment.ends_before` is exclusive; rows retain end reason, actor and
+timestamp. `Shift.assignment_id` links each generated/split series to its history.
+The partial unique index permits only one unended assignment per Care Slot.
+Replacement approvals check date overlap and must cover the next required future
+visit; approve separately when selected slots have incompatible replacement dates.
+Ending reopens the existing Care Request, and the Action Tower's existing stable
+coverage case shows replacement demand from the first affected weekday. No new
+action table or polling job is introduced. Approval refreshes assignment views.
+
+Cutoffs reject changes that would hide elapsed, ongoing or documented visits,
+including rescheduled visits crossing the boundary. Past notes are never deleted.
+Linked recurring series cannot be reassigned, shortened or cancelled through the
+old series-ending actions; use Manage assignment. Single-occurrence edits remain
+available. Imported schedules without proven Care Slot links are not fabricated
+into assignments and remain managed through their existing visit workflows.
+
+Apply Alembic migration `b7f21c9064ab` after `de9e97b23461` before deploying the API.
+Validation and staging walkthrough: `backend/ASSIGNMENTS.md`. This code change
+does not apply hosted migrations or implement employment offboarding.
 
 A client's **Care team** is derived from scheduled coverage. Worker client access is based
 on retained, non-deleted shifts in the same agency, including past care history.
@@ -434,6 +464,32 @@ funding and slot/visit calculations; backend `test_client_workspace.py` covers t
 current-care projection and safe note appends. `admin-frontend/tests/client-workspace.html`
 is a development-only component verification host with an in-memory API adapter;
 it is not a production entry point and never reads or writes agency records.
+
+### Care Requests workspace (2026-10-02)
+
+The admin UI calls placements **Care requests**. Existing `/dashboard/placements`
+links, API paths, query keys and stored domain names remain compatible. The directory
+defaults to open requests, sorted by care request start date, with client, coverage
+fraction/segments and interested-worker count. Detail pages show the revision in the
+header, grouped request details, Care coverage / Interested workers views, and a
+coverage plan using actual slot durations. Closing is a header button with confirmation;
+approved visits remain scheduled.
+
+`features/placements/components` owns queries and workflow orchestration. Controlled
+work/review components receive props; routes compose the directory and detail coordinator.
+Posting previews the saved revision before submission. Optional additional notes share
+the existing worker-visible `requirements` field, separated by an Additional notes label.
+Review tokens, eligibility blockers, uncovered-slot acknowledgement and unsaved-selection
+navigation protection are retained. Create/close/approve refresh the Action Tower.
+
+Validation: `node --experimental-strip-types --test tests/care-requests.test.mjs`
+from `admin-frontend` covers ordering and selection projection. Run
+`tests/care-requests.browser.cjs` against Vite with dummy public configuration on
+`http://127.0.0.1:5198` (override `CARE_REQUEST_TEST_URL`). Point `VITE_SUPABASE_URL`
+and `VITE_BACKEND_API_URL` at that server, use dummy publishable auth/Stripe keys,
+and set `PLAYWRIGHT_MODULE` to a shared installation if needed. All API responses
+are intercepted fictional fixtures; tests cover posting, partial/full approval,
+conflicts, stale review, close failures, tower navigation and responsive layouts.
 
 ### 1. Profile Management
 - **Clients**: Create, Read, Update, Delete
@@ -535,7 +591,8 @@ The detailed release and device checklist is in
 - [x] Assigned clients, care-facing information and visit history.
 - [x] Typed progress notes and append-only follow-ups per visit occurrence.
 - [x] Own profile viewing/editing and credential upload/viewing.
-- [x] In-app notification inbox and read state. Phone push delivery is not implemented.
+- [x] In-app notification inbox and read state. Phone push delivery code is implemented;
+      deployment and Android device verification are pending.
 
 #### Must complete before the Android MVP release
 
@@ -619,6 +676,36 @@ which is not evidence of a completed, tested mobile workflow.
 
 ## Local Mobile Development Gotchas
 
+### Worker sign-in and privacy requests (2026-10-09)
+
+Worker setup starts from the agency invitation email and is completed on the web
+before mobile sign-in. The mobile app is for existing accounts: no sign-up,
+invitation-acceptance redirect or account-deletion request entry. Keep password
+recovery, legal links and agency support guidance. Reassess Play account-deletion
+scope before introducing mobile account creation or links to account setup.
+
+The public website retains `/account-deletion` for manually reviewed privacy
+requests. `features/privacy` owns that page and validates the configured
+`VITE_PRIVACY_CONTACT_EMAIL`. A missing contact is explicitly unavailable and must
+be configured before publishing that request channel. Submission changes no records.
+
+`backend/scripts/worker_account_deletion.py` is a trusted-operator CLI, never an
+HTTP endpoint. AccountDeletionService → AccountDeletionRepository previews first,
+checks exact Person/Auth/all employment IDs and a fresh review token, and requires
+verified review plus a private receipt. Execution is restricted to closed,
+terminated worker memberships. It removes Auth, push data/read markers and selected
+profile/availability data; it preserves Person, employment and care history.
+Retained categories require reasons/review dates. Active-worker requests remain
+valid and need individual handling; do not terminate employment to satisfy a tool
+guard. Auth and SQL are not atomic: see `backend/ACCOUNT_DELETION.md` for recovery,
+retained credentials/history, provider/backups and case-completion work.
+
+Validation uses fictional SQLite/mocked Auth tests in `test_account_deletion.py`,
+the isolated web test `tests/account-deletion.browser.cjs`, and mobile website-link
+tests. Production contact configuration, retention rules and real provider
+verification remain prerequisites to operating the web request/cleanup process.
+No account/data deletion was executed to build this workflow.
+
 ### Running the Mobile App on a Physical Device
 
 For local testing, the phone needs three connections: Metro (the JS bundle), the
@@ -654,5 +741,28 @@ Settings offers an explicit phone-notification permission/registration action.
 device lifecycle. The backend uses PushDeviceService → PushDeviceRepository;
 Alembic `0ab31e782c90` creates the private, RLS-enabled `push_devices` table.
 Logout revokes this installation before signing out locally; offline failures
-show a retry message. No scheduling-event sender is implemented yet. Android
-device delivery testing, receipts/retries and production setup remain required.
+show a retry message. Scheduling-event delivery is implemented as described below;
+Android device testing and production setup remain required.
+
+### Worker push delivery (2026-10-03)
+
+Shift services enlist `WorkerNotificationService` to write individual inbox notices
+and private `PushDelivery` rows in the scheduling transaction. Coverage approval
+queues the existing selected-worker notices and notifies workers whose previous
+coverage ends. Repositories only access data; service transactions own commits.
+`domain/push.py` contains pure change projections and patient-free push content.
+
+The APScheduler job uses `PushDeliveryService` → `PushDeliveryRepository` with
+row locks and `ExpoPushClient` for HTTP. It checks current device ownership and
+active worker/agency access before sending, retries transient errors, polls Expo
+receipts and retires invalid tokens. Tap handling opens the authenticated inbox;
+schedule notices lead to the schedule. Inbox UI is Layer 3 in the notification
+feature, with named hooks and a composing route.
+
+Migration `de9e97b23461` must precede deploying this code. Delivery defaults off:
+set `PUSH_DELIVERY_ENABLED`, environment-specific `PUSH_ALLOWED_APP_IDS` and, when
+Expo enhanced security is enabled, backend-only `EXPO_PUSH_ACCESS_TOKEN`.
+`GOOGLE_SERVICES_JSON` supports an EAS file environment variable; staging also
+supports the ignored local config. No credentials have been provisioned by this
+code change. See `backend/WORKER_PUSH.md` for rollout, delivery guarantees and
+the remaining physical Android checks. No device/release sign-off is implied.
