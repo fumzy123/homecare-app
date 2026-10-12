@@ -1,155 +1,62 @@
-import { View, Text, Pressable, Linking } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Avatar, StatusDot } from '@/shared/components/ui';
-import { useCountdown } from '@/shared/hooks/useCountdown';
+import { Avatar } from '@/shared/components/ui/Avatar';
 import { getInitials } from '@/shared/utils/getInitials';
 import { formatDuration } from '@/shared/utils/formatDuration';
-import { formatTime } from '@/shared/utils/formatTime';
+import { formatTimeRange } from '@/shared/utils/formatTime';
+import { serviceTypeLabel } from '@/features/shifts/lib/schedule';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
-function getClientAge(dateOfBirth: string): number {
-  const today = new Date();
-  const dob = new Date(dateOfBirth);
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-  return age;
-}
-
-function formatFocus(serviceType: string | undefined | null, medicalConditions: string | null): string | null {
-  if (!serviceType) {
-    return medicalConditions || null;
-  }
-  const service = serviceType
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-  if (!medicalConditions) return service;
-  return `${service} · ${medicalConditions}`;
-}
-
-function getDirectionsUrl(street: string, city: string): string {
-  const query = encodeURIComponent(`${street}, ${city}`);
-  return `https://maps.google.com/?q=${query}`;
-}
-
-interface NextShiftCardProps {
+interface Props {
   shift: ShiftOccurrence;
   shiftIndex: number;
   totalToday: number;
-  onDetailsPress?: () => void;
+  gapMinutes: number | null;
+  onDetailsPress: () => void;
+  onDirectionsPress: () => void;
 }
 
-export function NextShiftCard({ shift, shiftIndex, totalToday, onDetailsPress }: NextShiftCardProps) {
-  const { client, start_time, end_time } = shift;
-  const countdown = useCountdown(start_time);
-  const initials = getInitials(client.first_name, client.last_name);
-  const age = getClientAge(client.date_of_birth);
-  const duration = formatDuration(start_time, end_time, 'long');
-  const focus = formatFocus(shift.service_type, client.medical_conditions);
-  const address = `${client.street}, ${client.city}`;
-
-  const now = new Date();
-  const start = new Date(start_time);
-  const isLate = now > start;
-
-  const handleDirections = () => {
-    Linking.openURL(getDirectionsUrl(client.street, client.city));
-  };
-
-  return (
-    <View className="mb-2">
-      <View className="mb-2 flex-row items-center justify-between">
-        <Text className="font-mono text-xs uppercase tracking-widest text-muted">Next Shift</Text>
-        <Text className="font-mono text-xs text-muted">
-          Shift {shiftIndex} of {totalToday} · Today
-        </Text>
+export function NextShiftCard({ shift, shiftIndex, totalToday, gapMinutes, onDetailsPress, onDirectionsPress }: Props) {
+  const address = shift.location || [shift.client.street, shift.client.city].filter(Boolean).join(', ');
+  const gap = gapMinutes == null ? null : gapMinutes >= 60
+    ? `${Math.floor(gapMinutes / 60)} hr${gapMinutes % 60 ? ` ${gapMinutes % 60} min` : ''}` : `${gapMinutes} min`;
+  return <View className="mt-4">
+    <View className="mb-2.5 flex-row flex-wrap items-center justify-between gap-2">
+      <Text accessibilityRole="header" className="font-serif text-2xl text-ink">Up next</Text>
+      <Text className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">{shiftIndex === totalToday ? 'Last visit today' : `Visit ${shiftIndex} of ${totalToday}`}</Text>
+    </View>
+    <View className="rounded-2xl bg-ink p-5">
+      <View className="flex-row flex-wrap items-baseline justify-between gap-2">
+        <Text className="font-mono text-base text-cream">{formatTimeRange(shift.start_time, shift.end_time)}</Text>
+        <Text className="text-xs text-cream/70">{formatDuration(shift.start_time, shift.end_time, 'short')}</Text>
       </View>
-
-      <View className="rounded-2xl bg-ink p-5">
-        {/* Client info */}
-        <View className="mb-4 flex-row items-center gap-4">
-          <Avatar initials={initials} size="lg" className="bg-orange" />
-          <View className="flex-1">
-            <Text className="font-serif text-xl text-cream">
-              {client.first_name} <Text className="italic">{client.last_name}</Text>
-            </Text>
-            <Text className="mt-0.5 font-sans text-xs text-cream opacity-60" numberOfLines={1}>
-              {age} years · {address}
-            </Text>
-          </View>
+      <Pressable onPress={onDetailsPress} accessibilityRole="button" className="my-4 flex-row items-center gap-3">
+        <Avatar initials={getInitials(shift.client.first_name, shift.client.last_name)} size="md" className="bg-orange" />
+        <View className="flex-1">
+          <Text className="font-serif text-2xl text-cream">{shift.client.first_name} <Text className="font-serif-italic">{shift.client.last_name}</Text></Text>
+          <Text className="mt-1 text-xs text-cream/70">{serviceTypeLabel(shift.service_type)}</Text>
         </View>
-
-        {/* Countdown + Status */}
-        {countdown && (
-          <>
-            <View className="mb-4 border-b border-cream opacity-10" />
-            <View className="mb-4 flex-row items-end justify-between">
-              <View>
-                <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Starting in</Text>
-                <Text className="font-mono text-4xl text-orange">{countdown}</Text>
-              </View>
-              <View>
-                <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Status</Text>
-                <View className="flex-row items-center gap-1.5">
-                  <StatusDot color={isLate ? 'red' : 'green'} />
-                  <Text className="font-mono text-xs text-cream opacity-80">
-                    {isLate ? 'LATE' : 'ON TIME'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </>
-        )}
-
-        <View className="mb-4 border-b border-cream opacity-10" />
-
-        {/* Times */}
-        <View className="mb-4 flex-row items-start">
-          {/* Stacked start / end */}
-          <View className="flex-1">
-            <Text className="font-mono text-xs uppercase tracking-widest text-cream opacity-40">Start</Text>
-            <Text className="mb-3 font-mono text-2xl text-cream">{formatTime(start_time)}</Text>
-            <Text className="font-mono text-xs uppercase tracking-widest text-cream opacity-40">End</Text>
-            <Text className="font-mono text-2xl text-cream">{formatTime(end_time)}</Text>
-          </View>
-
-          <View className="mx-4 w-px self-stretch bg-cream opacity-10" />
-
-          {/* Duration */}
-          <View>
-            <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Duration</Text>
-            <Text className="font-mono text-xl text-cream">{duration}</Text>
-          </View>
+        <Ionicons name="chevron-forward" size={16} color="#F2EEE5" />
+      </Pressable>
+      <View className="flex-row items-start gap-2">
+        <Ionicons name="location-outline" size={15} color="#EDE8DC" />
+        <Text className="flex-1 text-xs leading-5 text-cream/80">{address || 'Location not provided'}</Text>
+      </View>
+      {gap != null ? <View className="mt-4 flex-row items-center gap-2 border-t border-cream/20 pt-3">
+        <Ionicons name="cafe-outline" size={17} color="#EDE8DC" />
+        <View className="flex-1">
+          <Text className="text-xs text-cream">{gapMinutes === 0 ? 'Back-to-back visits' : `${gap} between visits`}</Text>
+          <Text className="mt-1 text-xs text-cream/70">{gapMinutes === 0 ? 'Review travel arrangements with your agency' : 'Includes time for travel and a break'}</Text>
         </View>
-
-        <View className="mb-4 border-b border-cream opacity-10" />
-
-        {/* Focus */}
-        {focus && (
-          <View className="mb-5">
-            <Text className="mb-1 font-mono text-xs uppercase tracking-widest text-cream opacity-40">Focus</Text>
-            <Text className="font-sans text-sm text-cream opacity-80">{focus}</Text>
-          </View>
-        )}
-
-        {/* Buttons */}
-        <View className="flex-row gap-3">
-          <Pressable
-            onPress={handleDirections}
-            className="flex-1 flex-row items-center justify-center gap-2 rounded-full bg-orange py-3"
-          >
-            <Ionicons name="location-outline" size={16} color="white" />
-            <Text className="font-sans text-sm font-semibold text-white">Get directions</Text>
-          </Pressable>
-          <Pressable
-            onPress={onDetailsPress}
-            className="flex-1 items-center justify-center rounded-full border border-cream py-3"
-          >
-            <Text className="font-sans text-sm font-semibold text-cream">Shift details</Text>
-          </Pressable>
-        </View>
+      </View> : null}
+      <View className="mt-4 flex-row gap-2.5">
+        {address ? <Pressable onPress={onDirectionsPress} accessibilityRole="button" className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-full bg-cream px-2 py-3">
+          <Ionicons name="navigate-outline" size={15} color="#111111" /><Text className="text-sm text-ink">Directions</Text>
+        </Pressable> : null}
+        <Pressable onPress={onDetailsPress} accessibilityRole="button" className="min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-full border border-cream/50 px-2 py-3">
+          <Text className="text-sm text-cream">View shift</Text><Ionicons name="arrow-forward" size={15} color="#F2EEE5" />
+        </Pressable>
       </View>
     </View>
-  );
+  </View>;
 }

@@ -1,3 +1,4 @@
+import { WorkerSchedulingStatus } from './WorkerSchedulingStatus'
 import { Link } from '@tanstack/react-router'
 import { type OrgMember } from '@/features/org-members/api'
 import { Avatar } from '@/shared/components/ui'
@@ -25,6 +26,7 @@ export function WorkerCard({ worker, index = 0 }: { worker: OrgMember; index?: n
         </span>
       </div>
 
+      <WorkerSchedulingStatus worker={worker} />
       <div className="border-t border-dashed border-line-soft pt-3 grid grid-cols-2 gap-3">
         <div>
           <p className="font-mono text-[9px] uppercase text-muted mb-0.5">Phone</p>

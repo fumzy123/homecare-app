@@ -14,6 +14,8 @@ from app.schemas.placement import (
     PlacementInterestSchema,
     PlacementResponse,
     PlacementDetailResponse,
+    PlacementAssignmentPreview,
+    PlacementApproval,
 )
 
 router = APIRouter(prefix="/placements", tags=["Placements"])
@@ -84,6 +86,18 @@ async def fill_placement(
     return service.fill_placement(placement_id, payload.employment_id)
 
 
+@router.get("/{placement_id}/workers/{employment_id}/eligibility", response_model=PlacementAssignmentPreview)
+def preview_assignment(placement_id: UUID, employment_id: UUID,
+    placement_service: PlacementService = Depends(get_placement_service)):
+    return placement_service.preview_assignment(placement_id, employment_id)
+
+
+@router.post("/{placement_id}/assign", response_model=PlacementDetailResponse)
+def assign_worker(placement_id: UUID, payload: PlacementFillSchema,
+    placement_service: PlacementService = Depends(get_placement_service)):
+    return placement_service.assign_worker(placement_id, payload.employment_id)
+
+
 # ─────────────────────────────────────────
 # 5. Close a placement without filling it
 # ─────────────────────────────────────────
@@ -105,7 +119,7 @@ async def express_interest(
     payload: PlacementInterestSchema,
     service: PlacementService = Depends(get_placement_worker_service),
 ):
-    service.express_interest(placement_id, service.employment_id, payload.note)
+    service.express_interest(placement_id, service.employment_id, payload.note, payload.care_slot_ids)
 
 
 # ─────────────────────────────────────────
@@ -117,3 +131,13 @@ async def withdraw_interest(
     service: PlacementService = Depends(get_placement_worker_service),
 ):
     service.withdraw_interest(placement_id, service.employment_id)
+
+@router.post('/{placement_id}/approval-review')
+def review_approval(placement_id: UUID, payload: PlacementApproval,
+    placement_service: PlacementService = Depends(get_placement_service)):
+    return placement_service.review_approval(placement_id, payload)
+
+@router.post('/{placement_id}/approve')
+def approve_coverage(placement_id: UUID, payload: PlacementApproval,
+    placement_service: PlacementService = Depends(get_placement_service)):
+    return placement_service.approve_coverage(placement_id, payload)

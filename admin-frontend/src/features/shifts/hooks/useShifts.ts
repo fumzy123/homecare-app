@@ -3,6 +3,22 @@ import { format, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { shiftsApi } from '@/features/shifts/api'
 
+export function useCalendarShifts(from: string, to: string, workerId?: string, clientId?: string) {
+  return useQuery({
+    queryKey: ['shifts', 'calendar', from, to, workerId, clientId],
+    queryFn: () => shiftsApi.listShifts(from, to, workerId || undefined, clientId || undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped']),
+  })
+}
+
+export function useTargetVisit(shiftId?: string, occurrenceDate?: string) {
+  return useQuery({
+    queryKey: ['shifts', 'attention-visit', shiftId, occurrenceDate],
+    enabled: !!shiftId && !!occurrenceDate,
+    queryFn: async () => (await shiftsApi.listShifts(occurrenceDate!, occurrenceDate!, undefined, undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped']))
+      .find(o => o.shift_id === shiftId && o.date === occurrenceDate) ?? null,
+  })
+}
+
 export function useTodayShifts() {
   const today = format(new Date(), 'yyyy-MM-dd')
   return useQuery({

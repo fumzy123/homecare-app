@@ -18,6 +18,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DpaRouteImport } from './routes/dpa'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
+import { Route as BillingOperationsRouteImport } from './routes/billing-operations'
+import { Route as AccountDeletionRouteImport } from './routes/account-deletion'
 import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
@@ -31,6 +33,7 @@ import { Route as ProtectedSettingsProfileRouteImport } from './routes/_protecte
 import { Route as ProtectedSettingsLegalRouteImport } from './routes/_protected/settings/legal'
 import { Route as ProtectedSettingsBillingRouteImport } from './routes/_protected/settings/billing'
 import { Route as ProtectedSettingsAgencyRouteImport } from './routes/_protected/settings/agency'
+import { Route as ProtectedDashboardActivityRouteImport } from './routes/_protected/dashboard/activity'
 import { Route as ProtectedDashboardWorkersIndexRouteImport } from './routes/_protected/dashboard/workers/index'
 import { Route as ProtectedDashboardTimesheetIndexRouteImport } from './routes/_protected/dashboard/timesheet/index'
 import { Route as ProtectedDashboardShiftsIndexRouteImport } from './routes/_protected/dashboard/shifts/index'
@@ -46,8 +49,9 @@ import { Route as ProtectedDashboardWorkersWorkerIdEditRouteImport } from './rou
 import { Route as ProtectedDashboardWorkersWorkerIdAttendanceRouteImport } from './routes/_protected/dashboard/workers/$workerId/attendance'
 import { Route as ProtectedDashboardClientsClientIdVisitsRouteImport } from './routes/_protected/dashboard/clients/$clientId/visits'
 import { Route as ProtectedDashboardClientsClientIdNotesRouteImport } from './routes/_protected/dashboard/clients/$clientId/notes'
+import { Route as ProtectedDashboardClientsClientIdFundingRouteImport } from './routes/_protected/dashboard/clients/$clientId/funding'
 import { Route as ProtectedDashboardClientsClientIdEditRouteImport } from './routes/_protected/dashboard/clients/$clientId/edit'
-import { Route as ProtectedDashboardClientsClientIdCarePlanRouteImport } from './routes/_protected/dashboard/clients/$clientId/care-plan'
+import { Route as ProtectedDashboardClientsClientIdCareNeedRouteImport } from './routes/_protected/dashboard/clients/$clientId/care-need'
 
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
@@ -92,6 +96,16 @@ const DpaRoute = DpaRouteImport.update({
 const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
   id: '/confirm-email',
   path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingOperationsRoute = BillingOperationsRouteImport.update({
+  id: '/billing-operations',
+  path: '/billing-operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountDeletionRoute = AccountDeletionRouteImport.update({
+  id: '/account-deletion',
+  path: '/account-deletion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptTermsRoute = AcceptTermsRouteImport.update({
@@ -160,6 +174,12 @@ const ProtectedSettingsAgencyRoute = ProtectedSettingsAgencyRouteImport.update({
   path: '/agency',
   getParentRoute: () => ProtectedSettingsRoute,
 } as any)
+const ProtectedDashboardActivityRoute =
+  ProtectedDashboardActivityRouteImport.update({
+    id: '/dashboard/activity',
+    path: '/dashboard/activity',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 const ProtectedDashboardWorkersIndexRoute =
   ProtectedDashboardWorkersIndexRouteImport.update({
     id: '/dashboard/workers/',
@@ -250,16 +270,22 @@ const ProtectedDashboardClientsClientIdNotesRoute =
     path: '/notes',
     getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
+const ProtectedDashboardClientsClientIdFundingRoute =
+  ProtectedDashboardClientsClientIdFundingRouteImport.update({
+    id: '/funding',
+    path: '/funding',
+    getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
+  } as any)
 const ProtectedDashboardClientsClientIdEditRoute =
   ProtectedDashboardClientsClientIdEditRouteImport.update({
     id: '/edit',
     path: '/edit',
     getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
-const ProtectedDashboardClientsClientIdCarePlanRoute =
-  ProtectedDashboardClientsClientIdCarePlanRouteImport.update({
-    id: '/care-plan',
-    path: '/care-plan',
+const ProtectedDashboardClientsClientIdCareNeedRoute =
+  ProtectedDashboardClientsClientIdCareNeedRouteImport.update({
+    id: '/care-need',
+    path: '/care-need',
     getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
 
@@ -267,6 +293,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/account-deletion': typeof AccountDeletionRoute
+  '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -278,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/settings': typeof ProtectedSettingsRouteWithChildren
   '/upgrade': typeof ProtectedUpgradeRoute
+  '/dashboard/activity': typeof ProtectedDashboardActivityRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/settings/billing': typeof ProtectedSettingsBillingRoute
   '/settings/legal': typeof ProtectedSettingsLegalRoute
@@ -293,8 +322,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
-  '/dashboard/clients/$clientId/care-plan': typeof ProtectedDashboardClientsClientIdCarePlanRoute
+  '/dashboard/clients/$clientId/care-need': typeof ProtectedDashboardClientsClientIdCareNeedRoute
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/dashboard/clients/$clientId/funding': typeof ProtectedDashboardClientsClientIdFundingRoute
   '/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
   '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
@@ -307,6 +337,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/account-deletion': typeof AccountDeletionRoute
+  '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -317,6 +349,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
   '/upgrade': typeof ProtectedUpgradeRoute
+  '/dashboard/activity': typeof ProtectedDashboardActivityRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/settings/billing': typeof ProtectedSettingsBillingRoute
   '/settings/legal': typeof ProtectedSettingsLegalRoute
@@ -330,8 +363,9 @@ export interface FileRoutesByTo {
   '/dashboard/shifts': typeof ProtectedDashboardShiftsIndexRoute
   '/dashboard/timesheet': typeof ProtectedDashboardTimesheetIndexRoute
   '/dashboard/workers': typeof ProtectedDashboardWorkersIndexRoute
-  '/dashboard/clients/$clientId/care-plan': typeof ProtectedDashboardClientsClientIdCarePlanRoute
+  '/dashboard/clients/$clientId/care-need': typeof ProtectedDashboardClientsClientIdCareNeedRoute
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/dashboard/clients/$clientId/funding': typeof ProtectedDashboardClientsClientIdFundingRoute
   '/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
   '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
@@ -346,6 +380,8 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/account-deletion': typeof AccountDeletionRoute
+  '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -357,6 +393,7 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
   '/_protected/upgrade': typeof ProtectedUpgradeRoute
+  '/_protected/dashboard/activity': typeof ProtectedDashboardActivityRoute
   '/_protected/settings/agency': typeof ProtectedSettingsAgencyRoute
   '/_protected/settings/billing': typeof ProtectedSettingsBillingRoute
   '/_protected/settings/legal': typeof ProtectedSettingsLegalRoute
@@ -372,8 +409,9 @@ export interface FileRoutesById {
   '/_protected/dashboard/shifts/': typeof ProtectedDashboardShiftsIndexRoute
   '/_protected/dashboard/timesheet/': typeof ProtectedDashboardTimesheetIndexRoute
   '/_protected/dashboard/workers/': typeof ProtectedDashboardWorkersIndexRoute
-  '/_protected/dashboard/clients/$clientId/care-plan': typeof ProtectedDashboardClientsClientIdCarePlanRoute
+  '/_protected/dashboard/clients/$clientId/care-need': typeof ProtectedDashboardClientsClientIdCareNeedRoute
   '/_protected/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
+  '/_protected/dashboard/clients/$clientId/funding': typeof ProtectedDashboardClientsClientIdFundingRoute
   '/_protected/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/_protected/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
   '/_protected/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
@@ -388,6 +426,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/accept-terms'
+    | '/account-deletion'
+    | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
     | '/forgot-password'
@@ -399,6 +439,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/settings'
     | '/upgrade'
+    | '/dashboard/activity'
     | '/settings/agency'
     | '/settings/billing'
     | '/settings/legal'
@@ -414,8 +455,9 @@ export interface FileRouteTypes {
     | '/dashboard/shifts/'
     | '/dashboard/timesheet/'
     | '/dashboard/workers/'
-    | '/dashboard/clients/$clientId/care-plan'
+    | '/dashboard/clients/$clientId/care-need'
     | '/dashboard/clients/$clientId/edit'
+    | '/dashboard/clients/$clientId/funding'
     | '/dashboard/clients/$clientId/notes'
     | '/dashboard/clients/$clientId/visits'
     | '/dashboard/workers/$workerId/attendance'
@@ -428,6 +470,8 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/accept-terms'
+    | '/account-deletion'
+    | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
     | '/forgot-password'
@@ -438,6 +482,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/welcome'
     | '/upgrade'
+    | '/dashboard/activity'
     | '/settings/agency'
     | '/settings/billing'
     | '/settings/legal'
@@ -451,8 +496,9 @@ export interface FileRouteTypes {
     | '/dashboard/shifts'
     | '/dashboard/timesheet'
     | '/dashboard/workers'
-    | '/dashboard/clients/$clientId/care-plan'
+    | '/dashboard/clients/$clientId/care-need'
     | '/dashboard/clients/$clientId/edit'
+    | '/dashboard/clients/$clientId/funding'
     | '/dashboard/clients/$clientId/notes'
     | '/dashboard/clients/$clientId/visits'
     | '/dashboard/workers/$workerId/attendance'
@@ -466,6 +512,8 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/accept-invite'
     | '/accept-terms'
+    | '/account-deletion'
+    | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
     | '/forgot-password'
@@ -477,6 +525,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/_protected/settings'
     | '/_protected/upgrade'
+    | '/_protected/dashboard/activity'
     | '/_protected/settings/agency'
     | '/_protected/settings/billing'
     | '/_protected/settings/legal'
@@ -492,8 +541,9 @@ export interface FileRouteTypes {
     | '/_protected/dashboard/shifts/'
     | '/_protected/dashboard/timesheet/'
     | '/_protected/dashboard/workers/'
-    | '/_protected/dashboard/clients/$clientId/care-plan'
+    | '/_protected/dashboard/clients/$clientId/care-need'
     | '/_protected/dashboard/clients/$clientId/edit'
+    | '/_protected/dashboard/clients/$clientId/funding'
     | '/_protected/dashboard/clients/$clientId/notes'
     | '/_protected/dashboard/clients/$clientId/visits'
     | '/_protected/dashboard/workers/$workerId/attendance'
@@ -508,6 +558,8 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AcceptInviteRoute: typeof AcceptInviteRoute
   AcceptTermsRoute: typeof AcceptTermsRoute
+  AccountDeletionRoute: typeof AccountDeletionRoute
+  BillingOperationsRoute: typeof BillingOperationsRoute
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   DpaRoute: typeof DpaRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -582,6 +634,20 @@ declare module '@tanstack/react-router' {
       path: '/confirm-email'
       fullPath: '/confirm-email'
       preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing-operations': {
+      id: '/billing-operations'
+      path: '/billing-operations'
+      fullPath: '/billing-operations'
+      preLoaderRoute: typeof BillingOperationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account-deletion': {
+      id: '/account-deletion'
+      path: '/account-deletion'
+      fullPath: '/account-deletion'
+      preLoaderRoute: typeof AccountDeletionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-terms': {
@@ -674,6 +740,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/agency'
       preLoaderRoute: typeof ProtectedSettingsAgencyRouteImport
       parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/dashboard/activity': {
+      id: '/_protected/dashboard/activity'
+      path: '/dashboard/activity'
+      fullPath: '/dashboard/activity'
+      preLoaderRoute: typeof ProtectedDashboardActivityRouteImport
+      parentRoute: typeof ProtectedRoute
     }
     '/_protected/dashboard/workers/': {
       id: '/_protected/dashboard/workers/'
@@ -780,6 +853,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardClientsClientIdNotesRouteImport
       parentRoute: typeof ProtectedDashboardClientsClientIdRoute
     }
+    '/_protected/dashboard/clients/$clientId/funding': {
+      id: '/_protected/dashboard/clients/$clientId/funding'
+      path: '/funding'
+      fullPath: '/dashboard/clients/$clientId/funding'
+      preLoaderRoute: typeof ProtectedDashboardClientsClientIdFundingRouteImport
+      parentRoute: typeof ProtectedDashboardClientsClientIdRoute
+    }
     '/_protected/dashboard/clients/$clientId/edit': {
       id: '/_protected/dashboard/clients/$clientId/edit'
       path: '/edit'
@@ -787,11 +867,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardClientsClientIdEditRouteImport
       parentRoute: typeof ProtectedDashboardClientsClientIdRoute
     }
-    '/_protected/dashboard/clients/$clientId/care-plan': {
-      id: '/_protected/dashboard/clients/$clientId/care-plan'
-      path: '/care-plan'
-      fullPath: '/dashboard/clients/$clientId/care-plan'
-      preLoaderRoute: typeof ProtectedDashboardClientsClientIdCarePlanRouteImport
+    '/_protected/dashboard/clients/$clientId/care-need': {
+      id: '/_protected/dashboard/clients/$clientId/care-need'
+      path: '/care-need'
+      fullPath: '/dashboard/clients/$clientId/care-need'
+      preLoaderRoute: typeof ProtectedDashboardClientsClientIdCareNeedRouteImport
       parentRoute: typeof ProtectedDashboardClientsClientIdRoute
     }
   }
@@ -819,8 +899,9 @@ const ProtectedSettingsRouteWithChildren =
   ProtectedSettingsRoute._addFileChildren(ProtectedSettingsRouteChildren)
 
 interface ProtectedDashboardClientsClientIdRouteChildren {
-  ProtectedDashboardClientsClientIdCarePlanRoute: typeof ProtectedDashboardClientsClientIdCarePlanRoute
+  ProtectedDashboardClientsClientIdCareNeedRoute: typeof ProtectedDashboardClientsClientIdCareNeedRoute
   ProtectedDashboardClientsClientIdEditRoute: typeof ProtectedDashboardClientsClientIdEditRoute
+  ProtectedDashboardClientsClientIdFundingRoute: typeof ProtectedDashboardClientsClientIdFundingRoute
   ProtectedDashboardClientsClientIdNotesRoute: typeof ProtectedDashboardClientsClientIdNotesRoute
   ProtectedDashboardClientsClientIdVisitsRoute: typeof ProtectedDashboardClientsClientIdVisitsRoute
   ProtectedDashboardClientsClientIdIndexRoute: typeof ProtectedDashboardClientsClientIdIndexRoute
@@ -828,10 +909,12 @@ interface ProtectedDashboardClientsClientIdRouteChildren {
 
 const ProtectedDashboardClientsClientIdRouteChildren: ProtectedDashboardClientsClientIdRouteChildren =
   {
-    ProtectedDashboardClientsClientIdCarePlanRoute:
-      ProtectedDashboardClientsClientIdCarePlanRoute,
+    ProtectedDashboardClientsClientIdCareNeedRoute:
+      ProtectedDashboardClientsClientIdCareNeedRoute,
     ProtectedDashboardClientsClientIdEditRoute:
       ProtectedDashboardClientsClientIdEditRoute,
+    ProtectedDashboardClientsClientIdFundingRoute:
+      ProtectedDashboardClientsClientIdFundingRoute,
     ProtectedDashboardClientsClientIdNotesRoute:
       ProtectedDashboardClientsClientIdNotesRoute,
     ProtectedDashboardClientsClientIdVisitsRoute:
@@ -872,6 +955,7 @@ const ProtectedDashboardWorkersWorkerIdRouteWithChildren =
 interface ProtectedRouteChildren {
   ProtectedSettingsRoute: typeof ProtectedSettingsRouteWithChildren
   ProtectedUpgradeRoute: typeof ProtectedUpgradeRoute
+  ProtectedDashboardActivityRoute: typeof ProtectedDashboardActivityRoute
   ProtectedDashboardIndexRoute: typeof ProtectedDashboardIndexRoute
   ProtectedDashboardClientsClientIdRoute: typeof ProtectedDashboardClientsClientIdRouteWithChildren
   ProtectedDashboardPlacementsPlacementIdRoute: typeof ProtectedDashboardPlacementsPlacementIdRoute
@@ -886,6 +970,7 @@ interface ProtectedRouteChildren {
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedSettingsRoute: ProtectedSettingsRouteWithChildren,
   ProtectedUpgradeRoute: ProtectedUpgradeRoute,
+  ProtectedDashboardActivityRoute: ProtectedDashboardActivityRoute,
   ProtectedDashboardIndexRoute: ProtectedDashboardIndexRoute,
   ProtectedDashboardClientsClientIdRoute:
     ProtectedDashboardClientsClientIdRouteWithChildren,
@@ -910,6 +995,8 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   AcceptInviteRoute: AcceptInviteRoute,
   AcceptTermsRoute: AcceptTermsRoute,
+  AccountDeletionRoute: AccountDeletionRoute,
+  BillingOperationsRoute: BillingOperationsRoute,
   ConfirmEmailRoute: ConfirmEmailRoute,
   DpaRoute: DpaRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

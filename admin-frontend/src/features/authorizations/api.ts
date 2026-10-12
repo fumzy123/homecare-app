@@ -98,8 +98,8 @@ export const authorizationsApi = {
     return data
   },
 
-  compliance: async (clientId: string): Promise<AuthorizationCompliance> => {
-    const { data } = await apiClient.get(`/api/clients/${clientId}/authorization-compliance`)
+  compliance: async (clientId: string, onDate?: string): Promise<AuthorizationCompliance> => {
+    const { data } = await apiClient.get(`/api/clients/${clientId}/authorization-compliance`, { params: { on_date: onDate } })
     return data
   },
 

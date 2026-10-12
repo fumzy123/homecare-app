@@ -8,6 +8,7 @@ from app.models.person import Person
 from app.models.employment import Employment
 from app.core.enums import OrgMemberRole, ADMIN_ROLES  # noqa: F401  (re-exported for callers)
 from app.core.exceptions import AppError
+from app.core.config import settings
 
 security = HTTPBearer()
 
@@ -23,6 +24,15 @@ async def get_current_user(token=Depends(security)) -> SupabaseUser:
         raise
     except Exception:
         raise AppError(status_code=401, code="UNAUTHORIZED", message="Invalid or expired token")
+
+
+async def require_billing_operator(
+    current_user: SupabaseUser = Depends(get_current_user),
+) -> SupabaseUser:
+    # Trusted server configuration, never user-editable metadata or agency roles.
+    if str(current_user.id) not in settings.billing_operator_user_ids:
+        raise AppError(403, "FORBIDDEN", "Care Harbor billing operators only")
+    return current_user
 
 
 def _get_active_employment(current_user: SupabaseUser, db: Session) -> Employment | None:

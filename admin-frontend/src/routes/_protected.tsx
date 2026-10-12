@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, Outlet, Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { createFileRoute, redirect, Outlet, Link, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useBillingStatus } from '@/features/billing/hooks/useBillingStatus'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
@@ -8,8 +8,9 @@ import { isAdminRole } from '@/shared/lib/roles'
 import { useAuthStore } from '@/shared/stores/auth'
 import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
-import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
+import { AttentionProvider } from '@/features/attention/components/AttentionProvider'
+import { BillingAccessBanner } from '@/features/billing/components/BillingAccessBanner'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: async () => {
@@ -59,36 +60,12 @@ function WorkerAccessDenied() {
   )
 }
 
-function PaymentGate() {
-  const navigate = useNavigate()
-
-  return (
-    <div className="min-h-screen bg-cream flex items-center justify-center px-6">
-      <div className="max-w-md w-full border border-ink bg-paper p-12 text-center">
-        <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted mb-3">Trial expired</p>
-        <h1 className="font-serif text-[36px] leading-none font-medium tracking-[-0.02em] mb-4">
-          Ready to continue?
-        </h1>
-        <p className="text-ink-soft text-[14px] leading-relaxed mb-10">
-          Your 14-day free trial has ended. Subscribe for $700/month to keep your agency running.
-        </p>
-        <button
-          onClick={() => navigate({ to: '/upgrade' })}
-          className="w-full py-3.5 bg-orange text-white font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 transition-opacity"
-        >
-          Subscribe — $700 / month
-        </button>
-      </div>
-    </div>
-  )
-}
-
 function ProtectedLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user } = useAuthStore()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
-  const { data: billingStatus, isLoading: billingLoading } = useBillingStatus(user?.id)
+  const { data: billingStatus, isLoading: billingLoading, isError: billingError } = useBillingStatus(user?.id)
 
   if (!isAdminRole(user?.role)) {
     return <WorkerAccessDenied />
@@ -102,11 +79,6 @@ function ProtectedLayout() {
     )
   }
 
-  // Let expired-trial users through to /upgrade so they can subscribe
-  if (billingStatus?.has_access === false && pathname !== '/upgrade') {
-    return <PaymentGate />
-  }
-
   // Fullscreen routes — no sidebar or topbar
   if (pathname === '/upgrade') {
     return (
@@ -117,7 +89,7 @@ function ProtectedLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-cream overflow-hidden">
+    <AttentionProvider key={user?.id} userId={user?.id ?? ''}><div className="flex h-screen bg-cream overflow-hidden">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-ink/30 max-lg:block hidden"
@@ -139,27 +111,29 @@ function ProtectedLayout() {
             </button>
             <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft truncate">
               HMCR-2026 · Admin Console
+              {billingStatus?.is_onboarding && <Link to="/settings/billing" className="ml-3 text-orange font-bold hover:underline">· Onboarding</Link>}
               {billingStatus?.is_trial_active && billingStatus?.subscription_status !== 'active' && (
-                <Link to="/upgrade" className="ml-3 text-orange font-bold hover:underline">
-                  · Trial: {billingStatus.trial_days_left} days left · Subscribe
+                <Link to={billingStatus.new_billing_flow ? '/settings/billing' : '/upgrade'} className="ml-3 text-orange font-bold hover:underline">
+                  · Trial: {billingStatus.trial_days_left} days left · Manage billing
                 </Link>
               )}
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <NotificationBell />
             <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-ink-soft max-sm:hidden">
               WK {weekNum} · {wkStart}–{wkEnd} · {now.getFullYear()}
             </span>
           </div>
         </div>
 
+        {billingStatus?.has_access === false && <BillingAccessBanner owner={user?.role === 'owner'} />}
+        {billingError && <div role="alert" className="border-b border-ink px-6 py-3 text-sm">Billing status is temporarily unavailable. You can still view records; changes require an active subscription or trial.</div>}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
 
       <OvertimeReviewDrawer />
-    </div>
+    </div></AttentionProvider>
   )
 }

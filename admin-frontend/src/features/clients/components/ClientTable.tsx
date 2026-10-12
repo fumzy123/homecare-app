@@ -68,8 +68,8 @@ const columns = [
     header: 'Worker',
     cell: ({ row }) => (
       <span className="text-gray-600">
-        {row.original.assigned_worker
-          ? `${row.original.assigned_worker.first_name} ${row.original.assigned_worker.last_name}`
+        {row.original.care_team?.length
+          ? row.original.care_team.map(w => `${w.first_name} ${w.last_name}`).join(', ')
           : '—'}
       </span>
     ),

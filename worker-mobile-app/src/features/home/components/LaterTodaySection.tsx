@@ -16,7 +16,7 @@ export function LaterTodaySection({ shifts, onShiftPress }: LaterTodaySectionPro
       <Kicker className="mb-3">Later Today</Kicker>
       {shifts.map((shift) => (
         <CompactShiftRow
-          key={shift.shift_id}
+          key={`${shift.shift_id}:${shift.date}`}
           shift={shift}
           onPress={() => onShiftPress?.(shift)}
           className="mb-2"

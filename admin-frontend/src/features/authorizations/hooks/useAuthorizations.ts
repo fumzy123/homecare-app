@@ -16,10 +16,10 @@ export function useExpiringAuthorizations() {
   })
 }
 
-export function useAuthorizationCompliance(clientId: string) {
+export function useAuthorizationCompliance(clientId: string, onDate?: string) {
   return useQuery({
-    queryKey: ['authorization-compliance', clientId],
-    queryFn: () => authorizationsApi.compliance(clientId),
+    queryKey: ['authorization-compliance', clientId, onDate],
+    queryFn: () => authorizationsApi.compliance(clientId, onDate),
     enabled: !!clientId,
   })
 }
@@ -27,10 +27,15 @@ export function useAuthorizationCompliance(clientId: string) {
 export function useCreateAuthorization(clientId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: AuthorizationCreatePayload) => authorizationsApi.create(clientId, payload),
+    mutationFn: (payload: AuthorizationCreatePayload) =>
+      authorizationsApi.create(clientId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['authorizations', clientId] })
       qc.invalidateQueries({ queryKey: ['authorization-compliance', clientId] })
+      qc.invalidateQueries({ queryKey: ['expiring-authorizations'] })
+      qc.invalidateQueries({ queryKey: ['client', clientId] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['attention-items'] })
     },
   })
 }
@@ -38,10 +43,15 @@ export function useCreateAuthorization(clientId: string) {
 export function useCancelAuthorization(clientId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (authorizationId: string) => authorizationsApi.cancel(authorizationId),
+    mutationFn: (authorizationId: string) =>
+      authorizationsApi.cancel(authorizationId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['authorizations', clientId] })
       qc.invalidateQueries({ queryKey: ['authorization-compliance', clientId] })
+      qc.invalidateQueries({ queryKey: ['expiring-authorizations'] })
+      qc.invalidateQueries({ queryKey: ['client', clientId] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['attention-items'] })
     },
   })
 }

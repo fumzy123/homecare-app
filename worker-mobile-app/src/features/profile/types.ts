@@ -1,5 +1,6 @@
 export interface WorkerProfile {
   id: string;
+  agency_name: string;
   // Identity
   first_name: string;
   last_name: string;
@@ -20,7 +21,7 @@ export interface WorkerProfile {
   province: string | null;
   postal_code: string | null;
   // Scheduling & preferences
-  availability: Record<string, unknown> | null;
+  availability: AvailabilityEntry[];
   max_hours_per_week: number | null;
   pet_tolerance: string | null;
   preferred_client_types: string[] | null;
@@ -83,11 +84,13 @@ export const ALL_DOCUMENT_TYPES: ComplianceDocumentType[] = [
 
 export interface Credential {
   id: string;
-  org_member_id: string;
+  person_id: string;
   document_type: ComplianceDocumentType;
   expiry_date: string | null;
   file_url: string | null;
-  uploaded_at: string;
+  uploaded_at: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
 }
 
 export interface WorkerProfileUpdatePayload {
@@ -101,6 +104,16 @@ export interface WorkerProfileUpdatePayload {
   emergency_contact_name?: string | null;
   emergency_contact_phone?: string | null;
   emergency_contact_relationship?: string | null;
+  pet_tolerance?: string | null;
+  has_vehicle?: boolean | null;
+}
+
+export type WeekDay = 'SU' | 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA';
+export interface AvailabilityEntry {
+  id?: string;
+  day_of_week: WeekDay;
+  start_time: string;
+  end_time: string;
 }
 
 export type CredentialStatus = 'valid' | 'expiring' | 'expired';
@@ -109,7 +122,7 @@ export function computeCredentialStatus(expiry_date: string | null): CredentialS
   if (!expiry_date) return 'valid';
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiry_date);
+  const expiry = new Date(`${expiry_date}T00:00:00`);
   if (expiry < today) return 'expired';
   const sixtyDaysOut = new Date(today);
   sixtyDaysOut.setDate(today.getDate() + 60);

@@ -38,6 +38,13 @@ class NotificationRepository:
         )
         self.db.add(notification)
         self.db.flush()
+        from app.domain.activity import notification_key
+        notification.situation_key = notification_key(type, payload, about_worker_id, notification.id)
+        if type == NotificationType.placement_interest_received:
+            from app.models.placement import Placement
+            placement = self.db.query(Placement).filter(Placement.id == payload.get('placement_id'), Placement.org_id == org_id).first()
+            if placement and placement.weekly_care_need_id:
+                notification.situation_key = f'care:{placement.weekly_care_need_id}'
         return notification
 
     def create_reads_for_admins(self, notification_id: UUID, org_id: UUID) -> None:
@@ -96,21 +103,6 @@ class NotificationRepository:
         notification.resolved_by = resolved_by
         self.db.flush()
         return notification
-
-    def purge_old_reads(self, cutoff: datetime) -> int:
-        rows = (
-            self.db.query(Notification)
-            .filter(
-                Notification.resolved_at.isnot(None),
-                Notification.created_at < cutoff,
-            )
-            .all()
-        )
-        count = len(rows)
-        for row in rows:
-            self.db.delete(row)
-        self.db.flush()
-        return count
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
@@ -258,14 +250,38 @@ class NotificationRepository:
         return [r.id for r in rows]
 
     def _get_worker_ids(self, org_id: UUID) -> list[UUID]:
-        from app.core.enums import OrgMemberRole
+        from app.core.enums import OrgMemberRole, EmploymentStatus
         rows = (
             self.db.query(Employment.id)
             .filter(
                 Employment.org_id == org_id,
                 Employment.role == OrgMemberRole.home_support_worker,
+                Employment.employment_status == EmploymentStatus.active,
                 Employment.deleted_at.is_(None),
             )
             .all()
         )
         return [r.id for r in rows]
+
+    def resolve_placement_interest(self, org_id, placement_id, open_slot_ids, resolver_id):
+        """Resolve only interest alerts whose requested slots are no longer open."""
+        notices = self.db.query(Notification).filter(
+            Notification.org_id == org_id,
+            Notification.type == NotificationType.placement_interest_received,
+            Notification.payload['placement_id'].astext == str(placement_id),
+            Notification.resolved_at.is_(None),
+        ).all()
+        available = set(open_slot_ids)
+        for notice in notices:
+            if not available.intersection(notice.payload.get('care_slot_ids', [])):
+                self.mark_resolved(notice, resolver_id)
+
+    def resolve_worker_interest(self, org_id, placement_id, worker_id, resolver_id):
+        for notice in self.db.query(Notification).filter(
+            Notification.org_id == org_id,
+            Notification.type == NotificationType.placement_interest_received,
+            Notification.payload['placement_id'].astext == str(placement_id),
+            Notification.about_worker_id == worker_id,
+            Notification.resolved_at.is_(None),
+        ).all():
+            self.mark_resolved(notice, resolver_id)

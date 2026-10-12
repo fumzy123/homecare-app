@@ -1,4 +1,5 @@
 import stripe
+from app.domain.billing_access import billing_access
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -6,6 +7,11 @@ from app.core.config import settings
 from app.core.exceptions import AppError
 from app.models.organization import Organization
 from app.repositories.organization_repository import OrganizationRepository
+from app.services.billing_onboarding_service import BillingOnboardingService, subscription_period_end, stripe_field
+from app.repositories.founding_offer_repository import FoundingOfferRepository
+from app.services.founding_offer_service import FoundingOfferService
+from app.repositories.founding_conversion_repository import FoundingConversionRepository
+from app.services.founding_conversion_service import reconcile_conversion
 
 stripe.api_key = settings.stripe_secret_key
 
@@ -21,6 +27,8 @@ class BillingService:
         self.db = db
         self.current_user = current_user
         self.org_repo = OrganizationRepository(db)
+        self.founding_offer_repo = FoundingOfferRepository(db)
+        self.conversion_repo = FoundingConversionRepository(db)
         # org_id is None for the webhook route (no auth — Stripe signature used instead)
         self.org_id = org_id
 
@@ -42,32 +50,10 @@ class BillingService:
     # 1. Create subscription + return PaymentIntent client_secret
     # ─────────────────────────────────────────
     async def create_subscription_intent(self) -> dict:
-        try:
-            org = self.org_repo.get_by_id(self.org_id)
-            if not org:
-                raise AppError(404, "NOT_FOUND", "Organization not found")
-            if org.subscription_status == "active":
-                raise AppError(400, "ALREADY_SUBSCRIBED", "This organization already has an active subscription")
-
-            customer_id = self._get_or_create_customer(org)
-
-            subscription = stripe.Subscription.create(
-                customer=customer_id,
-                items=[{"price": settings.stripe_price_id}],
-                payment_behavior="default_incomplete",
-                payment_settings={"save_default_payment_method": "on_subscription"},
-                expand=["latest_invoice.confirmation_secret"],
-            )
-
-            org.subscription_id = subscription.id
-            self.db.commit()
-
-            return {"client_secret": subscription.latest_invoice.confirmation_secret.client_secret}
-
-        except AppError:
-            raise
-        except Exception as e:
-            raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+        # Retain the endpoint for old clients, but never create a subscription
+        # against the retired single-price configuration. New enrollment needs
+        # server-owned plan selection, consent, and trial activation.
+        raise AppError(409, "USE_ONBOARDING", "Choose your plan through billing onboarding. Contact Care Harbor if your account is not enrolled yet.")
 
     # ─────────────────────────────────────────
     # 2. Create SetupIntent for updating the card
@@ -170,6 +156,36 @@ class BillingService:
         except Exception as e:
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
+    async def invoice_history(self, before=None):
+        org = self.org_repo.get_by_id(self.org_id)
+        if not org:
+            raise AppError(404, "NOT_FOUND", "Organization not found")
+        customer_id = org.stripe_customer_id
+        if not customer_id:
+            return {"invoices": [], "next_cursor": None}
+        try:
+            if before:
+                cursor = stripe.Invoice.retrieve(before)
+                if stripe_field(cursor, "customer") != customer_id:
+                    raise AppError(404, "NOT_FOUND", "Invoice not found")
+            params = {"customer": customer_id, "limit": 20}
+            if before:
+                params["starting_after"] = before
+            page = stripe.Invoice.list(**params)
+            invoices = [{"id": inv.id, "number": stripe_field(inv, "number"),
+                "created": inv.created, "description": stripe_field(inv, "description") or "Care Harbor subscription and usage",
+                "total": inv.total, "amount_paid": inv.amount_paid, "amount_remaining": inv.amount_remaining,
+                "currency": inv.currency, "status": inv.status,
+                "hosted_invoice_url": stripe_field(inv, "hosted_invoice_url"),
+            } for inv in page.data]
+            return {"invoices": invoices, "next_cursor": invoices[-1]["id"] if page.has_more and invoices else None}
+        except AppError:
+            raise
+        except stripe.InvalidRequestError as exc:
+            raise AppError(400, "INVALID_INVOICE_REQUEST", "Could not load this invoice page") from exc
+        except Exception as exc:
+            raise AppError(503, "BILLING_UNAVAILABLE", "Invoice history is temporarily unavailable") from exc
+
     # ─────────────────────────────────────────
     # 5. Stripe webhook handler
     # ─────────────────────────────────────────
@@ -180,65 +196,116 @@ class BillingService:
             )
         except ValueError:
             raise AppError(400, "INVALID_PAYLOAD", "Invalid webhook payload")
-        except stripe.error.SignatureVerificationError:
+        except stripe.SignatureVerificationError:
             raise AppError(400, "INVALID_SIGNATURE", "Invalid webhook signature")
 
-        event_type = event["type"]
-        data = event["data"]["object"]
+        from app.services.billing_webhook_service import BillingWebhookService
+        return BillingWebhookService(self.db).receive(event)
 
-        if event_type in ("customer.subscription.created", "customer.subscription.updated"):
+    def dispatch_webhook(self, event_type, data):
+        if event_type == "checkout.session.completed":
+            org = self.org_repo.get_by_stripe_customer_id(data.customer)
+            if org and data.mode == "setup":
+                service = BillingOnboardingService(self.db, org_id=org.id)
+                agreement = service.agreement_repo.get_for_org(org.id)
+                if agreement and agreement.checkout_session_id == data.id and not agreement.canceled_at:
+                    service.confirm_card()
+        elif event_type == "invoice.created":
+            from app.services.billing_invoice_hold_service import BillingInvoiceHoldService
+            BillingInvoiceHoldService(self.db).hold(data.id)
+        elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
             self._handle_subscription_updated(data)
         elif event_type == "customer.subscription.deleted":
             self._handle_subscription_deleted(data)
         elif event_type == "invoice.payment_failed":
             self._handle_payment_failed(data)
-        elif event_type == "invoice.payment_succeeded":
+        elif event_type in ("invoice.payment_succeeded", "invoice.paid") and data.status == "paid":
             self._handle_payment_succeeded(data)
-
-        return {"received": True}
+        if event_type in ("invoice.payment_failed", "invoice.payment_succeeded", "invoice.paid",
+                          "invoice.voided", "invoice.marked_uncollectible"):
+            from app.services.billing_notice_service import BillingNoticeService
+            BillingNoticeService(self.db).payment_status(data)
 
     def _handle_subscription_updated(self, subscription) -> None:
         try:
-            org = self.org_repo.get_by_stripe_customer_id(subscription.customer)
+            org = self.org_repo.lock_by_stripe_customer_id(subscription.customer)
             if org:
+                if org.subscription_id and org.subscription_id != subscription.id:
+                    self.db.commit()
+                    return
+                # Fetch under the organization lock so concurrent stale events
+                # cannot overwrite a newer status after another handler commits.
+                subscription = stripe.Subscription.retrieve(subscription.id)
+                from app.services.billing_plan_service import reconcile_standard_plan
+                reconcile_standard_plan(BillingOnboardingService(self.db, org_id=org.id).agreement_repo.get_for_org(org.id), subscription)
                 org.subscription_id = subscription.id
                 org.subscription_status = subscription.status
-                org.subscription_current_period_end = datetime.fromtimestamp(
-                    subscription.current_period_end, tz=timezone.utc
-                )
+                org.subscription_current_period_end = subscription_period_end(subscription)
+                if org.onboarding_deadline_at is not None:
+                    reconcile_conversion(self.conversion_repo.get_for_org(org.id), subscription, datetime.now(timezone.utc))
+                    activation = BillingOnboardingService(self.db, org_id=org.id).trial_activation_repo.get_for_org(org.id)
+                    org.trial_starts_at = activation.starts_at if activation else (
+                        datetime.fromtimestamp(subscription.trial_start, timezone.utc) if subscription.trial_start else None)
+                    org.trial_ends_at = datetime.fromtimestamp(subscription.trial_end or subscription.start_date, timezone.utc)
+                    if subscription.status == "canceled" or stripe_field(subscription, "cancel_at_period_end", False):
+                        offer = self.founding_offer_repo.get_for_org(org.id)
+                        if offer and offer.forfeited_at is None:
+                            offer.forfeited_at = datetime.now(timezone.utc)
+                self.db.commit()
+            else:
                 self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     def _handle_subscription_deleted(self, subscription) -> None:
         try:
-            org = self.org_repo.get_by_stripe_customer_id(subscription.customer)
+            org = self.org_repo.lock_by_stripe_customer_id(subscription.customer)
             if org:
+                if org.subscription_id != subscription.id:
+                    self.db.commit()
+                    return
                 org.subscription_status = "canceled"
-                org.subscription_current_period_end = datetime.fromtimestamp(
-                    subscription.current_period_end, tz=timezone.utc
-                )
+                offer = self.founding_offer_repo.get_for_org(org.id)
+                if offer and offer.forfeited_at is None:
+                    offer.forfeited_at = datetime.now(timezone.utc)
+                org.subscription_current_period_end = subscription_period_end(subscription)
+                self.db.commit()
+            else:
                 self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     def _handle_payment_failed(self, invoice) -> None:
         try:
             org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
             if org:
-                org.subscription_status = "past_due"
-                self.db.commit()
+                if org.subscription_id:
+                    self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
+                else:
+                    self.db.commit()
         except Exception:
             self.db.rollback()
+            raise
 
     def _handle_payment_succeeded(self, invoice) -> None:
         try:
             org = self.org_repo.get_by_stripe_customer_id(invoice.customer)
-            if org and not org.paid_at:
+            if org and org.subscription_id:
+                self._handle_subscription_updated(stripe.Subscription.retrieve(org.subscription_id))
+            if org and not org.paid_at and invoice.amount_paid > 0:
                 org.paid_at = datetime.now(timezone.utc)
                 self.db.commit()
+            if org and invoice.amount_paid > 0 and org.trial_ends_at:
+                parent = stripe_field(invoice, "parent") or {}
+                details = stripe_field(parent, "subscription_details") or {}
+                invoice_subscription = stripe_field(invoice, "subscription") or stripe_field(details, "subscription")
+                if invoice_subscription == org.subscription_id:
+                    FoundingOfferService(self.db).record_paid_period(org.id, org.trial_ends_at)
         except Exception:
             self.db.rollback()
+            raise
 
     # ─────────────────────────────────────────
     # 6. Customer portal
@@ -253,7 +320,7 @@ class BillingService:
 
             session = stripe.billing_portal.Session.create(
                 customer=org.stripe_customer_id,
-                return_url=f"{settings.frontend_url}/settings",
+                return_url=f"{settings.frontend_url}/settings/billing",
             )
             return {"url": session.url}
 
@@ -272,6 +339,8 @@ class BillingService:
                 raise AppError(404, "NOT_FOUND", "Organization not found")
 
             trial_duration = 14
+            if org.onboarding_deadline_at is not None:
+                return BillingOnboardingService(self.db, self.current_user, self.org_id).summary(org)
             now = datetime.now(timezone.utc)
             created_at = org.created_at
             if created_at.tzinfo is None:
@@ -279,15 +348,19 @@ class BillingService:
             trial_ends_at = created_at + timedelta(days=trial_duration)
             is_trial_active = now < trial_ends_at
             days_left = max(0, (trial_ends_at - now).days)
-            has_access = org.subscription_status == "active" or is_trial_active
+            access = billing_access(org, now)
+            has_access = access.can_write
 
             return {
+                "billing_timezone": org.billing_timezone,
                 "subscription_status": org.subscription_status,
                 "subscription_current_period_end": org.subscription_current_period_end,
                 "is_trial_active": is_trial_active,
                 "trial_days_left": days_left,
                 "trial_ends_at": trial_ends_at,
                 "has_access": has_access,
+                "can_write": access.can_write,
+                "is_read_only": not access.can_write,
             }
 
         except AppError:

@@ -3,9 +3,11 @@ from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
 from app.core.enums import ClientStatus, ServiceType, AuthorizationCoverage, CareArrangement
+from app.schemas.weekly_care_need import WeeklyCareNeedResponse
 
 
-class AssignedWorkerResponse(BaseModel):
+class CareTeamMember(BaseModel):
+    coverage: list[str] = []
     id: UUID
     first_name: str
     last_name: str
@@ -38,7 +40,6 @@ class ClientCreateSchema(BaseModel):
     postal_code: str
 
     # Assignment (optional on create)
-    assigned_worker_id: Optional[UUID] = None
 
     # Medical
     medical_conditions: Optional[str] = None
@@ -74,7 +75,6 @@ class ClientUpdateSchema(BaseModel):
     postal_code: Optional[str] = None
 
     # Assignment
-    assigned_worker_id: Optional[UUID] = None
 
     # Medical
     medical_conditions: Optional[str] = None
@@ -112,8 +112,8 @@ class ClientResponse(BaseModel):
 
     # Organization & Assignment
     org_id: UUID
-    assigned_worker_id: Optional[UUID]
-    assigned_worker: Optional[AssignedWorkerResponse]
+    care_team: list[CareTeamMember] = []
+    current_care_need: WeeklyCareNeedResponse | None = None
 
     # Medical
     medical_conditions: Optional[str]

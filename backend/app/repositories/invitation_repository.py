@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.models.invitation import Invitation
 from app.models.person import Person
 from app.models.employment import Employment
@@ -41,6 +42,15 @@ class InvitationRepository:
             Invitation.org_id == org_id,
             Invitation.email == email,
         ).first()
+
+    def get_pending_for_identity(self, user_id, email: str, *, lock=False) -> Invitation | None:
+        query = self.db.query(Invitation).filter(
+            Invitation.supabase_user_id == user_id,
+            func.lower(Invitation.email) == email.lower(),
+        )
+        if lock:
+            query = query.with_for_update().populate_existing()
+        return query.first()
 
     def get_by_id_and_org(self, invitation_id, org_id) -> Invitation:
         invitation = self.db.query(Invitation).filter(

@@ -14,6 +14,14 @@ from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
 from app.jobs.shift_completion import mark_shifts_completed
+from app.jobs.push_delivery import deliver_worker_pushes
+from app.jobs.trial_activation import request_due_trials
+from app.jobs.founding_conversion import process_founding_conversions
+from app.jobs.billing_finalization import finalize_due_billing_periods
+from app.jobs.billing_period_recovery import recover_billing_periods
+from app.jobs.billing_settlement import settle_billing_usage
+from app.jobs.billing_webhooks import retry_billing_webhooks
+from app.jobs.billing_notices import send_billing_trial_reminders
 
 # Import models so SQLAlchemy knows they exist (DO NOT DELETE)
 from app.models.organization import Organization             # noqa: F401
@@ -61,6 +69,14 @@ scheduler = AsyncIOScheduler()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     scheduler.add_job(mark_shifts_completed, "interval", minutes=15)
+    scheduler.add_job(request_due_trials, "interval", minutes=15)
+    scheduler.add_job(process_founding_conversions, "interval", minutes=15)
+    scheduler.add_job(recover_billing_periods, "interval", minutes=15)
+    scheduler.add_job(finalize_due_billing_periods, "interval", minutes=15)
+    scheduler.add_job(settle_billing_usage, "interval", minutes=15)
+    scheduler.add_job(retry_billing_webhooks, "interval", minutes=5)
+    scheduler.add_job(send_billing_trial_reminders, "interval", minutes=15)
+    scheduler.add_job(deliver_worker_pushes, "interval", seconds=30, max_instances=1, coalesce=True)
     scheduler.start()
     yield
     scheduler.shutdown()
@@ -91,6 +107,8 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://homecare-app-production-admin-frontend.vercel.app",
+        "https://www.careharbor.online",
+        "https://careharbor.online",
         "https://homecare-app-git-staging-fumezs-projects.vercel.app",
     ],
     allow_origin_regex=r"https://homecare-app-.*\.vercel\.app",

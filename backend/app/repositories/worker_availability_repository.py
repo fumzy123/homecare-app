@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from app.models.worker_availability import WorkerAvailabilityEntry
 from app.models.employment import Employment
+from app.models.person import Person
 from app.core.enums import WeekDay, EmploymentStatus
 
 
@@ -20,6 +21,8 @@ class WorkerAvailabilityRepository:
 
     def replace_for_person(self, person_id: UUID, entries: list[WorkerAvailabilityEntry]) -> list[WorkerAvailabilityEntry]:
         """PUT semantics — availability is edited as a whole."""
+        # Serialize whole-week replacements, including concurrent admin/worker edits.
+        self.db.query(Person).filter(Person.id == person_id).with_for_update().one()
         self.db.query(WorkerAvailabilityEntry).filter(
             WorkerAvailabilityEntry.person_id == person_id
         ).delete(synchronize_session=False)

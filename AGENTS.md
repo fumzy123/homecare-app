@@ -40,7 +40,7 @@ No monorepo tooling (Turborepo/Nx). Each app manages its own dependencies indepe
 | Payments | Stripe |
 | Task scheduler | APScheduler |
 | Web framework | React 19 + Vite + TypeScript |
-| Mobile framework| React Native (0.81.5) + Expo (SDK 54) + NativeWind v4 |
+| Mobile framework| React Native (0.86.3) + Expo (SDK 57) + NativeWind v4 |
 | Routing | TanStack Router (file-based) |
 | Server state | TanStack Query + Axios |
 | Client state | Zustand (auth only) |
@@ -71,9 +71,9 @@ call repositories). A domain object is **not** a `Service`: no router factory, n
 transactions, no `current_user`. Two kinds:
 
 - **Pure functions** — data in, decision out, no I/O. E.g.
-  `domain/availability.py::availability_covers_care_plan(availability, care_plan)`;
+  `domain/availability.py::availability_covers_care_need(availability, care_slots)`;
   the occurrence/RRULE math in `domain/scheduling.py` (`expand_occurrences`,
-  `timeblock_for_occurrence`, `iso_week_range`, `weekly_entries_to_time_blocks`).
+  `timeblock_for_occurrence`, `iso_week_range`, `care_slots_to_time_blocks`).
 - **Repository-backed collaborators** — read-only, `__init__(self, db, org_id)`,
   no commits. E.g. `domain/scheduling.py::SchedulingChecker` (`find_conflicts`,
   `find_hours_violations`), used by both `ShiftService` and `PlacementService`.
@@ -214,11 +214,15 @@ VITE_SENTRY_DSN=                 # Optional
 VITE_APP_ENV=development
 ```
 
-### Mobile App (`worker-mobile-app/.env.local`)
+### Mobile App (selected environment file in `worker-mobile-app`)
+
+`start:local` reads `.env.local`, `start:staging` reads `.env.staging`, and
+`start:production` reads `.env.production`. Supply matching URLs and a public key
+from the same environment. Neither the Git branch nor `APP_ENV` alone selects these.
 
 ```
 EXPO_PUBLIC_BACKEND_API_URL=https://xxxxx.ngrok-free.app   # ngrok tunnel URL (see Mobile Dev Gotchas)
-EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_URL=   # Local phone preview also needs a reachable auth URL/tunnel
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY= # Publishable key — safe for frontend
 ```
 
@@ -254,7 +258,9 @@ npm run build        # TypeScript check + Vite build
 
 ```bash
 cd worker-mobile-app
-npx expo start --tunnel --clear
+npm run start:local -- --tunnel --go
+# Hosted staging accounts and backend:
+npm run start:staging -- --tunnel --go
 ```
 
 ---
@@ -298,70 +304,192 @@ lookback window, skip already-finalized rows) — see `app/jobs/shift_completion
 
 ---
 
-## The Care Chain — Authorization → Plan → Delivery
+## The Care Chain — Authorization → Weekly Care Need → Scheduled Care
 
-Three objects sit at three levels: **entitlement → demand → supply**. The
-client's weekly care plan is the linchpin — it's the only artifact that must
-satisfy both the funder's cap *and* the agency's labor supply at once.
+Authorization is the funding limit; a **Weekly Care Need** is the client's recurring demand;
+a **Care Slot** is one weekday, time interval and service within a version of that need.
+Worker availability is capacity, and approved shifts are scheduled delivery.
 
-| Layer | What it is | Owner | Unit |
+Use these names throughout the stack:
+
+| Concept | Model / frontend | Table | API |
 |---|---|---|---|
-| **Authorization hours** | The funder's cap, per service | Health institution / funder | Per service, normalized to the **bi-weekly** payment window |
-| **Weekly care plan** | Recurring weekly care entries (day/time/service) — `WeeklyCarePlanEntry` | Agency | **Weekly** (×2 to compare bi-weekly) |
-| **Worker availability** | Recurring weekly windows a worker can work — `WorkerAvailabilityEntry` (+ `max_hours_per_week`) | Worker / agency | Weekly interval entries |
+| Versioned weekly demand | `WeeklyCareNeed` | `weekly_care_needs` | `/clients/{id}/care-need` |
+| Individual recurring requirement | `CareSlot` | `care_slots` | Nested in the Weekly Care Need |
+| Approved slot coverage | `CareSlotAssignment` | `care_slot_assignments` | `/placements/{id}/approve` |
+| Worker availability | `WorkerAvailabilityEntry` | `worker_availability_entries` | `/org-members/{id}/availability` |
+| Scheduled visit series | `Shift` | `shifts` | `/shifts` |
 
-### Vocabulary — one name per concept, FE → BE → DB
+### Version and approval flow
 
-The scheduling concepts use **one consistent name at every layer** so a new dev
-never meets two names for one thing. The row-level noun is always **entry**.
+- Saving creates an immutable version with `created_at` and proposed `effective_from`.
+  Its Care Slots retain their IDs and history. Saving or posting never generates shifts.
+- **Post care request** advertises one whole version. Workers express interest in
+  one, several or all available Care Slots. Interest does not reserve coverage.
+- The admin selects interested workers, reviews availability/conflicts/hours/funding,
+  and chooses **Approve and schedule**. Partial approval is supported, with explicit
+  acknowledgment of the remaining uncovered Care Slots.
+- First approval records `scheduled_from` and activates the new version. In the same
+  transaction, all recurring coverage linked to the previous version ends the day before
+  that date. Old Friday coverage never continues merely because new Saturday is open.
+  Past visits and modifications remain. Unrelated one-off shifts are unaffected.
+- Subsequent approvals add only uncovered Care Slots. Organization-first locks, a reviewed
+  state token and unique slot assignments prevent stale/double approvals. Eligibility is
+  rechecked at confirmation. Ordinary shift edits cannot extend an ended version.
+- In-app notifications are written in the approval transaction: selected workers receive
+  confirmation and all active agency workers receive the approved and remaining slots.
+  No external message broker or background delivery process is required for this flow.
+- `/care-actions` supplies dashboard actions for unpublished versions, pending interest,
+  uncovered slots and proposed start dates reached before approval.
 
-| Concept | Frontend | Backend (model / service) | DB table | Route |
-|---|---|---|---|---|
-| Funder entitlement | `Authorization` | `Authorization` | `authorizations` | `/clients/{id}/authorizations` |
-| Client's weekly care plan | `WeeklyCarePlanEntry`, `WeeklyCarePlanEditor` | `WeeklyCarePlanEntry` / `WeeklyCarePlanService` | `weekly_care_plan_entries` | `/clients/{id}/care-plan` |
-| Worker availability | `AvailabilityEntry`, `WorkerAvailabilityEditor` | `WorkerAvailabilityEntry` / `WorkerAvailabilityService` | `worker_availability_entries` | `/org-members/{id}/availability` |
-| Scheduled care | `Shift` | `Shift` | `shifts` | `/shifts` |
-| Delivered care | (Attended shift — see Phase 8 EVV) | `Shift` (completed) | `shifts` | — |
+### Migration and history
 
-The weekly care plan has **no parent row** — it *is* the set of
-`WeeklyCarePlanEntry` rows for a client. For a **funded** client the tab is the
-**Authorized Weekly Care Plan** (capped by the funder); for a **self-pay** client
-it is simply the **Weekly Care Plan** (no cap, compliance off). Same route
-(`/care-plan`) and same editor for both — only the label and `enforceCompliance`
-differ. See [[project_org_member_architecture]] for the worker side.
+Migration `5961f453498d` preserves existing care rows under an explicitly imported baseline.
+Existing recurring shifts link to that baseline; exact slot links are not invented.
+Existing one-off shifts remain independent. Legacy placement snapshots are retained and
+read-only for assignment; save a new version to use slot approvals. The retired client
+`assigned_worker_id` data is preserved in the private `legacy_client_worker_assignments`
+archive. There is no single assigned-worker field in the live client model.
 
-### The relationships
-- **Authorization → Weekly care plan = a ceiling (enforced, hard).** Planned
-  hours per service must stay ≤ authorized hours. Enforced in the
-  `WeeklyCarePlanEditor` (funded clients only): `Within cap / Over cap` pills,
-  and **Save is blocked over cap**. Units differ (auth = bi-weekly, plan =
-  weekly), so the plan is normalized `weekly × 2` before comparing. This is why
-  the authorization card shows *only* authorized hours — comparing plan-vs-auth
-  in place mixes units.
-- **Weekly care plan → Worker availability = staffing feasibility.** The plan is
-  *demand* (when/what care is needed); availability is *capacity* (who can cover
-  it). A worker can take an entry only if available, under max hours, and not
-  double-booked. Enforced today: **double-booking** (409
-  `WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK`). Overtime/availability are
-  softer (overtime prevention is backlog; availability is an input to *who you'd
-  pick*, not a hard gate yet).
-- **Authorization ↔ Worker availability = no direct link.** They only meet
-  through the weekly care plan in the middle.
+### Assignment management (2026-10-09)
 
-### Two compliance moments (only the first is built)
-1. **Plan-time** — planned vs authorized. Hard block at save. ✅ built.
-2. **Delivery-time** — *actually delivered* care vs authorized ("did we stay
-   within the funding?"). This is the `Delivered` figure on the Overview
-   utilization meter and the future warn-with-override check on real shifts
-   (Phase 3). **Delivered care should be measured from Electronic Visit
-   Verification (EVV)** — real check-in/check-out at the point of care (GPS
-   arrival/departure, mobile Phase 8) — *not* from scheduled shift durations.
-   Until EVV lands, `Delivered` is an approximation derived from completed
-   shifts and should be treated as provisional.
+Worker Overview and client Weekly care need compose the same Layer 3
+`features/assignments/components/AssignmentsPanel`. Controlled cards and the
+review dialog are Layer 2; API queries/mutations live in named feature hooks.
+Admins select recurring Care Slots and **Stop visits from** an agency-local date,
+enter a reason, review, then confirm. This changes assignments, not employment.
+
+`/api/assignments` uses AssignmentService → AssignmentRepository. Ending uses
+organization-first locks, assignment/shift locks and a reviewed-state token.
+`CareSlotAssignment.ends_before` is exclusive; rows retain end reason, actor and
+timestamp. `Shift.assignment_id` links each generated/split series to its history.
+The partial unique index permits only one unended assignment per Care Slot.
+Replacement approvals check date overlap and must cover the next required future
+visit; approve separately when selected slots have incompatible replacement dates.
+Ending reopens the existing Care Request, and the Action Tower's existing stable
+coverage case shows replacement demand from the first affected weekday. No new
+action table or polling job is introduced. Approval refreshes assignment views.
+
+Cutoffs reject changes that would hide elapsed, ongoing or documented visits,
+including rescheduled visits crossing the boundary. Past notes are never deleted.
+Linked recurring series cannot be reassigned, shortened or cancelled through the
+old series-ending actions; use Manage assignment. Single-occurrence edits remain
+available. Imported schedules without proven Care Slot links are not fabricated
+into assignments and remain managed through their existing visit workflows.
+
+Apply Alembic migration `b7f21c9064ab` after `de9e97b23461` before deploying the API.
+Validation and staging walkthrough: `backend/ASSIGNMENTS.md`. This code change
+does not apply hosted migrations or implement employment offboarding.
+
+A client's **Care team** is derived from scheduled coverage. Worker client access is based
+on retained, non-deleted shifts in the same agency, including past care history.
+
+### Active and standby
+
+**Active clients** counts clients with Active relationship status. **Active workers** counts
+workers with Active employment status. Neither is a billing-period usage count.
+**On standby** is derived within the active workforce: no ongoing qualifying visit and no
+scheduled client visit from now through the next 14 days, inclusive. Cancelled, dropped,
+completed and missed visits do not count; inactive/deleted clients do not keep a worker
+scheduled. A distant next shift is shown separately. Employment status stays Active.
+The indicator is computed from schedule data on reads (the roster refreshes every minute),
+so no status-changing background worker or backdated assignment timer is needed.
+
+### Funding
+
+Funded care is checked per service at the proposed/approved start date. Weekly hours are
+multiplied by two to compare with bi-weekly authorizations. Save and approval reject
+exceeded caps. Worker eligibility checks only selected Care Slots, rather than demanding
+one worker cover the entire week. Delivered hours remain provisional until EVV.
+
+### Admin Action Tower
+
+`GET /api/attention-items` is an admin-only, organization-scoped read model:
+`AttentionService` → `AttentionRepository`, with pure care-stage projection in
+`domain/attention.py`. It combines the latest Weekly Care Need's posting, interest,
+and uncovered-slot stages into one stable case per version, plus dropped visit
+occurrences, expiring credentials, uploaded credentials awaiting verification,
+expiring authorizations, and active clients without weekly visits. Specific coverage
+cases suppress duplicate weekly-gap prompts. Dates use the agency's billing timezone;
+recurring visit targets retain their original occurrence date even when rescheduled.
+
+`features/attention/` owns the shared frontend hook, typed destinations and controlled
+list. The protected shell hosts one provider: dashboard embeds the square list;
+other admin routes show a circular launcher and rounded nonmodal panel. Selecting an
+item opens the existing record workflow and minimizes the panel. Hide is session-only;
+the topbar restores it. Existing modal overlays take precedence. Successful record
+invalidations, focus and a 60-second poll refresh the feed; viewing an item does not
+resolve it. No action table, migration, or manual completion endpoint is introduced.
+
+Current windows remain 30 days for credential expiry, 15 for authorization expiry,
+and 7 days back / 60 ahead for dropped visits. Missing/expired-record compliance rules,
+onboarding, overtime requests and billing notices are not new tower checks; existing
+notifications and workflows remain available. Empty categories are omitted and a
+failed feed is never displayed as all clear.
+
+Validation: backend attention tests cover progression, deduplication, effective dates
+and agency isolation. `admin-frontend/attention.browser.test.cjs` exercises all six
+destination types and shared UI behavior using intercepted fictional fixtures.
+Run against local Vite with dummy public configuration (`VITE_SUPABASE_URL` and
+`VITE_BACKEND_API_URL` matching `ATTENTION_TEST_URL`, default `http://127.0.0.1:5197`;
+dummy publishable auth/Stripe keys). Set `PLAYWRIGHT_MODULE` to a shared Playwright
+installation if it is not installed locally; `BROWSER_CHANNEL` defaults to `msedge`.
 
 ---
 
 ## MVP Scope — Home Care Agency Admin
+
+### Client workspace (2026-10-01)
+
+The admin client routes now share the Care Harbor workspace layout: client directory,
+Overview (the client index), Visits & metrics, Weekly care need, Funding, Progress
+notes, and grouped profile editing. The header is the single profile-edit entry.
+Client creation uses a three-step intake drawer. Components and query/mutation hooks
+live in `features/clients`; routes only compose them.
+
+Use **revision** in the weekly-care UI. The existing `version` API/database field is
+retained for compatibility. Creating a revision preserves history and creates no
+visits; posting and approving still use the existing placement workflow and checks.
+Funding compares only the currently effective activated/imported care need with
+the current authorization. Proposed revisions are checked in the care-need editor.
+Each service's two-week care need is its weekly slot hours multiplied by two.
+
+Client responses include `current_care_need`, derived in bulk for the directory.
+`POST /api/shifts/{id}/notes/entries` appends admin follow-ups with an expected entry
+count under the same shift lock used by worker notes. It preserves existing entries
+and rejects stale writes. Monthly client notes include `worker_id` for filtering.
+
+Validation: frontend `tests/client-care.test.mjs` covers current revision selection,
+funding and slot/visit calculations; backend `test_client_workspace.py` covers the
+current-care projection and safe note appends. `admin-frontend/tests/client-workspace.html`
+is a development-only component verification host with an in-memory API adapter;
+it is not a production entry point and never reads or writes agency records.
+
+### Care Requests workspace (2026-10-02)
+
+The admin UI calls placements **Care requests**. Existing `/dashboard/placements`
+links, API paths, query keys and stored domain names remain compatible. The directory
+defaults to open requests, sorted by care request start date, with client, coverage
+fraction/segments and interested-worker count. Detail pages show the revision in the
+header, grouped request details, Care coverage / Interested workers views, and a
+coverage plan using actual slot durations. Closing is a header button with confirmation;
+approved visits remain scheduled.
+
+`features/placements/components` owns queries and workflow orchestration. Controlled
+work/review components receive props; routes compose the directory and detail coordinator.
+Posting previews the saved revision before submission. Optional additional notes share
+the existing worker-visible `requirements` field, separated by an Additional notes label.
+Review tokens, eligibility blockers, uncovered-slot acknowledgement and unsaved-selection
+navigation protection are retained. Create/close/approve refresh the Action Tower.
+
+Validation: `node --experimental-strip-types --test tests/care-requests.test.mjs`
+from `admin-frontend` covers ordering and selection projection. Run
+`tests/care-requests.browser.cjs` against Vite with dummy public configuration on
+`http://127.0.0.1:5198` (override `CARE_REQUEST_TEST_URL`). Point `VITE_SUPABASE_URL`
+and `VITE_BACKEND_API_URL` at that server, use dummy publishable auth/Stripe keys,
+and set `PLAYWRIGHT_MODULE` to a shared installation if needed. All API responses
+are intercepted fictional fixtures; tests cover posting, partial/full approval,
+conflicts, stale review, close failures, tower navigation and responsive layouts.
 
 ### 1. Profile Management
 - **Clients**: Create, Read, Update, Delete
@@ -400,9 +528,9 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 
 | Concern | Tool |
 |---|---|
-| Framework | React Native + Expo SDK 54 |
+| Framework | React Native + Expo SDK 57 |
 | Language | TypeScript (strict) |
-| Routing | Expo Router v4 (file-based, `app/` dir) |
+| Routing | Expo Router 57 (file-based, `app/` dir) |
 | Server state | TanStack Query v5 |
 | Client state | Zustand |
 | Styling | NativeWind v4 (Tailwind in React Native) |
@@ -424,52 +552,217 @@ Shared design tokens match `admin-frontend/src/index.css` exactly.
 | `src/shared/components/ui/index.tsx` | Design system components |
 | `tailwind.config.js` | NativeWind — same tokens as admin-frontend |
 
-### Mobile Feature Roadmap
+### Worker Clients tab
 
-- [x] **Phase 0**: Project scaffold, design system, NativeWind, shared components, Expo Router setup
-- [x] **Phase 1**: Authentication — sign in, JWT storage, Zustand auth store, protected routes
-- [ ] **Phase 2**: Onboarding flow — pre-login 3-page intro, permissions screen, profile completion bar
-- [ ] **Phase 3**: Invite acceptance — deep link handling, token verification, profile setup form, `POST /api/me/complete-profile` (requires EAS build)
-- [x] **Phase 4**: Home screen — today's shifts summary, next shift card, warm empty state
-- [ ] **Phase 5**: Schedule / shifts — calendar view, shift detail screen, ShiftCard component
-- [ ] **Phase 6**: Profile overview — read own profile (`GET /api/me/profile`), credentials view
-- [ ] **Phase 7**: Availability — weekly availability picker, `PATCH /api/me/availability`
-- [ ] **Phase 8**: Visit verification — GPS check-in, distance check against client address
-- [ ] **Phase 9**: Progress notes — note editor per shift occurrence, voice-to-text
-- [ ] **Phase 10**: Digital flowsheet — per-client task checklist during shift
-- [ ] **Phase 11**: Notifications — push notification setup, notification centre screen
-- [ ] **Phase 12**: Compliance documents — upload docs to profile, view uploaded docs
-- [ ] **Phase 13**: Leaderboard — attendance ranking among org workers
-- [ ] **Phase 14**: Polish pass — animations, loading skeletons, empty states, error states, contextual nudges
-- [ ] **Phase 15**: EAS Build setup, TestFlight beta, internal testers
-- [ ] **Phase 16**: App Store submission (iOS) + Play Store submission (Android)
+The Clients tab lives in `app/(tabs)/clients/index.tsx`; client details live in
+`app/clients/[clientId].tsx`. Routes compose the Layer 3 components in
+`src/features/clients/components/`; queries and refresh orchestration live in
+named hooks in `features/clients/hooks/`. Client cards, care fields and visit
+cards are controlled Layer 2 components within the feature.
 
-### Backend Endpoints Still Needed (Mobile)
+`GET /api/me/clients`, `GET /api/me/clients/{client_id}` and
+`GET /api/me/clients/{client_id}/shifts?from_date=...&to_date=...` use
+WorkerClientService → WorkerClientRepository / ShiftRepository. Access requires
+an active worker and agency, and is scoped to the worker's agency and a retained active shift assigned to that worker.
+Deleted clients/shifts do not grant access. Only care-facing profile fields are
+returned; agency notes and financial details are excluded.
 
-| Endpoint | Phase | Purpose |
-|---|---|---|
-| `GET /api/me/profile` | 6 | Worker reads own profile |
-| `PATCH /api/me/availability` | 7 | Worker updates own availability |
-| `POST /api/me/shifts/{id}/check-in` | 8 | GPS check-in |
-| `GET /api/me/notifications` | 11 | Notification history |
-| `GET /api/leaderboard` | 13 | Org attendance ranking |
+Visit history is browsable by month (at most 31 days per request), includes
+cancelled occurrences, and opens the existing shift detail with its original
+occurrence date. The existing progress-note flow supports append-only follow-ups
+and corrections, preserving previous entries; it does not overwrite saved notes.
+
+### Worker Android MVP — agreed scope (2026-10-02)
+
+This defines the worker app's first Google Play release, separately from the
+original agency-admin MVP above. Ship the existing core workflows plus push
+notifications. Do not expand this release into the deferred features below.
+Implementation checkmarks are not device-test or production-readiness sign-off.
+The detailed release and device checklist is in
+`worker-mobile-app/GOOGLE_PLAY_RELEASE.md`.
+
+#### Core workflows implemented; still require release testing
+
+- [x] App scaffold, design system, routing, sign-in, session storage and protected routes.
+- [x] Web invitation/password setup followed by mobile sign-in; worker welcome,
+      short introduction, skip and replay. In-app invitation acceptance is deferred.
+- [x] Home, attention items, current/upcoming visits and estimated completed hours.
+- [x] Schedule, week/two-week navigation, shift details, directions and care instructions.
+- [x] Assigned clients, care-facing information and visit history.
+- [x] Typed progress notes and append-only follow-ups per visit occurrence.
+- [x] Own profile viewing/editing and credential upload/viewing.
+- [x] In-app notification inbox and read state. Phone push delivery code is implemented;
+      deployment and Android device verification are pending.
+
+#### Must complete before the Android MVP release
+
+- [ ] **Push notifications:** implement permission handling, device registration
+      and removal/reassignment on sign-out/account changes, Android delivery
+      credentials, backend dispatch and tap navigation. Minimum worker events:
+      new assignments and schedule changes/cancellations. Keep patient details
+      out of lock-screen text; opening a notification must still enforce access.
+      Verify delivery and taps in foreground, background and closed-app states,
+      plus denied permissions and invalid device tokens. Keep the inbox usable
+      when phone notifications are disabled.
+- [ ] **Minimum onboarding and truthful UI:** test web invitation → mobile login
+      → welcome/skip → Home, returning sessions, and pending/expired/no-access
+      accounts. Add contextual push permission handling. Remove or redirect old
+      onboarding routes with sample completion data or promises of GPS,
+      flowsheets and voice notes. Do not add a richer onboarding flow for MVP.
+      Remove unused location permission requests/declarations. Keep weekly hours
+      explicitly estimated and do not present punctuality as a working feature.
+- [ ] **Production connections and account recovery:** configure the production
+      website URL, verify compatible backend/auth services, and test privacy and
+      password-reset links. Make recovery reachable before sign-in as well as
+      from Settings. Finalize app name/version presentation and working actions.
+- [ ] **Android release testing and necessary fixes:** create a signed build,
+      test every core workflow on an Android phone with fictional records, and
+      fix crashes, blocked journeys, lost notes, misleading errors and access
+      failures. Cover denied permissions, network loss, session expiry, keyboard,
+      back navigation and small screens. Cosmetic enhancements are not a gate.
+- [ ] **Google Play submission:** verified developer access, final privacy policy,
+      support details, accurate app/data declarations and applicable deletion
+      flow, icon/screenshots/feature graphic, reviewer demo access, signed bundle,
+      required testing for the account, and submission for review. Record the
+      actual submission result; a bundle export or upload alone is not review.
+
+#### After the Android MVP release
+
+Next release, as requested:
+- [ ] Visit check-in/check-out, GPS arrival/departure verification and handling
+      denied or unavailable location.
+- [ ] Actual worked hours and punctuality calculations based on recorded attendance.
+
+Later releases (order to be decided after MVP feedback):
+- [ ] Worker self-service availability editor and its complete save/test workflow.
+      Partial implementation in the working tree does not make this an MVP gate.
+- [ ] Invitation links opening the app and native account/profile setup.
+- [ ] Richer onboarding: real profile-completion percentage and personalized
+      missing-item checklist; additional guidance when useful.
+- [ ] Voice-to-text progress notes.
+- [ ] Digital flowsheets and per-visit care-task checklists.
+- [ ] Attendance leaderboard, after attendance data exists.
+- [ ] Additional animations, loading skeletons and contextual nudges beyond the
+      loading/error/empty states required for reliable MVP use.
+- [ ] iOS release testing, TestFlight and App Store submission; current launch
+      focus is Android.
+
+### Worker schedule implementation
+
+`ScheduleView` is the Layer 3 coordinator. `useWorkerSchedule` owns period selection,
+query composition and refresh through the existing shift/note hooks. Calendar controls,
+date picker, visit cards, timeline and agenda are Layer 2 components that receive props.
+`ScheduleCareDialog` is Layer 3 because it fetches visit details through a custom hook.
+Pure date, selection and itinerary projections live in `features/shifts/lib/scheduleView.ts`.
+
+The two-week view preserves its date range when a date in the second week is selected.
+Totals are scheduled visit durations, excluding cancelled, dropped and missed visits;
+they are not verified worked hours or payroll. The app has no agency payroll calendar
+yet, so the label is **scheduled over 2 weeks**, not **pay period**. Note indicators
+come from occurrence-specific recorded notes; updated visits do not invent previous times.
+Run `npm run test:schedule` for date navigation, itinerary, hours and note-status checks.
+
+### Mobile backend status
+
+Profile read/update, credentials, notification history/read state, shifts,
+clients and visit notes have worker endpoints. They are not missing MVP API work.
+Push device registration and delivery remain MVP backend work; route contracts
+must be designed with the implementation. Attendance/check-in/check-out and
+leaderboard APIs are deferred. Availability work is also deferred from the MVP;
+the current working tree has an availability endpoint/hook under development,
+which is not evidence of a completed, tested mobile workflow.
 
 ---
 
 ## Local Mobile Development Gotchas
 
+### Worker sign-in and privacy requests (2026-10-09)
+
+Worker setup starts from the agency invitation email and is completed on the web
+before mobile sign-in. The mobile app is for existing accounts: no sign-up,
+invitation-acceptance redirect or account-deletion request entry. Keep password
+recovery, legal links and agency support guidance. Reassess Play account-deletion
+scope before introducing mobile account creation or links to account setup.
+
+The public website retains `/account-deletion` for manually reviewed privacy
+requests. `features/privacy` owns that page and validates the configured
+`VITE_PRIVACY_CONTACT_EMAIL`. A missing contact is explicitly unavailable and must
+be configured before publishing that request channel. Submission changes no records.
+
+`backend/scripts/worker_account_deletion.py` is a trusted-operator CLI, never an
+HTTP endpoint. AccountDeletionService → AccountDeletionRepository previews first,
+checks exact Person/Auth/all employment IDs and a fresh review token, and requires
+verified review plus a private receipt. Execution is restricted to closed,
+terminated worker memberships. It removes Auth, push data/read markers and selected
+profile/availability data; it preserves Person, employment and care history.
+Retained categories require reasons/review dates. Active-worker requests remain
+valid and need individual handling; do not terminate employment to satisfy a tool
+guard. Auth and SQL are not atomic: see `backend/ACCOUNT_DELETION.md` for recovery,
+retained credentials/history, provider/backups and case-completion work.
+
+Validation uses fictional SQLite/mocked Auth tests in `test_account_deletion.py`,
+the isolated web test `tests/account-deletion.browser.cjs`, and mobile website-link
+tests. Production contact configuration, retention rules and real provider
+verification remain prerequisites to operating the web request/cleanup process.
+No account/data deletion was executed to build this workflow.
+
 ### Running the Mobile App on a Physical Device
 
-The phone needs two connections: Metro bundler (JS bundle) and the backend API. Both are tunnelled through ngrok/Expo so the setup is the same on any network.
+For local testing, the phone needs three connections: Metro (the JS bundle), the
+backend API, and local Supabase Auth. Expo's tunnel covers only Metro.
 
 **Every time you start a dev session:**
 
-1. Start the backend: `docker compose up`
+1. Start local Supabase (`npx supabase start`) and the backend (`docker compose up`).
 2. Run `ngrok http 8000`, copy the `https://xxxxx.ngrok-free.app` URL into `worker-mobile-app/.env.local` → `EXPO_PUBLIC_BACKEND_API_URL`
-3. Run `cd worker-mobile-app && npx expo start --tunnel --clear`
-4. Scan QR code in Expo Go.
+3. Expose local Supabase to the phone, for example `npx localtunnel --port 54321`.
+   Set `EXPO_PUBLIC_SUPABASE_URL` in `.env.local` to that URL and use the local
+   Supabase publishable key. Keep both service tunnels running.
+4. Run `cd worker-mobile-app && npm run start:local -- --tunnel --go`.
+5. Scan the QR code in Expo Go compatible with SDK 57.
+
+For hosted staging, use `npm run start:staging -- --tunnel --go`; backend and auth
+tunnels are unnecessary. `start:production` explicitly selects production services.
+The launcher reads the matching environment file without overwriting `.env.local`.
+See `worker-mobile-app/README.md` for configuration and EAS build environment setup.
 
 **ngrok:** Microsoft Store install (v3.39.1), available in PATH as `ngrok`. Authtoken saved. Regenerate token at dashboard.ngrok.com if compromised.
 
 ### Expo Go vs Development Builds
 - `expo-notifications` (starting SDK 53) will crash Expo Go immediately on import because native push capabilities were stripped from the Go app. It is currently commented out in `app/onboarding/permissions.tsx`. A custom development build must be created when we are ready to implement Push Notifications.
+
+### Push registration foundation (2026-10-02)
+
+The `development-staging` EAS profile now installs a staging dev client, using
+the preview environment and staging Firebase config. Push imports are guarded
+before loading native notifications, so Expo Go can still run ordinary flows.
+Settings offers an explicit phone-notification permission/registration action.
+`features/notifications` owns the provider, named mutation hook and serialized
+device lifecycle. The backend uses PushDeviceService → PushDeviceRepository;
+Alembic `0ab31e782c90` creates the private, RLS-enabled `push_devices` table.
+Logout revokes this installation before signing out locally; offline failures
+show a retry message. Scheduling-event delivery is implemented as described below;
+Android device testing and production setup remain required.
+
+### Worker push delivery (2026-10-03)
+
+Shift services enlist `WorkerNotificationService` to write individual inbox notices
+and private `PushDelivery` rows in the scheduling transaction. Coverage approval
+queues the existing selected-worker notices and notifies workers whose previous
+coverage ends. Repositories only access data; service transactions own commits.
+`domain/push.py` contains pure change projections and patient-free push content.
+
+The APScheduler job uses `PushDeliveryService` → `PushDeliveryRepository` with
+row locks and `ExpoPushClient` for HTTP. It checks current device ownership and
+active worker/agency access before sending, retries transient errors, polls Expo
+receipts and retires invalid tokens. Tap handling opens the authenticated inbox;
+schedule notices lead to the schedule. Inbox UI is Layer 3 in the notification
+feature, with named hooks and a composing route.
+
+Migration `de9e97b23461` must precede deploying this code. Delivery defaults off:
+set `PUSH_DELIVERY_ENABLED`, environment-specific `PUSH_ALLOWED_APP_IDS` and, when
+Expo enhanced security is enabled, backend-only `EXPO_PUSH_ACCESS_TOKEN`.
+`GOOGLE_SERVICES_JSON` supports an EAS file environment variable; staging also
+supports the ignored local config. No credentials have been provisioned by this
+code change. See `backend/WORKER_PUSH.md` for rollout, delivery guarantees and
+the remaining physical Android checks. No device/release sign-off is implied.

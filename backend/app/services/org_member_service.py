@@ -1,3 +1,4 @@
+from app.services.billing_access_service import BillingAccessService
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -73,6 +74,8 @@ def _flat_response(employment: Employment) -> dict:
     }
 
 
+
+
 class OrgMemberService:
 
     def __init__(self, db: Session, current_user: SupabaseUser, org_id=None):
@@ -88,21 +91,16 @@ class OrgMemberService:
     # ─────────────────────────────────────────
     async def create_member(self, payload: AcceptInvitationSchema):
         try:
-            metadata = self.current_user.user_metadata or {}
-            role = metadata.get("role")
-            org_id = metadata.get("org_id")
-
-            if not role or not org_id:
-                raise AppError(
-                    status_code=400,
-                    code="MISSING_METADATA",
-                    message="Invite metadata missing role or org_id — invalid invite token",
-                )
-
-            invitation = self.invitation_repo.get_pending_by_email_and_org(
-                self.current_user.email, org_id
+            invitation = self.invitation_repo.get_pending_for_identity(
+                self.current_user.id, self.current_user.email, lock=True,
             )
             if not invitation:
+                # A retry after a committed acceptance is safe, including when
+                # the original response was lost. Never rebind by email here.
+                person = self.person_repo.get_by_supabase_user_id(self.current_user.id)
+                existing = self.employment_repo.get_active_by_person_id(person.id) if person else None
+                if existing and existing.employment_status == EmploymentStatus.active:
+                    return _flat_response(existing)
                 raise AppError(
                     status_code=404,
                     code="INVITATION_NOT_FOUND",
@@ -116,7 +114,11 @@ class OrgMemberService:
                     message="This invitation has expired — ask an admin to send a new one",
                 )
 
-            employment_type_str = metadata.get("employment_type")
+            BillingAccessService(self.db, self.current_user).require_org_write(invitation.org_id)
+
+            role = invitation.role
+            org_id = invitation.org_id
+            employment_type_str = invitation.employment_type
             employment_type = EmploymentType(employment_type_str) if employment_type_str else None
             max_hours = _DEFAULT_HOURS.get(employment_type) if employment_type else None
 
@@ -125,11 +127,11 @@ class OrgMemberService:
             if person:
                 # Check they don't already have an active employment in this org
                 existing_emp = self.employment_repo.get_active_by_person_id(person.id)
-                if existing_emp and str(existing_emp.org_id) == str(org_id):
+                if existing_emp:
                     raise AppError(
                         status_code=409,
                         code="ALREADY_REGISTERED",
-                        message="This invite has already been accepted",
+                        message="This person already has an agency membership",
                     )
                 # Re-hire: bind new Supabase user id to existing Person and
                 # refresh their name from the accept-invite form.
@@ -192,7 +194,10 @@ class OrgMemberService:
     async def get_all_members(self, role: OrgMemberRole | None = None):
         try:
             employments = self.employment_repo.get_all_active_by_org(self.org_id, role)
-            return [_flat_response(e) for e in employments]
+            rows = [_flat_response(e) for e in employments]
+            from app.domain.workforce import Workforce
+            statuses = Workforce(self.db, self.org_id).worker_statuses(rows)
+            return [{**row, **statuses[row["id"]]} for row in rows]
 
         except AppError:
             raise
@@ -205,7 +210,9 @@ class OrgMemberService:
     async def get_member(self, member_id: str):
         try:
             employment = self.employment_repo.get_active_by_id_and_org(member_id, self.org_id)
-            return _flat_response(employment)
+            from app.domain.workforce import Workforce
+            row = _flat_response(employment)
+            return {**row, **Workforce(self.db, self.org_id).worker_statuses([row])[row['id']]}
 
         except AppError:
             raise
@@ -231,6 +238,9 @@ class OrgMemberService:
                 elif field in _EMPLOYMENT_FIELDS:
                     setattr(employment, field, value)
 
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'worker:{member_id}', 'workers',
+                'Updated worker profile', '', {'kind': 'worker', 'record_id': str(member_id)})
             self.db.commit()
             self.db.refresh(employment)
             return _flat_response(employment)

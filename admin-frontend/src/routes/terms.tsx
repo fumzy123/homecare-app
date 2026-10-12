@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 
@@ -5,7 +6,7 @@ export const Route = createFileRoute('/terms')({
   component: TermsPage,
 })
 
-const EFFECTIVE_DATE = 'Draft dated August 28, 2026'
+const EFFECTIVE_DATE = 'Draft dated October 3, 2026'
 
 function TermsPage() {
   return (
@@ -25,30 +26,28 @@ function TermsPage() {
           Terms of Service
         </h1>
         <p className="font-mono text-[12px] text-ink-soft mb-12 leading-relaxed">
-          Please read these Terms carefully before using the Homecare platform. By accessing or
-          using the platform, your organisation agrees to be bound by these Terms.
+          These draft Terms describe the proposed agreement between the Care Harbor operator and an Agency acting through an authorised representative. Worker access is provided under the Agency&apos;s account.
         </p>
 
         <hr className="border-ink mb-12" />
 
         <Section number="1" title="Definitions">
-          <p><strong>"Platform"</strong> means the Homecare web application and related services.</p>
+          <p><strong>"Platform"</strong> means the Care Harbor agency website, worker mobile application and related services.</p>
           <p><strong>"Agency"</strong> or <strong>"you"</strong> means the home care organisation that has registered an account.</p>
-          <p><strong>"Provider"</strong> or <strong>"we"</strong> means Home Care Management Software, the operator of the Platform.</p>
+          <p><strong>"Provider"</strong> or <strong>"we"</strong> means the legal operator of Care Harbor, whose identity must be confirmed before these Terms are final.</p>
           <p><strong>"Users"</strong> means the Agency's administrators and staff who access the Platform.</p>
           <Placeholder>Add definitions for any other key terms your lawyer identifies.</Placeholder>
         </Section>
 
-        <Section number="2" title="Acceptance of Terms">
-          <p>
-            By registering an account or accessing the Platform, the Agency acknowledges that it has read,
-            understood, and agrees to be bound by these Terms and our Privacy Policy. If you are entering
-            into these Terms on behalf of an organisation, you represent that you have authority to bind
-            that organisation.
-          </p>
+        <Section number="2" title="Agency Acceptance and Worker Access">
+          <p>An authorised Agency representative accepts the final Terms and incorporated Data Processing Agreement on the Agency&apos;s behalf. An invited worker uses the mobile app under the Agency&apos;s account; ordinary worker sign-in does not bind the Agency to a new commercial agreement.</p>
+          <p>The Privacy Policy explains information handling. Reading or acknowledging that notice is distinct from giving consent to a particular use of personal information. Any consent required for a particular feature must be obtained in the appropriate context.</p>
+          <Placeholder>Confirm final Agency acceptance language and whether separate worker-use terms or an acknowledgement are needed. The existing acceptance record is organisation-level; it does not record an individual worker&apos;s agreement to a version of worker terms.</Placeholder>
         </Section>
 
         <Section number="3" title="Permitted Use">
+          <p>The worker app provides schedules, assigned client information, typed visit notes, profile and credential tools, and work notifications. GPS attendance verification, voice notes and flowsheets are not part of this release. Displayed completed hours are estimated from scheduled visits.</p>
+          <p>Notifications can be delayed or disabled. The Platform is not an emergency-response service or a substitute for clinical judgement or your Agency&apos;s urgent communication procedures.</p>
           <p>The Platform is licensed, not sold, to the Agency for internal business operations only. The Agency agrees not to:</p>
           <ul>
             <li>Resell, sublicense, or transfer access to the Platform to any third party</li>
@@ -60,11 +59,47 @@ function TermsPage() {
         </Section>
 
         <Section number="4" title="Subscription and Payment">
-          <Placeholder>
-            Detail your pricing model here: subscription tiers, billing cycles, payment methods accepted,
-            what happens on non-payment (grace period, suspension, termination), refund policy, and
-            how price changes are communicated.
-          </Placeholder>
+          <p>All prices are in Canadian dollars, before applicable taxes. Standard costs $350 per month
+            or $3,360 per year paid in advance. Annual billing saves 20% on the base subscription.
+            Each monthly usage period includes 10 active clients; additional clients cost $10 each for that period.</p>
+          <p>A client counts once in a monthly billing period if they have a qualifying scheduled,
+            in-progress, completed or no-show visit in that period. Cancelled visits do not count.
+            Your first monthly usage period starts when your paid subscription begins. Each new period
+            starts on the same date of the following month: for example, a May 10 start means the next
+            period starts June 10. If a month has no matching date, its last day is used. This monthly
+            counting period also applies when you pay annually.</p>
+          <p>Usage remains open for corrections until 72 hours after each monthly period ends.
+            Later corrections require a recorded billing adjustment. Monthly usage is collected after
+            this window closes. Annual usage accumulates during the prepaid year and is collected with
+            the next annual base renewal after the final 72-hour correction window. Billing shows the
+            current estimate and accumulated charges; estimates can change before finalization.</p>
+          <p>Your 14-day trial begins when your agency is created after email verification. Onboarding
+            assistance does not delay or block the trial or purchase. Selecting a plan and authorizing
+            payment preserves the remaining trial. If you subscribe after the trial has ended, the first
+            base payment is due at purchase. Trial visits incur no usage charge.</p>
+          <p>Cancel renewal from Billing at any time. Access continues through the paid period.
+            Prepaid annual base fees are non-refundable, subject to applicable rights. Annual cancellation
+            results in a final usage-only invoice after the prepaid year and its correction window end.
+            Cancellation does not remove charges already incurred.</p>
+          <p>Invited founding agencies pay $200 per month plus $5 per additional client above 10.
+            Founding pricing is protected for the first 12 paid months, then converts to Standard with
+            at least 30 days' notice of the applicable rates. Founding billing is monthly only.</p>
+          <h3 className="font-semibold pt-2">Founding customer feedback and testimonials</h3>
+          <p>While receiving founding pricing, the Agency agrees to participate in one 30-minute
+            feedback session each month, at a mutually agreed time, and share honest feedback about
+            its experience with the Platform. Feedback may be positive or negative; positive feedback
+            is not a condition of founding pricing.</p>
+          <p>If the Agency finds the Platform useful, we may invite it to provide a testimonial or
+            participate in a case study. Participation is optional. Declining does not affect founding
+            pricing or access. These Terms do not grant permission to publish feedback or use the
+            Agency's name, logo, or a representative's name or image for marketing.</p>
+          <p>Before publication, we will obtain separate written approval from an authorised Agency
+            representative for the final wording, attribution, any name, logo or image used, and the
+            agreed marketing channels. Published material must accurately reflect the Agency's
+            experience and disclose its discounted founding customer relationship. Feedback and
+            testimonials must not include identifiable client information or confidential worker records.</p>
+          <p>If payment is not completed when required, operational access may be restricted.
+            Billing, payment recovery and invoice history remain accessible.</p>
         </Section>
 
         <Section number="5" title="Data and Privacy">
@@ -131,11 +166,8 @@ function TermsPage() {
         </Section>
 
         <Section number="12" title="Changes to These Terms">
-          <p>
-            We may update these Terms from time to time. We will notify Agencies of material changes by
-            email and by requiring re-acceptance within the Platform before continued use. The version
-            number and effective date at the top of this page will always reflect the current Terms.
-          </p>
+          <p>The published version and effective date identify the applicable Terms. The Platform supports recording an Agency&apos;s acceptance of a specified version.</p>
+          <Placeholder>Confirm the material-change notification method, notice period and re-acceptance process before launch, including how affected workers receive updated notices. Do not assume that changing this page automatically sends an email.</Placeholder>
         </Section>
 
         <Section number="13" title="Contact">
@@ -146,7 +178,7 @@ function TermsPage() {
 
         <hr className="border-ink mt-12 mb-8" />
         <p className="font-mono text-[10px] text-muted tracking-[0.08em] uppercase">
-          Homecare · Terms of Service · Version {CURRENT_TERMS_VERSION} · {EFFECTIVE_DATE}
+          Care Harbor · Terms of Service · Version {CURRENT_TERMS_VERSION} · {EFFECTIVE_DATE}
         </p>
       </div>
     </div>
@@ -155,14 +187,10 @@ function TermsPage() {
 
 function LegalNav() {
   return (
-    <div className="border-b border-ink px-8 py-4 flex items-center justify-between bg-paper">
+    <div className="border-b border-ink px-8 py-4 flex flex-wrap gap-4 items-center justify-between bg-paper">
       <Link to="/login" className="flex items-center gap-3 group">
-        <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-          <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-          <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-          <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-        </svg>
-        <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Homecare</span>
+        <BoatLogo size={22} />
+        <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Care Harbor</span>
       </Link>
       <div className="flex items-center gap-6 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
         <Link to="/terms" className="hover:text-ink transition-colors [&.active]:text-ink [&.active]:underline underline-offset-4">Terms</Link>
@@ -190,7 +218,7 @@ function Section({ number, title, children }: { number: string; title: string; c
 function Placeholder({ children }: { children: React.ReactNode }) {
   return (
     <div className="border border-dashed border-orange/60 bg-orange/5 px-4 py-3 text-orange text-[11px] leading-relaxed">
-      <span className="font-semibold uppercase tracking-[0.08em] block mb-1">⚠ Lawyer review needed</span>
+      <span className="font-semibold uppercase tracking-[0.08em] block mb-1">Confirmation and legal review needed</span>
       {children}
     </div>
   )

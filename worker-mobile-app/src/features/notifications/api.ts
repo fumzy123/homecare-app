@@ -1,10 +1,14 @@
 import { apiClient } from '@/shared/lib/api-client';
 
 export type NotificationType =
+  | 'shift_assigned'
+  | 'shift_updated'
+  | 'shift_cancelled'
   | 'profile_updated'
   | 'credential_uploaded'
   | 'shift_dropped'
   | 'overtime_approval_requested'
+  | 'placement_coverage_updated'
   | 'placement_created'
   | 'placement_filled'
   | 'placement_closed';
@@ -36,4 +40,12 @@ export async function getMyNotifications(): Promise<NotificationListResponse> {
 
 export async function markNotificationRead(id: string): Promise<void> {
   await apiClient.patch(`/me/notifications/${id}/read`);
+}
+
+export async function savePushDevice(id: string, secret: string, token: string, appId: string): Promise<void> {
+  await apiClient.put(`/me/push-devices/${id}`, { secret, token, app_id: appId });
+}
+
+export async function revokePushDevice(id: string, secret: string): Promise<void> {
+  await apiClient.post(`/push-devices/${id}/revoke`, { secret });
 }

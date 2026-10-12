@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -28,7 +27,8 @@ export default function LoginScreen() {
             <Text className="mb-8 text-center font-serif text-3xl text-ink">
               Welcome back.
             </Text>
-            <LoginForm onSuccess={() => router.replace('/(tabs)/home')} />
+            <LoginForm />
+            <Text className="mt-6 text-center text-sm leading-5 text-muted">Sign in with your existing worker account. Contact your agency if you need access.</Text>
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>

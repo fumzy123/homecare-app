@@ -1,23 +1,46 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { shiftsApi, type OvertimeApproveRequest, type OvertimeRejectRequest } from '@/features/shifts/api'
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  shiftsApi,
+  type OvertimeApprovalRequest,
+  type OvertimeApproveRequest,
+  type OvertimeRejectRequest,
+} from "@/features/shifts/api";
 
 export function useApproveOvertime() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: OvertimeApproveRequest) => shiftsApi.approveOvertime(payload),
+    mutationFn: (payload: OvertimeApproveRequest) =>
+      shiftsApi.approveOvertime(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['shifts'] })
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["attention-items"] });
+      void queryClient.invalidateQueries({ queryKey: ["activity"] });
+      queryClient.invalidateQueries({ queryKey: ["shifts"] });
     },
-  })
+  });
 }
 
 export function useRejectOvertime() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: OvertimeRejectRequest) => shiftsApi.rejectOvertime(payload),
+    mutationFn: (payload: OvertimeRejectRequest) =>
+      shiftsApi.rejectOvertime(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["attention-items"] });
+      void queryClient.invalidateQueries({ queryKey: ["activity"] });
     },
-  })
+  });
+}
+
+export function useRequestOvertime() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: OvertimeApprovalRequest) =>
+      shiftsApi.requestOvertimeApproval(payload),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["attention-items"] });
+      void client.invalidateQueries({ queryKey: ["activity"] });
+    },
+  });
 }

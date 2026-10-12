@@ -84,6 +84,11 @@ class CredentialService:
                 document_type=document_type.value,
                 resolver_id=self.current_employment_id,
             )
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id,
+                f'credential:{employment.id}:{document_type.value}', 'credentials', 'Verified credential',
+                f'{employment.person.first_name} {employment.person.last_name} · {document_type.value.replace("_", " ")}',
+                {'kind': 'credential', 'record_id': str(employment.id), 'document_type': document_type.value})
             self.db.commit()
             return credential
         except AppError:

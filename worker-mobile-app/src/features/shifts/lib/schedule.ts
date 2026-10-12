@@ -20,10 +20,9 @@ export function addDays(value: Date, amount: number): Date {
   return next;
 }
 
-export function startOfMondayWeek(value: Date): Date {
+export function startOfSundayWeek(value: Date): Date {
   const start = new Date(value);
-  const day = start.getDay();
-  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
+  start.setDate(start.getDate() - start.getDay());
   start.setHours(0, 0, 0, 0);
   return start;
 }
@@ -42,21 +41,27 @@ export function formatPeriodRange(start: Date, end: Date): string {
 }
 
 export function shiftsForDate(shifts: ShiftOccurrence[], dateKey: string): ShiftOccurrence[] {
-  return shifts.filter((shift) => shift.date === dateKey);
+  return shifts.filter((shift) => shift.date === dateKey)
+    .sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
+}
+
+export function countsTowardSchedule(shift: ShiftOccurrence): boolean {
+  return ['scheduled', 'in_progress', 'completed'].includes(shift.completion_status);
 }
 
 export function scheduledHours(shifts: ShiftOccurrence[]): number {
   return shifts
-    .filter((shift) => shift.completion_status !== 'cancelled')
+    .filter(countsTowardSchedule)
     .reduce((total, shift) => {
-      return total + (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3_600_000;
+      const duration = Date.parse(shift.end_time) - Date.parse(shift.start_time);
+      return total + (Number.isFinite(duration) ? Math.max(0, duration) / 3_600_000 : 0);
     }, 0);
 }
 
 export function uniqueClientCount(shifts: ShiftOccurrence[]): number {
   return new Set(
     shifts
-      .filter((shift) => shift.completion_status !== 'cancelled')
+      .filter(countsTowardSchedule)
       .map((shift) => shift.client.id),
   ).size;
 }

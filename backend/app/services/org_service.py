@@ -1,5 +1,5 @@
 import stripe
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.person import Person
@@ -77,10 +77,17 @@ class OrgService:
             self.person_repo.add(person)
             self.db.flush()
 
+            trial_start = datetime.now(timezone.utc)
             new_org = Organization(
                 id=uuid.uuid4(),
                 name=payload.organization_name,
                 owner_id=person.id,
+                billing_timezone=payload.agency_timezone,
+                created_at=trial_start,
+                trial_starts_at=trial_start,
+                trial_ends_at=trial_start + timedelta(days=14),
+                # Retained as the existing billing-rollout marker, not a gate.
+                onboarding_deadline_at=trial_start if settings.billing_onboarding_enabled else None,
             )
             self.org_repo.add(new_org)
             self.org_repo.flush()

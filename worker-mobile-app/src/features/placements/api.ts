@@ -3,6 +3,8 @@ import { apiClient } from '@/shared/lib/api-client';
 export type PlacementStatus = 'open' | 'filled' | 'closed';
 
 export interface WorkerPlacement {
+  care_slots: { id: string; day_of_week: string; start_time: string; end_time: string; service_type: string; worker_id: string | null; worker_name: string | null }[];
+  interested_care_slot_ids: string[];
   id: string;
   status: PlacementStatus;
   client_first_name: string;
@@ -11,8 +13,10 @@ export interface WorkerPlacement {
   shift_description: string;
   requirements: string | null;
   start_date: string | null;
+  scheduled_from: string | null;
   created_at: string;
   has_interest: boolean;
+  interest_note: string | null;
 }
 
 export async function getPlacementForWorker(placementId: string): Promise<WorkerPlacement> {
@@ -20,8 +24,8 @@ export async function getPlacementForWorker(placementId: string): Promise<Worker
   return data;
 }
 
-export async function expressInterest(placementId: string, note?: string): Promise<void> {
-  await apiClient.post(`/placements/${placementId}/interest`, { note: note ?? null });
+export async function expressInterest(placementId: string, careSlotIds: string[], note?: string): Promise<void> {
+  await apiClient.post(`/placements/${placementId}/interest`, { care_slot_ids: careSlotIds, note: note ?? null });
 }
 
 export async function withdrawInterest(placementId: string): Promise<void> {

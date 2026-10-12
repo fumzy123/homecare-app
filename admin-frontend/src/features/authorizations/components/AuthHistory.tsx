@@ -10,7 +10,7 @@ import { withLineageVersions, fmtHours } from '../utils'
  * The active authorization is never here (it's the hero above). Amendments that
  * share an authorization number read as a story (v2 superseded ← v1 cancelled).
  */
-export function AuthHistory({ authorizations }: { authorizations: Authorization[] }) {
+export function AuthHistory({ authorizations, selectedId }: { authorizations: Authorization[]; selectedId?: string }) {
   const [open, setOpen] = useState(false)
   const history = withLineageVersions(authorizations.filter((a) => a.status !== 'active'))
 
@@ -26,13 +26,13 @@ export function AuthHistory({ authorizations }: { authorizations: Authorization[
         </span>
       </button>
 
-      {open && (
+      {(open || history.some(a => a.id === selectedId)) && (
         <div className="px-6 pt-2 pb-5">
           {history.map((a, i) => {
             const tag = STATUS_TAG[a.status]
             const last = i === history.length - 1
             return (
-              <div key={a.id} className="flex gap-4 pt-4">
+              <div key={a.id} className={`flex gap-4 pt-4 ${a.id === selectedId ? 'border-l-2 border-orange pl-3' : ''}`}>
                 {/* lineage spine */}
                 <div className="flex flex-col items-center pt-1">
                   <span className="dot dot-muted" style={{ width: 9, height: 9 }} />

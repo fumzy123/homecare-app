@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.db.session import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_admin
 from app.core.exceptions import AppError
 from app.models.person import Person
 from app.models.employment import Employment
@@ -58,7 +58,7 @@ async def get_terms_status(
 @router.post("/accept", response_model=TermsStatusResponse)
 async def accept_terms(
     payload: AcceptTermsPayload,
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     if payload.version != CURRENT_TERMS_VERSION:

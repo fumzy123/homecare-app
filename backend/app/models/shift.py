@@ -18,11 +18,15 @@ class Shift(Base):
     # Assignments
     worker_id = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
+    weekly_care_need_id = Column(UUID(as_uuid=True), ForeignKey('weekly_care_needs.id'), nullable=True, index=True)
+    care_slot_id = Column(UUID(as_uuid=True), ForeignKey('care_slots.id'), nullable=True, index=True)
+    assignment_id = Column(UUID(as_uuid=True), ForeignKey('care_slot_assignments.id'), nullable=True, index=True)
+    assignment = relationship('CareSlotAssignment')
     created_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
 
     # Which service this shift delivers — nullable so admins can still schedule
     # freely (and legacy shifts predate it). Lets delivered/scheduled care roll
-    # up per service, alongside the per-service authorization and care plan.
+    # up per service, alongside the per-service authorization and care need.
     service_type = Column(Enum(ServiceType), nullable=True)
 
     # Shift timing

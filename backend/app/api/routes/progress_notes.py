@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
-from app.schemas.progress_note import ProgressNoteUpsertSchema, ProgressNoteResponse
+from app.schemas.progress_note import ProgressNoteUpsertSchema, ProgressNoteResponse, NoteEntryCreate
 from app.services.progress_note_service import ProgressNoteService
 
 router = APIRouter(prefix="/shifts", tags=["Progress Notes"])
@@ -14,6 +14,15 @@ def get_progress_note_service(
     db: Session = Depends(get_db),
 ) -> ProgressNoteService:
     return ProgressNoteService(db, current_user)
+
+
+@router.post("/{shift_id}/notes/entries", response_model=ProgressNoteResponse)
+async def append_progress_note(
+    shift_id: str,
+    payload: NoteEntryCreate,
+    note_service: ProgressNoteService = Depends(get_progress_note_service),
+):
+    return await note_service.append_entry(shift_id, payload)
 
 
 # ─────────────────────────────────────────

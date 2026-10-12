@@ -1,4 +1,6 @@
 from collections import defaultdict
+from app.domain.workforce import Workforce
+from app.domain.client_care import current_care_by_client
 from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -8,10 +10,12 @@ from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
 from app.core.enums import ClientStatus, ShiftStatus, AuthorizationCoverage, CareArrangement
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
+from app.services.billing_evidence_service import BillingEvidenceService
+from app.services.billing_cutoff_service import BillingCutoffService
 from app.repositories.client_repository import ClientRepository
 from app.repositories.shift_repository import ShiftRepository
 from app.repositories.authorization_repository import AuthorizationRepository
-from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
+from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 import uuid
 
 
@@ -23,8 +27,10 @@ class ClientService:
         self.client_repo = ClientRepository(db)
         self.shift_repo = ShiftRepository(db)
         self.auth_repo = AuthorizationRepository(db)
-        self.plan_repo = WeeklyCarePlanRepository(db)
+        self.care_need_repo = WeeklyCareNeedRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
+        self.evidence_service = BillingEvidenceService(db, self.org_id)
+        self.cutoff_service = BillingCutoffService(db)
 
     # ── Derived authorization summary (service types, care dates, coverage) ────
 
@@ -33,7 +39,7 @@ class ClientService:
     ) -> Client:
         """Attach derived data onto a client instance for the ClientResponse.
 
-        `service_types` come from the client's care plan (what we actually
+        `service_types` come from the client's care need (what we actually
         deliver), falling back to the active authorization's services when the
         plan is empty. Coverage only means anything for funded clients —
         self-pay clients are never "lapsed"."""
@@ -64,7 +70,11 @@ class ClientService:
             return None
         auths = self.auth_repo.list_for_client(client.id, self.org_id)
         superseded = {a.supersedes_id for a in auths if a.supersedes_id}
-        plan = self.plan_repo.service_types_by_client([client.id]).get(client.id, set())
+        plan = self.care_need_repo.service_types_by_client([client.id]).get(client.id, set())
+        client.care_team = Workforce(self.db, self.org_id).care_teams().get(client.id, [])
+        client.current_care_need = current_care_by_client(
+            self.care_need_repo.versions(client.id), date.today()
+        ).get(client.id)
         return self._derive(client, auths, superseded, date.today(), plan)
 
     def _attach_many(self, clients: list[Client]) -> list[Client]:
@@ -73,9 +83,13 @@ class ClientService:
         for a in all_auths:
             by_client[a.client_id].append(a)
         superseded = {a.supersedes_id for a in all_auths if a.supersedes_id}
-        plans = self.plan_repo.service_types_by_client([c.id for c in clients])
+        plans = self.care_need_repo.service_types_by_client([c.id for c in clients])
         today = date.today()
+        teams = Workforce(self.db, self.org_id).care_teams()
+        current_needs = current_care_by_client(self.care_need_repo.list_for_org(self.org_id), today)
         for c in clients:
+            c.care_team = teams.get(c.id, [])
+            c.current_care_need = current_needs.get(c.id)
             self._derive(c, by_client.get(c.id, []), superseded, today, plans.get(c.id, set()))
         return clients
 
@@ -100,9 +114,12 @@ class ClientService:
                 **data,
             )
             self.client_repo.add(client)
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'client:{client.id}', 'clients',
+                'Created client profile', f'{client.first_name} {client.last_name}', {'kind': 'client', 'record_id': str(client.id)})
             self.db.commit()
             self.db.refresh(client)
-            return self._attach_one(self.client_repo.get_with_worker_by_id(client.id))
+            return self._attach_one(self.client_repo.get_by_id(client.id))
 
         except AppError:
             raise
@@ -145,9 +162,12 @@ class ClientService:
             for field, value in updates.items():
                 setattr(client, field, value)
 
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record_for_user(self.org_id, self.current_user, f'client:{client.id}', 'clients',
+                'Updated client profile', f'{client.first_name} {client.last_name}', {'kind': 'client', 'record_id': str(client.id)})
             self.db.commit()
             self.db.refresh(client)
-            return self._attach_one(self.client_repo.get_with_worker_by_id(client.id))
+            return self._attach_one(self.client_repo.get_by_id(client.id))
 
         except AppError:
             raise
@@ -160,11 +180,13 @@ class ClientService:
     # ─────────────────────────────────────────
     async def delete_client(self, client_id: str):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             client = self.client_repo.get_active_client(client_id, self.org_id)
             today = date.today()
 
             active_shifts = self.shift_repo.get_active_shifts_for_client(client_id, self.org_id)
             for shift in active_shifts:
+                self.evidence_service.preserve(shift)
                 if shift.is_recurring:
                     shift.recurrence_end_date = today
                     self.shift_repo.delete_modifications_from_date(shift.id, today)
@@ -176,6 +198,7 @@ class ClientService:
             return {"message": "Client deleted successfully"}
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()

@@ -159,6 +159,12 @@ export function toCalendarEvents(occurrences: ShiftOccurrence[]): CalendarEvent[
 }
 
 export interface OvertimeApprovalRequest {
+  service_type?: ServiceType
+  location?: string
+  notes?: string
+  shift_id?: string
+  edit_scope?: "this" | "following" | "all"
+  changes?: Record<string, unknown>
   worker_id:    string
   week_start:   string   // YYYY-MM-DD
   week_end:     string   // YYYY-MM-DD

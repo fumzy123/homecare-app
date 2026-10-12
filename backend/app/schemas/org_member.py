@@ -8,6 +8,8 @@ from app.schemas.worker_availability import AvailabilityEntryResponse
 
 
 class OrgMemberResponse(BaseModel):
+    on_standby: bool = False
+    next_shift_at: Optional[datetime] = None
     id: UUID
     first_name: str
     last_name: str

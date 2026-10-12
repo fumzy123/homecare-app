@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { Btn } from '@/shared/components/ui/Btn';
+import { ProgressNoteSheet } from '@/features/notes/components/ProgressNoteSheet';
 import { useMyShiftDetail } from '../hooks/useMyShifts';
 import {
   ShiftCareCard,
@@ -12,10 +15,13 @@ const STATUS = {
   in_progress: { label: 'In progress', bg: 'bg-orange', text: 'text-white' },
   completed: { label: 'Completed', bg: 'bg-mint', text: 'text-ink-soft' },
   cancelled: { label: 'Cancelled', bg: 'bg-cream-2', text: 'text-muted' },
+  dropped: { label: 'Dropped', bg: 'bg-cream-2', text: 'text-muted' },
+  no_show: { label: 'Missed', bg: 'bg-rose', text: 'text-ink' },
 } as const;
 
 export function ShiftDetailView({ shiftId, occurrenceDate }: { shiftId: string; occurrenceDate: string }) {
   const { data: shift, isLoading, isError } = useMyShiftDetail(shiftId, occurrenceDate);
+  const [showNote, setShowNote] = useState(false);
 
   if (isLoading) {
     return <View className="flex-1 items-center justify-center"><ActivityIndicator color="#FF5A1F" /></View>;
@@ -59,6 +65,10 @@ export function ShiftDetailView({ shiftId, occurrenceDate }: { shiftId: string; 
       {location ? <ShiftLocationCard location={location} /> : null}
       {shift.client.medical_conditions ? <ShiftCareCard careFocus={shift.client.medical_conditions} /> : null}
       {shift.instructions ? <ShiftInstructionsCard instructions={shift.instructions} /> : null}
+      {['scheduled', 'in_progress', 'completed'].includes(shift.completion_status) && Date.parse(shift.start_time) <= Date.now() ? (
+        <Btn className="mt-5" onPress={() => setShowNote(true)}>View / add progress note</Btn>
+      ) : null}
+      {showNote ? <ProgressNoteSheet target={{ shiftId, occurrenceDate, clientName: `${shift.client.first_name} ${shift.client.last_name}` }} onClose={() => setShowNote(false)} /> : null}
     </ScrollView>
   );
 }

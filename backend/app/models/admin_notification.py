@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Boolean, DateTime, ForeignKey, Enum, UniqueConstraint
+from sqlalchemy import Column, Boolean, DateTime, ForeignKey, Enum, UniqueConstraint, String
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -22,6 +22,7 @@ class Notification(Base):
     # For individual-targeted notifications only
     recipient_id     = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
     payload          = Column(JSONB, nullable=False, default=dict)
+    situation_key    = Column(String(200), nullable=True, index=True)
     requires_action  = Column(Boolean, nullable=False, default=False)
     resolved_at      = Column(DateTime(timezone=True), nullable=True)
     resolved_by      = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)

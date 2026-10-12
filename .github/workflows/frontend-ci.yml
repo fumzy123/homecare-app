@@ -31,6 +31,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Invitation resume regression checks
+        run: node scripts/verify-invitation-resume.mjs
+
       - name: Lint
         run: npm run lint
 

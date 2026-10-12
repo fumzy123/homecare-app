@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useWorker } from '@/features/workers/hooks/useWorkers'
+import { WorkerSchedulingStatus } from '@/features/workers/components/WorkerSchedulingStatus'
 import { format } from 'date-fns'
-import { orgMembersApi } from '@/features/org-members/api'
 import { Avatar } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId')({
@@ -45,10 +45,7 @@ function WorkerLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const isEditMode = pathname === `/dashboard/workers/${workerId}/edit`
 
-  const { data: worker, isLoading, isError } = useQuery({
-    queryKey: ['worker', workerId],
-    queryFn: () => orgMembersApi.getOrgMember(workerId),
-  })
+  const { data: worker, isLoading, isError } = useWorker(workerId)
 
   // Edit page renders its own full-page layout — skip the rail/tab wrapper
   if (isEditMode) return <Outlet />
@@ -90,6 +87,7 @@ function WorkerLayout() {
           }`}>
             {worker.is_active ? 'Active' : 'Inactive'}
           </span>
+          <WorkerSchedulingStatus worker={worker} />
         </div>
 
         <div className="border-t border-ink" />

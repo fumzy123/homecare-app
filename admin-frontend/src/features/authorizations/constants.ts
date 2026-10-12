@@ -19,13 +19,13 @@ export const HOURS_PERIOD_LABELS: Record<HoursPeriod, string> = {
 }
 
 export const WEEKDAYS: { key: WeekDay; label: string }[] = [
+  { key: 'SU', label: 'Sun' },
   { key: 'MO', label: 'Mon' },
   { key: 'TU', label: 'Tue' },
   { key: 'WE', label: 'Wed' },
   { key: 'TH', label: 'Thu' },
   { key: 'FR', label: 'Fri' },
   { key: 'SA', label: 'Sat' },
-  { key: 'SU', label: 'Sun' },
 ]
 
 export const WEEKDAY_LABELS: Record<WeekDay, string> = Object.fromEntries(

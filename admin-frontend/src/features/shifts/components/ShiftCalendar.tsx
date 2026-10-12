@@ -1,13 +1,14 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback, useMemo } from 'react'
 import { Calendar, dateFnsLocalizer, Navigate, type View, type ToolbarProps } from 'react-big-calendar'
-import { format, parse, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
+import { format, parse, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
-import { shiftsApi, toCalendarEvents, type ShiftOccurrence, type CalendarEvent } from '@/features/shifts/api'
-import { orgMembersApi } from '@/features/org-members/api'
-import { clientsApi } from '@/features/clients/api'
+import { toCalendarEvents, type ShiftOccurrence, type CalendarEvent } from '@/features/shifts/api'
+import { useCalendarShifts, useTargetVisit } from '../hooks/useShifts'
+import { useWorkers } from '@/features/workers/hooks/useWorkers'
+import { useClients } from '@/features/clients/hooks/useClients'
 import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { STATUS_TOKENS, getStatusToken } from '@/shared/lib/shiftStatus'
@@ -134,17 +135,22 @@ interface ShiftCalendarProps {
   showNewShiftDrawer?: boolean
   onNewShiftDrawerClose?: () => void
   initialWorkerId?: string
+  initialClientId?: string
+  initialDate?: string
+  targetShiftId?: string
+  targetOccurrence?: string
 }
 
-export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClose, initialWorkerId }: ShiftCalendarProps) {
+export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClose, initialWorkerId, initialClientId, initialDate, targetShiftId, targetOccurrence }: ShiftCalendarProps) {
   const queryClient = useQueryClient()
-  const [currentDate, setCurrentDate]     = useState(new Date())
+  const [currentDate, setCurrentDate]     = useState(() => initialDate ? parseISO(initialDate) : new Date())
   const [view, setView]                   = useState<View>('week')
   const [showDrawer, setShowDrawer]       = useState(false)
   const [pendingShift, setPendingShift]   = useState<PendingShiftInfo | null>(null)
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
   const [filterWorkerId, setFilterWorkerId] = useState(initialWorkerId ?? '')
-  const [filterClientId, setFilterClientId] = useState('')
+  const [filterClientId, setFilterClientId] = useState(initialClientId ?? '')
+  const [targetDismissed, setTargetDismissed] = useState(false)
 
   const [prevShowNewShift, setPrevShowNewShift] = useState(showNewShiftDrawer)
   if (showNewShiftDrawer && prevShowNewShift !== showNewShiftDrawer) {
@@ -158,12 +164,12 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
 
   const { from, to } = rangeForView(currentDate, view)
 
-  const { data: occurrences = [], isLoading } = useQuery({
-    queryKey: ['shifts', from, to, filterWorkerId, filterClientId],
-    queryFn:  () => shiftsApi.listShifts(from, to, filterWorkerId || undefined, filterClientId || undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped']),
-  })
-  const { data: workers = [] } = useQuery({ queryKey: ['workers'], queryFn: () => orgMembersApi.listByRole('home_support_worker') })
-  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.listClients() })
+  const { data: occurrences = [], isLoading } = useCalendarShifts(from, to, filterWorkerId, filterClientId)
+  const { data: workers = [] } = useWorkers()
+  const { data: clients = [] } = useClients()
+  const targetQuery = useTargetVisit(targetDismissed ? undefined : targetShiftId, targetOccurrence)
+  const target = !targetDismissed ? targetQuery.data : undefined
+  const displayedShift = selectedShift ?? target
 
   const overtimeMap = useMemo(
     () => view === 'week' ? computeOvertimeMap(occurrences) : new Map<string, number>(),
@@ -197,13 +203,14 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
 
   return (
     <>
+      {targetShiftId && !targetDismissed && !targetQuery.isPending && !target && <p role="status" className="mx-10 mb-4 border border-line-soft p-3 text-sm">{targetQuery.isError ? 'Could not load this visit. Refresh to try again.' : 'This visit is no longer available. Review the schedule for its current status.'}</p>}
       {/* Filters */}
       <div className="px-10 max-md:px-4 mb-4 flex flex-wrap items-center gap-3">
-        <select value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
+        <select aria-label="Filter by worker" value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
           <option value="">All workers</option>
           {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
         </select>
-        <select value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
+        <select aria-label="Filter by client" value={filterClientId} onChange={(e) => setFilterClientId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
           <option value="">All clients</option>
           {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
         </select>
@@ -294,8 +301,8 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
         />
       )}
 
-      {selectedShift && (
-        <ShiftDetailDrawer shift={selectedShift} onClose={() => setSelectedShift(null)} />
+      {displayedShift && (
+        <ShiftDetailDrawer shift={displayedShift} onClose={() => { setSelectedShift(null); setTargetDismissed(true) }} />
       )}
     </>
   )

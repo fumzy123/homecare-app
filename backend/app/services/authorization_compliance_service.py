@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from app.core.enums import HoursPeriod, ServiceType, ClientStatus, AuthorizationCoverage
 from app.models.client import Client
 from app.repositories.authorization_repository import AuthorizationRepository
-from app.repositories.weekly_care_plan_repository import WeeklyCarePlanRepository
+from app.repositories.client_repository import ClientRepository
+from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 from app.schemas.authorization import ServiceCompliance, AuthorizationComplianceResponse
 
 # A planned service is "approaching" its cap at this fraction of authorized hours.
@@ -20,13 +21,14 @@ class AuthorizationComplianceService:
     def __init__(self, db: Session):
         self.db = db
         self.auth_repo = AuthorizationRepository(db)
-        self.plan_repo = WeeklyCarePlanRepository(db)
+        self.care_need_repo = WeeklyCareNeedRepository(db)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def check(self, client_id: UUID, org_id: UUID, on_date: date | None = None) -> AuthorizationComplianceResponse:
-        """Compliance of the client's *persisted* weekly care plan."""
-        entries = self.plan_repo.list_for_client(client_id)
+        """Compliance of the client's *persisted* weekly care need."""
+        ClientRepository(self.db).get_active_client(client_id, org_id)
+        entries = self.care_need_repo.list_for_client(client_id)
         return self._evaluate(client_id, org_id, entries, on_date)
 
     def evaluate_entries(
@@ -49,7 +51,7 @@ class AuthorizationComplianceService:
             for svc in auth.services:
                 authorized[svc.service_type] += self._to_biweekly(float(svc.authorized_hours), auth.hours_period)
 
-        # Planned hours per service — the care plan is a weekly pattern, so ×2.
+        # Planned hours per service — the care need is a weekly pattern, so ×2.
         planned_weekly: dict[ServiceType, float] = defaultdict(float)
         for e in entries:
             planned_weekly[e.service_type] += self._entry_hours(e.start_time, e.end_time)

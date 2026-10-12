@@ -1,42 +1,37 @@
 import { View, Text, Pressable } from 'react-native';
-import { Kicker } from '@/shared/components/ui';
-
-export interface UrgentAction {
-  id: string;
-  label: string;
-  description: string;
-  onPress: () => void;
-}
+import { ActionCardStack } from './ActionCardStack';
+import { UrgentActionCard, type UrgentAction } from './UrgentActionCard';
+export type { UrgentAction } from './UrgentActionCard';
 
 interface NeedsYouTodayProps {
   actions: UrgentAction[];
+  onViewAll?: () => void;
+  showHeading?: boolean;
+  stacked?: boolean;
+  onInteractionChange?: (active: boolean) => void;
 }
 
-export function NeedsYouToday({ actions }: NeedsYouTodayProps) {
+/** Layer 2: presents action items supplied by the home orchestrator. */
+export function NeedsYouToday({ actions, onViewAll, showHeading = true, stacked = false, onInteractionChange }: NeedsYouTodayProps) {
   if (actions.length === 0) return null;
 
   return (
-    <View className="mt-6">
-      <View className="mb-3 flex-row items-center justify-between">
-        <Kicker>Needs You Today</Kicker>
-        <View className="rounded-full bg-orange px-2 py-0.5">
-          <Text className="font-mono text-xs font-bold text-white">{actions.length} ITEM{actions.length > 1 ? 'S' : ''}</Text>
-        </View>
-      </View>
-
-      {actions.map((action) => (
-        <Pressable
-          key={action.id}
-          onPress={action.onPress}
-          className="mb-2 flex-row items-center justify-between rounded-xl border border-orange-soft bg-orange-soft px-4 py-3"
-        >
-          <View className="flex-1 pr-3">
-            <Text className="font-sans text-sm font-semibold text-ink">{action.label}</Text>
-            <Text className="mt-0.5 font-sans text-xs text-ink-soft">{action.description}</Text>
+    <View>
+      {showHeading ? <View className="mb-3 flex-row flex-wrap items-center justify-between gap-2">
+        <Text accessibilityRole="header" className="font-serif text-xl text-ink">Needs your attention</Text>
+        <Pressable onPress={onViewAll} disabled={!onViewAll}
+          accessibilityRole={onViewAll ? 'button' : undefined}
+          accessibilityLabel={`View ${actions.length} action ${actions.length === 1 ? 'item' : 'items'}`}
+          accessibilityHint={onViewAll ? 'Opens the full action items list' : undefined}
+          className="min-h-11 min-w-11 items-center justify-center">
+          <View className="rounded-full bg-orange px-2 py-0.5">
+            <Text className="font-mono text-xs font-bold text-white">{actions.length} ITEM{actions.length > 1 ? 'S' : ''}</Text>
           </View>
-          <Text className="font-mono text-xs text-orange">→</Text>
         </Pressable>
-      ))}
+      </View> : null}
+
+      {stacked ? <ActionCardStack actions={actions} onInteractionChange={onInteractionChange} />
+        : actions.map(action => <View key={action.id} className="mb-2"><UrgentActionCard action={action} /></View>)}
     </View>
   );
 }

@@ -4,23 +4,34 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "development-staging": {
+      "extends": "preview",
+      "developmentClient": true
+    },
     "development": {
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "production": {
+      "environment": "production",
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://www.careharbor.online",
+        "EXPO_NO_DOTENV": "1"
       }
     }
   },

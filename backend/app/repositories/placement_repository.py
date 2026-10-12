@@ -3,12 +3,25 @@ from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from app.models.placement import Placement, PlacementInterest
 from app.models.employment import Employment
-from app.core.enums import PlacementStatus
+from app.core.enums import PlacementStatus, OrgMemberRole, EmploymentStatus
 
 
 class PlacementRepository:
     def __init__(self, db: Session):
         self.db = db
+
+    def lock_for_org(self, placement_id, org_id):
+        # Lock the parent only; joined outer relations cannot safely participate
+        # in PostgreSQL FOR UPDATE. Load relationships after acquiring this lock.
+        return self.db.query(Placement).filter(Placement.id == placement_id, Placement.org_id == org_id).populate_existing().with_for_update().first()
+
+    def active_worker(self, employment_id, org_id):
+        return self.db.query(Employment).options(joinedload(Employment.person)).filter(
+            Employment.id == employment_id, Employment.org_id == org_id,
+            Employment.role == OrgMemberRole.home_support_worker,
+            Employment.employment_status == EmploymentStatus.active,
+            Employment.deleted_at.is_(None),
+        ).populate_existing().first()
 
     def create(
         self,
@@ -19,7 +32,7 @@ class PlacementRepository:
         masked_location: str,
         requirements: str | None,
         start_date=None,
-        care_plan_snapshot: list | None = None,
+        care_slot_snapshot: list | None = None,
     ) -> Placement:
         placement = Placement(
             org_id=org_id,
@@ -29,7 +42,7 @@ class PlacementRepository:
             masked_location=masked_location,
             requirements=requirements,
             start_date=start_date,
-            care_plan_snapshot=care_plan_snapshot,
+            care_slot_snapshot=care_slot_snapshot,
             status=PlacementStatus.open,
         )
         self.db.add(placement)
@@ -98,4 +111,16 @@ class PlacementRepository:
 
     def remove_interest(self, interest: PlacementInterest) -> None:
         self.db.delete(interest)
+        self.db.flush()
+
+    def assignments(self, placement_id):
+        from app.models.placement import CareSlotAssignment
+        return self.db.query(CareSlotAssignment).options(joinedload(CareSlotAssignment.employment).joinedload(Employment.person)).filter(
+            CareSlotAssignment.placement_id == placement_id).all()
+
+    def for_care_need(self, need_id):
+        return self.db.query(Placement).filter(Placement.weekly_care_need_id == need_id).first()
+
+    def add_assignment(self, assignment):
+        self.db.add(assignment)
         self.db.flush()

@@ -34,8 +34,18 @@ class Organization(Base):
     paid_at = Column(DateTime(timezone=True), nullable=True)
     stripe_customer_id = Column(String, nullable=True)
     subscription_id = Column(String, nullable=True)
+    billing_timezone = Column(String, nullable=True)
+    billing_usage_tracking_started_at = Column(DateTime(timezone=True), nullable=True)
+    billing_recovery_checked_at = Column(DateTime(timezone=True), nullable=True)
+    billing_recovery_error = Column(String, nullable=True)
     subscription_status = Column(String, nullable=True)
     subscription_current_period_end = Column(DateTime(timezone=True), nullable=True)
+    # Nullable rollout: legacy agencies retain their current access policy until
+    # explicitly enrolled. Trial timestamps mirror confirmed Stripe values.
+    onboarding_deadline_at = Column(DateTime(timezone=True), nullable=True)
+    onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
+    trial_starts_at = Column(DateTime(timezone=True), nullable=True)
+    trial_ends_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -118,6 +118,13 @@ class AuthorizationService:
                 for s in payload.services
             ]
             self.repo.add(auth)
+            self.db.flush()
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.employment_id,
+                f'authorization:{auth.supersedes_id or auth.id}', 'authorizations',
+                'Amended funding authorization' if auth.supersedes_id else 'Added funding authorization',
+                f'{auth.funder} · {auth.authorization_number}',
+                {'kind': 'authorization', 'record_id': str(client_id), 'detail_id': str(auth.id)})
             self.db.commit()
             self.db.refresh(auth)
         except AppError:
@@ -136,6 +143,10 @@ class AuthorizationService:
                            message="Authorization is already cancelled")
         try:
             self.repo.cancel(auth)
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.employment_id, f'authorization:{auth.id}', 'authorizations',
+                'Cancelled funding authorization', f'{auth.funder} · {auth.authorization_number}',
+                {'kind': 'authorization', 'record_id': str(auth.client_id), 'detail_id': str(auth.id)})
             self.db.commit()
             self.db.refresh(auth)
         except Exception:

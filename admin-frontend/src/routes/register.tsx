@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
 import { useAuthStore } from '@/shared/stores/auth'
 import { RegisterForm } from '@/features/auth/components/RegisterForm'
@@ -20,21 +21,16 @@ function RegisterPage() {
 
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
-            <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-            <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-            <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-          </svg>
+          <BoatLogo size={26} />
           <div>
-            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Homecare</p>
-            <p className="font-mono text-[8px] tracking-[0.18em] uppercase text-ink-soft mt-0.5">Home Care OS</p>
+            <p className="font-serif text-[18px] leading-none tracking-[-0.02em] font-medium">Care Harbor</p>
           </div>
         </div>
 
         {/* Headline */}
         <div className="max-w-lg">
           <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-ink-soft mb-6">
-            Get started free
+            Personal onboarding included
           </p>
           <h1 className="font-serif text-[56px] leading-[1.0] font-medium tracking-[-0.02em]">
             Your agency,{' '}
@@ -42,7 +38,7 @@ function RegisterPage() {
             from day one.
           </h1>
           <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
-            Set up your organization and start scheduling shifts in minutes. No credit card required.
+            Create your agency account to start your 14-day free trial. Choose a paid plan whenever you are ready.
           </p>
         </div>
 
@@ -61,6 +57,10 @@ function RegisterPage() {
         </div>
 
         <RegisterForm />
+
+        <p className="mt-5 text-sm text-ink-soft leading-relaxed">
+          Your trial starts when your agency account is created after email confirmation. Subscribe at any time to keep your remaining trial days. Your chosen plan is charged when the trial ends unless you cancel renewal.
+        </p>
 
         <p className="mt-8 font-mono text-[10px] text-ink-soft">
           Already have an account?{' '}

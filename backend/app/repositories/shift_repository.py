@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timezone
 from sqlalchemy.orm import Session, joinedload
+from app.models.organization import Organization
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.models.employment import Employment
@@ -10,6 +11,26 @@ from app.core.exceptions import AppError
 class ShiftRepository:
     def __init__(self, db: Session):
         self.db = db
+
+    def completion_org_ids(self):
+        return [row[0] for row in self.db.query(Shift.org_id).filter(
+            Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None),
+        ).distinct().order_by(Shift.org_id).all()]
+
+    def completion_candidates(self, org_id):
+        return self.db.query(Shift, Organization.billing_timezone, Organization.onboarding_deadline_at).join(
+            Organization, Organization.id == Shift.org_id,
+        ).filter(
+            Shift.org_id == org_id, Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None),
+        ).order_by(Shift.id).with_for_update(of=Shift).all()
+
+    def lock_shift(self, shift_id, org_id):
+        row = self.db.query(Shift).filter(
+            Shift.id == shift_id, Shift.org_id == org_id, Shift.deleted_at.is_(None),
+        ).populate_existing().with_for_update().first()
+        if not row:
+            raise AppError(status_code=404, code="NOT_FOUND", message="Shift not found")
+        return row
 
     def get_active_shift(self, shift_id, org_id) -> Shift:
         """Fetch a non-deleted shift by primary key scoped to an organisation.
@@ -166,6 +187,8 @@ class ShiftRepository:
                 Shift.status == ShiftStatus.active,
                 Shift.deleted_at == None,  # noqa: E711
             )
+            .order_by(Shift.id)
+            .with_for_update()
             .all()
         )
 
@@ -194,6 +217,11 @@ class ShiftRepository:
             ShiftModification.shift_id == shift_id,
             ShiftModification.original_date >= from_date,
         ).delete(synchronize_session=False)
+
+    def for_care_need(self, need_id, org_id):
+        return self.db.query(Shift).options(joinedload(Shift.modifications), joinedload(Shift.worker).joinedload(Employment.person)).filter(
+            Shift.weekly_care_need_id == need_id, Shift.org_id == org_id,
+            Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None)).order_by(Shift.id).all()
 
 
 class ShiftModificationRepository:

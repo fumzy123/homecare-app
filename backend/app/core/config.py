@@ -17,9 +17,28 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_sentry_dsn: str = ""
     app_env: str = "development"
+    push_delivery_enabled: bool = False
+    push_allowed_app_ids: list[str] = []
+    expo_push_access_token: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""
+    billing_onboarding_enabled: bool = False
+    billing_notifications_enabled: bool = False
+    billing_usage_finalization_enabled: bool = False
+    billing_settlement_enabled: bool = False
+    billing_settlement_live_enabled: bool = False
+    billing_usage_tax_mode: str = "unconfigured"
+    stripe_usage_tax_code: str = ""
+    billing_operator_user_ids: list[str] = []
+    stripe_standard_monthly_v1_price_id: str = ""
+    stripe_standard_annual_v1_price_id: str = ""
+    stripe_standard_monthly_v2_price_id: str = ""
+    stripe_standard_annual_v2_price_id: str = ""
+    stripe_founding_monthly_v1_price_id: str = ""
+    stripe_standard_monthly_v3_price_id: str = ""
+    stripe_standard_annual_v3_price_id: str = ""
+    stripe_founding_monthly_v2_price_id: str = ""
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 

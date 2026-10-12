@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <!-- Exact geometry from admin-frontend/src/shared/components/ui/BoatLogo.tsx. -->
+  <path d="M1 1h30v30H1z" stroke="#111111" />
+  <path d="M16 6v16M13 9 6 20h7M19 11l7 9h-7" stroke="#111111" stroke-width="1.5" stroke-linejoin="round" />
+  <path d="m6 23 3 4h14l3-4H6Z" fill="#111111" />
+  <circle cx="25" cy="7" r="2.5" fill="#FF5A1F" />
+</svg>

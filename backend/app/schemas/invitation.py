@@ -25,6 +25,14 @@ class AcceptInvitationSchema(BaseModel):
     first_name: str
     last_name: str
 
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def valid_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value or len(value) > 100:
+            raise ValueError("Enter a name between 1 and 100 characters")
+        return value
+
 
 class InvitationResponse(BaseModel):
     id: uuid.UUID

@@ -2,6 +2,8 @@ from datetime import date, datetime, timedelta, timezone
 import uuid
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
+from app.services.billing_evidence_service import BillingEvidenceService
+from app.services.billing_cutoff_service import BillingCutoffService
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.core.enums import ShiftCompletionStatus, ShiftStatus, OVERTIME_APPROVERS
@@ -23,6 +25,9 @@ from app.repositories.shift_repository import ShiftRepository, ShiftModification
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
 from app.repositories.client_repository import ClientRepository
+from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
+from app.services.worker_notification_service import WorkerNotificationService
+from app.domain.push import schedule_snapshot, modification_snapshot
 from app.domain.scheduling import (
     DEFAULT_RECURRENCE_HORIZON_DAYS,
     SchedulingChecker,
@@ -45,6 +50,7 @@ class ShiftService:
         self.modification_repo = ShiftModificationRepository(db)
         self.employment_repo = EmploymentRepository(db)
         self.client_repo = ClientRepository(db)
+        self.care_need_repo = WeeklyCareNeedRepository(db)
         org_repo = OrganizationRepository(db)
         current_employment = org_repo.get_active_employment_for_user(current_user.id)
         if not current_employment:
@@ -54,13 +60,43 @@ class ShiftService:
         self.current_member_role = current_employment.role
         self.current_employment = current_employment
         self.checker = SchedulingChecker(self.db, self.org_id)
+        self.evidence_service = BillingEvidenceService(db, self.org_id)
+        self.cutoff_service = BillingCutoffService(db)
 
     # ─────────────────────────────────────────
     # Internal helpers
     # ─────────────────────────────────────────
 
+    def _worker_notifications(self):
+        return WorkerNotificationService(self.db, self.org_id, self.current_employment_id)
+
     def _get_active_shift(self, shift_id: str) -> Shift:
         return self.shift_repo.get_active_shift(shift_id, self.org_id)
+
+    def _check_coverage_bounds(self, shift, start, end_date, recurring, client_id=None, worker_id=None):
+        if getattr(shift, 'assignment_id', None):
+            assignment = shift.assignment
+            if worker_id and str(worker_id) != str(assignment.employment_id):
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'End the recurring assignment and approve a replacement in Care requests to change its worker')
+            if start.date() < assignment.starts_on:
+                raise AppError(409, 'ASSIGNMENT_NOT_STARTED', 'Visits cannot start before this assignment')
+            stop = assignment.ends_before
+            if stop and (start.date() >= stop or (recurring and (end_date is None or end_date >= stop))):
+                raise AppError(409, 'ASSIGNMENT_ENDED', 'This assignment ends before that visit; approve new coverage in Care requests')
+            if recurring and end_date and (shift.recurrence_end_date is None or end_date < shift.recurrence_end_date):
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care need to end recurring care slots')
+        need_id = getattr(shift, 'weekly_care_need_id', None)
+        if not need_id:
+            return
+        need = self.care_need_repo.get(need_id, self.org_id)
+        if not need:
+            raise AppError(409, 'CARE_NEED_NOT_FOUND', 'The source Weekly Care Need could not be found')
+        if client_id and str(client_id) != str(need.client_id):
+            raise AppError(409, 'CARE_NEED_CLIENT_MISMATCH', 'Create a separate shift for a different client')
+        if need.scheduled_from and start.date() < need.scheduled_from:
+            raise AppError(409, 'CARE_NEED_NOT_STARTED', 'This shift cannot start before its approved Weekly Care Need')
+        if need.ends_on and (start.date() > need.ends_on or (recurring and (end_date is None or end_date > need.ends_on))):
+            raise AppError(409, 'CARE_NEED_ENDED', 'This Weekly Care Need has ended; schedule against the replacement version')
 
     def _validate_shift_participants(self, client_id, worker_id):
         """Resolve shift participants within the authenticated organization.
@@ -177,6 +213,7 @@ class ShiftService:
             end_time=effective.end_time,
             completion_status=effective.completion_status,
             is_modification=mod is not None,
+            has_visit_changes=effective.has_visit_changes,
             is_recurring=shift.is_recurring,
             service_type=effective.service_type,
             worker=WorkerSummary(
@@ -196,8 +233,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 1. Create a single or recurring shift
     # ─────────────────────────────────────────
-    async def create_shift(self, payload: ShiftCreateSchema):
+    async def create_shift(self, payload: ShiftCreateSchema, *, commit=True):
         try:
+            self.cutoff_service.seal_due(self.org_id)
             client = self._validate_shift_participants(
                 payload.client_id,
                 payload.worker_id,
@@ -244,11 +282,19 @@ class ShiftService:
                 overtime_approved=payload.override_hours_check or False,
             )
             self.shift_repo.add(shift)
-            self.db.commit()
-            self.db.refresh(shift)
+            self.db.flush()
+            self._worker_notifications().schedule('shift_assigned', shift.worker_id, shift.id, shift.start_time.date())
+            if commit:
+                from app.repositories.activity_repository import ActivityRepository
+                ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift.id}:{payload.start_time.date()}', 'schedule',
+                    'Scheduled care', f'{client.first_name} {client.last_name}',
+                    {'kind': 'visit', 'record_id': str(shift.id), 'occurrence_date': payload.start_time.date().isoformat()})
+                self.db.commit()
+                self.db.refresh(shift)
             return shift
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -511,10 +557,14 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 4. Update master shift (affects all future occurrences)
     # ─────────────────────────────────────────
-    async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema):
+    async def update_shift(self, shift_id: str, payload: ShiftUpdateSchema, *, commit=True):
         try:
+            self.cutoff_service.seal_due(self.org_id)
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            self.evidence_service.preserve(shift)
 
+            before = schedule_snapshot(shift)
             updates = payload.model_dump(exclude_unset=True, exclude={"override_hours_check"})
 
             new_worker_id = payload.worker_id or shift.worker_id
@@ -558,6 +608,7 @@ class ShiftService:
                     (new_start_time.date(), new_start_time, new_end_time)
                 ]
 
+            self._check_coverage_bounds(shift, new_start_time, new_end_date, shift.is_recurring, payload.client_id, payload.worker_id)
             schedule_changed = (
                 new_worker_id != shift.worker_id
                 or new_start_time != shift.start_time
@@ -587,12 +638,20 @@ class ShiftService:
 
             if schedule_changed and payload.override_hours_check:
                 shift.overtime_approved = True
+            self._worker_notifications().changed(before, shift, shift.start_time.date())
 
-            self.db.commit()
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+            if commit:
+                self.db.commit()
+            self.db.flush()
             self.db.refresh(shift)
             return shift
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -603,16 +662,27 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def cancel_shift(self, shift_id: str, payload: ShiftCancelSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            if getattr(shift, 'assignment_id', None):
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care need to end recurring care slots and preserve their history')
+            self.evidence_service.preserve(shift)
 
+            self._worker_notifications().schedule('shift_cancelled', shift.worker_id, shift.id)
             shift.status = ShiftStatus.cancelled
             shift.deleted_at = datetime.now(timezone.utc)
             shift.cancellation_reason = payload.cancellation_reason
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Cancelled visit series', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
 
             return {"message": "Shift cancelled successfully"}
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -621,9 +691,12 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 6. Create a modification for a specific occurrence
     # ─────────────────────────────────────────
-    async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema):
+    async def create_modification(self, shift_id: str, payload: ShiftModificationCreateSchema, *, commit=True):
         try:
+            self.cutoff_service.seal_due(self.org_id)
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             master = self._get_active_shift(shift_id)
+            evidence = self.evidence_service.preserve(master)
 
             if payload.new_start_time or payload.new_end_time:
                 duration = master.end_time - master.start_time
@@ -631,6 +704,7 @@ class ShiftService:
                     payload.original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or (new_start + duration)
+                self._check_coverage_bounds(master, new_start, new_start.date(), False)
                 self._enforce_scheduling_rules(
                     worker_id=master.worker_id,
                     proposed_time_blocks=[(payload.original_date, new_start, new_end)],
@@ -639,6 +713,7 @@ class ShiftService:
                 )
 
             existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
+            before = modification_snapshot(existing)
 
             if existing:
                 updates = payload.model_dump(exclude_unset=True, exclude={"original_date", "override_hours_check"})
@@ -656,11 +731,23 @@ class ShiftService:
                     existing.cancelled_at = datetime.now(timezone.utc)
                 self.modification_repo.add(existing)
 
-            self.db.commit()
+            self.db.flush()
+            self.evidence_service.correct(master, existing, evidence, payload.model_fields_set)
+            if before != modification_snapshot(existing):
+                kind = 'shift_cancelled' if existing.completion_status == ShiftCompletionStatus.cancelled else 'shift_updated'
+                self._worker_notifications().schedule(kind, master.worker_id, master.id, payload.original_date)
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = payload.original_date
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+            if commit:
+                self.db.commit()
+            self.db.flush()
             self.db.refresh(existing)
             return existing
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -676,8 +763,12 @@ class ShiftService:
         payload: ShiftModificationUpdateSchema,
     ):
         try:
+            self.cutoff_service.seal_due(self.org_id)
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             master = self._get_active_shift(shift_id)
+            evidence = self.evidence_service.preserve(master)
             mod = self.modification_repo.get_modification_by_shift_and_date_required(shift_id, original_date)
+            before = modification_snapshot(mod)
 
             if payload.new_start_time or payload.new_end_time:
                 duration = master.end_time - master.start_time
@@ -685,6 +776,7 @@ class ShiftService:
                     original_date, master.start_time.timetz()
                 )
                 new_end = payload.new_end_time or mod.new_end_time or (new_start + duration)
+                self._check_coverage_bounds(master, new_start, new_start.date(), False)
                 self._enforce_scheduling_rules(
                     worker_id=master.worker_id,
                     proposed_time_blocks=[(original_date, new_start, new_end)],
@@ -696,11 +788,21 @@ class ShiftService:
             for field, value in updates.items():
                 setattr(mod, field, value)
 
+            self.db.flush()
+            self.evidence_service.correct(master, mod, evidence, payload.model_fields_set)
+            if before != modification_snapshot(mod):
+                kind = 'shift_cancelled' if mod.completion_status == ShiftCompletionStatus.cancelled else 'shift_updated'
+                self._worker_notifications().schedule(kind, master.worker_id, master.id, original_date)
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = original_date
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
             self.db.refresh(mod)
             return mod
 
         except AppError:
+            self.db.rollback()
             raise
         except Exception as e:
             self.db.rollback()
@@ -712,8 +814,14 @@ class ShiftService:
     # ─────────────────────────────────────────
     async def cancel_from_date(self, shift_id: str, payload: ShiftCancelFromSchema):
         try:
+            self.cutoff_service.seal_due(self.org_id)
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            if getattr(shift, 'assignment_id', None):
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care need to end recurring care slots and request replacement coverage')
+            self.evidence_service.preserve(shift)
             occurrence_date = payload.occurrence_date
+            self._worker_notifications().schedule('shift_cancelled', shift.worker_id, shift.id, occurrence_date)
 
             if occurrence_date <= shift.start_time.date():
                 shift.status = ShiftStatus.cancelled
@@ -724,6 +832,10 @@ class ShiftService:
                 shift.cancellation_reason = payload.cancellation_reason
                 self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Ended visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
             return {"message": "Occurrences cancelled successfully"}
 
@@ -737,10 +849,14 @@ class ShiftService:
     # ─────────────────────────────────────────
     # 9. Edit this occurrence and all following (splits the series)
     # ─────────────────────────────────────────
-    async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema):
+    async def edit_from_date(self, shift_id: str, payload: ShiftEditFromSchema, *, commit=True):
         try:
+            self.cutoff_service.seal_due(self.org_id)
+            self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
+            self.evidence_service.preserve(shift)
             occurrence_date = payload.occurrence_date
+            before = schedule_snapshot(shift)
 
             if payload.worker_id is not None or payload.client_id is not None:
                 self._validate_shift_participants(
@@ -762,6 +878,7 @@ class ShiftService:
                 else:
                     proposed_time_blocks = [(new_start_time.date(), new_start_time, new_end_time)]
 
+                self._check_coverage_bounds(shift, new_start_time, new_end_date, shift.is_recurring, payload.client_id, payload.worker_id)
                 self._enforce_scheduling_rules(
                     worker_id=new_worker_id,
                     proposed_time_blocks=proposed_time_blocks,
@@ -788,7 +905,13 @@ class ShiftService:
                     shift.recurrence_end_date = payload.recurrence_end_date
                 if payload.notes is not None:
                     shift.notes = payload.notes
-                self.db.commit()
+                self._worker_notifications().changed(before, shift, occurrence_date)
+                from app.repositories.activity_repository import ActivityRepository
+                activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+                ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                    'Updated visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+                if commit:
+                    self.db.commit()
                 return {"message": "Shift updated"}
 
             original_end_date = shift.recurrence_end_date
@@ -826,12 +949,16 @@ class ShiftService:
                 override_hours_check=payload.override_hours_check,
             )
 
+            self._check_coverage_bounds(shift, new_start, new_end_date, shift.is_recurring, payload.client_id, payload.worker_id)
             shift.recurrence_end_date = occurrence_date - timedelta(days=1)
             self.shift_repo.delete_modifications_from_date(shift_id, occurrence_date)
 
             new_shift = Shift(
                 id=uuid.uuid4(),
                 org_id=shift.org_id,
+                weekly_care_need_id=shift.weekly_care_need_id,
+                care_slot_id=shift.care_slot_id,
+                assignment_id=shift.assignment_id,
                 worker_id=new_worker_id,
                 client_id=payload.client_id or shift.client_id,
                 created_by=self.current_employment_id,
@@ -846,7 +973,13 @@ class ShiftService:
                 overtime_approved=payload.override_hours_check or False,
             )
             self.shift_repo.add(new_shift)
-            self.db.commit()
+            self._worker_notifications().changed(before, new_shift, occurrence_date)
+            from app.repositories.activity_repository import ActivityRepository
+            activity_day = getattr(payload, 'occurrence_date', None) or getattr(payload, 'original_date', None) or shift.start_time.date()
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{shift_id}:{activity_day}', 'schedule',
+                'Updated visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
+            if commit:
+                self.db.commit()
             return {"message": "Shift updated from this occurrence"}
 
         except AppError:

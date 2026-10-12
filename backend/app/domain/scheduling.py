@@ -27,12 +27,12 @@ WEEKDAY_INDEX = {
 }
 
 
-def weekly_entries_to_time_blocks(entries, start_date: date, end_date: date) -> list[tuple[date, datetime, datetime]]:
+def care_slots_to_time_blocks(entries, start_date: date, end_date: date) -> list[tuple[date, datetime, datetime]]:
     """Project recurring weekly entries (each exposing day_of_week / start_time /
     end_time) into concrete (date, start, end) blocks across [start_date, end_date].
 
     Used to feed availability-agnostic checks (conflicts, hours) from a weekly
-    care plan, and shared by placement eligibility and fill-time generation."""
+    care need, and shared by placement eligibility and fill-time generation."""
     by_weekday: dict[int, list] = {}
     for e in entries:
         by_weekday.setdefault(WEEKDAY_INDEX[e.day_of_week], []).append(e)
@@ -94,6 +94,7 @@ class EffectiveShiftOccurrence:
     location: str | None
     instructions: str | None
     is_modified: bool
+    has_visit_changes: bool = False
 
 
 def resolve_effective_occurrence(
@@ -140,6 +141,13 @@ def resolve_effective_occurrence(
         location=shift.location,
         instructions=instructions,
         is_modified=modification is not None,
+        # Lifecycle-only records (including automatic completion) are not edits
+        # to the visit. Compare effective values so no-op overrides do not count.
+        has_visit_changes=(
+            start_time != base_start
+            or end_time != base_start + duration
+            or (instructions or "") != (shift.notes or "")
+        ),
     )
 
 
@@ -164,13 +172,17 @@ def expand_occurrences(shift: Shift, from_date: date, to_date: date) -> list[dat
     return [dt.date() for dt in occurrences]
 
 
-def shift_has_occurrence_on(shift: Shift, target_date: date) -> bool:
-    """Does this shift have an occurrence on target_date?"""
+def shift_has_occurrence_on(shift: Shift, target_date: date, *, include_truncated_history: bool = False) -> bool:
+    """Does this shift have an occurrence on target_date?
+
+    Billing may retain explicit completed/no-show evidence after a series was
+    shortened. Other callers always respect the current recurrence end.
+    """
     if not shift.is_recurring:
         return shift.start_time.date() == target_date
 
     end_bound = shift.recurrence_end_date
-    if end_bound and target_date > end_bound:
+    if end_bound and target_date > end_bound and not include_truncated_history:
         return False
 
     rule = rrulestr(shift.recurrence_rule, dtstart=shift.start_time)

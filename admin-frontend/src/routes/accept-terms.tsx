@@ -1,3 +1,4 @@
+import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute, redirect, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -36,12 +37,8 @@ function AcceptTermsPage() {
       {/* Nav */}
       <div className="border-b border-ink px-8 py-4 flex items-center bg-paper">
         <div className="flex items-center gap-3">
-          <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-            <rect x="0.5" y="0.5" width="27" height="27" stroke="#111" />
-            <path d="M 7 21 L 7 9 L 14 17 L 14 9 L 21 17 L 21 21" stroke="#111" strokeWidth="1.5" fill="none" />
-            <circle cx="21" cy="7" r="2.5" fill="#FF5A1F" />
-          </svg>
-          <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Homecare</span>
+          <BoatLogo size={22} />
+          <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Care Harbor</span>
         </div>
       </div>
 

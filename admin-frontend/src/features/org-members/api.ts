@@ -31,7 +31,10 @@ export interface OrgMember {
   gender: string | null
   date_of_birth: string | null
   hire_date: string | null
+  on_standby: boolean
+  next_shift_at: string | null
   is_active: boolean
+  employment_status: 'active' | 'on_leave' | 'terminated'
   employment_type: EmploymentType | null
   has_vehicle: boolean | null
   max_hours_per_week: number | null

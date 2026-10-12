@@ -1,15 +1,14 @@
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, Pressable } from 'react-native';
 import { useForm } from '@tanstack/react-form';
 import { z } from 'zod';
 import { Btn } from '@/shared/components/ui';
 import { useSignIn } from '../hooks/useAuth';
+import { openWebsitePage } from '@/shared/lib/website-links';
 
 const emailSchema = z.string().email('Enter a valid email address');
 const passwordSchema = z.string().min(1, 'Password is required');
 
-type Props = { onSuccess: () => void };
-
-export function LoginForm({ onSuccess }: Props) {
+export function LoginForm() {
   const { mutate: signIn, isPending, error } = useSignIn();
 
   const form = useForm({
@@ -17,7 +16,6 @@ export function LoginForm({ onSuccess }: Props) {
     onSubmit: async ({ value }) => {
       signIn(
         { email: value.email.trim(), password: value.password },
-        { onSuccess },
       );
     },
   });
@@ -103,6 +101,20 @@ export function LoginForm({ onSuccess }: Props) {
       <Btn onPress={() => form.handleSubmit()} disabled={isPending}>
         {isPending ? 'Signing in…' : 'Sign In'}
       </Btn>
+      <Pressable accessibilityRole="link" accessibilityHint="Opens password recovery on the website"
+        onPress={() => void openWebsitePage('/forgot-password')}
+        className="mt-3 min-h-11 items-center justify-center py-2">
+        <Text className="text-sm text-orange underline">Forgot password?</Text>
+      </Pressable>
+      <Text className="text-center text-xs leading-5 text-ink-soft">Reset your password on the web, then return here to sign in.</Text>
+      <View className="mt-4 flex-row flex-wrap items-center justify-center gap-x-5">
+        <Pressable accessibilityRole="link" accessibilityHint="Opens in your browser" onPress={() => void openWebsitePage('/privacy')} className="min-h-11 justify-center py-2">
+          <Text className="text-xs text-ink-soft underline">Privacy Policy</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" accessibilityHint="Opens in your browser" onPress={() => void openWebsitePage('/terms')} className="min-h-11 justify-center py-2">
+          <Text className="text-xs text-ink-soft underline">Terms of Service</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

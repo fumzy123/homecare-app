@@ -1,11 +1,9 @@
-from datetime import date, datetime
+from datetime import date
+from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
-from app.core.exceptions import AppError
-from app.core.enums import NotificationType
-from app.repositories.organization_repository import OrganizationRepository
 from app.schemas.shift import (
     ShiftCancelFromSchema,
     ShiftCancelSchema,
@@ -21,10 +19,9 @@ from app.schemas.shift import (
     OvertimeApprovalRequestSchema,
     OvertimeApproveSchema,
     OvertimeRejectSchema,
-    RecurrenceSchema,
 )
 from app.services.shift_service import ShiftService
-from app.services.notification_service import NotificationService
+from app.services.overtime_service import OvertimeService
 
 router = APIRouter(prefix="/shifts", tags=["Shifts"])
 
@@ -36,98 +33,30 @@ def get_shift_service(
     return ShiftService(db, current_user)
 
 
-def get_notification_service(
-    current_user=Depends(require_admin),
-    db: Session = Depends(get_db),
-) -> NotificationService:
-    employment = OrganizationRepository(db).get_active_employment_for_user(current_user.id)
-    if not employment:
-        raise AppError(status_code=404, code="NOT_FOUND", message="Member record not found")
-    return NotificationService(db, current_user_id=employment.id)
+def get_overtime_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):
+    return OvertimeService(db, current_user)
 
 
-# ─────────────────────────────────────────
-# 0. Request overtime approval from a manager
-# ─────────────────────────────────────────
 @router.post("/request-overtime-approval")
-async def request_overtime_approval(
-    payload: OvertimeApprovalRequestSchema,
-    shift_service: ShiftService = Depends(get_shift_service),
-    notification_service: NotificationService = Depends(get_notification_service),
-):
-    notification_service.notify_overtime_approval_requested(
-        org_id=shift_service.org_id,
-        requesting_member_id=shift_service.current_employment_id,
-        requesting_member_name=f"{shift_service.current_employment.person.first_name} {shift_service.current_employment.person.last_name}",
-        worker_id=payload.worker_id,
-        week_start=payload.week_start,
-        week_end=payload.week_end,
-        total_hours=payload.total_hours,
-        client_id=payload.client_id,
-        client_name=payload.client_name,
-        start_time=payload.start_time.isoformat() if payload.start_time else None,
-        end_time=payload.end_time.isoformat() if payload.end_time else None,
-        is_recurring=payload.is_recurring,
-        recurrence=payload.recurrence.model_dump() if payload.recurrence else None,
-        note=payload.note,
-    )
-    return {"ok": True}
+def request_overtime_approval(payload: OvertimeApprovalRequestSchema, overtime_service=Depends(get_overtime_service)):
+    return overtime_service.request(payload)
 
 
-# ─────────────────────────────────────────
-# 0a. Approve an overtime request
-# ─────────────────────────────────────────
+@router.get("/overtime-requests/{notification_id}")
+def overtime_request(notification_id: UUID, overtime_service=Depends(get_overtime_service)):
+    return overtime_service.detail(notification_id)
+
+
 @router.post("/approve-overtime", response_model=ShiftMasterResponse)
-async def approve_overtime(
-    payload: OvertimeApproveSchema,
-    shift_service: ShiftService = Depends(get_shift_service),
-    notification_service: NotificationService = Depends(get_notification_service),
-):
-    notification = notification_service.get_notification(payload.notification_id)
-    if notification.type != NotificationType.overtime_approval_requested:
-        raise AppError(status_code=400, code="INVALID_NOTIFICATION_TYPE", message="Not an overtime approval request")
-
-    p = notification.payload
-    if not p.get("client_id") or not p.get("start_time") or not p.get("end_time"):
-        raise AppError(status_code=400, code="INCOMPLETE_SHIFT_CONTEXT", message="Notification missing shift details — approve by editing the shift directly")
-
-    # Manager's recurrence edit takes precedence over the notification payload
-    if payload.is_recurring is not None:
-        recurrence = payload.recurrence if payload.is_recurring else None
-    else:
-        recurrence = RecurrenceSchema(**p["recurrence"]) if p.get("is_recurring") and p.get("recurrence") else None
-
-    shift_payload = ShiftCreateSchema(
-        worker_id=notification.worker_id,
-        client_id=p["client_id"],
-        start_time=payload.start_time or datetime.fromisoformat(p["start_time"]),
-        end_time=payload.end_time or datetime.fromisoformat(p["end_time"]),
-        recurrence=recurrence,
-        override_hours_check=True,
-    )
-    result = await shift_service.create_shift(shift_payload)
-    notification_service.mark_resolved(payload.notification_id)
-    return result
+async def approve_overtime(payload: OvertimeApproveSchema, overtime_service=Depends(get_overtime_service)):
+    return await overtime_service.approve(payload)
 
 
-# ─────────────────────────────────────────
-# 0b. Reject an overtime request
-# ─────────────────────────────────────────
 @router.post("/reject-overtime")
-async def reject_overtime(
-    payload: OvertimeRejectSchema,
-    notification_service: NotificationService = Depends(get_notification_service),
-):
-    notification = notification_service.get_notification(payload.notification_id)
-    if notification.type != NotificationType.overtime_approval_requested:
-        raise AppError(status_code=400, code="INVALID_NOTIFICATION_TYPE", message="Not an overtime approval request")
-    notification_service.mark_resolved(payload.notification_id)
-    return {"ok": True}
+def reject_overtime(payload: OvertimeRejectSchema, overtime_service=Depends(get_overtime_service)):
+    return overtime_service.reject(payload)
 
 
-# ─────────────────────────────────────────
-# 1. Create a single or recurring shift
-# ─────────────────────────────────────────
 @router.post("", response_model=ShiftMasterResponse)
 async def create_shift(
     payload: ShiftCreateSchema,

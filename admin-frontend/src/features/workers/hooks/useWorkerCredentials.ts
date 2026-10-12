@@ -16,6 +16,7 @@ export function useVerifyCredential(workerId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['worker-credentials', workerId] })
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['expiring-credentials'] })
     },
   })
 }

@@ -5,9 +5,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ShiftDetailView } from '@/features/shifts/components/ShiftDetailView';
 
 export default function ShiftDetailScreen() {
-  const { shiftId, occurrenceDate } = useLocalSearchParams<{
+  const { shiftId, occurrenceDate, source } = useLocalSearchParams<{
     shiftId?: string;
     occurrenceDate?: string;
+    source?: string;
   }>();
 
   return (
@@ -16,11 +17,11 @@ export default function ShiftDetailScreen() {
         <Pressable
           onPress={() => router.back()}
           className="mr-3 rounded-full p-2"
-          accessibilityLabel="Back to schedule"
+          accessibilityLabel={source === 'clients' ? 'Back to client' : 'Back to schedule'}
         >
           <Ionicons name="arrow-back" size={22} color="#111111" />
         </Pressable>
-        <Text className="font-mono text-xs uppercase tracking-widest text-muted">Schedule</Text>
+        <Text className="font-mono text-xs uppercase tracking-widest text-muted">{source === 'clients' ? 'Client visit' : 'Schedule'}</Text>
       </View>
       {shiftId && occurrenceDate ? (
         <ShiftDetailView shiftId={shiftId} occurrenceDate={occurrenceDate} />

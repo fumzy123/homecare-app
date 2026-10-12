@@ -9,7 +9,7 @@ import { totalAuthorizedHours, periodNoun, fmtHours, endsRelLabel, daysUntil } f
  * The active authorization, pinned at the top of the tab as the heaviest
  * element. Left column = the funder document (who/when); right column = the
  * authorized-hours breakdown (per service + total). This card states only what
- * the funder authorized — the plan-vs-authorization check lives in the care plan.
+ * the funder authorized — the plan-vs-authorization check lives in the care need.
  */
 export function ActiveAuthHero({
   auth,

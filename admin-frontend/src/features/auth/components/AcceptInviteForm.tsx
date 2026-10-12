@@ -2,11 +2,12 @@ import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { authApi } from '@/features/auth/api'
 
 const schema = z.object({
-  first_name: z.string().min(1, 'First name is required'),
-  last_name:  z.string().min(1, 'Last name is required'),
+  first_name: z.string().trim().min(1, 'First name is required').max(100),
+  last_name:  z.string().trim().min(1, 'Last name is required').max(100),
   password:   z.string().min(8, 'Password must be at least 8 characters'),
 })
 
@@ -15,6 +16,7 @@ const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text
 
 export function AcceptInviteForm() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const form = useForm({
@@ -22,7 +24,8 @@ export function AcceptInviteForm() {
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
-        await authApi.acceptInvite(value)
+        await authApi.acceptInvite(schema.parse(value))
+        await queryClient.invalidateQueries({ queryKey: ['invitationAccount'] })
         navigate({ to: '/welcome' })
       } catch (err: unknown) {
         setServerError(err instanceof Error ? err.message : 'Something went wrong')
@@ -42,8 +45,8 @@ export function AcceptInviteForm() {
         }}}>
           {(field) => (
             <div>
-              <label className={labelClass}>First Name</label>
-              <input className={inputClass} value={field.state.value}
+              <label htmlFor="invite-first-name" className={labelClass}>First Name</label>
+              <input id="invite-first-name" autoComplete="given-name" required maxLength={100} className={inputClass} value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur} placeholder="Jane" />
               {field.state.meta.errors[0] && (
@@ -59,8 +62,8 @@ export function AcceptInviteForm() {
         }}}>
           {(field) => (
             <div>
-              <label className={labelClass}>Last Name</label>
-              <input className={inputClass} value={field.state.value}
+              <label htmlFor="invite-last-name" className={labelClass}>Last Name</label>
+              <input id="invite-last-name" autoComplete="family-name" required maxLength={100} className={inputClass} value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur} placeholder="Doe" />
               {field.state.meta.errors[0] && (
@@ -77,8 +80,8 @@ export function AcceptInviteForm() {
       }}}>
         {(field) => (
           <div>
-            <label className={labelClass}>Password</label>
-            <input type="password" className={inputClass} value={field.state.value}
+            <label htmlFor="invite-password" className={labelClass}>Password</label>
+            <input id="invite-password" type="password" autoComplete="new-password" required minLength={8} className={inputClass} value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur} placeholder="At least 8 characters" />
             <p className="mt-1 font-mono text-[9px] text-muted">Minimum 8 characters</p>

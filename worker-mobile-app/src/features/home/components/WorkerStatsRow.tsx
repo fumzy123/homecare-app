@@ -1,32 +1,18 @@
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { StatTile } from './StatTile';
-import type { WorkerStats } from '@/features/profile/types';
 
-interface WorkerStatsRowProps {
-  stats: WorkerStats | undefined;
+interface Props {
+  completedHours: number | null;
+  scheduledHours: number | null;
+  onHoursPress: () => void;
 }
 
-export function WorkerStatsRow({ stats }: WorkerStatsRowProps) {
-  const cap = stats?.weekly_hour_cap ? `${stats.weekly_hour_cap}h` : undefined;
-
-  return (
-    <View className="mb-6 flex-row gap-2">
-      <StatTile
-        label="This Wk"
-        value={stats ? stats.hours_this_week : null}
-        cap={cap}
-      />
-      <StatTile
-        label="Punctuality Streak"
-        value={stats?.punctuality_streak ?? null}
-        unit={stats?.punctuality_streak != null ? 'days' : undefined}
-        highlight
-      />
-      <StatTile
-        label="Care Log Streak"
-        value={stats?.care_log_streak ?? null}
-        unit={stats?.care_log_streak != null ? 'days' : undefined}
-      />
+export function WorkerStatsRow({ completedHours, scheduledHours, onHoursPress }: Props) {
+  return <View>
+    <Text accessibilityRole="header" className="mb-3 font-serif text-xl text-ink">This week</Text>
+    <View className="flex-row gap-2.5">
+      <StatTile label="Hours completed this week" value={completedHours == null ? null : Number(completedHours.toFixed(1))} unit="hrs"
+        detail={scheduledHours == null ? 'Hours unavailable' : `${Number(scheduledHours.toFixed(1))} hrs scheduled · Est.`} onPress={onHoursPress} />
     </View>
-  );
+  </View>;
 }

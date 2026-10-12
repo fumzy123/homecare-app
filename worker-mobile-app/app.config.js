@@ -3,10 +3,10 @@ const IS_STAGING = APP_ENV === 'staging'
 const IS_DEV = APP_ENV === 'development'
 
 const appName = IS_DEV
-  ? 'HomeCare Worker App (Dev)'
+  ? 'Care Harbor (Dev)'
   : IS_STAGING
-  ? 'HomeCare Worker App (Staging)'
-  : 'HomeCare Worker App'
+  ? 'Care Harbor (Staging)'
+  : 'Care Harbor'
 
 const bundleId = IS_DEV
   ? 'com.homecareapp.worker.dev'
@@ -28,20 +28,14 @@ module.exports = {
       'expo-font',
       'expo-secure-store',
       [
-        'expo-location',
-        {
-          locationWhenInUsePermission:
-            'Allow HomeCare Worker App to use your location to verify visit check-ins.',
-        },
-      ],
-      [
         'expo-notifications',
         {
-          icon: './assets/icon.png',
+          icon: './assets/notification-icon.png',
           color: '#FF5A1F',
         },
       ],
       'expo-splash-screen',
+      'expo-status-bar',
       'expo-web-browser',
     ],
     ios: {
@@ -50,15 +44,22 @@ module.exports = {
     },
     android: {
       package: bundleId,
+      // EAS file variables resolve to a temporary path on the build runner.
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : IS_STAGING ? { googleServicesFile: './google-services.staging.json' } : {}),
       adaptiveIcon: {
         foregroundImage: './assets/android-icon-foreground.png',
+        monochromeImage: './assets/android-icon-monochrome.png',
         backgroundColor: '#F2EEE5',
       },
       predictiveBackGestureEnabled: false,
       softwareKeyboardLayoutMode: 'pan',
-      permissions: [
+      // GPS/attendance is deferred. Prevent dependencies from adding location access.
+      blockedPermissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_BACKGROUND_LOCATION',
       ],
     },
     web: {

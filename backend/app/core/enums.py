@@ -94,6 +94,13 @@ class EmploymentStatus(str, enum.Enum):
     terminated = "terminated"
 
 class NotificationType(str, enum.Enum):
+    shift_assigned = "shift_assigned"
+    shift_updated = "shift_updated"
+    shift_cancelled = "shift_cancelled"
+    billing_trial_reminder = "billing_trial_reminder"
+    billing_annual_reminder = "billing_annual_reminder"
+    billing_payment_failed = "billing_payment_failed"
+    founding_conversion_notice   = "founding_conversion_notice"
     profile_updated              = "profile_updated"
     credential_uploaded          = "credential_uploaded"
     shift_dropped                = "shift_dropped"
@@ -101,6 +108,8 @@ class NotificationType(str, enum.Enum):
     placement_created            = "placement_created"
     placement_filled             = "placement_filled"
     placement_closed             = "placement_closed"
+    placement_coverage_updated   = "placement_coverage_updated"
+    placement_interest_received  = "placement_interest_received"
 
 class TargetAudience(str, enum.Enum):
     admins_only = "admins_only"

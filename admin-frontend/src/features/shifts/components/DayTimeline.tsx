@@ -29,13 +29,14 @@ function trackWidthPct(startHour: number, endHour: number): number {
 }
 
 interface DayTimelineProps {
+  focusTime?: string
   shifts: ShiftOccurrence[]
   onSelectShift: (shift: ShiftOccurrence) => void
 }
 
 let hasAnimatedTimelineScroll = false
 
-export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
+export function DayTimeline({ shifts, onSelectShift, focusTime }: DayTimelineProps) {
   const workerOrder: string[] = []
   const byWorker: Record<string, ShiftOccurrence[]> = {}
   for (const s of shifts) {
@@ -48,13 +49,15 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
   const showNow = nowHour >= START_HOUR && nowHour <= END_HOUR
   const nowPct  = trackPct(nowHour)
 
+  const focusPct = focusTime ? trackPct(toDecimalHour(focusTime)) : nowPct
+
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (scrollRef.current && showNow) {
+    if (scrollRef.current) {
       const container = scrollRef.current
-      // Center the NOW line in the viewport based on the total scrollable width
-      const targetScroll = (nowPct / 100) * container.scrollWidth - container.clientWidth / 2
+      // Keep the selected period visible; other timelines still center on NOW.
+      const targetScroll = (focusPct / 100) * container.scrollWidth - container.clientWidth / 2
       
       container.scrollTo({ 
         left: Math.max(0, targetScroll), 
@@ -63,7 +66,7 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
       
       hasAnimatedTimelineScroll = true
     }
-  }, [nowPct, showNow])
+  }, [focusPct])
 
   return (
     <div className="flex">
@@ -104,7 +107,7 @@ export function DayTimeline({ shifts, onSelectShift }: DayTimelineProps) {
       </div>
 
       {/* ── Scrollable track ── */}
-      <div className="timeline-scroll flex-1" ref={scrollRef}>
+      <div className="timeline-scroll min-w-0 flex-1" ref={scrollRef}>
         <div style={{ minWidth: MIN_TRACK_W }}>
 
           {/* Hour ruler — explicit height matches label spacer */}
