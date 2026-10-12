@@ -46,13 +46,15 @@ acknowledgement is not blanket consent for every future data use. Determine
 whether separate worker-use terms are necessary, and request any required
 specific consent when the relevant feature is used.
 
-No worker acceptance gate was added. The current `/api/legal/accept` record is
-organisation-level (version/time), not per-worker. It also uses
-`get_current_user`, not an administrator/owner guard, so an authenticated worker
-could reach this organisation acceptance endpoint. Before final contractual
-acceptance, restrict that write to authorised agency roles, enforce active agency
-scope and record the accepting actor. Do not reuse it for worker consent. This
-pre-existing authorization issue is recorded here, not fixed by UI/document edits.
+No worker acceptance gate was added. The `/api/legal/accept` record is
+organisation-level (version/time), not per-worker. On 2026-10-12 the write was
+restricted with the existing database-backed `require_admin` guard. Workers and
+removed memberships cannot accept; user-editable role metadata grants no access.
+The agency is resolved from the authenticated membership, never a submitted org ID.
+Read-only status remains available to signed-in members. Before final contractual
+acceptance, confirm the agency representative role policy, active agency rules and
+actor audit requirements; the current record still stores version/time only.
+Do not reuse it for worker consent.
 
 ## Existing-account mobile access and privacy requests
 
