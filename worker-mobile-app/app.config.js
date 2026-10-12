@@ -28,16 +28,9 @@ module.exports = {
       'expo-font',
       'expo-secure-store',
       [
-        'expo-location',
-        {
-          locationWhenInUsePermission:
-            'Allow HomeCare Worker App to use your location to verify visit check-ins.',
-        },
-      ],
-      [
         'expo-notifications',
         {
-          icon: './assets/icon.png',
+          icon: './assets/notification-icon.png',
           color: '#FF5A1F',
         },
       ],
@@ -51,16 +44,22 @@ module.exports = {
     },
     android: {
       package: bundleId,
-      ...(IS_STAGING ? { googleServicesFile: './google-services.staging.json' } : {}),
+      // EAS file variables resolve to a temporary path on the build runner.
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : IS_STAGING ? { googleServicesFile: './google-services.staging.json' } : {}),
       adaptiveIcon: {
         foregroundImage: './assets/android-icon-foreground.png',
+        monochromeImage: './assets/android-icon-monochrome.png',
         backgroundColor: '#F2EEE5',
       },
       predictiveBackGestureEnabled: false,
       softwareKeyboardLayoutMode: 'pan',
-      permissions: [
+      // GPS/attendance is deferred. Prevent dependencies from adding location access.
+      blockedPermissions: [
         'android.permission.ACCESS_COARSE_LOCATION',
         'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_BACKGROUND_LOCATION',
       ],
     },
     web: {
