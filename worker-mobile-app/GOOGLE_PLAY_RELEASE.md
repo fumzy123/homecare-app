@@ -100,13 +100,14 @@ changes in the working tree do not change this scope decision.
 
 ## Identity and access
 
-- Current production label: HomeCare Worker App; final brand needs confirmation.
+- Confirmed brand and production label: Care Harbor (2026-10-12). Development and
+  staging builds retain their environment suffixes. Rebuild to update installed labels.
 - Current Android application ID: `com.homecareapp.worker`; confirm before first upload.
 - Version: 1.0.0. EAS production auto-increments the remote build version.
 - EAS project: `124a574b-172d-4691-b959-b54a474f78ae`.
-- The browser's current Google login opens Play Console registration rather than
-  an existing developer account. Sign into the intended verified developer account
-  or complete registration and verification.
+- As of 2026-10-12, the owner has not completed Play developer setup and is unsure
+  whether an account exists. Check the intended Google account in Play Console;
+  registration, verification and app-record access are not confirmed.
 - Given the app's patient care information, assess it as a health app. Google's
   account policy requires Organization accounts for health apps. Confirm the
   applicable health declaration in Play Console; do not use a personal account to
@@ -114,14 +115,14 @@ changes in the working tree do not change this scope decision.
 
 ## Store listing draft
 
-App name: HomeCare Worker App (pending brand confirmation)
+App name: Care Harbor
 
 Short description:
 View care visits, access client details, and record progress notes.
 
 Full description:
 
-HomeCare Worker App helps home support workers stay connected to their agency
+Care Harbor helps home support workers stay connected to their agency
 throughout the working day. An invitation and an active worker account from a
 participating agency are required.
 
@@ -142,7 +143,8 @@ credential uploads, and agency notifications.
 ## Required before sending for review
 
 - [ ] Verified Play developer account and access to the intended app record.
-- [ ] Final app name, support email, developer identity, countries and distribution.
+- [x] App brand/name: Care Harbor. Updated build configuration and store draft.
+- [ ] Support email, developer identity, countries and distribution.
 - [ ] Final public privacy-policy URL and a working in-app link. The repository's
       current `/privacy` page is explicitly a pre-launch draft. Confirm legal
       entity/contact, actual data processing, subprocessors, regions, retention,
@@ -160,9 +162,10 @@ credential uploads, and agency notifications.
 - [ ] Confirm production backend, auth and website URLs in EAS **production**.
       Local `.env.production` does not configure a cloud build. Website is needed
       for Settings password reset and privacy links.
-      Audit result: EAS production has the backend URL, auth URL and public key
-      variables; `EXPO_PUBLIC_FRONTEND_URL` is absent both remotely and in local
-      production settings. Presence does not prove service compatibility.
+      On 2026-10-12, the production build profile in `eas.json` and local mobile
+      `.env.production` were set to `https://www.careharbor.online`. Existing
+      backend/auth values match the web production files. Cloud configuration,
+      hosted API access and completed email recovery still need verification.
 - [ ] Verify the live backend supports the worker endpoints used by this checkout.
 - [ ] Inspect final Android permissions; remove unused location declarations and
       requests for this release. GPS is explicitly deferred; keep only permissions
@@ -239,7 +242,7 @@ These results describe earlier checks, not sign-off on later working-tree change
 - Privacy/Terms/DPA draft source now describes the mobile implementation. It has
   not been deployed or approved as final; the version remains `0.1-draft`.
 - [PRIVACY_REVIEW.md](PRIVACY_REVIEW.md) records the existing-account mobile flow,
-  separate web privacy requests, acceptance authorization issue and legal/operational confirmations.
+  separate web privacy requests, the agency-terms authorization fix and remaining legal/operational confirmations.
   These remain release work, not completed compliance checks.
 - Physical-phone Settings interaction, email receipt/password change and signed
   Android permission behavior still need the user/device walkthrough.
