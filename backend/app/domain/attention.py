@@ -3,14 +3,23 @@ from datetime import timedelta
 from app.schemas.attention import AttentionItem, AttentionTarget
 
 
-def coverage_item(need, client, placement, covered, today):
+def coverage_item(need, client, placement, covered, today, endings=None):
     if need.imported or (need.ends_on and need.ends_on < today):
         return None
     remaining = {str(slot.id) for slot in need.care_slots if slot.id not in covered}
     if not remaining:
         return None
     pending = sum(bool(remaining.intersection(interest.care_slot_ids or [])) for interest in placement.interests) if placement else 0
-    due = need.scheduled_from or need.effective_from
+    endings = endings or {}
+    from app.domain.scheduling import WEEKDAY_INDEX
+    base = need.scheduled_from or need.effective_from
+    dates = []
+    for slot in need.care_slots:
+        if str(slot.id) not in remaining:
+            continue
+        stop = endings.get(slot.id)
+        dates.append(stop + timedelta(days=(WEEKDAY_INDEX[slot.day_of_week] - stop.weekday()) % 7) if stop else base)
+    due = min(dates)
     overdue = due <= today
     if not placement or placement.status.value == 'closed':
         stage, detail = 'post_placement', 'Weekly Care Need ready to post'
@@ -20,6 +29,8 @@ def coverage_item(need, client, placement, covered, today):
         stage, detail = 'cover_slots', f'{len(remaining)} Care Slots still uncovered'
     else:
         stage, detail = 'await_interest', f'{len(remaining)} open Care Slots · Awaiting worker interest'
+    if any(str(key) in remaining for key in endings):
+        detail = f'Replacement needed · {len(remaining)} open Care Slots' + (f' · {pending} interested workers' if pending else '')
     return AttentionItem(
         id=f'care:{need.id}', category='coverage', stage=stage,
         urgency='urgent' if overdue else 'upcoming' if due <= today + timedelta(days=7) else 'waiting' if stage == 'await_interest' else 'review',

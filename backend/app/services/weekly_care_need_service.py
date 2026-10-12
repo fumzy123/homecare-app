@@ -129,6 +129,7 @@ class WeeklyCareNeedService:
             raise
 
     def attention_items(self):
+        from app.domain.assignments import open_assignments
         placements = PlacementRepository(self.db)
         clients = {
             c.id: c
@@ -149,7 +150,7 @@ class WeeklyCareNeedService:
             client = clients[need.client_id]
             placement = placements.for_care_need(need.id)
             covered = (
-                {a.care_slot_id for a in placements.assignments(placement.id)}
+                {a.care_slot_id for a in open_assignments(placements.assignments(placement.id))}
                 if placement
                 else set()
             )

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from app.api.billing_access import require_operational_access
 from app.api.routes import worker_notes, worker_clients
 from app.api.routes import attention
+from app.api.routes import assignments
 from app.api.routes import push_devices
 from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, worker_shifts, credentials, notifications, compliance, placements, authorizations, weekly_care_need
 
@@ -33,4 +34,5 @@ operations.include_router(placements.router)
 operations.include_router(authorizations.router)
 operations.include_router(weekly_care_need.router)
 operations.include_router(attention.router)
+operations.include_router(assignments.router)
 router.include_router(operations)

@@ -1,25 +1,28 @@
-import {
-  WEEKDAY_LABELS,
-  SERVICE_TYPE_LABELS,
-} from '@/features/authorizations/constants'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { format } from 'date-fns'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import {
   usePlacement,
   useApproveCareSlots,
   useClosePlacement,
 } from '../hooks/usePlacements'
-import type { ApprovalReview } from '../api'
+import { useCareNeedVersions } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
 import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
-import { errorMessage } from '@/features/clients/lib/care'
+import { ClientDialog } from '@/features/clients/components/ClientWorkspaceUI'
+import { errorMessage, weeklyHours } from '@/features/clients/lib/care'
+import { useAgencyDate } from '../hooks/useAgencyDate'
+import {
+  requestDate,
+  selectWorkerSlots,
+  validSelections,
+  sortCareSlots,
+} from '../lib/careRequests'
+import { RequestStatus } from './CareRequestUI'
+import { CareRequestSlots, CareRequestWorkers } from './CareRequestWork'
+import { CareRequestReview } from './CareRequestReview'
+import type { ApprovalReview } from '../api'
 
-const control = 'border border-ink bg-paper px-3 py-2 text-sm'
-function message(error: unknown) {
-  return errorMessage(error)
-}
-
-// Layer 3: coordinates data, selected Care Slots and the approval review.
+// Layer 3: owns the live request, draft selections and server-reviewed approval.
 export function PlacementCoverage({
   placementId,
   embedded = false,
@@ -28,56 +31,76 @@ export function PlacementCoverage({
   embedded?: boolean
 }) {
   const query = usePlacement(placementId)
+  const versions = useCareNeedVersions(query.data?.client_id ?? '')
   const { review, approve } = useApproveCareSlots(placementId)
   const close = useClosePlacement()
+  const today = useAgencyDate()
+  const [tab, setTab] = useState<'coverage' | 'interest'>('coverage')
   const [selected, setSelected] = useState<Record<string, string>>({})
   const [startsOn, setStartsOn] = useState('')
   const [preview, setPreview] = useState<ApprovalReview | null>(null)
+  const [reviewedState, setReviewedState] = useState('')
   const [acceptGaps, setAcceptGaps] = useState(false)
   const [error, setError] = useState('')
   const [closing, setClosing] = useState(false)
+  const [success, setSuccess] = useState('')
   useUnsavedChanges(Object.values(selected).some(Boolean) && !approve.isPending)
   if (query.isPending)
     return (
-      <p role="status" className="p-8">
-        Loading placement…
+      <p role="status" className="cr-page">
+        Loading care request…
       </p>
     )
   if (query.isError || !query.data)
     return (
-      <p role="alert" className="p-8">
-        Could not load placement.{' '}
-        <button onClick={() => void query.refetch()}>Retry</button>
-      </p>
+      <div role="alert" className="cr-page">
+        Could not load care request.{' '}
+        <button className="cr-link" onClick={() => void query.refetch()}>
+          Retry
+        </button>
+      </div>
     )
-  const p = query.data
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const earliestDate = [today, p.start_date ?? '', p.scheduled_from ?? '']
+  const p = { ...query.data, care_slots: sortCareSlots(query.data.care_slots) }
+  const revision = versions.data?.find((v) => v.id === p.weekly_care_need_id)
+  const earliestDate = [today, p.start_date ?? '', p.scheduled_from ?? '',
+    ...p.care_slots.filter(s => selected[s.id] && !s.worker_id).map(s => s.replacement_from || '')]
     .sort()
     .at(-1)!
   const effectiveDate = startsOn || earliestDate
-  const selections = Object.entries(selected)
-    .filter(([, worker]) => worker)
-    .map(([care_slot_id, employment_id]) => ({ care_slot_id, employment_id }))
-  const busy = review.isPending || approve.isPending
+  const selections = validSelections(p, selected)
+  const selectedSlots = p.care_slots.filter((s) =>
+    selections.some((v) => v.care_slot_id === s.id),
+  )
+  const open = p.care_slots.filter((s) => !s.worker_id)
+  const busy = review.isPending || approve.isPending || close.isPending
+  const requestState = JSON.stringify([
+    p.status,
+    p.care_slots,
+    p.interests,
+    p.scheduled_from,
+  ])
   function resetReview() {
     setPreview(null)
     setAcceptGaps(false)
     setError('')
+    setSuccess('')
   }
   async function handleReview() {
     setError('')
     try {
-      setPreview(
-        await review.mutateAsync({ selections, starts_on: effectiveDate }),
-      )
+      const result = await review.mutateAsync({
+        selections,
+        starts_on: effectiveDate,
+      })
+      setPreview(result)
+      setReviewedState(requestState)
       setAcceptGaps(false)
     } catch (err) {
-      setError(message(err))
+      setError(errorMessage(err))
     }
   }
   async function handleApproval() {
-    if (!preview) return
+    if (!preview || reviewedState !== requestState) return
     setError('')
     try {
       await approve.mutateAsync({
@@ -89,269 +112,334 @@ export function PlacementCoverage({
       setSelected({})
       setPreview(null)
       setAcceptGaps(false)
+      setSuccess('Coverage approved and visits scheduled.')
     } catch (err) {
-      setError(message(err))
+      setError(errorMessage(err))
       setPreview(null)
     }
   }
+  const canApprove =
+    p.status === 'open' && !!p.weekly_care_need_id && p.care_slots.length > 0
   return (
-    <div className="p-8 max-md:p-4 space-y-6">
-      {!embedded && (
-        <Link
-          to="/dashboard/placements"
-          className="font-mono text-xs underline"
-        >
-          ← Placements
-        </Link>
-      )}
-      <header>
-        <p className="font-mono text-xs uppercase tracking-widest">
-          Weekly Care Need ·{' '}
-          {p.status === 'closed'
-            ? 'Closed'
-            : p.status === 'filled'
-              ? 'Fully covered'
-              : p.covered_count
-                ? 'Partially covered'
-                : 'Open'}
-        </p>
-        <h1 className="font-serif text-4xl mt-3">
-          {p.client_first_name} {p.client_last_name}
-        </h1>
-        <p className="mt-2 text-sm">{p.masked_location}</p>
-        <p className="mt-2 font-mono text-xs">
-          {p.covered_count} of {p.care_slots.length} Care Slots covered ·
-          Proposed start {p.start_date}
-          {p.scheduled_from ? ` · Scheduled from ${p.scheduled_from}` : ''}
-        </p>
-      </header>
-      {!p.weekly_care_need_id && (
-        <p className="border border-orange p-4">
-          This earlier placement has no revision-linked Care Slots.{' '}
-          <Link
-            to="/dashboard/clients/$clientId/care-need"
-            params={{ clientId: p.client_id }}
-            className="underline"
-          >
-            Post the client's Weekly Care Need
-          </Link>{' '}
-          to use individual approvals.
-        </p>
-      )}
-      {p.requirements && <p className="text-sm">{p.requirements}</p>}
-      <section className="border border-ink bg-paper divide-y divide-line-soft">
-        {p.care_slots.map((slot, index) => {
-          const interested = p.interests.filter((worker) =>
-            worker.care_slot_ids.includes(slot.id),
-          )
-          return (
-            <div
-              key={slot.id || index}
-              className="p-5 flex flex-wrap items-center justify-between gap-4"
-            >
-              <div>
-                <h2 className="font-medium">
-                  {WEEKDAY_LABELS[slot.day_of_week]} ·{' '}
-                  {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
-                </h2>
-                <p className="text-sm text-ink-soft">
-                  {SERVICE_TYPE_LABELS[slot.service_type]}
+    <div className={`care-requests ${embedded ? 'p-4' : 'cr-page'}`}>
+      {preview ? (
+        <CareRequestReview
+          request={p}
+          preview={preview}
+          selections={selections}
+          busy={busy}
+          acceptGaps={acceptGaps}
+          stale={reviewedState !== requestState}
+          error={error}
+          onAcceptGaps={setAcceptGaps}
+          onBack={resetReview}
+          onApprove={() => void handleApproval()}
+        />
+      ) : (
+        <>
+          {!embedded && (
+            <Link className="cr-link cr-back" to="/dashboard/placements">
+              <ArrowLeft size={17} /> All care requests
+            </Link>
+          )}
+          <header className="cr-header cr-between">
+            <div>
+              <div className="cr-row">
+                <p className="cr-label">
+                  Care request
+                  {revision
+                    ? ` / Revision ${revision.version}`
+                    : !p.weekly_care_need_id
+                      ? ' / Legacy record'
+                      : ''}
                 </p>
+                <RequestStatus request={p} />
               </div>
-              {slot.worker_id ? (
-                <span className="bg-mint-soft px-3 py-2 text-sm">
-                  Approved · {slot.worker_name}
-                </span>
-              ) : p.status === 'open' && p.weekly_care_need_id ? (
-                <label className="text-sm">
-                  {interested.length} interested
-                  <select
-                    className={`${control} ml-3`}
-                    aria-label={`Worker for ${WEEKDAY_LABELS[slot.day_of_week]} ${slot.start_time}`}
-                    disabled={busy}
-                    value={selected[slot.id] ?? ''}
-                    onChange={(e) => {
-                      setSelected((prev) => ({
-                        ...prev,
-                        [slot.id]: e.target.value,
-                      }))
-                      resetReview()
-                    }}
-                  >
-                    <option value="">Leave uncovered</option>
-                    {interested.map((worker) => (
-                      <option
-                        key={worker.employment_id}
-                        value={worker.employment_id}
-                      >
-                        {worker.first_name} {worker.last_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <span>Uncovered</span>
-              )}
+              <h1>
+                {p.client_first_name} {p.client_last_name}
+              </h1>
+              <p className="cr-muted">{p.masked_location}</p>
             </div>
-          )
-        })}
-      </section>
-      {p.interests.length > 0 && (
-        <details>
-          <summary className="cursor-pointer text-sm">Worker notes</summary>
-          {p.interests.map((w) => (
-            <p key={w.employment_id} className="mt-2 text-sm">
-              <strong>
-                {w.first_name} {w.last_name}
-              </strong>
-              : {w.note || 'No note provided'}
+            {p.status === 'open' && (
+              <button
+                className="cr-button"
+                disabled={busy}
+                onClick={() => {
+                  setError('')
+                  setClosing(true)
+                }}
+              >
+                Close care request
+              </button>
+            )}
+          </header>
+          {p.weekly_care_need_id && versions.isError && (
+            <p className="cr-error">
+              Could not load the care revision.{' '}
+              <button
+                className="cr-link"
+                onClick={() => void versions.refetch()}
+              >
+                Retry
+              </button>
             </p>
-          ))}
-        </details>
-      )}
-      {p.status === 'open' && p.weekly_care_need_id && (
-        <div className="flex flex-wrap gap-4 items-end">
-          <label className="text-sm">
-            Approved coverage starts
-            <input
-              className={`${control} block mt-1`}
-              type="date"
-              min={earliestDate}
-              value={effectiveDate}
-              disabled={busy}
-              onChange={(e) => {
-                setStartsOn(e.target.value)
+          )}
+          <div className="cr-facts">
+            <span>
+              Care request start date{' '}
+              <strong className="font-normal">
+                {requestDate(p.start_date)}
+              </strong>
+              {p.status === 'open' &&
+                !p.scheduled_from &&
+                p.start_date &&
+                p.start_date <= today && (
+                  <span className="cr-overdue"> · Start date reached</span>
+                )}
+            </span>
+            {p.care_slots.length > 0 && (
+              <span>{weeklyHours(p.care_slots)} hours / week</span>
+            )}
+          </div>
+          <details className="cr-details">
+            <summary>Request details</summary>
+            <div className="cr-details-body">
+              {p.requirements && (
+                <div>
+                  <p className="cr-label mb-2">Care & notes</p>
+                  <p>{p.requirements}</p>
+                </div>
+              )}
+              {!p.weekly_care_need_id && p.shift_description && (
+                <p>{p.shift_description}</p>
+              )}
+              <div className="cr-small cr-posted">
+                Posted {requestDate(p.created_at)}
+                {p.scheduled_from && (
+                  <p className="mt-2">
+                    Scheduled from {requestDate(p.scheduled_from)}
+                  </p>
+                )}
+              </div>
+            </div>
+          </details>
+          {!p.weekly_care_need_id && (
+            <p className="cr-callout">
+              This earlier request has no revision-linked Care Slots.{' '}
+              <Link
+                className="cr-link"
+                to="/dashboard/clients/$clientId/care-need"
+                params={{ clientId: p.client_id }}
+              >
+                Post the client’s Weekly Care Need
+              </Link>{' '}
+              to use individual approvals.
+            </p>
+          )}
+          {success && (
+            <p role="status" className="cr-success">
+              {success}
+            </p>
+          )}
+          {error && !closing && (
+            <p role="alert" className="cr-error">
+              {error}
+            </p>
+          )}
+          <div className="cr-tabs" aria-label="Care request sections">
+            <button
+              aria-pressed={tab === 'coverage'}
+              onClick={() => setTab('coverage')}
+            >
+              Care coverage
+            </button>
+            <button
+              aria-pressed={tab === 'interest'}
+              onClick={() => setTab('interest')}
+            >
+              Interested workers · {p.interests.length}
+            </button>
+          </div>
+          {tab === 'interest' ? (
+            <CareRequestWorkers
+              request={p}
+              selected={selected}
+              busy={busy}
+              onSelect={(worker) => {
+                setSelected((prev) => selectWorkerSlots(p, prev, worker))
                 resetReview()
+                setTab('coverage')
               }}
             />
-          </label>
-          <button
-            className="rounded-full bg-ink text-cream px-5 py-3 text-sm disabled:opacity-40"
-            disabled={busy || selections.length === 0}
-            onClick={() => void handleReview()}
-          >
-            {review.isPending ? 'Checking…' : 'Review approval'}
-          </button>
-        </div>
-      )}
-      {preview && (
-        <section
-          aria-label="Schedule change review"
-          className="border border-ink bg-paper p-6 space-y-4"
-        >
-          <h2 className="font-serif text-2xl">
-            Review schedule change · {preview.starts_on}
-          </h2>
-          {preview.ends_previous_schedule && (
-            <div className="bg-orange-soft border border-orange p-4">
-              <p className="font-semibold">
-                All future shifts from the previous Weekly Care Need end from
-                this date.
-              </p>
-              <p className="text-sm mt-2">
-                The old schedule will not continue to cover unfilled new Care
-                Slots. Earlier visits remain in history.
-              </p>
-              <ul className="text-sm mt-2">
-                {preview.old_shifts.map((s) => (
-                  <li key={s.shift_id}>
-                    {s.worker_name} · {s.description}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {preview.workers.map((worker) => (
-            <div key={worker.worker_id}>
-              <p className="font-medium">
-                {worker.worker_name} ·{' '}
-                {worker.eligibility.all_clear
-                  ? 'Checks passed'
-                  : 'Needs review'}
-              </p>
-              {worker.eligibility.reasons.map((reason) => (
-                <p key={reason} className="text-orange text-sm">
-                  {reason}
+          ) : (
+            <div className="cr-layout">
+              <CareRequestSlots
+                request={p}
+                selected={selected}
+                busy={busy}
+                onSelect={(slot, worker) => {
+                  setSelected((prev) => ({ ...prev, [slot]: worker }))
+                  resetReview()
+                }}
+              />
+              <aside>
+                <section className="cr-plan">
+                  <div className="cr-plan-head">
+                    <p className="cr-label">
+                      {canApprove ? 'Your selection' : 'Scheduled coverage'}
+                    </p>
+                    <h3>
+                      {canApprove
+                        ? 'Coverage plan.'
+                        : p.status === 'filled'
+                          ? 'Coverage complete.'
+                          : 'Care coverage.'}
+                    </h3>
+                  </div>
+                  <div className="cr-plan-body">
+                    {canApprove ? (
+                      <>
+                        <div>
+                          <span className="cr-plan-value">
+                            {selections.length}
+                          </span>
+                          <span className="cr-small">
+                            {' '}
+                            / {open.length} open Care Slots
+                          </span>
+                        </div>
+                        <div className="cr-plan-line">
+                          <span>Hours to schedule</span>
+                          <span>{weeklyHours(selectedSlots)}h / week</span>
+                        </div>
+                        <div className="cr-plan-line">
+                          <span>Still uncovered</span>
+                          <span>
+                            {open.length - selections.length} Care Slots
+                          </span>
+                        </div>
+                        <label className="cr-field">
+                          Coverage starts
+                          <input
+                            type="date"
+                            min={earliestDate}
+                            value={effectiveDate}
+                            disabled={busy}
+                            onChange={(e) => {
+                              setStartsOn(e.target.value)
+                              resetReview()
+                            }}
+                          />
+                        </label>
+                        <p className="cr-small">
+                          Visits are created only after approval.
+                        </p>
+                        <button
+                          className="cr-button cr-primary"
+                          disabled={
+                            busy ||
+                            !selections.length ||
+                            effectiveDate < earliestDate
+                          }
+                          onClick={() => void handleReview()}
+                        >
+                          {review.isPending ? 'Checking…' : 'Review approval'}{' '}
+                          <ArrowRight size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="cr-plan-value">
+                          {p.covered_count} / {p.care_slots.length}
+                        </div>
+                        <p className="cr-muted">Care Slots approved</p>
+                        <div className="cr-plan-line">
+                          <span>Scheduled weekly</span>
+                          <span>
+                            {weeklyHours(
+                              p.care_slots.filter((s) => !!s.worker_id),
+                            )}
+                            h
+                          </span>
+                        </div>
+                        <Link
+                          className="cr-button"
+                          to="/dashboard/clients/$clientId/visits"
+                          params={{ clientId: p.client_id }}
+                        >
+                          View scheduled care <ArrowRight size={16} />
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </section>
+                <p className="cr-note">
+                  {canApprove
+                    ? 'Worker interest does not reserve a Care Slot. Checks run before approval.'
+                    : 'Approved visits remain scheduled when a request closes.'}
                 </p>
-              ))}
-            </div>
-          ))}
-          {preview.uncovered_slots.length > 0 && (
-            <div>
-              <p className="font-medium">Still uncovered</p>
-              <ul>
-                {preview.uncovered_slots.map((slot) => (
-                  <li key={slot.id}>
-                    {WEEKDAY_LABELS[slot.day_of_week]} ·{' '}
-                    {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
-                  </li>
-                ))}
-              </ul>
-              <label className="flex items-start gap-3 mt-4 text-sm">
-                <input
-                  type="checkbox"
-                  checked={acceptGaps}
-                  onChange={(e) => setAcceptGaps(e.target.checked)}
-                />
-                I understand these Care Slots remain uncovered and open for
-                worker interest.
-              </label>
+              </aside>
             </div>
           )}
-          <button
-            className="rounded-full bg-ink text-cream px-5 py-3 text-sm disabled:opacity-40"
-            disabled={
-              busy ||
-              !preview.all_clear ||
-              (preview.uncovered_slots.length > 0 && !acceptGaps)
-            }
-            onClick={() => void handleApproval()}
-          >
-            {approve.isPending ? 'Scheduling…' : 'Approve and schedule'}
-          </button>
-        </section>
+        </>
       )}
-      {error && (
-        <p role="alert" className="text-orange">
-          {error}
-        </p>
-      )}
-      {p.status === 'open' && (
-        <div>
-          {closing ? (
-            <>
-              <p className="text-sm">
-                Close this placement to new interest? Already approved shifts
-                remain scheduled.
+      {closing && (
+        <ClientDialog
+          title="Close this care request?"
+          onClose={() => {
+            if (!close.isPending) setClosing(false)
+          }}
+        >
+          <div className="care-requests cr-stack">
+            <h3>
+              {p.client_first_name} {p.client_last_name}
+            </h3>
+            <p>
+              Workers can no longer express interest. Already approved visits
+              remain scheduled.
+            </p>
+            {open.length > 0 && (
+              <p>
+                {open.length} Care Slot
+                {open.length === 1 ? ' will remain' : 's will remain'}{' '}
+                uncovered.
               </p>
+            )}
+            {error && (
+              <p role="alert" className="cr-error">
+                {error}
+              </p>
+            )}
+            <div className="cr-between">
               <button
-                className={`${control} mt-2`}
+                className="cr-button"
                 disabled={close.isPending}
-                onClick={() =>
-                  close.mutate(p.id, {
-                    onSuccess: () => setClosing(false),
-                    onError: (err) => setError(message(err)),
-                  })
-                }
-              >
-                Close placement
-              </button>
-              <button
-                className="ml-3 underline"
                 onClick={() => setClosing(false)}
               >
                 Keep open
               </button>
-            </>
-          ) : (
-            <button
-              className="text-sm underline"
-              onClick={() => setClosing(true)}
-            >
-              Close placement
-            </button>
-          )}
-        </div>
+              <button
+                className="cr-button cr-primary"
+                disabled={close.isPending}
+                onClick={() =>
+                  close.mutate(p.id, {
+                    onSuccess: () => {
+                      setClosing(false)
+                      setSelected({})
+                      setPreview(null)
+                      setSuccess(
+                        'Care request closed. Approved visits remain scheduled.',
+                      )
+                    },
+                    onError: (err) => setError(errorMessage(err)),
+                  })
+                }
+              >
+                {close.isPending ? 'Closing…' : 'Close request'}
+              </button>
+            </div>
+          </div>
+        </ClientDialog>
       )}
     </div>
   )

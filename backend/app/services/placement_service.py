@@ -5,6 +5,7 @@ import json
 from collections import defaultdict
 from app.models.placement import CareSlotAssignment
 from app.domain.care_coverage import end_previous_coverage
+from app.domain.assignments import open_assignments, replacement_from
 from app.services.authorization_compliance_service import AuthorizationComplianceService
 from types import SimpleNamespace
 from uuid import UUID
@@ -700,9 +701,10 @@ class PlacementService:
         )
 
     def _slot_rows(self, placement):
+        history = self.placement_repo.assignments(placement.id)
         assignments = {
             str(a.care_slot_id): a
-            for a in self.placement_repo.assignments(placement.id)
+            for a in open_assignments(history)
         }
         rows = []
         for slot in placement.care_slot_snapshot or []:
@@ -711,6 +713,8 @@ class PlacementService:
                 {
                     **slot,
                     "worker_id": str(assignment.employment_id) if assignment else None,
+                    "replacement_from": str(replacement_from(history, UUID(slot['id'])))
+                    if not assignment and slot.get('id') and replacement_from(history, UUID(slot['id'])) else None,
                     "worker_name": f"{assignment.employment.person.first_name} {assignment.employment.person.last_name}"
                     if assignment
                     else None,
@@ -758,9 +762,8 @@ class PlacementService:
                 409, "CLIENT_NOT_ACTIVE", "Only active clients can receive new coverage"
             )
         slots = {slot.id: slot for slot in need.care_slots}
-        covered = {
-            a.care_slot_id for a in self.placement_repo.assignments(placement.id)
-        }
+        assignment_history = self.placement_repo.assignments(placement.id)
+        covered = {a.care_slot_id for a in open_assignments(assignment_history)}
         selected = [a.care_slot_id for a in payload.selections]
         if (
             not selected
@@ -782,6 +785,22 @@ class PlacementService:
                 "PAST_VISIT_TIME",
                 "A selected Care Slot has already started today; choose a later coverage start date",
             )
+        for slot_id in selected:
+            available = replacement_from(assignment_history, slot_id)
+            if available and payload.starts_on < available:
+                raise AppError(409, 'ASSIGNMENT_OVERLAP',
+                               f'This care slot is still assigned until {available}. Start replacement coverage on or after that date.')
+            if available:
+                # A late successor must not silently mark the intervening weekly
+                # care as covered. Approve slots separately if their cutoffs differ.
+                slot = slots[slot_id]
+                base = max(today, available)
+                first_uncovered = base + timedelta(days=(WEEKDAY_INDEX[slot.day_of_week] - base.weekday()) % 7)
+                if first_uncovered == today and slot.start_time <= now.time():
+                    first_uncovered += timedelta(days=7)
+                if payload.starts_on > first_uncovered:
+                    raise AppError(409, 'REPLACEMENT_COVERAGE_GAP',
+                                   f'Replacement coverage must begin by {first_uncovered} to cover the next required visit. Approve this care slot separately if other slots start later.')
         by_worker = defaultdict(list)
         for selection in payload.selections:
             interest = self.placement_repo.get_interest(
@@ -813,6 +832,7 @@ class PlacementService:
         fingerprint = [
             str(need.id),
             str(payload.starts_on),
+            sorted((str(a.id), str(getattr(a, 'ends_before', None))) for a in assignment_history),
             sorted(str(i) for i in covered),
             sorted(
                 (str(a.care_slot_id), str(a.employment_id)) for a in payload.selections
@@ -948,7 +968,12 @@ class PlacementService:
                     "UNCOVERED_SLOTS",
                     "Acknowledge the remaining uncovered Care Slots",
                 )
+            from app.services.worker_notification_service import WorkerNotificationService
+            previous_workers = {shift.worker_id for shift in old}
             end_previous_coverage(old, payload.starts_on)
+            for worker_id in previous_workers:
+                WorkerNotificationService(self.db, self.org_id, self.employment_id).schedule(
+                    'shift_updated', worker_id, occurrence_date=payload.starts_on)
             self.db.flush()
             checks = self._validate_selected_coverage(
                 client, need, by_worker, payload.starts_on, today
@@ -968,12 +993,7 @@ class PlacementService:
                     previous.ends_on = payload.starts_on - timedelta(days=1)
                     previous_placement = self.placement_repo.for_care_need(previous.id)
                     if (
-            from app.services.worker_notification_service import WorkerNotificationService
-            previous_workers = {shift.worker_id for shift in old}
                         previous_placement
-            for worker_id in previous_workers:
-                WorkerNotificationService(self.db, self.org_id, self.employment_id).schedule(
-                    'shift_updated', worker_id, occurrence_date=payload.starts_on)
                         and previous_placement.status == PlacementStatus.open
                     ):
                         self.placement_repo.close(previous_placement)
@@ -984,15 +1004,14 @@ class PlacementService:
                         )
             for worker_id, slots in by_worker.items():
                 for slot in slots:
-                    self.placement_repo.add_assignment(
-                        CareSlotAssignment(
+                    assignment = CareSlotAssignment(
                             care_slot_id=slot.id,
                             placement_id=p.id,
                             employment_id=worker_id,
                             approved_by=self.employment_id,
                             starts_on=payload.starts_on,
-                        )
                     )
+                    self.placement_repo.add_assignment(assignment)
                     for shift in self._generate_shifts(
                         p,
                         worker_id,
@@ -1002,6 +1021,7 @@ class PlacementService:
                         payload.starts_on,
                     ):
                         shift.weekly_care_need_id, shift.care_slot_id = need.id, slot.id
+                        shift.assignment_id = assignment.id
                         self.shift_repo.add(shift)
             if not remaining:
                 p.status = PlacementStatus.filled

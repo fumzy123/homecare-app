@@ -40,7 +40,14 @@ class AttentionRepository:
     def assignments(self, org_id, placement_ids):
         return self.db.query(CareSlotAssignment.placement_id, CareSlotAssignment.care_slot_id).join(
             Placement, Placement.id == CareSlotAssignment.placement_id,
-        ).filter(Placement.org_id == org_id, Placement.id.in_(placement_ids)).all() if placement_ids else []
+        ).filter(Placement.org_id == org_id, Placement.id.in_(placement_ids), CareSlotAssignment.ends_before.is_(None)).all() if placement_ids else []
+
+    def assignment_endings(self, org_id, placement_ids):
+        return self.db.query(CareSlotAssignment.placement_id, CareSlotAssignment.care_slot_id,
+            func.max(CareSlotAssignment.ends_before).label('stops_from')).join(
+            Placement, Placement.id == CareSlotAssignment.placement_id,
+        ).filter(Placement.org_id == org_id, Placement.id.in_(placement_ids), CareSlotAssignment.ends_before.isnot(None)
+        ).group_by(CareSlotAssignment.placement_id, CareSlotAssignment.care_slot_id).all() if placement_ids else []
 
     def credentials(self, org_id, today):
         return self.db.query(Credential, Employment.id, Person.first_name, Person.last_name).join(

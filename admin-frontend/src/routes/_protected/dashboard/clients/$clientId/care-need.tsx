@@ -6,6 +6,7 @@ import {
 import { WeeklyCareNeedEditor } from '@/features/weekly-care-need/components/WeeklyCareNeedEditor'
 import { useClient } from '@/features/clients/hooks/useClients'
 import { recordId } from '@/features/attention/search'
+import { AssignmentsPanel } from '@/features/assignments/components/AssignmentsPanel'
 export const Route = createFileRoute(
   '/_protected/dashboard/clients/$clientId/care-need',
 )({
@@ -34,11 +35,14 @@ function CareNeed() {
       />
     )
   return (
+    <>
     <WeeklyCareNeedEditor
       key={`${clientId}:${need}:${navigation}`}
       clientId={clientId}
       enforceCompliance={client.data?.care_arrangement === 'funded'}
       attentionNeedId={need}
     />
+    <AssignmentsPanel clientId={clientId} />
+    </>
   )
 }

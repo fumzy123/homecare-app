@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, Date, DateTime, ForeignKey, Enum, UniqueConstraint
+from sqlalchemy import Column, String, Text, Date, DateTime, ForeignKey, Enum, UniqueConstraint, Index, CheckConstraint, text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -57,12 +57,23 @@ class PlacementInterest(Base):
 
 class CareSlotAssignment(Base):
     __tablename__ = 'care_slot_assignments'
+    __table_args__ = (
+        Index('uq_care_slot_open_assignment', 'care_slot_id', unique=True,
+              postgresql_where=text('ends_before IS NULL'), sqlite_where=text('ends_before IS NULL')),
+        CheckConstraint('ends_before IS NULL OR ends_before >= starts_on', name='ck_assignment_dates'),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    care_slot_id = Column(UUID(as_uuid=True), ForeignKey('care_slots.id'), nullable=False, unique=True)
+    care_slot_id = Column(UUID(as_uuid=True), ForeignKey('care_slots.id'), nullable=False, index=True)
     placement_id = Column(UUID(as_uuid=True), ForeignKey('placements.id'), nullable=False, index=True)
     employment_id = Column(UUID(as_uuid=True), ForeignKey('employments.id'), nullable=False)
     approved_by = Column(UUID(as_uuid=True), ForeignKey('employments.id'), nullable=False)
     starts_on = Column(Date, nullable=False)
+    # Exclusive boundary: no visits from this agency-local date onward.
+    ends_before = Column(Date, nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    ended_by = Column(UUID(as_uuid=True), ForeignKey('employments.id'), nullable=True)
+    end_reason = Column(Text, nullable=True)
     approved_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     employment = relationship('Employment', foreign_keys=[employment_id])
     care_slot = relationship('CareSlot')
+    placement = relationship('Placement')

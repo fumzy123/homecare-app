@@ -25,9 +25,9 @@ export function CareNeedHistory({ clientId, attentionNeedId }: { clientId: strin
         {need.imported && <p className="mt-2 text-sm text-ink-soft">Existing care and shift history were preserved. Save a new version below to post Care Slots and review replacement coverage.</p>}
         <p className="mt-2 text-xs text-ink-soft">Recorded {new Date(need.created_at).toLocaleString()}{need.scheduled_from ? ` · Scheduled from ${need.scheduled_from}` : ''}</p>
         <ul className="my-3 space-y-2">{need.care_slots.map(slot => <li key={slot.id} className="text-sm">{WEEKDAY_LABELS[slot.day_of_week]} · {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)} · {SERVICE_TYPE_LABELS[slot.service_type]}</li>)}</ul>
-        {placement ? <Link to="/dashboard/placements/$placementId" params={{ placementId: placement.id }} className="underline text-sm">Review placement · {placement.covered_count}/{placement.care_slots.length} Care Slots covered</Link>
-          : index === 0 && !need.imported && <button className="rounded-full bg-ink text-cream px-5 py-2 text-sm" onClick={() => setPosting(true)}>Post as open placement</button>}
-        {index === 0 && placement?.status === 'closed' && !need.ends_on && <button className="block mt-3 rounded-full bg-ink text-cream px-5 py-2 text-sm" onClick={() => setPosting(true)}>Reopen placement</button>}
+        {placement ? <Link to="/dashboard/placements/$placementId" params={{ placementId: placement.id }} className="underline text-sm">Review care request · {placement.covered_count}/{placement.care_slots.length} Care Slots covered</Link>
+          : index === 0 && !need.imported && <button className="rounded-full bg-ink text-cream px-5 py-2 text-sm" onClick={() => setPosting(true)}>Post care request</button>}
+        {index === 0 && placement?.status === 'closed' && !need.ends_on && <button className="block mt-3 rounded-full bg-ink text-cream px-5 py-2 text-sm" onClick={() => setPosting(true)}>Reopen care request</button>}
       </details>
     })}
     {client && <div className="border-t border-line-soft pt-4"><h3 className="font-serif text-xl">Care team</h3>

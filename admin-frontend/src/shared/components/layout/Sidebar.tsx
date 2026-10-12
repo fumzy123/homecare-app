@@ -14,7 +14,7 @@ const NAV = [
   { to: '/dashboard/clients',    icon: HeartHandshake, label: 'Clients'    },
   { to: '/dashboard/shifts',     icon: CalendarDays,   label: 'Schedule'   },
   { to: '/dashboard/timesheet',  icon: Clock3,         label: 'Timesheets' },
-  { to: '/dashboard/placements', icon: ClipboardList,  label: 'Placements' },
+  { to: '/dashboard/placements', icon: ClipboardList,  label: 'Care requests' },
 ]
 
 interface SidebarProps {

@@ -168,7 +168,7 @@ async function run() {
     await page.goto(`${base}/dashboard`)
     await page.reload()
     await page.getByRole('button', { name: /Care coverage/ }).click()
-    await page.getByRole('button', { name: 'Post placement', exact: true }).click()
+    await page.getByRole('button', { name: 'Post care request', exact: true }).click()
     await page.locator(`#care-need-${needId}`).waitFor()
     assert.equal(await page.locator(`#care-need-${needId}`).getAttribute('open'), '')
     assert.equal(writes, 2)

@@ -30,6 +30,7 @@ export function useCreatePlacement() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['care-actions'] })
+      qc.invalidateQueries({ queryKey: ['attention-items'] })
     },
   })
 }
@@ -76,9 +77,11 @@ export function useClosePlacement() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => placementsApi.close(id),
-    onSuccess: () => {
+    onSuccess: (request) => {
+      qc.setQueryData(['placements', request.id], request)
       qc.invalidateQueries({ queryKey: ['placements'] })
       qc.invalidateQueries({ queryKey: ['care-actions'] })
+      qc.invalidateQueries({ queryKey: ['attention-items'] })
     },
   })
 }
@@ -91,8 +94,10 @@ export function useApproveCareSlots(id: string) {
   const approve = useMutation({
     mutationFn: (payload: ApprovalPayload) =>
       placementsApi.approve(id, payload),
-    onSuccess: () => {
+    onSuccess: (request) => {
+      qc.setQueryData(['placements', id], request)
       for (const key of [
+        'assignments',
         'placements',
         'shifts',
         'workers',

@@ -34,12 +34,16 @@ class AttentionService:
         placements = self.attention_repo.placements(self.org_id, [n.id for n in needs])
         by_need = {p.weekly_care_need_id: p for p in placements}
         assigned = defaultdict(set)
+        endings = defaultdict(dict)
+        for placement_id, slot_id, stops_from in self.attention_repo.assignment_endings(self.org_id, [p.id for p in placements]):
+            endings[placement_id][slot_id] = stops_from
         for placement_id, slot_id in self.attention_repo.assignments(self.org_id, [p.id for p in placements]):
             assigned[placement_id].add(slot_id)
         items = []
         for need in needs:
             placement = by_need.get(need.id)
-            item = coverage_item(need, clients[need.client_id], placement, assigned[placement.id] if placement else set(), today)
+            item = coverage_item(need, clients[need.client_id], placement, assigned[placement.id] if placement else set(), today,
+                                 endings[placement.id] if placement else {})
             if item:
                 item.total_slots = len(need.care_slots)
                 item.covered_slots = len(assigned[placement.id]) if placement else 0

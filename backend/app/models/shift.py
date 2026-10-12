@@ -20,6 +20,8 @@ class Shift(Base):
     client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
     weekly_care_need_id = Column(UUID(as_uuid=True), ForeignKey('weekly_care_needs.id'), nullable=True, index=True)
     care_slot_id = Column(UUID(as_uuid=True), ForeignKey('care_slots.id'), nullable=True, index=True)
+    assignment_id = Column(UUID(as_uuid=True), ForeignKey('care_slot_assignments.id'), nullable=True, index=True)
+    assignment = relationship('CareSlotAssignment')
     created_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
 
     # Which service this shift delivers — nullable so admins can still schedule

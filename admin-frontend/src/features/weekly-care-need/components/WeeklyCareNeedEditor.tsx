@@ -500,7 +500,7 @@ export function WeeklyCareNeedEditor({
                         className="cw-btn"
                         onClick={() => setPosting(true)}
                       >
-                        Reopen placement
+                        Reopen care request
                       </button>
                     )}
                 </>
@@ -513,7 +513,7 @@ export function WeeklyCareNeedEditor({
                     disabled={placements.isPending}
                     onClick={() => setPosting(true)}
                   >
-                    <ArrowRight size={15} /> Post as open placement
+                    <ArrowRight size={15} /> Post care request
                   </button>
                 )
               )}

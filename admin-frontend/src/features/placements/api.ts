@@ -24,7 +24,7 @@ export interface InterestWorkerSummary {
 export interface Placement {
   scheduled_from: string | null
   weekly_care_need_id: string | null
-  care_slots: (CareSlot & { worker_id: string | null; worker_name: string | null })[]
+  care_slots: (CareSlot & { worker_id: string | null; worker_name: string | null; replacement_from?: string | null })[]
   covered_count: number
   transition_applied: boolean
   id: string
