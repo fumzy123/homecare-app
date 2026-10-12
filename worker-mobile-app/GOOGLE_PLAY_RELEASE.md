@@ -142,6 +142,13 @@ credential uploads, and agency notifications.
 
 ## Required before sending for review
 
+- [ ] Review remaining mobile dependency security advisories before the Android
+      release. On 2026-10-12, SDK 57 patch alignment and compatible audit fixes
+      cleared the critical advisory; `npm audit` still reported 31 affected
+      packages (17 high, 14 moderate), including transitive tooling and router
+      dependencies. Remaining suggested automatic fixes require incompatible
+      framework changes; do not use `npm audit fix --force` as a release shortcut.
+
 - [ ] Verified Play developer account and access to the intended app record.
 - [x] App brand/name: Care Harbor. Updated build configuration and store draft.
 - [ ] Support email, developer identity, countries and distribution.
