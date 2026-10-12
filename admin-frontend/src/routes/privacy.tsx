@@ -6,7 +6,7 @@ export const Route = createFileRoute('/privacy')({
   component: PrivacyPage,
 })
 
-const EFFECTIVE_DATE = 'Draft dated August 28, 2026'
+const EFFECTIVE_DATE = 'Draft dated October 9, 2026'
 
 function PrivacyPage() {
   return (
@@ -27,8 +27,8 @@ function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="font-mono text-[12px] text-ink-soft mb-12 leading-relaxed">
-          This Privacy Policy explains how Home Care Management Software ("we", "us") collects, uses, stores,
-          and discloses personal information when you use the Homecare platform. We are committed to
+          This Privacy Policy explains how Care Harbor ("we", "us") collects, uses, stores,
+          and discloses personal information when you use the Care Harbor agency website and worker mobile app. We are committed to
           protecting personal information in accordance with applicable Canadian privacy legislation,
           including the Personal Information Protection and Electronic Documents Act (PIPEDA).
         </p>
@@ -46,28 +46,26 @@ function PrivacyPage() {
           </p>
         </Section>
 
-        <Section number="2" title="Information We Collect">
-          <p><strong>Agency account data:</strong> Organisation name, administrator names, email addresses, billing information.</p>
-          <p><strong>Worker data:</strong> Names, contact details, employment information, shift schedules, availability.</p>
-          <p><strong>Client data:</strong> Names, dates of birth, addresses, care start dates, service types, and other care need information entered by the Agency.</p>
-          <p><strong>Usage data:</strong> Log data, IP addresses, browser type, pages visited, and timestamps — collected automatically when you use the Platform.</p>
-          <Placeholder>
-            Review this list with your lawyer and add any additional data points your system collects
-            (e.g., GPS location if added later, voice notes, photos). PIPEDA requires you to be specific
-            about what you collect and why.
-          </Placeholder>
+        <Section number="2" title="Information We Handle">
+          <p><strong>Worker account access:</strong> Your Agency sends an invitation to your email address. You enter your name and set a password on the website before downloading and signing in to the worker mobile app. The mobile app is for existing worker accounts and does not offer sign-up or link to account setup. Password recovery remains available. Contact your Agency for help with account access.</p>
+          <p><strong>Agency account data:</strong> Organisation and administrator details, account identifiers, subscription and billing records. Stripe processes payment-card details.</p>
+          <p><strong>Worker data:</strong> Name, email, phone, address, date of birth and other profile details when supplied; emergency contacts; employment, availability, care preferences, languages and transport information; credential documents and expiry dates; assigned schedules and authored progress notes.</p>
+          <p><strong>Client and care data:</strong> Identity and contact details, date of birth, address, emergency contacts, care needs and instructions, medical conditions, allergies, medications, scheduled visits and progress notes. Agencies may also enter funding and administrative records; these are not all exposed to workers.</p>
+          <p><strong>Account and device data:</strong> Authentication identifiers and sessions; notification content and read state; and, when phone notifications are enabled, push tokens, installation identifiers, platform and delivery status needed to deliver work updates.</p>
+          <p><strong>Operational records:</strong> Requests, errors and delivery events may be logged by our services and hosting providers. Optional website monitoring includes performance traces and error-triggered session replay, configured to mask text and block media. Optional server error monitoring is also configurable. Production logging fields, access and retention still need confirmation.</p>
+          <p>The current worker app does not record GPS arrival/departure or voice notes. Selecting a credential file sends the chosen document for storage. Selecting directions passes the visit address to a maps app, whose own permissions and privacy practices apply.</p>
         </Section>
 
-        <Section number="3" title="How We Use Personal Information">
-          <p>We use the information collected to:</p>
+        <Section number="3" title="How Information Is Used and Accessed">
           <ul>
-            <li>Provide, operate, and improve the Platform</li>
-            <li>Process scheduling, timesheets, and shift assignments</li>
-            <li>Send transactional communications (invitations, shift reminders)</li>
-            <li>Respond to support requests</li>
-            <li>Comply with legal obligations</li>
+            <li>Authenticate users and check active agency and worker access.</li>
+            <li>Manage schedules, client care information, credential records and visit progress notes.</li>
+            <li>Send invitations, password recovery emails and work notifications, and maintain the in-app inbox.</li>
+            <li>Administer agency subscriptions, support requests, security and legal obligations.</li>
           </ul>
-          <p>We do not sell personal information to third parties.</p>
+          <p>Authorised agency staff manage agency records. Worker access is scoped to their agency, own profile and assigned care records, including retained visit history. A worker does not gain access to another agency merely by signing in.</p>
+          <p>Displayed completed hours are estimates from scheduled visits; this release does not verify physical attendance or provide GPS-based worked hours.</p>
+          <Placeholder>Confirm the final commercial data-use commitments, including whether information is ever used for advertising, sold or disclosed outside service delivery. The source review is not a substitute for confirming business practices.</Placeholder>
         </Section>
 
         <Section number="4" title="Legal Basis for Processing">
@@ -94,49 +92,31 @@ function PrivacyPage() {
           </Placeholder>
         </Section>
 
-        <Section number="6" title="Data Retention">
-          <p>
-            We retain account and operational data while an Agency&apos;s account is active and only as long
-            afterward as reasonably necessary to provide an export, complete account closure, meet legal
-            obligations, resolve disputes, and maintain security records. Agencies may request an export
-            or deletion, subject to legal and contractual retention requirements.
-          </p>
-          <Placeholder>
-            Set final export and deletion timeframes before launch; this draft does not promise a timeframe.
-          </Placeholder>
+        <Section number="6" title="Retention, Account Closure and Deletion">
+          <p>Account access, employment records and care records have different lifecycles. Removing a worker from an agency currently disables access and retains historical records; this is not a complete personal-data deletion process.</p>
+          <p>A deletion request may require identity checks and coordination with the Agency responsible for the care records. Any records retained for legal, security or care-record obligations must have a stated reason and retention period. Signing out or uninstalling the app does not erase server records.</p>
+          <p><Link to="/account-deletion" className="underline underline-offset-4">Request account deletion</Link> through our public account-help page. Current and former workers can request a review without signing in or reinstalling the app. Submission does not automatically terminate employment or erase agency care records.</p>
+          <Placeholder>Before launch, configure and verify the monitored request mailbox and confirm the response, export and deletion timeframes for account data, care records, documents, logs, backups and service providers. No fixed deletion deadline is promised by this draft.</Placeholder>
         </Section>
 
-        <Section number="7" title="Disclosure to Third Parties">
-          <p>We may share personal information with:</p>
+        <Section number="7" title="Service Providers and Disclosures">
+          <p>The implementation uses or integrates the following services. Confirm the production providers, legal entities, processing locations and agreements before treating this as a final subprocessor list.</p>
           <ul>
-            <li><strong>Service providers</strong> who help us operate the Platform (hosting, authentication, email delivery), under data processing agreements</li>
-            <li><strong>Legal authorities</strong> when required by law or court order</li>
+            <li><strong>Supabase:</strong> authentication, database and credential-file storage.</li>
+            <li><strong>Vercel and Railway:</strong> website and API hosting in the current hosted setup.</li>
+            <li><strong>Resend:</strong> transactional email delivery in the current authentication setup.</li>
+            <li><strong>Expo and Google Firebase Cloud Messaging:</strong> Android push delivery when configured and enabled.</li>
+            <li><strong>Stripe:</strong> agency subscription payments. Payment-card details are processed by Stripe.</li>
+            <li><strong>Sentry, when enabled:</strong> website/server error monitoring, website performance traces and masked error-triggered session replay.</li>
           </ul>
-          <p>
-            Current service categories include Supabase for database and authentication, Stripe for
-            subscription payments, the production web and API hosting providers, and Sentry when error
-            monitoring is enabled. Payment-card details are processed by Stripe and are not stored directly
-            by the Platform.
-          </p>
-          <Placeholder>
-            Insert the final legal names and locations of every production subprocessor before launch.
-          </Placeholder>
+          <p>Phone notification text is designed to omit patient details; the app checks access when the worker opens care information. Maps providers receive the destination when a worker requests directions. Information may also be disclosed where required by applicable law.</p>
+          <Placeholder>Verify the live service inventory and all recipients against the signed release and Play Data safety answers, including provider telemetry and international processing.</Placeholder>
         </Section>
 
         <Section number="8" title="Security">
-          <p>
-            We implement industry-standard security measures including encrypted data transmission (TLS),
-            authentication controls, and access restrictions to protect personal information against
-            unauthorised access, disclosure, or misuse.
-          </p>
-          <p>
-            Controls include authenticated access, role-based permissions, organization-level separation
-            of agency records, restricted production credentials, and monitoring designed to avoid
-            transmitting form contents. No method of storage or transmission is completely secure.
-          </p>
-          <Placeholder>
-            Confirm encryption-at-rest, backup, restoration, security-testing, and incident-response practices before launch.
-          </Placeholder>
+          <p>Implemented controls include authenticated API requests, role and agency access checks, worker access restrictions, short-lived signed links for credential downloads, and secure mobile session storage. Hosted connections use HTTPS.</p>
+          <p>These controls reduce risk but do not guarantee that storage or transmission is completely secure. Production configuration and operating practices require separate verification.</p>
+          <Placeholder>Confirm encryption at rest, production access management, backups and restoration, security testing, incident response and logging safeguards before launch.</Placeholder>
         </Section>
 
         <Section number="9" title="Your Rights">
@@ -153,23 +133,21 @@ function PrivacyPage() {
           </p>
         </Section>
 
-        <Section number="10" title="Cookies and Tracking">
-          <Placeholder>
-            Describe what cookies or local storage you use (authentication sessions, preferences),
-            whether any analytics tools are in use, and how users can manage them.
-          </Placeholder>
+        <Section number="10" title="Local Storage and Phone Permissions">
+          <p>The website stores authentication sessions and necessary preferences in browser storage. The mobile app stores authentication sessions in secure device storage and remembers introduction progress. Care information is loaded for authorised use; signing out clears the app session and cached query data. Selected credential files may be copied into the app&apos;s temporary file cache during upload; query-cache clearing does not establish that all temporary files have been erased.</p>
+          <p>Phone notification permission is requested when enabling supported phone alerts. Users can manage alerts through their phone settings and can continue to use the in-app inbox with phone alerts disabled. File selection for credentials is initiated by the worker. The current app does not request location access for visit verification.</p>
+          <Placeholder>Confirm the complete production cookie, analytics, crash-reporting and device-permission inventory against the signed Android build and all enabled hosting services.</Placeholder>
         </Section>
 
         <Section number="11" title="Changes to This Policy">
           <p>
             We may update this Privacy Policy from time to time. The version number and effective date
-            at the top of this page will reflect the current version. Material changes will be communicated
-            to Agencies by email.
+            at the top of this page will reflect the current version. The final process for notifying Agencies and workers of material changes must be confirmed before launch.
           </p>
         </Section>
 
         <Section number="12" title="Contact">
-          <p>Home Care Management Software is based in St. John&apos;s, Newfoundland and Labrador, Canada.</p>
+          <p>Care Harbor is the product name. The operator&apos;s legal identity and public contact details must be confirmed before publication.</p>
           <Placeholder>
             Appoint a privacy officer and add a monitored privacy email and service or mailing address before launch.
           </Placeholder>
@@ -177,7 +155,7 @@ function PrivacyPage() {
 
         <hr className="border-ink mt-12 mb-8" />
         <p className="font-mono text-[10px] text-muted tracking-[0.08em] uppercase">
-          Homecare · Privacy Policy · Version {CURRENT_TERMS_VERSION} · {EFFECTIVE_DATE}
+          Care Harbor · Privacy Policy · Version {CURRENT_TERMS_VERSION} · {EFFECTIVE_DATE}
         </p>
       </div>
     </div>
@@ -186,7 +164,7 @@ function PrivacyPage() {
 
 function LegalNav() {
   return (
-    <div className="border-b border-ink px-8 py-4 flex items-center justify-between bg-paper">
+    <div className="border-b border-ink px-8 py-4 flex flex-wrap gap-4 items-center justify-between bg-paper">
       <Link to="/login" className="flex items-center gap-3 group">
         <BoatLogo size={22} />
         <span className="font-serif text-[16px] leading-none tracking-[-0.02em] font-medium">Care Harbor</span>
@@ -220,7 +198,7 @@ function Placeholder({ children, inline }: { children: React.ReactNode; inline?:
   }
   return (
     <div className="border border-dashed border-orange/60 bg-orange/5 px-4 py-3 text-orange text-[11px] leading-relaxed">
-      <span className="font-semibold uppercase tracking-[0.08em] block mb-1">⚠ Lawyer review needed</span>
+      <span className="font-semibold uppercase tracking-[0.08em] block mb-1">Confirmation and legal review needed</span>
       {children}
     </div>
   )

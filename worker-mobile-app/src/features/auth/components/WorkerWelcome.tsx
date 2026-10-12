@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn } from '@/shared/components/ui/Btn';
 import { useWorkerEntry } from '../hooks/useWorkerEntry';
@@ -15,11 +15,9 @@ export function WorkerWelcome({ replay = false, onDone }: { replay?: boolean; on
   const { account, completion, finish, isWorker } = useWorkerEntry();
   const signOut = useSignOut();
   const [step, setStep] = useState(replay ? 0 : -1);
-  const [linkError, setLinkError] = useState(false);
   const busy = account.isPending || (isWorker && completion.isPending);
   const error = account.isError || completion.isError;
   const data = account.data;
-  const webUrl = process.env.EXPO_PUBLIC_FRONTEND_URL;
 
   function done() {
     if (replay) onDone?.();
@@ -34,14 +32,12 @@ export function WorkerWelcome({ replay = false, onDone }: { replay?: boolean; on
         <Text className="my-5 text-base text-ink-soft">Check your connection and try again.</Text>
         <Btn onPress={() => { void account.refetch(); if (isWorker) void completion.refetch(); }}>Try again</Btn>
       </> : !isWorker ? <>
-        <Text className="font-serif text-3xl text-ink">{data?.status === 'pending' ? 'Finish your account setup.' : data?.status === 'expired' ? 'Your invitation has expired.' : 'Worker access is unavailable.'}</Text>
+        <Text className="font-serif text-3xl text-ink">{data?.status === 'pending' ? 'Your agency access is pending.' : data?.status === 'expired' ? 'Your invitation has expired.' : 'Worker access is unavailable.'}</Text>
         <Text className="my-5 text-base leading-6 text-ink-soft">{data?.status === 'pending'
-          ? 'Finish setting up your name and password in your invitation email. If you already set a password, you can sign in on the setup page to resume.'
+          ? 'Contact your agency for help with your worker account. Once your access is ready, check again.'
           : data?.status === 'active' ? 'This app is for home support workers. Use your agency’s web app for your account, or sign in with your worker email.'
           : 'Contact your agency to check your membership or request a new invitation.'}</Text>
-        {data?.status === 'pending' && webUrl ? <Btn onPress={() => Linking.openURL(`${webUrl.replace(/\/$/, '')}/accept-invite`).catch(() => setLinkError(true))}>Finish setup on the web</Btn> : null}
-        {linkError ? <Text accessibilityRole="alert" className="my-3 text-orange">Could not open the page. Open your invitation email instead.</Text> : null}
-        <Btn className="mt-3" variant="ghost" onPress={() => account.refetch()}>I’ve finished setup — check again</Btn>
+        <Btn className="mt-3" variant="ghost" onPress={() => account.refetch()}>Check access again</Btn>
       </> : step === -1 ? <>
         <Text className="font-serif text-4xl text-ink">Welcome, {data?.first_name}.</Text>
         <Text className="mt-4 font-serif text-2xl text-ink">{data?.org_name}</Text>

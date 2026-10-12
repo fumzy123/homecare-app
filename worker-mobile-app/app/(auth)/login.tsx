@@ -28,7 +28,7 @@ export default function LoginScreen() {
               Welcome back.
             </Text>
             <LoginForm />
-            <Text className="mt-6 text-center text-sm leading-5 text-muted">Use the email and password from your agency invitation. New here? Finish setup using the link in your invitation email first.</Text>
+            <Text className="mt-6 text-center text-sm leading-5 text-muted">Sign in with your existing worker account. Contact your agency if you need access.</Text>
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>

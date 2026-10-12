@@ -19,6 +19,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DpaRouteImport } from './routes/dpa'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as BillingOperationsRouteImport } from './routes/billing-operations'
+import { Route as AccountDeletionRouteImport } from './routes/account-deletion'
 import { Route as AcceptTermsRouteImport } from './routes/accept-terms'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as ProtectedRouteImport } from './routes/_protected'
@@ -100,6 +101,11 @@ const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
 const BillingOperationsRoute = BillingOperationsRouteImport.update({
   id: '/billing-operations',
   path: '/billing-operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountDeletionRoute = AccountDeletionRouteImport.update({
+  id: '/account-deletion',
+  path: '/account-deletion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptTermsRoute = AcceptTermsRouteImport.update({
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/account-deletion': typeof AccountDeletionRoute
   '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
@@ -330,6 +337,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/account-deletion': typeof AccountDeletionRoute
   '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
@@ -372,6 +380,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/accept-terms': typeof AcceptTermsRoute
+  '/account-deletion': typeof AccountDeletionRoute
   '/billing-operations': typeof BillingOperationsRoute
   '/confirm-email': typeof ConfirmEmailRoute
   '/dpa': typeof DpaRoute
@@ -417,6 +426,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/accept-terms'
+    | '/account-deletion'
     | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/accept-terms'
+    | '/account-deletion'
     | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
@@ -501,6 +512,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/accept-invite'
     | '/accept-terms'
+    | '/account-deletion'
     | '/billing-operations'
     | '/confirm-email'
     | '/dpa'
@@ -546,6 +558,7 @@ export interface RootRouteChildren {
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AcceptInviteRoute: typeof AcceptInviteRoute
   AcceptTermsRoute: typeof AcceptTermsRoute
+  AccountDeletionRoute: typeof AccountDeletionRoute
   BillingOperationsRoute: typeof BillingOperationsRoute
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   DpaRoute: typeof DpaRoute
@@ -628,6 +641,13 @@ declare module '@tanstack/react-router' {
       path: '/billing-operations'
       fullPath: '/billing-operations'
       preLoaderRoute: typeof BillingOperationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account-deletion': {
+      id: '/account-deletion'
+      path: '/account-deletion'
+      fullPath: '/account-deletion'
+      preLoaderRoute: typeof AccountDeletionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-terms': {
@@ -975,6 +995,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProtectedRoute: ProtectedRouteWithChildren,
   AcceptInviteRoute: AcceptInviteRoute,
   AcceptTermsRoute: AcceptTermsRoute,
+  AccountDeletionRoute: AccountDeletionRoute,
   BillingOperationsRoute: BillingOperationsRoute,
   ConfirmEmailRoute: ConfirmEmailRoute,
   DpaRoute: DpaRoute,

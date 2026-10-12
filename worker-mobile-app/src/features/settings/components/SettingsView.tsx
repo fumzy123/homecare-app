@@ -1,113 +1,59 @@
-import { View, Text, Pressable, Alert, ActivityIndicator, Linking, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSignOut } from '@/features/auth/hooks/useAuth';
 import { PushSettings } from '@/features/notifications/components/PushSettings';
+import { openWebsitePage } from '@/shared/lib/website-links';
 
+/** Layer 3: composes notification controls and public account/legal actions. */
 export function SettingsView() {
-  const { mutate: signOut, isPending: signingOut, isError: signOutFailed } = useSignOut();
-  const website = process.env.EXPO_PUBLIC_FRONTEND_URL?.replace(/\/$/, '');
-
-  async function openWebsite(path: string) {
-    if (!website) {
-      Alert.alert('Page unavailable', 'Contact your agency for help. The agency website has not been configured for this app.');
-      return;
-    }
-    try {
-      await Linking.openURL(`${website}${path}`);
-    } catch {
-      Alert.alert('Could not open the page', 'Please try again, or contact your agency for help.');
-    }
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-cream">
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <View className="flex-row items-center justify-between border-b border-ink/[0.08] px-5 py-4">
-        <Pressable
-          onPress={() => router.back()}
-          className="flex-row items-center gap-1.5"
-          hitSlop={12}
-        >
-          <Ionicons name="chevron-back" size={16} color="#4A453E" />
-          <Text className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">Back</Text>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back to profile"
+          onPress={() => router.back()} className="mb-4 min-h-11 flex-row items-center gap-2 self-start">
+          <Ionicons name="chevron-back" size={20} color="#4A453E" />
+          <Text className="font-sans text-sm text-ink-soft">Back</Text>
         </Pressable>
-        <View className="flex-row items-center gap-2">
-          <View className="h-px w-3 bg-ink" />
-          <Text className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-ink-soft">
-            Settings
-          </Text>
+        <Text accessibilityRole="header" className="mb-8 font-serif text-[42px] leading-[48px] text-ink">Settings</Text>
+        <SectionLabel>Notifications</SectionLabel>
+        <View className="rounded-3xl border border-cream-2 bg-paper"><PushSettings /></View>
+        <SectionLabel>Privacy &amp; legal</SectionLabel>
+        <View className="rounded-3xl border border-cream-2 bg-paper px-4">
+          <SettingsLink title="Privacy Policy" detail="How your information is handled" external onPress={() => void openWebsitePage('/privacy')} />
+          <SettingsLink title="Terms of Service" detail="Using Care Harbor" external onPress={() => void openWebsitePage('/terms')} />
+          <SettingsLink title="Data Processing Agreement" detail="Agreement with your agency" external last onPress={() => void openWebsitePage('/dpa')} />
         </View>
-        <View style={{ width: 56 }} />
-      </View>
-
-      {/* ── Notifications ────────────────────────────────────────────────── */}
-      <View className="mx-5 mt-5 mb-1 flex-row items-center gap-2">
-        <View className="h-px w-3 bg-ink" />
-        <Text className="font-mono text-[8.5px] uppercase tracking-[0.15em] text-ink-soft">
-          Notifications
+        <SectionLabel>Account help</SectionLabel>
+        <View className="rounded-3xl border border-cream-2 bg-paper px-4">
+          <SettingsLink title="Reset password" detail="Opens secure recovery on the website" external onPress={() => void openWebsitePage('/forgot-password')} />
+          <SettingsLink title="How to use the app" detail="Replay the short introduction" last onPress={() => router.push('/introduction')} />
+        </View>
+        <Text className="mt-3 text-sm leading-5 text-ink-soft">Contact your agency for help with your worker account or using the app.</Text>
+        <Text className="mt-8 text-center font-mono text-xs text-muted">
+          {Constants.expoConfig?.name ?? 'Care Harbor'} · v{Constants.expoConfig?.version ?? '1.0.0'}
         </Text>
-        <View className="h-px flex-1 bg-ink" />
-      </View>
-      <View className="mx-5 border border-ink/[0.12]">
-        <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} className="flex-row items-center justify-between px-4 py-3.5 border-b border-ink/[0.08]">
-          <Text className="text-[13px] text-ink">Notification inbox</Text>
-          <Ionicons name="chevron-forward" size={16} color="#8A8378" />
-        </Pressable>
-        <PushSettings />
-      </View>
-
-      {/* ── Account ──────────────────────────────────────────────────────── */}
-      <View className="mx-5 mt-5 mb-1 flex-row items-center gap-2">
-        <View className="h-px w-3 bg-ink" />
-        <Text className="font-mono text-[8.5px] uppercase tracking-[0.15em] text-ink-soft">
-          Account
-        </Text>
-        <View className="h-px flex-1 bg-ink" />
-      </View>
-      <View className="mx-5 border border-ink/[0.12]">
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => void openWebsite('/forgot-password')}
-          className="flex-row items-center justify-between px-4 py-3.5 border-b border-ink/[0.08]"
-        >
-          <Text className="text-[13px] text-ink">Reset password on the web</Text>
-          <Ionicons name="chevron-forward" size={16} color="#8A8378" />
-        </Pressable>
-        <Pressable accessibilityRole="link" onPress={() => void openWebsite('/privacy')} className="flex-row items-center justify-between px-4 py-3.5 border-b border-ink/[0.08]">
-          <Text className="text-[13px] text-ink">Privacy &amp; data</Text>
-          <Ionicons name="chevron-forward" size={16} color="#8A8378" />
-        </Pressable>
-        <Pressable
-          onPress={() => signOut()}
-          disabled={signingOut}
-          className="flex-row items-center justify-between px-4 py-3.5"
-        >
-          {signingOut ? (
-            <ActivityIndicator size="small" color="#FF5A1F" />
-          ) : (
-            <>
-              <Text className="text-[13px] text-orange">Sign out</Text>
-              <Ionicons name="log-out-outline" size={16} color="#FF5A1F" />
-            </>
-          )}
-        </Pressable>
-      </View>
-
-      {/* ── App info ─────────────────────────────────────────────────────── */}
-      {signOutFailed ? <Text accessibilityRole="alert" className="mx-5 mt-3 text-orange">Could not finish signing out. Connect to the internet and try again so this phone can stop receiving account notifications.</Text> : null}
-      <Pressable onPress={() => router.push('/introduction')} className="mx-5 mt-6 border border-ink/[0.12] px-4 py-4">
-        <Text className="text-[13px] text-ink">How to use the worker app</Text>
-      </Pressable>
-      <View className="mt-auto px-5 pb-6 pt-6">
-        <Text className="text-center font-mono text-[9px] text-muted">
-          {Constants.expoConfig?.name ?? 'HomeCare Worker App'} · v{Constants.expoConfig?.version ?? '1.0.0'}
-        </Text>
-      </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <Text accessibilityRole="header" className="mb-3 mt-5 font-mono text-xs uppercase tracking-widest text-ink-soft">{children}</Text>;
+}
+
+/** Layer 2: controlled navigation row. */
+function SettingsLink({ title, detail, onPress, external = false, last = false }: {
+  title: string; detail: string; onPress: () => void; external?: boolean; last?: boolean;
+}) {
+  return <Pressable accessibilityRole={external ? 'link' : 'button'}
+    accessibilityHint={external ? 'Opens in your browser' : undefined} onPress={onPress}
+    className={`min-h-16 flex-row items-center gap-3 py-4 ${last ? '' : 'border-b border-cream-2'}`}>
+    <View className="flex-1 gap-1">
+      <Text className="font-sans text-base text-ink">{title}</Text>
+      <Text className="font-sans text-xs leading-5 text-ink-soft">{detail}</Text>
+    </View>
+    <Ionicons name={external ? 'open-outline' : 'chevron-forward'} size={18} color="#8A8378" />
+  </Pressable>;
 }

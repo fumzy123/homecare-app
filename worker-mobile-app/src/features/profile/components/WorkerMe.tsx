@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Dialog } from '@/shared/components/Dialog';
@@ -64,6 +65,9 @@ export function WorkerMe({ openPersonalDetails = false }: { openPersonalDetails?
         <View className="flex-1 gap-1"><Text className="font-serif text-xl text-ink">Your agency is here for you.</Text><Text className="font-sans text-xs text-ink-soft">Contact your care coordinator</Text></View>
         <Ionicons name="chevron-forward" size={18} color="#111" />
       </Pressable>
+      <View className="mt-6 rounded-3xl border border-cream-2 bg-paper px-4">
+        <ProfileRow title="Settings" icon="settings-outline" detail="Notifications, privacy and account help" last onPress={() => router.push('/settings')} />
+      </View>
       <Pressable accessibilityRole="button" onPress={requestSignOut} disabled={signOut.isPending} className="mt-6 min-h-12 items-center justify-center border-t border-cream-2 pt-4">
         <Text className="font-sans text-sm text-ink-soft">{signOut.isPending ? 'Signing out…' : 'Sign out'}</Text>
       </Pressable>
