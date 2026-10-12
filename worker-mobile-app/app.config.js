@@ -3,10 +3,10 @@ const IS_STAGING = APP_ENV === 'staging'
 const IS_DEV = APP_ENV === 'development'
 
 const appName = IS_DEV
-  ? 'HomeCare Worker App (Dev)'
+  ? 'Care Harbor (Dev)'
   : IS_STAGING
-  ? 'HomeCare Worker App (Staging)'
-  : 'HomeCare Worker App'
+  ? 'Care Harbor (Staging)'
+  : 'Care Harbor'
 
 const bundleId = IS_DEV
   ? 'com.homecareapp.worker.dev'

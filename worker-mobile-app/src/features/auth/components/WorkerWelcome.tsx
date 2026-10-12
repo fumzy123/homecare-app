@@ -26,7 +26,7 @@ export function WorkerWelcome({ replay = false, onDone }: { replay?: boolean; on
 
   return <SafeAreaView className="flex-1 bg-cream">
     <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 28, justifyContent: 'center' }}>
-      <Text className="mb-6 font-mono text-xs uppercase tracking-widest text-muted">Homecare Worker</Text>
+      <Text className="mb-6 font-mono text-xs uppercase tracking-widest text-muted">Care Harbor</Text>
       {busy ? <ActivityIndicator accessibilityLabel="Checking your agency" color="#FF5A1F" /> : error ? <>
         <Text className="font-serif text-3xl text-ink">We couldn’t finish loading.</Text>
         <Text className="my-5 text-base text-ink-soft">Check your connection and try again.</Text>

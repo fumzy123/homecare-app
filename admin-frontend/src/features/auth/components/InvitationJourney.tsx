@@ -40,7 +40,7 @@ function DownloadApp({ agency, firstName, worker }: { agency: string | null; fir
     <h1 className="font-serif text-4xl">Welcome{firstName ? `, ${firstName}` : ''}.</h1>
     <p className="my-5 text-ink-soft">Your account{agency ? ` with ${agency}` : ''} is ready.</p>
     {worker ? <>
-      <p className="mb-6 text-sm leading-6">Sign in to the Homecare Worker app with the email and password you just set up. Your agency will be ready for you when you sign in.</p>
+      <p className="mb-6 text-sm leading-6">Sign in to the Care Harbor app with the email and password you just set up. Your agency will be ready for you when you sign in.</p>
       <a className={button} href="worker-mobile-app://">Open the worker app</a>
       <div className="mt-3 space-y-3">{links.map(link => <a key={link.label} className="block border border-ink px-5 py-3 text-center text-sm" href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div>
       {links.length < 2 ? <p className="mt-4 text-sm text-ink-soft">A download link for your phone may not be available yet. Your agency will provide access when the app is available. Your account is already set up.</p> : null}
@@ -82,7 +82,7 @@ export function InvitationJourney() {
   }
   return <main className="min-h-screen bg-cream px-5 py-12 text-ink">
     <div className="mx-auto max-w-lg border border-ink bg-paper p-6 sm:p-10">
-      <p className="mb-8 font-serif text-xl">Homecare</p>
+      <p className="mb-8 font-serif text-xl">Care Harbor</p>
       {content}
       {session ? <button className="mt-8 text-sm underline" onClick={async () => {
         try { await authApi.signOut() } catch { setSignOutError(true) }
