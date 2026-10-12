@@ -209,6 +209,7 @@ class ShiftOccurrenceResponse(BaseModel):
     end_time:                datetime
     completion_status:       ShiftCompletionStatus
     is_modification:         bool
+    has_visit_changes:       bool = False
     is_recurring:            bool
     service_type:            ServiceType | None
     worker:                  WorkerSummary

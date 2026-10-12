@@ -26,6 +26,8 @@ export interface ShiftOccurrence {
   end_time: string;
   completion_status: ShiftCompletionStatus;
   is_modification: boolean;
+  /** Absent on older backends; do not infer an edit from lifecycle records. */
+  has_visit_changes?: boolean;
   is_recurring: boolean;
   service_type: ServiceType | null;
   worker: ShiftWorkerSummary;

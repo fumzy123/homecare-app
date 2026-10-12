@@ -94,6 +94,7 @@ class EffectiveShiftOccurrence:
     location: str | None
     instructions: str | None
     is_modified: bool
+    has_visit_changes: bool = False
 
 
 def resolve_effective_occurrence(
@@ -140,6 +141,13 @@ def resolve_effective_occurrence(
         location=shift.location,
         instructions=instructions,
         is_modified=modification is not None,
+        # Lifecycle-only records (including automatic completion) are not edits
+        # to the visit. Compare effective values so no-op overrides do not count.
+        has_visit_changes=(
+            start_time != base_start
+            or end_time != base_start + duration
+            or (instructions or "") != (shift.notes or "")
+        ),
     )
 
 

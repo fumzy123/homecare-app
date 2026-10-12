@@ -55,7 +55,7 @@ export function ScheduleVisitCard({ visit, onPress, onDirections, onCareInstruct
       <Text className={`flex-1 text-xs ${noteStatus === 'saved' ? 'text-[#32634F]' : 'text-ink-soft'}`}>{noteStatus === 'saved' ? 'Progress note saved' : noteStatus === 'needed' ? 'Add progress note' : 'View / add progress note'}</Text>
       <Ionicons name="chevron-forward" size={13} color="#8A8378" />
     </Pressable> : null}
-    {shift.is_modification ? <View className="mx-4 mb-3 flex-row items-center gap-2 rounded-lg bg-orange-soft px-3 py-2">
+    {shift.has_visit_changes ? <View className="mx-4 mb-3 flex-row items-center gap-2 rounded-lg bg-orange-soft px-3 py-2">
       <Ionicons name="sync-outline" size={13} color="#4A453E" /><Text className="text-xs text-ink-soft">Updated visit</Text>
     </View> : null}
     {isNext ? <View className="mx-4 flex-row border-t border-cream/20 py-1">
