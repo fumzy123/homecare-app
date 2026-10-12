@@ -1,30 +1,22 @@
-"""Provision founding sandbox pricing and verify a zero-charge trial."""
+"""Verify a zero-charge trial using the configured current Founding sandbox price."""
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import json
 import stripe
-from dotenv import dotenv_values, set_key
+from dotenv import dotenv_values
 
 
 def main():
     env = Path(__file__).resolve().parents[1] / ".env.local"
-    key = dotenv_values(env).get("STRIPE_SECRET_KEY", "")
+    config = dotenv_values(env)
+    key = config.get("STRIPE_SECRET_KEY", "")
     if not key.startswith(("sk_test_", "rk_test_")):
         raise SystemExit("Sandbox key required")
     stripe.api_key = key
-    lookup = "care_harbor_founding_v1_month_cad"
-    found = stripe.Price.list(lookup_keys=[lookup], limit=1).data
-    if found:
-        price = found[0]
-    else:
-        product = stripe.Product.create(name="Care Harbor Founding", idempotency_key="care-harbor-founding-v1-product")
-        price = stripe.Price.create(product=product.id, currency="cad", unit_amount=20000,
-                                    recurring={"interval": "month"}, lookup_key=lookup,
-                                    metadata={"plan_code": "founding", "plan_version": "1"}, idempotency_key=lookup)
-    assert not price.livemode and price.currency == "cad" and price.unit_amount == 20000
+    price = stripe.Price.retrieve(config["STRIPE_FOUNDING_MONTHLY_V2_PRICE_ID"])
+    assert not price.livemode and price.active and price.currency == "cad" and price.unit_amount == 20000
     assert price.recurring.interval == "month" and price.recurring.interval_count == 1
-    set_key(str(env), "STRIPE_FOUNDING_MONTHLY_V1_PRICE_ID", price.id)
     customer = stripe.Customer.create(name="Founding sandbox verification")
     subscription = None
     try:

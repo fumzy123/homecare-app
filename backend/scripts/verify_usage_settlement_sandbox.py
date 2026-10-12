@@ -35,12 +35,12 @@ def stamp(value):
 def seed_period(db, org_id, sub_id, start, end, interval, amount):
     pid = uuid4()
     terms = dict(subscription_id=sub_id, starts_at=start.isoformat(), ends_at=end.isoformat(), base_interval=interval,
-                 included_clients=10, additional_client_amount_cents=500, currency="cad")
+                 included_clients=10, additional_client_amount_cents=1000, currency="cad")
     db.add(BillingPeriod(id=pid, org_id=org_id, subscription_id=sub_id, starts_at=start, ends_at=end, anchor_at=start,
-        agency_timezone="UTC", plan_code="standard", plan_version=1, base_interval=interval,
-        included_clients=10, additional_client_amount_cents=500, currency="cad", finalization_eligible_at=end + timedelta(hours=72)))
+        agency_timezone="UTC", plan_code="standard", plan_version=3, base_interval=interval,
+        included_clients=10, additional_client_amount_cents=1000, currency="cad", finalization_eligible_at=end + timedelta(hours=72)))
     db.add(BillingUsageSnapshot(period_id=pid, org_id=org_id, finalized_at=end + timedelta(hours=72),
-        active_client_count=10 + amount // 500, additional_clients=amount // 500, usage_amount_cents=amount,
+        active_client_count=10 + amount // 1000, additional_clients=amount // 1000, usage_amount_cents=amount,
         payload={"period": terms, "clients": []}))
     db.commit()
     return pid
@@ -81,13 +81,13 @@ def main():
                 intent = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True,
                     usage="off_session", payment_method_types=["card"])
                 stripe.Customer.modify(customer.id, invoice_settings={"default_payment_method": intent.payment_method})
-                price = config["STRIPE_STANDARD_MONTHLY_V1_PRICE_ID" if interval == "month" else "STRIPE_STANDARD_ANNUAL_V1_PRICE_ID"]
+                price = config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID" if interval == "month" else "STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"]
                 sub = stripe.Subscription.create(customer=customer.id, items=[{"price": price}],
                     default_payment_method=intent.payment_method, trial_end=start + 14 * 86400)
                 org_id = uuid4()
                 db.add(Organization(id=org_id, name="Sandbox", owner_id=uuid4(), stripe_customer_id=customer.id,
                     subscription_id=sub.id, onboarding_deadline_at=stamp(start), trial_ends_at=stamp(sub.trial_end)))
-                db.add(BillingAgreement(org_id=org_id, plan_code="standard", plan_version=1, base_interval=interval,
+                db.add(BillingAgreement(org_id=org_id, plan_code="standard", plan_version=3, base_interval=interval,
                     stripe_price_id=price, consent_version="sandbox", accepted_at=stamp(start), accepted_by=uuid4()))
                 db.commit()
                 customers[interval] = (org_id, customer.id, sub.id)
@@ -112,7 +112,7 @@ def main():
                 result = execute(db, sid)
                 invoice = stripe.Invoice.retrieve(result["invoice_id"])
                 assert result["payment_status"] == "paid"
-                assert invoice.amount_paid == (40000 if interval == "month" else 10000)
+                assert invoice.amount_paid == (45000 if interval == "month" else 10000)
                 assert invoice.id == renewal.id if interval == "month" else invoice.id != renewal.id
                 # A replay never creates another invoice or invoice item.
                 before = len(list(stripe.Invoice.list(customer=customer_id, limit=100).auto_paging_iter()))

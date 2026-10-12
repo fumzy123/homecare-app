@@ -28,7 +28,7 @@ def main():
             now = datetime.now(timezone.utc)
             trial_end = int((now + timedelta(days=7)).timestamp())
             sub = stripe.Subscription.create(customer=customer.id,
-                items=[{'price': settings.stripe_standard_monthly_v2_price_id}],
+                items=[{'price': settings.stripe_standard_monthly_v3_price_id}],
                 default_payment_method=intent.payment_method,
                 **({'trial_end': trial_end} if trial else {}))
             service = BillingPlanService(MagicMock(), NS(id=uuid4()), uuid4())
@@ -37,19 +37,19 @@ def main():
             service.org_repo.lock_by_id.return_value = NS(id=service.org_id, stripe_customer_id=customer.id,
                 subscription_id=sub.id, trial_ends_at=None)
             service.agreement_repo.get_for_org.return_value = NS(plan_code='standard', base_interval='month',
-                stripe_price_id=settings.stripe_standard_monthly_v2_price_id, canceled_at=None)
+                stripe_price_id=settings.stripe_standard_monthly_v3_price_id, canceled_at=None)
             quote = service.preview('year')
             service.change(quote)
             service.change(quote)  # Retry must not duplicate a charge or schedule.
             updated = stripe.Subscription.retrieve(sub.id)
             if trial:
                 assert updated.trial_end == trial_end and updated.status == 'trialing'
-                assert updated['items'].data[0].price.id == settings.stripe_standard_annual_v2_price_id
+                assert updated['items'].data[0].price.id == settings.stripe_standard_annual_v3_price_id
             else:
                 schedule = stripe.SubscriptionSchedule.retrieve(updated.schedule)
                 assert schedule.phases[1].start_date == quote['effective_at']
-                assert schedule.phases[1]['items'][0].price == settings.stripe_standard_annual_v2_price_id
-                assert updated['items'].data[0].price.id == settings.stripe_standard_monthly_v2_price_id
+                assert schedule.phases[1]['items'][0].price == settings.stripe_standard_annual_v3_price_id
+                assert updated['items'].data[0].price.id == settings.stripe_standard_monthly_v3_price_id
             print(f'Embedded setup + {"trial" if trial else "paid renewal"} plan change: passed', flush=True)
         finally:
             for sub in stripe.Subscription.list(customer=customer.id, status='all').auto_paging_iter():

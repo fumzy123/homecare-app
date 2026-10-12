@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     expo_push_access_token: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
-    stripe_price_id: str = ""
     billing_onboarding_enabled: bool = False
     billing_notifications_enabled: bool = False
     billing_usage_finalization_enabled: bool = False
@@ -31,11 +30,6 @@ class Settings(BaseSettings):
     billing_usage_tax_mode: str = "unconfigured"
     stripe_usage_tax_code: str = ""
     billing_operator_user_ids: list[str] = []
-    stripe_standard_monthly_v1_price_id: str = ""
-    stripe_standard_annual_v1_price_id: str = ""
-    stripe_standard_monthly_v2_price_id: str = ""
-    stripe_standard_annual_v2_price_id: str = ""
-    stripe_founding_monthly_v1_price_id: str = ""
     stripe_standard_monthly_v3_price_id: str = ""
     stripe_standard_annual_v3_price_id: str = ""
     stripe_founding_monthly_v2_price_id: str = ""

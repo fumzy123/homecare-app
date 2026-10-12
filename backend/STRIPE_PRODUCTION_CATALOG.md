@@ -1,5 +1,9 @@
 # Stripe production catalog verification — 2026-09-29
 
+> Historical audit, not current deployment instructions. Standard v3 and Founding
+> v2 supersede the mappings below. See `BILLING_CONFIGURATION.md`; do not recreate
+> retired environment variables from this audit.
+
 Account: `acct_1TTYFVDwdrtTklyu` (Home Care Management Software).
 Verified through the connected Stripe plugin in live mode. Sandbox values were
 read separately using the local test credential. No customers were charged,
