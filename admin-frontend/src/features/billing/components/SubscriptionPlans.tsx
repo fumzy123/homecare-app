@@ -6,6 +6,18 @@ const currency = new Intl.NumberFormat('en-CA', {
   style: 'currency', currency: 'CAD', minimumFractionDigits: 0, maximumFractionDigits: 2,
 })
 const money = (cents: number) => currency.format(cents / 100)
+const features = [
+  'Recurring shift scheduling',
+  'Scheduling conflict detection',
+  'Care request broadcasts to your agency’s workers',
+  'Client profiles and weekly care requests',
+  'Progress notes for every visit',
+  'Worker profiles and availability',
+  'Worker credential tracking',
+  'Worker timesheet exports',
+  'Unlimited workers and staff seats',
+  'Onboarding included',
+]
 
 // Layer 2: presents server-provided terms; selection and checkout belong to the parent.
 export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
@@ -24,7 +36,7 @@ export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
   const extra = Math.max(0, clients - plan.included_clients) * plan.additional_client_amount_cents
 
   return <div className="mx-auto max-w-3xl space-y-5">
-    <h2 className="font-serif text-4xl tracking-tight">Choose your plan</h2>
+    <h2 className="font-serif text-4xl tracking-tight">Choose how you pay</h2>
     <article className="border border-ink bg-paper" aria-label={`${founding ? 'Founding' : 'Standard'} plan`}>
       <div className="flex flex-wrap items-center justify-between gap-5 border-b border-ink px-6 py-5 sm:px-8">
         <div>
@@ -51,6 +63,13 @@ export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
         <p className="text-sm font-medium">{annual ? `${money(plan.base_amount_cents)} CAD billed annually` : 'Base billed monthly'}</p>
         {annual && saving > 0 && <p className="text-sm text-ink-soft">Save {money(saving)}/year on the base subscription.</p>}
         <p className="text-sm text-ink-soft">{plan.included_clients} active clients included, then {money(plan.additional_client_amount_cents)} per additional client/month. All prices are before tax.</p>
+        <div className="border-l-2 border-orange/60 pl-4 text-xs leading-5 text-ink-soft">
+          <p className="font-semibold text-ink">How additional-client charges work</p>
+          <p className="mt-1">Each monthly billing period includes {plan.included_clients} clients. Each additional client costs {money(plan.additional_client_amount_cents)} CAD for that period, counted once regardless of the number of visits. A client counts when they have at least one scheduled, in-progress, completed or no-show visit in the period. Clients with only cancelled visits do not count.</p>
+          <p className="mt-2">{annual
+            ? 'Usage is calculated each month and collected at year-end, after the final 72-hour correction window. Your renewal invoice includes the next annual base and the previous year’s usage. If you cancel renewal, a final usage-only invoice follows the end of your prepaid year.'
+            : 'Additional-client charges are billed in arrears: after each monthly billing period ends and its 72-hour correction window closes, we automatically charge your saved payment method for that period’s usage, plus applicable tax.'}</p>
+        </div>
       </div>
 
       <div className="border-y border-ink bg-cream px-6 py-6 sm:px-8">
@@ -73,9 +92,10 @@ export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
       </div>
 
       <div className="space-y-5 px-6 py-6 sm:px-8">
-        <ul className="space-y-3 text-sm">
-          {['Scheduling and care management', 'Unlimited workers and staff seats', 'Onboarding included'].map(benefit =>
-            <li key={benefit} className="flex items-start gap-3"><Check size={17} aria-hidden="true" className="shrink-0" /><span>{benefit}</span></li>)}
+        <h4 className="text-sm font-semibold text-ink">What’s included</h4>
+        <ul className="space-y-4 text-sm leading-6 text-ink">
+          {features.map(feature =>
+            <li key={feature} className="flex items-start gap-3"><Check size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-ink" /><span>{feature}</span></li>)}
         </ul>
         <p className="border-t border-line-soft pt-4 text-sm text-ink-soft">{annual
           ? 'Cancel renewal anytime. Annual prepayment covers the base only and is non-refundable; access continues through the prepaid year.'

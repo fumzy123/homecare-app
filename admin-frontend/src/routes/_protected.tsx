@@ -10,6 +10,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { Sidebar } from '@/shared/components/layout/Sidebar'
 import { OvertimeReviewDrawer } from '@/features/shifts/components/OvertimeReviewDrawer'
 import { AttentionProvider } from '@/features/attention/components/AttentionProvider'
+import { BillingAccessBanner } from '@/features/billing/components/BillingAccessBanner'
 
 export const Route = createFileRoute('/_protected')({
   beforeLoad: async () => {
@@ -125,10 +126,7 @@ function ProtectedLayout() {
           </div>
         </div>
 
-        {billingStatus?.has_access === false && <div role="status" className="border-b border-ink bg-cream-2 px-6 py-3 text-sm">
-          <strong>Read-only access.</strong> You can view and export records. Changes are unavailable until billing is resolved.
-          <Link to="/settings/billing" className="ml-2 underline font-semibold">Open billing</Link>
-        </div>}
+        {billingStatus?.has_access === false && <BillingAccessBanner owner={user?.role === 'owner'} />}
         {billingError && <div role="alert" className="border-b border-ink px-6 py-3 text-sm">Billing status is temporarily unavailable. You can still view records; changes require an active subscription or trial.</div>}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
