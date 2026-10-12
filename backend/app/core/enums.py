@@ -94,6 +94,9 @@ class EmploymentStatus(str, enum.Enum):
     terminated = "terminated"
 
 class NotificationType(str, enum.Enum):
+    shift_assigned = "shift_assigned"
+    shift_updated = "shift_updated"
+    shift_cancelled = "shift_cancelled"
     billing_trial_reminder = "billing_trial_reminder"
     billing_annual_reminder = "billing_annual_reminder"
     billing_payment_failed = "billing_payment_failed"

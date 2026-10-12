@@ -968,7 +968,12 @@ class PlacementService:
                     previous.ends_on = payload.starts_on - timedelta(days=1)
                     previous_placement = self.placement_repo.for_care_need(previous.id)
                     if (
+            from app.services.worker_notification_service import WorkerNotificationService
+            previous_workers = {shift.worker_id for shift in old}
                         previous_placement
+            for worker_id in previous_workers:
+                WorkerNotificationService(self.db, self.org_id, self.employment_id).schedule(
+                    'shift_updated', worker_id, occurrence_date=payload.starts_on)
                         and previous_placement.status == PlacementStatus.open
                     ):
                         self.placement_repo.close(previous_placement)

@@ -4,6 +4,8 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/shared/lib/auth-store';
 import { useWorkerEntry } from '@/features/auth/hooks/useWorkerEntry';
 import { usePushRegistration } from '../hooks/usePushRegistration';
+import { usePushRefresh } from '../hooks/usePushRefresh';
+import { installPushEvents } from '../lib/pushEvents';
 import { nativeNotifications, setPushUser, supportsPush, unregisterPush } from '../lib/pushRegistration';
 
 type Status = 'off' | 'blocked' | 'registered' | 'unsupported' | 'error';
@@ -15,6 +17,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
   const loading = useAuthStore(state => state.isLoading);
   const { ready } = useWorkerEntry();
   const { mutateAsync, isPending } = usePushRegistration();
+  const refreshData = usePushRefresh();
   const [status, setStatus] = useState<Status>(supportsPush() ? 'off' : 'unsupported');
 
   useEffect(() => {
@@ -34,16 +37,12 @@ export function PushProvider({ children }: { children: ReactNode }) {
     const subscription = AppState.addEventListener('change', state => { if (state === 'active') void refresh(); });
     void nativeNotifications().then(notifications => {
       if (!notifications || !alive || !activeUser) return;
-      notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }) });
-      // Only navigate to a known authenticated destination; never trust arbitrary URLs.
-      const openInbox = () => { if (alive) { router.push('/notifications'); void notifications.clearLastNotificationResponseAsync(); } };
-      const taps = notifications.addNotificationResponseReceivedListener(openInbox);
-      const tokens = notifications.addPushTokenListener(() => { void refresh(); });
-      if (notifications.getLastNotificationResponse()) openInbox();
-      cleanupNative = () => { taps.remove(); tokens.remove(); notifications.setNotificationHandler(null); };
+      cleanupNative = installPushEvents(notifications,
+        () => alive && useAuthStore.getState().user?.id === activeUser,
+        () => router.push('/notifications'), refreshData, () => { void refresh(); });
     }).catch(() => { if (alive) setStatus('error'); });
     return () => { alive = false; setPushUser(null); subscription.remove(); cleanupNative(); };
-  }, [userId, ready, loading, mutateAsync]);
+  }, [userId, ready, loading, mutateAsync, refreshData]);
 
   async function enable() {
     if (!userId || !ready) return;

@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_sentry_dsn: str = ""
     app_env: str = "development"
+    push_delivery_enabled: bool = False
+    push_allowed_app_ids: list[str] = []
+    expo_push_access_token: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_price_id: str = ""

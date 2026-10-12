@@ -42,3 +42,5 @@ from app.models.billing_settlement import BillingSettlement as BillingSettlement
 from app.models.billing_settlement import BillingInvoiceHold as BillingInvoiceHold
 from app.models.billing_webhook import BillingWebhook as BillingWebhook
 from app.models.billing_notice import BillingNotice as BillingNotice
+
+from app.models.push_delivery import PushDelivery as PushDelivery

@@ -26,6 +26,8 @@ from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
+from app.services.worker_notification_service import WorkerNotificationService
+from app.domain.push import schedule_snapshot, modification_snapshot
 from app.domain.scheduling import (
     DEFAULT_RECURRENCE_HORIZON_DAYS,
     SchedulingChecker,
@@ -64,6 +66,9 @@ class ShiftService:
     # ─────────────────────────────────────────
     # Internal helpers
     # ─────────────────────────────────────────
+
+    def _worker_notifications(self):
+        return WorkerNotificationService(self.db, self.org_id, self.current_employment_id)
 
     def _get_active_shift(self, shift_id: str) -> Shift:
         return self.shift_repo.get_active_shift(shift_id, self.org_id)
@@ -278,6 +283,7 @@ class ShiftService:
         except AppError:
             self.db.rollback()
             raise
+            self._worker_notifications().schedule('shift_assigned', shift.worker_id, shift.id, shift.start_time.date())
         except Exception as e:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
@@ -558,6 +564,7 @@ class ShiftService:
             new_end_time = payload.end_time or shift.end_time
             if new_end_time <= new_start_time:
                 raise AppError(
+            before = schedule_snapshot(shift)
                     status_code=400,
                     code="INVALID_SHIFT_TIME_RANGE",
                     message="end_time must be after start_time",
@@ -631,6 +638,7 @@ class ShiftService:
             return shift
 
         except AppError:
+            self._worker_notifications().changed(before, shift, shift.start_time.date())
             self.db.rollback()
             raise
         except Exception as e:
@@ -661,6 +669,7 @@ class ShiftService:
         except AppError:
             self.db.rollback()
             raise
+            self._worker_notifications().schedule('shift_cancelled', shift.worker_id, shift.id)
         except Exception as e:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
@@ -704,6 +713,7 @@ class ShiftService:
                     **dump,
                 )
                 if payload.completion_status == ShiftCompletionStatus.cancelled:
+            before = modification_snapshot(existing)
                     existing.cancelled_at = datetime.now(timezone.utc)
                 self.modification_repo.add(existing)
 
@@ -723,6 +733,9 @@ class ShiftService:
             self.db.rollback()
             raise
         except Exception as e:
+            if before != modification_snapshot(existing):
+                kind = 'shift_cancelled' if existing.completion_status == ShiftCompletionStatus.cancelled else 'shift_updated'
+                self._worker_notifications().schedule(kind, master.worker_id, master.id, payload.original_date)
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
@@ -755,6 +768,7 @@ class ShiftService:
                     exclude_shift_id=shift_id,
                     override_hours_check=payload.override_hours_check,
                 )
+            before = modification_snapshot(mod)
 
             updates = payload.model_dump(exclude_unset=True, exclude={"override_hours_check"})
             for field, value in updates.items():
@@ -776,6 +790,9 @@ class ShiftService:
         except Exception as e:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+            if before != modification_snapshot(mod):
+                kind = 'shift_cancelled' if mod.completion_status == ShiftCompletionStatus.cancelled else 'shift_updated'
+                self._worker_notifications().schedule(kind, master.worker_id, master.id, original_date)
 
     # ─────────────────────────────────────────
     # 8. Cancel this occurrence and all following
@@ -804,6 +821,7 @@ class ShiftService:
                 'Ended visit schedule', str(activity_day), {'kind': 'visit', 'record_id': str(shift_id), 'occurrence_date': activity_day.isoformat()})
             self.db.commit()
             return {"message": "Occurrences cancelled successfully"}
+            self._worker_notifications().schedule('shift_cancelled', shift.worker_id, shift.id, occurrence_date)
 
         except AppError:
             self.db.rollback()
@@ -838,6 +856,7 @@ class ShiftService:
                 cap_date = new_end_date or (new_start_time.date() + timedelta(days=DEFAULT_RECURRENCE_HORIZON_DAYS))
                 if shift.is_recurring:
                     new_rule = self._build_rrule_string(payload.recurrence) if payload.recurrence else shift.recurrence_rule
+            before = schedule_snapshot(shift)
                     duration = new_end_time - new_start_time
                     proposed_time_blocks = expand_rule_to_time_blocks(new_rule, new_start_time, duration, cap_date)
                 else:
@@ -886,6 +905,7 @@ class ShiftService:
                 new_start = datetime.combine(occurrence_date, shift.start_time.timetz())
 
             if payload.new_end_time:
+                self._worker_notifications().changed(before, shift, occurrence_date)
                 new_end = datetime.combine(occurrence_date, payload.new_end_time.timetz())
             else:
                 delta = shift.end_time - shift.start_time
@@ -950,3 +970,4 @@ class ShiftService:
         except Exception as e:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+            self._worker_notifications().changed(before, new_shift, occurrence_date)

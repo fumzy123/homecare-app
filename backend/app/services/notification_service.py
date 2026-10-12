@@ -4,6 +4,7 @@ from app.models.employment import Employment
 from app.core.enums import NotificationType, TargetAudience
 from app.core.exceptions import AppError
 from app.repositories.notification_repository import NotificationRepository
+from app.repositories.push_delivery_repository import PushDeliveryRepository
 from app.schemas.notification import NotificationResponse, NotificationListResponse
 
 
@@ -124,6 +125,7 @@ class NotificationService:
             triggered_by_id=triggered_by_id,
         )
         self.repo.create_read_for_individual(notification.id, chosen_worker_id)
+        PushDeliveryRepository(self.db).enqueue(notification, chosen_worker_id)
         if commit:
             self.db.commit()
 
@@ -272,6 +274,7 @@ class NotificationService:
                 requires_action=False, target_audience=TargetAudience.individual,
                 recipient_id=UUID(worker['worker_id']), triggered_by_id=self.current_user_id)
             self.repo.create_read_for_individual(notice.id, UUID(worker['worker_id']))
+            PushDeliveryRepository(self.db).enqueue(notice, UUID(worker['worker_id']))
         available = ', '.join(label(slots[str(s.id)]) for s in remaining)
         message = '; '.join(approved) + (f'. Still available: {available}' if available else '. This placement is fully covered.')
         notice = self.repo.create(org_id=org_id, type=NotificationType.placement_coverage_updated,

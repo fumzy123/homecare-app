@@ -1,4 +1,5 @@
 from app.models.activity import ActivityEvent
+from app.models import Base
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -42,6 +43,9 @@ def db():
     for model in (ActivityEvent, Organization, BillingAgreement, FoundingConversion, BillingPeriod, BillingUsageCutoff,
                   BillingVisitEvidence, BillingUsageSnapshot, BillingSettlement, Shift, ShiftModification):
         model.__table__.create(engine)
+    # Scheduling now records worker inbox notices in the same transaction.
+    for name in ('organizations', 'employments', 'notifications', 'notification_reads', 'push_devices', 'push_deliveries'):
+        Base.metadata.tables[name].create(engine, checkfirst=True)
     with Session(engine, autoflush=False) as session:
         yield session
     engine.dispose()

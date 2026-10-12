@@ -14,6 +14,7 @@ from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
 from app.jobs.shift_completion import mark_shifts_completed
+from app.jobs.push_delivery import deliver_worker_pushes
 from app.jobs.trial_activation import request_due_trials
 from app.jobs.founding_conversion import process_founding_conversions
 from app.jobs.billing_finalization import finalize_due_billing_periods
@@ -75,6 +76,7 @@ async def lifespan(_app: FastAPI):
     scheduler.add_job(settle_billing_usage, "interval", minutes=15)
     scheduler.add_job(retry_billing_webhooks, "interval", minutes=5)
     scheduler.add_job(send_billing_trial_reminders, "interval", minutes=15)
+    scheduler.add_job(deliver_worker_pushes, "interval", seconds=30, max_instances=1, coalesce=True)
     scheduler.start()
     yield
     scheduler.shutdown()

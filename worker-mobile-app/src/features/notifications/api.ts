@@ -1,6 +1,9 @@
 import { apiClient } from '@/shared/lib/api-client';
 
 export type NotificationType =
+  | 'shift_assigned'
+  | 'shift_updated'
+  | 'shift_cancelled'
   | 'profile_updated'
   | 'credential_uploaded'
   | 'shift_dropped'

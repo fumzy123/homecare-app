@@ -83,3 +83,63 @@ test('an old user cannot register after the active account changes', async () =>
   assert.equal(await app.registerPush('worker'), 'off');
   assert.equal(app.calls.length, 0);
 });
+
+function eventsSetup(lastResponse = null) {
+  const code = ts.transpileModule(readFileSync(require.resolve('../src/features/notifications/lib/pushEvents.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const module = { exports: {} };
+  new Function('exports', 'module', code)(module.exports, module);
+  const listeners = {}; const calls = []; let handler; let current = true;
+  const add = name => callback => { listeners[name] = callback; return { remove: () => calls.push('remove:' + name) }; };
+  const notifications = {
+    setNotificationHandler: value => { handler = value; },
+    addNotificationResponseReceivedListener: add('tap'),
+    addNotificationReceivedListener: add('receive'),
+    addPushTokenListener: add('token'),
+    getLastNotificationResponse: () => lastResponse,
+    clearLastNotificationResponseAsync: async () => calls.push('clear'),
+  };
+  const cleanup = module.exports.installPushEvents(notifications, () => current,
+    () => calls.push('inbox'), () => calls.push('refresh'), () => calls.push('register'));
+  return { listeners, calls, cleanup, handler: () => handler, changeAccount: () => { current = false; } };
+}
+const tap = { actionIdentifier: 'default', notification: { request: { identifier: 'notice-1', content: { data: { url: 'https://untrusted.example' } } } } };
+
+test('cold-start and background taps open the inbox once and ignore payload URLs', () => {
+  const app = eventsSetup(tap);
+  app.listeners.tap(tap);
+  assert.deepEqual(app.calls, ['refresh', 'inbox', 'clear']);
+  app.cleanup();
+  assert.equal(app.handler(), null);
+  assert.equal(app.calls.filter(c => c.startsWith('remove:')).length, 3);
+});
+
+test('foreground arrivals refresh data and account changes block old listeners', async () => {
+  const app = eventsSetup();
+  app.listeners.receive(); app.listeners.token();
+  assert.deepEqual(app.calls, ['refresh', 'register']);
+  assert.equal((await app.handler().handleNotification()).shouldShowBanner, true);
+  app.changeAccount();
+  app.listeners.receive(); app.listeners.token(); app.listeners.tap(tap);
+  assert.deepEqual(app.calls, ['refresh', 'register']);
+  assert.equal((await app.handler().handleNotification()).shouldShowBanner, false);
+});
+
+test('callbacks retained by native delivery cannot navigate after cleanup', () => {
+  const app = eventsSetup(); app.cleanup();
+  app.listeners.tap(tap); app.listeners.receive();
+  assert.equal(app.calls.includes('inbox'), false);
+  assert.equal(app.calls.includes('refresh'), false);
+});
+
+test('EAS file configuration overrides the ignored local staging path', () => {
+  const { execFileSync } = require('node:child_process');
+  function config(environment, file) {
+    const env = { ...process.env, APP_ENV: environment };
+    if (file) env.GOOGLE_SERVICES_JSON = file; else delete env.GOOGLE_SERVICES_JSON;
+    return JSON.parse(execFileSync(process.execPath, ['-e', 'console.log(JSON.stringify(require("./app.config.js").expo.android))'], { cwd: require('node:path').resolve(__dirname, '..'), env, encoding: 'utf8' }));
+  }
+  assert.equal(config('staging').googleServicesFile, './google-services.staging.json');
+  assert.equal(config('staging', '/build/config.json').googleServicesFile, '/build/config.json');
+  assert.equal(config('production').googleServicesFile, undefined);
+  assert.equal(config('production', '/build/production.json').googleServicesFile, '/build/production.json');
+});
