@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { Link, Outlet, useMatches } from '@tanstack/react-router'
 import { differenceInYears, parseISO } from 'date-fns'
 import { ChevronRight, Pencil, Plus, ShieldCheck } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -21,8 +21,9 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
   const query = useClient(clientId)
   const qc = useQueryClient()
   const [scheduling, setScheduling] = useState(false)
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
+  // Keep the layout aligned with Outlet while the next route is still loading.
+  const pathname = useMatches({
+    select: (matches) => matches.at(-1)?.pathname ?? '',
   })
   if (pathname.endsWith('/edit'))
     return (

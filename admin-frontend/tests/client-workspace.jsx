@@ -363,7 +363,23 @@ apiClient.defaults.adapter = async (config) => {
 const qc = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
+// Optional deterministic route delay for the transition regression check.
+const navigationGate = new URLSearchParams(window.location.search).has('hold-navigation')
+  ? { hold: false, waiting: false, release: () => {} }
+  : null
+if (navigationGate) window.clientNavigationGate = navigationGate
 const root = createRootRoute({
+  beforeLoad: async () => {
+    if (!navigationGate?.hold) return
+    navigationGate.waiting = true
+    await new Promise((resolve) => {
+      navigationGate.release = () => {
+        navigationGate.hold = false
+        navigationGate.waiting = false
+        resolve()
+      }
+    })
+  },
   component: () => (
     <div className="flex h-screen bg-cream">
       <Sidebar open={false} onClose={() => {}} />
