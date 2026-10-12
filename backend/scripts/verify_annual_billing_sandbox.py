@@ -44,7 +44,7 @@ def verify(cancel):
         pm = stripe.PaymentMethod.attach('pm_card_visa', customer=customer.id)
         stripe.Customer.modify(customer.id, invoice_settings={'default_payment_method': pm.id})
         sub = stripe.Subscription.create(customer=customer.id, default_payment_method=pm.id,
-            items=[{'price': settings.stripe_standard_annual_v2_price_id}])
+            items=[{'price': settings.stripe_standard_annual_v3_price_id}])
         original = stripe.Invoice.retrieve(sub.latest_invoice)
         assert original.status == 'paid' and original.total == 336000
         base = list(stripe.Invoice.list_lines(original.id).auto_paging_iter())[0]
@@ -58,8 +58,8 @@ def verify(cancel):
             org = Organization(id=uuid4(), name='Sandbox', owner_id=uuid4(), stripe_customer_id=customer.id,
                 subscription_id=sub.id, trial_ends_at=start, onboarding_deadline_at=start)
             db.add(org)
-            db.add(BillingAgreement(org_id=org.id, plan_code='standard', plan_version=2, base_interval='year',
-                stripe_price_id=settings.stripe_standard_annual_v2_price_id, accepted_by=org.owner_id,
+            db.add(BillingAgreement(org_id=org.id, plan_code='standard', plan_version=3, base_interval='year',
+                stripe_price_id=settings.stripe_standard_annual_v3_price_id, accepted_by=org.owner_id,
                 consent_version='sandbox', accepted_at=start))
             ids = []
             for index in range(12):
@@ -67,13 +67,13 @@ def verify(cancel):
                 pid = uuid4()
                 ids.append(pid)
                 terms = dict(subscription_id=sub.id, starts_at=a.isoformat(), ends_at=b.isoformat(),
-                    base_interval='year', plan_version=2, additional_client_amount_cents=500, currency='cad')
+                    base_interval='year', plan_version=3, additional_client_amount_cents=1000, currency='cad')
                 db.add(BillingPeriod(id=pid, org_id=org.id, subscription_id=sub.id, starts_at=a, ends_at=b,
                     source_invoice_id=original.id, source_invoice_line_id=base.id, anchor_at=start, agency_timezone='UTC',
-                    plan_code='standard', plan_version=2, base_interval='year', included_clients=10,
-                    additional_client_amount_cents=500, currency='cad', finalization_eligible_at=b+timedelta(hours=72)))
+                    plan_code='standard', plan_version=3, base_interval='year', included_clients=10,
+                    additional_client_amount_cents=1000, currency='cad', finalization_eligible_at=b+timedelta(hours=72)))
                 db.add(BillingUsageSnapshot(period_id=pid, org_id=org.id, finalized_at=b+timedelta(hours=72),
-                    active_client_count=30, additional_clients=20, usage_amount_cents=10000, payload={'period': terms}))
+                    active_client_count=30, additional_clients=20, usage_amount_cents=20000, payload={'period': terms}))
             db.commit()
             service = BillingAnnualService(db)
             for pid in ids:
@@ -94,7 +94,7 @@ def verify(cancel):
             assert gateway.run()['invoice_id'] == result['invoice_id']
             service.finish(batch.id, token, **result)
             invoice = stripe.Invoice.retrieve(result['invoice_id'])
-            assert invoice.status == 'paid' and invoice.total == (120000 if cancel else 456000)
+            assert invoice.status == 'paid' and invoice.total == (240000 if cancel else 576000)
             assert len(list(stripe.Invoice.list_lines(invoice.id, limit=100).auto_paging_iter())) == (12 if cancel else 13)
             assert len(list(stripe.Invoice.list(customer=customer.id).auto_paging_iter())) == 2
             print(f'Annual {"cancellation" if cancel else "renewal"}: one invoice, 12 usage lines, exact amount, retry safe', flush=True)

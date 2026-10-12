@@ -1,4 +1,4 @@
-"""Provision v1 sandbox base prices and smoke-test setup/trial/cancel via API.
+"""Smoke-test setup/trial/cancel using the configured current sandbox prices.
 
 Never accepts a live key. Does not enable rollout or modify application records.
 Run from backend: .venv/Scripts/python scripts/verify_billing_sandbox.py
@@ -8,38 +8,26 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import json
 import stripe
-from dotenv import dotenv_values, set_key
+from dotenv import dotenv_values
 
 
 def main():
     env = Path(__file__).resolve().parents[1] / ".env.local"
-    key = dotenv_values(env).get("STRIPE_SECRET_KEY", "")
+    config = dotenv_values(env)
+    key = config.get("STRIPE_SECRET_KEY", "")
     if not key.startswith(("sk_test_", "rk_test_")):
         raise SystemExit("A sandbox key is required; no requests sent")
     stripe.api_key = key
     stripe.max_network_retries = 2
-    existing = stripe.Price.list(lookup_keys=["care_harbor_standard_v1_month_cad"], limit=1).data
-    product = stripe.Product.retrieve(existing[0].product) if existing else stripe.Product.create(
-        name="Care Harbor Standard", metadata={"catalog_version": "1"},
-        idempotency_key="care-harbor-standard-v1-product",
-    )
     prices = {}
     for interval, amount, env_name in (
-        ("month", 30000, "STRIPE_STANDARD_MONTHLY_V1_PRICE_ID"),
-        ("year", 300000, "STRIPE_STANDARD_ANNUAL_V1_PRICE_ID"),
+        ("month", 35000, "STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"),
+        ("year", 336000, "STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"),
     ):
-        lookup = f"care_harbor_standard_v1_{interval}_cad"
-        found = stripe.Price.list(lookup_keys=[lookup], limit=1).data
-        price = found[0] if found else stripe.Price.create(
-            product=product.id, currency="cad", unit_amount=amount,
-            recurring={"interval": interval}, lookup_key=lookup,
-            metadata={"plan_code": "standard", "plan_version": "1"},
-            idempotency_key=lookup,
-        )
-        assert not price.livemode and price.currency == "cad" and price.unit_amount == amount
+        price = stripe.Price.retrieve(config[env_name])
+        assert not price.livemode and price.active and price.currency == "cad" and price.unit_amount == amount
         assert price.recurring.interval == interval and price.recurring.interval_count == 1
         prices[interval] = price.id
-        set_key(str(env), env_name, price.id)
     results = []
     for interval, price_id in prices.items():
         customer = None

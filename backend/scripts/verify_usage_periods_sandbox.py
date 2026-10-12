@@ -30,7 +30,7 @@ def main():
     clock = stripe.test_helpers.TestClock.create(frozen_time=int(instant(1, 17).timestamp()), name="Monthly usage boundary verification")
     try:
         cases = []
-        for interval, price in (("month", config["STRIPE_STANDARD_MONTHLY_V1_PRICE_ID"]), ("year", config["STRIPE_STANDARD_ANNUAL_V1_PRICE_ID"])):
+        for interval, price in (("month", config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"]), ("year", config["STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"])):
             customer = stripe.Customer.create(test_clock=clock.id, name="Disposable monthly usage test")
             card = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True,
                                              usage="off_session", payment_method_types=["card"])
@@ -45,7 +45,7 @@ def main():
                 subscription_id=sub.id, stripe_customer_id=customer.id, trial_ends_at=anchor,
             )
             svc.agreement_repo.get_for_org.return_value = SimpleNamespace(
-                plan_code="standard", plan_version=1, stripe_price_id=price, base_interval=interval,
+                plan_code="standard", plan_version=3, stripe_price_id=price, base_interval=interval,
             )
             svc.period_repo.get.return_value = None
             svc.usage_repo.candidates.return_value = []
