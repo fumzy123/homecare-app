@@ -53,6 +53,7 @@
     "test:push": "node --test scripts/push.test.cjs",
     "test:schedule": "node --test scripts/schedule.test.cjs",
     "test:profile": "node --test scripts/profile.test.cjs",
+    "test:action-stack": "node --test scripts/action-stack.test.cjs",
     "typecheck": "tsc --noEmit"
   },
   "private": true

@@ -41,12 +41,7 @@ export function CurrentShiftCard({ shift, now, visitIndex, total, hasNote, onPre
     <View accessibilityRole="progressbar" accessibilityLabel="Scheduled visit time elapsed" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }} className="mb-1 mt-3 h-1 overflow-hidden rounded-full bg-cream-2">
       <View className="h-1 bg-orange" style={{ width: `${progress}%` }} />
     </View>
-    <Pressable onPress={onPress} accessibilityRole="button" className="min-h-11 flex-row items-center gap-2 py-3">
-      <Ionicons name="clipboard-outline" size={17} color="#4A453E" />
-      <Text className="flex-1 text-sm text-ink">Care instructions</Text>
-      <Ionicons name="arrow-forward" size={16} color="#4A453E" />
-    </Pressable>
-    <Pressable onPress={onNotePress} accessibilityRole="button" className="min-h-12 flex-row items-center gap-2 rounded-full bg-orange px-4 py-3">
+    <Pressable onPress={onNotePress} accessibilityRole="button" className="mt-4 min-h-12 flex-row items-center gap-2 rounded-full bg-orange px-4 py-3">
       <Ionicons name="create-outline" size={19} color="white" />
       <Text className="flex-1 text-sm font-semibold text-white">{hasNote ? 'View / add progress note' : 'Add progress note'}</Text>
       <Ionicons name="arrow-forward" size={18} color="white" />

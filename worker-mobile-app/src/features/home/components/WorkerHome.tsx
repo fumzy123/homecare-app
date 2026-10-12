@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Dialog } from '@/shared/components/Dialog';
 import { Btn } from '@/shared/components/ui/Btn';
 import { formatTime } from '@/shared/utils/formatTime';
@@ -25,7 +24,8 @@ export function WorkerHome() {
   const home = useWorkerHome();
   const { summary, shifts, notes, now, range } = home;
   const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null);
-  const [sheet, setSheet] = useState<'hours' | 'streak' | 'tomorrow' | 'attention' | null>(null);
+  const [cyclingAction, setCyclingAction] = useState(false);
+  const [sheet, setSheet] = useState<'hours' | 'tomorrow' | 'attention' | null>(null);
   function openShift(shift: ShiftOccurrence) {
     setSheet(null);
     router.push({ pathname: '/shifts/[shiftId]', params: { shiftId: shift.shift_id, occurrenceDate: shift.date } });
@@ -67,7 +67,7 @@ export function WorkerHome() {
   ];
   const hasCurrentNote = notes.isSuccess && summary.current != null && notes.data.some(n => n.shift_id === summary.current?.shift_id && n.occurrence_date === summary.current.date);
   return <>
-    <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingTop: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}
+    <ScrollView scrollEnabled={!cyclingAction} className="flex-1 px-5" contentContainerStyle={{ paddingTop: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={home.refresh.refreshing} onRefresh={home.refresh.onRefresh} tintColor="#FF5A1F" colors={['#FF5A1F']} />}>
       <HomeHeader firstName={home.profile.data?.first_name} now={now} notificationCount={home.notifications.data?.unread_count ?? 0} onNotificationsPress={() => router.push('/notifications')} />
       {hasSchedule ? <View className="mb-5 flex-row flex-wrap items-center gap-2">
@@ -75,11 +75,15 @@ export function WorkerHome() {
         {summary.lastEnd != null ? <Text className="text-sm text-ink-soft">· {summary.lastEnd > now ? 'Scheduled finish' : 'Last visit ended'} <Text className="font-semibold">{formatTime(new Date(summary.lastEnd).toISOString())}</Text></Text> : null}
       </View> : <Text className="mb-5 text-sm text-ink-soft">{shifts.isPending ? 'Getting your day ready…' : 'Your schedule is unavailable'}</Text>}
       <WorkerStatsRow completedHours={hasSchedule ? summary.completedHours : null} scheduledHours={hasSchedule ? summary.scheduledHours : null}
-        streak={home.stats.isSuccess ? home.stats.data.punctuality_streak : null} onHoursPress={() => setSheet('hours')} onStreakPress={() => setSheet('streak')} />
-      <NeedsYouToday actions={attentionActions} onViewAll={() => setSheet('attention')} />
-      {notes.isError ? <Pressable accessibilityRole="button" onPress={() => void notes.refetch()} className="mb-4 min-h-11 rounded-xl bg-orange-soft p-3">
-        <Text className="text-sm text-ink">Note reminders unavailable. Tap to retry.</Text>
-      </Pressable> : null}
+        onHoursPress={() => setSheet('hours')} />
+      {attentionActions.length > 0 || notes.isError ? <View className="mt-[30px] border-t-2 border-cream-2 pt-[22px]">
+        <NeedsYouToday actions={attentionActions} stacked onInteractionChange={setCyclingAction} onViewAll={() => setSheet('attention')} />
+        {notes.isError ? <Pressable accessibilityRole="button" onPress={() => void notes.refetch()} className="mt-3 min-h-11 rounded-xl bg-orange-soft p-3">
+          <Text className="text-sm text-ink">Note reminders unavailable. Tap to retry.</Text>
+        </Pressable> : null}
+      </View> : null}
+      <View className="mt-[30px] border-t-2 border-cream-2 pt-[22px]">
+        <Text accessibilityRole="header" className="mb-3 font-serif text-xl text-ink">Your visits</Text>
       {shifts.isPending ? <View className="py-10"><ActivityIndicator accessibilityLabel="Loading your visits" color="#FF5A1F" /></View> : shifts.isError ? <View className="rounded-2xl bg-orange-soft p-4">
         <Text accessibilityRole="alert" className="mb-3 text-sm text-ink">Could not load your visits. Check your connection and try again.</Text>
         <Btn onPress={home.refresh.onRefresh}>Try again</Btn>
@@ -94,18 +98,15 @@ export function WorkerHome() {
         <LaterTodaySection shifts={summary.later} onShiftPress={openShift} />
         <TomorrowPreview date={range.tomorrow} shifts={summary.tomorrow} onPress={() => setSheet('tomorrow')} />
       </>}
+      </View>
       {home.credentials.isError || home.notifications.isError || home.stats.isError ? <Text className="mt-4 text-xs leading-5 text-ink-soft">Some updates are unavailable. Pull down to refresh your stats, notifications, and credentials.</Text> : null}
-      <Pressable onPress={() => router.push('/(tabs)/schedule')} accessibilityRole="button" className="min-h-12 flex-row items-center gap-2 py-4">
-        <Ionicons name="calendar-outline" size={17} color="#4A453E" /><Text className="flex-1 text-xs text-ink-soft">See your full schedule</Text><Ionicons name="arrow-forward" size={15} color="#4A453E" />
-      </Pressable>
     </ScrollView>
     {noteTarget ? <ProgressNoteSheet key={`${noteTarget.shiftId}:${noteTarget.occurrenceDate}`} target={noteTarget} onClose={() => setNoteTarget(null)} /> : null}
-    {sheet ? <Dialog title={sheet === 'hours' ? 'Your week so far' : sheet === 'streak' ? 'Showing up with care' : sheet === 'attention' ? 'Needs your attention' : 'A look at tomorrow'}
-      eyebrow={sheet === 'hours' ? 'This week' : sheet === 'streak' ? 'Punctuality' : sheet === 'attention' ? 'Action items' : 'Upcoming visits'} onClose={() => setSheet(null)}>
+    {sheet ? <Dialog title={sheet === 'hours' ? 'Your week so far' : sheet === 'attention' ? 'Needs your attention' : 'A look at tomorrow'}
+      eyebrow={sheet === 'hours' ? 'This week' : sheet === 'attention' ? 'Action items' : 'Upcoming visits'} onClose={() => setSheet(null)}>
       {sheet === 'hours' ? <WeeklyHoursBreakdown weekStart={range.weekStart} weekEnd={range.weekEnd} days={summary.dailyCompletedHours}
         completedHours={hasSchedule ? summary.completedHours : null} scheduledHours={hasSchedule ? summary.scheduledHours : null}
         loading={shifts.isPending} onRetry={() => void shifts.refetch()} />
-      : sheet === 'streak' ? <Text className="text-sm leading-6 text-ink-soft">{home.stats.data?.punctuality_streak != null ? `${home.stats.data.punctuality_streak} consecutive scheduled days on time.` : 'Punctuality will be available when visit check-ins are recorded. Scheduled start times alone cannot tell us whether you arrived on time.'}</Text>
       : sheet === 'attention' ? <>
         <Text className="mb-4 text-sm leading-6 text-ink-soft">Credential reminders and missing progress notes from visits completed in the last 7 days.</Text>
         <NeedsYouToday actions={attentionActions} showHeading={false} />
