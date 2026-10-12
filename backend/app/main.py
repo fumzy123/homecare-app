@@ -107,6 +107,8 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://homecare-app-production-admin-frontend.vercel.app",
+        "https://www.careharbor.online",
+        "https://careharbor.online",
         "https://homecare-app-git-staging-fumezs-projects.vercel.app",
     ],
     allow_origin_regex=r"https://homecare-app-.*\.vercel\.app",

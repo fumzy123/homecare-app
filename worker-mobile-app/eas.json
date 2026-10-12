@@ -30,6 +30,7 @@
       "autoIncrement": true,
       "env": {
         "APP_ENV": "production",
+        "EXPO_PUBLIC_FRONTEND_URL": "https://www.careharbor.online",
         "EXPO_NO_DOTENV": "1"
       }
     }
