@@ -120,8 +120,8 @@ def test_annual_coverage_creates_only_started_monthly_windows(db, monkeypatch):
 
 def test_monthly_to_annual_history_keeps_original_monthly_usage_windows(db, monkeypatch):
     from app.core.config import settings
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_month")
-    monkeypatch.setattr(settings, "stripe_standard_annual_v3_price_id", "price_year")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_price_id", "price_year")
     org_id = agency(db, anchor=dt(1), interval="year")
     agreement = db.query(BillingAgreement).filter_by(org_id=org_id).one()
     agreement.stripe_price_id = "price_year"

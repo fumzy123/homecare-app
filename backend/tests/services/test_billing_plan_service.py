@@ -16,8 +16,8 @@ def obj(**values):
 def state(monkeypatch):
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_month")
-    monkeypatch.setattr(settings, "stripe_standard_annual_v3_price_id", "price_year")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_price_id", "price_year")
     service = module.BillingPlanService(MagicMock(), NS(id="owner"), "org")
     service.org_repo = MagicMock()
     service.agreement_repo = MagicMock()

@@ -21,8 +21,8 @@ def main():
     stripe.max_network_retries = 2
     prices = {}
     for interval, amount, env_name in (
-        ("month", 35000, "STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"),
-        ("year", 336000, "STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"),
+        ("month", 35000, "STRIPE_STANDARD_MONTHLY_PRICE_ID"),
+        ("year", 336000, "STRIPE_STANDARD_ANNUAL_PRICE_ID"),
     ):
         price = stripe.Price.retrieve(config[env_name])
         assert not price.livemode and price.active and price.currency == "cad" and price.unit_amount == amount

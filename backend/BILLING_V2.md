@@ -55,8 +55,8 @@ finalized usage so far. They link to Billing. Email reminders are not implemente
 
 ## Configuration and rollout
 
-Use `STRIPE_STANDARD_MONTHLY_V3_PRICE_ID`, `STRIPE_STANDARD_ANNUAL_V3_PRICE_ID`,
-and `STRIPE_FOUNDING_MONTHLY_V2_PRICE_ID`. The current catalog supersedes the
+Use `STRIPE_STANDARD_MONTHLY_PRICE_ID`, `STRIPE_STANDARD_ANNUAL_PRICE_ID`,
+and `STRIPE_FOUNDING_MONTHLY_PRICE_ID`. The current catalog supersedes the
 original v2 rates described here. See `BILLING_CONFIGURATION.md`.
 Use `scripts/provision_current_pricing.py`; historical environment mappings and
 the retired v2 provisioning script have been removed.

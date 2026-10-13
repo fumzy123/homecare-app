@@ -30,7 +30,7 @@ def service_for(sub, customer, end):
                           onboarding_deadline_at=end - timedelta(days=365))
     svc.trial_activation_repo.lock_organization.return_value = org
     svc.agreement_repo.get_for_org.return_value = SimpleNamespace(
-        plan_code="founding", stripe_price_id=settings.stripe_founding_monthly_v2_price_id, canceled_at=None)
+        plan_code="founding", stripe_price_id=settings.stripe_founding_monthly_price_id, canceled_at=None)
     svc.founding_offer_repo.get_for_org.return_value = SimpleNamespace(
         protection_ends_at=end, released_at=None, forfeited_at=None)
     svc.conversion_repo.get_for_org.return_value = None
@@ -45,8 +45,8 @@ def main():
         raise SystemExit("Sandbox key required")
     stripe.api_key = key
     settings.billing_onboarding_enabled = True  # This process only; no file changes.
-    settings.stripe_standard_monthly_v3_price_id = config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"]
-    settings.stripe_founding_monthly_v2_price_id = config["STRIPE_FOUNDING_MONTHLY_V2_PRICE_ID"]
+    settings.stripe_standard_monthly_price_id = config["STRIPE_STANDARD_MONTHLY_PRICE_ID"]
+    settings.stripe_founding_monthly_price_id = config["STRIPE_FOUNDING_MONTHLY_PRICE_ID"]
     start = datetime.fromtimestamp(int(time.time()), timezone.utc)
     end = start + relativedelta(months=2)
     clock = stripe.test_helpers.TestClock.create(frozen_time=int(start.timestamp()), name="Founding price transition verification")
@@ -56,7 +56,7 @@ def main():
             customer = stripe.Customer.create(test_clock=clock.id, name="Disposable founding transition test")
             intent = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True,
                                                usage="off_session", payment_method_types=["card"])
-            sub = stripe.Subscription.create(customer=customer.id, items=[{"price": settings.stripe_founding_monthly_v2_price_id}],
+            sub = stripe.Subscription.create(customer=customer.id, items=[{"price": settings.stripe_founding_monthly_price_id}],
                                              default_payment_method=intent.payment_method)
             svc, org = service_for(sub, customer, end)
             cases.append((cancel, svc, org, sub.id, customer.id))

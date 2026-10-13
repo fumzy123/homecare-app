@@ -29,9 +29,9 @@ def main():
     try:
         cases = []
         for name, price_id, amount in (
-            ("monthly", config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"], 35000),
-            ("annual", config["STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"], 336000),
-            ("cancel_before_conversion", config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"], 0),
+            ("monthly", config["STRIPE_STANDARD_MONTHLY_PRICE_ID"], 35000),
+            ("annual", config["STRIPE_STANDARD_ANNUAL_PRICE_ID"], 336000),
+            ("cancel_before_conversion", config["STRIPE_STANDARD_MONTHLY_PRICE_ID"], 0),
         ):
             customer = stripe.Customer.create(test_clock=clock.id, name="Automated sandbox trial test")
             intent = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True, usage="off_session", payment_method_types=["card"])
