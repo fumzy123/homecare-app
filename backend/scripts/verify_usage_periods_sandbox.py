@@ -30,7 +30,7 @@ def main():
     clock = stripe.test_helpers.TestClock.create(frozen_time=int(instant(1, 17).timestamp()), name="Monthly usage boundary verification")
     try:
         cases = []
-        for interval, price in (("month", config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID"]), ("year", config["STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"])):
+        for interval, price in (("month", config["STRIPE_STANDARD_MONTHLY_PRICE_ID"]), ("year", config["STRIPE_STANDARD_ANNUAL_PRICE_ID"])):
             customer = stripe.Customer.create(test_clock=clock.id, name="Disposable monthly usage test")
             card = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True,
                                              usage="off_session", payment_method_types=["card"])

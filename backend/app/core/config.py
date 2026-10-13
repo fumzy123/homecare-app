@@ -30,9 +30,9 @@ class Settings(BaseSettings):
     billing_usage_tax_mode: str = "unconfigured"
     stripe_usage_tax_code: str = ""
     billing_operator_user_ids: list[str] = []
-    stripe_standard_monthly_v3_price_id: str = ""
-    stripe_standard_annual_v3_price_id: str = ""
-    stripe_founding_monthly_v2_price_id: str = ""
+    stripe_standard_monthly_price_id: str = ""
+    stripe_standard_annual_price_id: str = ""
+    stripe_founding_monthly_price_id: str = ""
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 

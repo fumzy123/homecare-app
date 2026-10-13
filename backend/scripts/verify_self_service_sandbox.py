@@ -18,9 +18,9 @@ def main():
     stripe.api_key = settings.stripe_secret_key
     settings.billing_onboarding_enabled = True  # This process only.
     for name, price, hours, amount in [
-        ('monthly_expired', settings.stripe_standard_monthly_v3_price_id, -24, 35000),
-        ('annual_expired', settings.stripe_standard_annual_v3_price_id, -24, 336000),
-        ('two_hours_remaining', settings.stripe_standard_monthly_v3_price_id, 2, 0),
+        ('monthly_expired', settings.stripe_standard_monthly_price_id, -24, 35000),
+        ('annual_expired', settings.stripe_standard_annual_price_id, -24, 336000),
+        ('two_hours_remaining', settings.stripe_standard_monthly_price_id, 2, 0),
     ]:
         customer = stripe.Customer.create(name='Care Harbor self-service sandbox verification')
         try:

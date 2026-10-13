@@ -13,9 +13,9 @@ Keep rollout disabled until release requirements and staging checks are complete
   automatically enrolled or migrated.
 - `BILLING_OPERATOR_USER_IDS` is a JSON list of trusted authenticated user IDs.
   Agency owner/admin roles and user metadata cannot grant operator access.
-- `STRIPE_STANDARD_MONTHLY_V3_PRICE_ID`: CAD 350/month.
-- `STRIPE_STANDARD_ANNUAL_V3_PRICE_ID`: CAD 3,360/year.
-- `STRIPE_FOUNDING_MONTHLY_V2_PRICE_ID`: CAD 200/month, offered only to reserved agencies.
+- `STRIPE_STANDARD_MONTHLY_PRICE_ID`: CAD 350/month.
+- `STRIPE_STANDARD_ANNUAL_PRICE_ID`: CAD 3,360/year.
+- `STRIPE_FOUNDING_MONTHLY_PRICE_ID`: CAD 200/month, offered only to reserved agencies.
 - Existing Stripe secret/webhook keys remain server-only. Sandbox and live IDs
   must not be mixed. Only current price settings are supported; see BILLING_CONFIGURATION.md.
 - Apply the branch's Alembic migrations before running the updated application;

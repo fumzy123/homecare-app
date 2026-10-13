@@ -81,7 +81,7 @@ def main():
                 intent = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True,
                     usage="off_session", payment_method_types=["card"])
                 stripe.Customer.modify(customer.id, invoice_settings={"default_payment_method": intent.payment_method})
-                price = config["STRIPE_STANDARD_MONTHLY_V3_PRICE_ID" if interval == "month" else "STRIPE_STANDARD_ANNUAL_V3_PRICE_ID"]
+                price = config["STRIPE_STANDARD_MONTHLY_PRICE_ID" if interval == "month" else "STRIPE_STANDARD_ANNUAL_PRICE_ID"]
                 sub = stripe.Subscription.create(customer=customer.id, items=[{"price": price}],
                     default_payment_method=intent.payment_method, trial_end=start + 14 * 86400)
                 org_id = uuid4()

@@ -44,7 +44,7 @@ def verify(cancel):
         pm = stripe.PaymentMethod.attach('pm_card_visa', customer=customer.id)
         stripe.Customer.modify(customer.id, invoice_settings={'default_payment_method': pm.id})
         sub = stripe.Subscription.create(customer=customer.id, default_payment_method=pm.id,
-            items=[{'price': settings.stripe_standard_annual_v3_price_id}])
+            items=[{'price': settings.stripe_standard_annual_price_id}])
         original = stripe.Invoice.retrieve(sub.latest_invoice)
         assert original.status == 'paid' and original.total == 336000
         base = list(stripe.Invoice.list_lines(original.id).auto_paging_iter())[0]
@@ -59,7 +59,7 @@ def verify(cancel):
                 subscription_id=sub.id, trial_ends_at=start, onboarding_deadline_at=start)
             db.add(org)
             db.add(BillingAgreement(org_id=org.id, plan_code='standard', plan_version=3, base_interval='year',
-                stripe_price_id=settings.stripe_standard_annual_v3_price_id, accepted_by=org.owner_id,
+                stripe_price_id=settings.stripe_standard_annual_price_id, accepted_by=org.owner_id,
                 consent_version='sandbox', accepted_at=start))
             ids = []
             for index in range(12):

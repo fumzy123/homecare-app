@@ -20,7 +20,7 @@ def state(monkeypatch):
     now = datetime(2027, 8, 17, tzinfo=timezone.utc)
     end = datetime(2027, 10, 1, tzinfo=timezone.utc)
     monkeypatch.setattr(settings, "billing_onboarding_enabled", True)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_standard")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_price_id", "price_standard")
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
     svc = module.FoundingConversionService(MagicMock())

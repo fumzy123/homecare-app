@@ -44,7 +44,7 @@ def provision(env_file, mode):
                 "product": previous[0].product, "currency": plan.currency,
                 "unit_amount": plan.base_amount_cents, "recurring": {"interval": interval},
                 "lookup_key": lookup, "metadata": metadata,
-                "nickname": f"{code.title()} v{plan.version}: CAD {plan.base_amount_cents / 100:g}/{interval}; "
+                "nickname": f"{code.title()} {'monthly' if interval == 'month' else 'annual'}: CAD {plan.base_amount_cents / 100:g}/{interval}; "
                             f"CAD {plan.additional_client_amount_cents / 100:g}/additional client/month",
             }, options={"idempotency_key": lookup})
         if not (price.active and price.livemode == (mode == "live")
@@ -53,7 +53,7 @@ def provision(env_file, mode):
                 and all(getattr(price.metadata, k, None) == v for k, v in metadata.items())):
             raise ValueError(f"Existing price does not match approved terms: {lookup}")
         cadence = "monthly" if interval == "month" else "annual"
-        name = f"STRIPE_{code.upper()}_{cadence.upper()}_V{plan.version}_PRICE_ID"
+        name = f"STRIPE_{code.upper()}_{cadence.upper()}_PRICE_ID"
         set_key(str(env_file), name, price.id)
         print(f"{mode}: {name}={price.id}")
 

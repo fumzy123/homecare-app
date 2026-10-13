@@ -14,7 +14,7 @@ def main():
     if not key.startswith(("sk_test_", "rk_test_")):
         raise SystemExit("Sandbox key required")
     stripe.api_key = key
-    price = stripe.Price.retrieve(config["STRIPE_FOUNDING_MONTHLY_V2_PRICE_ID"])
+    price = stripe.Price.retrieve(config["STRIPE_FOUNDING_MONTHLY_PRICE_ID"])
     assert not price.livemode and price.active and price.currency == "cad" and price.unit_amount == 20000
     assert price.recurring.interval == "month" and price.recurring.interval_count == 1
     customer = stripe.Customer.create(name="Founding sandbox verification")

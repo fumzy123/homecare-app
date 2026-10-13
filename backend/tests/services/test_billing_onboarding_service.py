@@ -16,8 +16,8 @@ from app.services import billing_onboarding_service as module
 def state(monkeypatch):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     monkeypatch.setattr(settings, "billing_onboarding_enabled", True)
-    monkeypatch.setattr(settings, "stripe_standard_monthly_v3_price_id", "price_month")
-    monkeypatch.setattr(settings, "stripe_standard_annual_v3_price_id", "price_year")
+    monkeypatch.setattr(settings, "stripe_standard_monthly_price_id", "price_month")
+    monkeypatch.setattr(settings, "stripe_standard_annual_price_id", "price_year")
     remote = MagicMock()
     monkeypatch.setattr(module, "stripe", remote)
     service = module.BillingOnboardingService(MagicMock(), SimpleNamespace(id=uuid4()), uuid4())
@@ -264,7 +264,7 @@ def test_browser_cannot_claim_founding_without_allocation(state):
 
 def test_founder_setup_uses_server_founding_price(state, monkeypatch):
     from app.domain.billing_consent import FOUNDING_CONSENT_VERSION
-    monkeypatch.setattr(settings, "stripe_founding_monthly_v2_price_id", "price_founding")
+    monkeypatch.setattr(settings, "stripe_founding_monthly_price_id", "price_founding")
     state.service.agreement_repo.get_for_org.return_value = None
     state.service.founding_offer_repo.get_for_org.return_value = SimpleNamespace(released_at=None, forfeited_at=None)
     state.service.agreement_repo.add.side_effect = lambda agreement: setattr(state.service.agreement_repo.get_for_org, "return_value", agreement)
