@@ -1,0 +1,3 @@
+export const operatorButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-ink/20 bg-paper px-4 py-2 text-sm font-medium transition-colors hover:bg-cream-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40'
+export const operatorPrimaryButton = `${operatorButton} !border-ink !bg-ink !text-paper hover:!bg-ink-2`
+export const operatorInput = 'block min-h-11 w-full rounded-lg border border-ink/20 bg-paper px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50'
