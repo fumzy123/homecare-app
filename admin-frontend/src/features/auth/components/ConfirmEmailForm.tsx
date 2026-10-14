@@ -8,7 +8,7 @@ import { legalApi, CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
 import { authApi } from '../api'
 import { VerificationNotice } from './VerificationNotice'
 import { AgencyTimezoneField } from '@/features/organization/components/AgencyTimezoneField'
-import { browserTimezone } from '@/features/organization/timezones'
+import { browserTimezone, registrationTimezone, validTimezone } from '@/features/organization/timezones'
 
 const profileSchema = z.object({ organization_name: z.string().trim().min(2), first_name: z.string().trim().min(1), last_name: z.string().trim().min(1) })
 
@@ -42,6 +42,11 @@ export function ConfirmEmailForm() {
         const stored = sameEmail ? { organization_name: pending.org_name, first_name: pending.first_name, last_name: pending.last_name } : null
         const parsed = profileSchema.safeParse(data.user.user_metadata?.registration ?? stored)
         if (parsed.success) setProfile(parsed.data)
+        setAgencyTimezone(registrationTimezone(
+          data.user.user_metadata?.registration?.agency_timezone,
+          sameEmail ? pending.agency_timezone : undefined,
+          browserTimezone(),
+        ))
         setAccepted(sameEmail && pending.terms_version === CURRENT_TERMS_VERSION)
       } catch (cause) {
         if (!disposed) setError(cause instanceof Error ? cause.message : 'Unable to verify your email. Please try again.')
@@ -59,7 +64,7 @@ export function ConfirmEmailForm() {
     try {
       const parsed = profileSchema.safeParse(profile)
       if (!parsed.success) throw new Error('Enter your agency name, first name, and last name.')
-      if (!agencyTimezone) throw new Error('Choose your agency timezone.')
+      if (!validTimezone(agencyTimezone)) throw new Error('Choose your agency timezone.')
       const { data: { session } } = await supabase.auth.getSession()
       if (!session || session.user.id !== user.id) throw new Error('Your session changed. Sign in again to continue.')
       useAuthStore.getState().setAuth(session.access_token, {

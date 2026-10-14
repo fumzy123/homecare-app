@@ -6,6 +6,8 @@ import { Eye, EyeOff } from 'lucide-react'
 import { VerificationNotice } from './VerificationNotice'
 import { authApi } from '@/features/auth/api'
 import { CURRENT_TERMS_VERSION } from '@/shared/lib/legal'
+import { AgencyTimezoneField } from '@/features/organization/components/AgencyTimezoneField'
+import { browserTimezone, validTimezone } from '@/features/organization/timezones'
 
 const schema = z.object({
   organization_name: z.string().min(2, 'Organization name is required'),
@@ -31,6 +33,7 @@ export function RegisterForm() {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [showPassword, setShowPassword]   = useState(false)
   const [showConfirm, setShowConfirm]     = useState(false)
+  const [agencyTimezone, setAgencyTimezone] = useState(browserTimezone)
 
   const form = useForm({
     defaultValues: { organization_name: '', first_name: '', last_name: '', email: '', password: '', confirm_password: '' },
@@ -38,6 +41,7 @@ export function RegisterForm() {
       setServerError(null)
       try {
         if (!termsAccepted) return
+        if (!validTimezone(agencyTimezone)) throw new Error('Choose your agency timezone.')
         const validation = schema.safeParse(value)
         if (!validation.success) throw new Error(validation.error.issues[0].message)
         if (value.password !== value.confirm_password) throw new Error('Passwords do not match')
@@ -47,9 +51,10 @@ export function RegisterForm() {
           first_name: value.first_name,
           last_name: value.last_name,
           email,
+          agency_timezone: agencyTimezone,
           terms_version: CURRENT_TERMS_VERSION,
         }))
-        const data = await authApi.signUp(email, value.password, { organization_name: value.organization_name, first_name: value.first_name, last_name: value.last_name })
+        const data = await authApi.signUp(email, value.password, { organization_name: value.organization_name, first_name: value.first_name, last_name: value.last_name, agency_timezone: agencyTimezone })
         if (data.session) {
           window.location.assign('/confirm-email')
           return
@@ -83,6 +88,8 @@ export function RegisterForm() {
           </div>
         )}
       </form.Field>
+
+      <AgencyTimezoneField value={agencyTimezone} onChange={setAgencyTimezone} />
 
       {/* Name row */}
       <div className="grid grid-cols-2 gap-3">
@@ -227,7 +234,7 @@ export function RegisterForm() {
 
       <form.Subscribe selector={(s) => s.isSubmitting}>
         {(isSubmitting) => (
-          <button type="submit" disabled={isSubmitting || !termsAccepted}
+          <button type="submit" disabled={isSubmitting || !termsAccepted || !agencyTimezone}
             className="w-full bg-ink text-cream py-3 font-mono text-[11px] tracking-[0.1em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity mt-1">
             {isSubmitting ? 'Creating account…' : 'Create Account'}
           </button>

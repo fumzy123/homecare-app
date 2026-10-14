@@ -3,7 +3,7 @@ import { apiClient } from '@/shared/lib/api-client'
 
 export const authApi = {
 
-  signUp: async (email: string, password: string, profile: { organization_name: string; first_name: string; last_name: string }) => {
+  signUp: async (email: string, password: string, profile: { organization_name: string; first_name: string; last_name: string; agency_timezone: string }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
