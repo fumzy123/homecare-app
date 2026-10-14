@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     push_allowed_app_ids: list[str] = []
     expo_push_access_token: str = ""
     stripe_secret_key: str = ""
+    stripe_account_id: str = ""
     stripe_webhook_secret: str = ""
     billing_onboarding_enabled: bool = False
     billing_notifications_enabled: bool = False
@@ -33,6 +34,8 @@ class Settings(BaseSettings):
     stripe_standard_monthly_price_id: str = ""
     stripe_standard_annual_price_id: str = ""
     stripe_founding_monthly_price_id: str = ""
+    stripe_standard_additional_client_price_id: str = ""
+    stripe_founding_additional_client_price_id: str = ""
 
     model_config = SettingsConfigDict(env_file=env_path, env_file_encoding="utf-8", extra="ignore")
 

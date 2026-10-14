@@ -1,16 +1,13 @@
 import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
 import { LegalFooter } from '@/shared/components/LegalFooter'
-import { isAdminRole } from '@/shared/lib/roles'
-import { useAuthStore } from '@/shared/stores/auth'
+import { supabase } from '@/shared/lib/supabase'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 
 export const Route = createFileRoute('/login')({
-  beforeLoad: () => {
-    const { accessToken, user } = useAuthStore.getState()
-    if (accessToken && isAdminRole(user?.role)) {
-      throw redirect({ to: '/dashboard' })
-    }
+  beforeLoad: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (!error && user) throw redirect({ to: '/workspace' })
   },
   component: LoginPage,
 })

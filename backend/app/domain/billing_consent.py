@@ -1,4 +1,10 @@
-CONSENT_VERSION = "2026-10-02-v5"
+CONSENT_VERSION = "2026-10-14-v6"
+CLIENT_COUNTING_TEXT = (
+    " Each distinct client counts once per monthly billing period when a scheduled, in-progress, completed, "
+    "or no-show visit starts during that period. Cancelled and dropped visits do not qualify. "
+    "The visit date, not the date it was booked, determines the period. Additional-client charges are not "
+    "prorated by day; clients leaving and replacement clients each count if they qualify."
+)
 CONSENT_TEXT = (
     "I authorize Care Harbor to save my card and automatically charge the selected "
     "CAD base subscription when my remaining free trial ends (or immediately if it has ended), plus $10 per additional active client "
@@ -10,7 +16,7 @@ CONSENT_TEXT = (
     "at the end of prepaid coverage; prepaid base fees are non-refundable."
 )
 
-FOUNDING_CONSENT_VERSION = "2026-10-02-founding-v5"
+FOUNDING_CONSENT_VERSION = "2026-10-14-founding-v6"
 FOUNDING_CONSENT_TEXT = (
     "I authorize Care Harbor to save my card and automatically charge CAD $200/month "
     "when my remaining free trial ends (or immediately if it has ended), plus CAD $5 per additional active client above 10 per monthly "
@@ -31,4 +37,5 @@ FOUNDING_CONSENT_TEXT = (
 
 
 def consent_for_plan(code):
-    return (FOUNDING_CONSENT_VERSION, FOUNDING_CONSENT_TEXT) if code == "founding" else (CONSENT_VERSION, CONSENT_TEXT)
+    version, text = (FOUNDING_CONSENT_VERSION, FOUNDING_CONSENT_TEXT) if code == "founding" else (CONSENT_VERSION, CONSENT_TEXT)
+    return version, text + CLIENT_COUNTING_TEXT

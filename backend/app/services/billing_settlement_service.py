@@ -101,7 +101,8 @@ class BillingSettlementService:
             adjustment_id=adjustment_id, amount_cents=amount, currency=terms["currency"], state="ready", steps={},
             created_at=now, updated_at=now, context=dict(customer=org.stripe_customer_id,
                 subscription=terms["subscription_id"], interval=terms["base_interval"],
-                starts_at=terms["starts_at"], ends_at=terms["ends_at"], rate=terms["additional_client_amount_cents"]))
+                starts_at=terms["starts_at"], ends_at=terms["ends_at"], rate=terms["additional_client_amount_cents"],
+                usage_price_id=terms.get("additional_client_price_id")))
 
     def claim(self, settlement_id):
         try:

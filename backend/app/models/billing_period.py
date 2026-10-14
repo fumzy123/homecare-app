@@ -21,6 +21,7 @@ class BillingPeriod(Base):
     base_interval = Column(String, nullable=False)
     included_clients = Column(Integer, nullable=False)
     additional_client_amount_cents = Column(Integer, nullable=False)
+    additional_client_price_id = Column(String, nullable=True)
     currency = Column(String, nullable=False)
     finalization_eligible_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

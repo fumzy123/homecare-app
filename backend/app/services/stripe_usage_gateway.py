@@ -63,9 +63,47 @@ class StripeUsageGateway:
             raise SettlementReviewRequired("CUSTOMER_DELETED")
         if self.op["amount_cents"] < 0:
             return self._credit()
+        # Validate all saved prices before creating any invoice or invoice item.
+        self._validate_usage_prices(field(customer, "livemode", False))
         if self.context.get("annual_entries"):
             return self._annual_charge()
         return self._charge()
+
+    def _validate_usage_prices(self, livemode):
+        entries = self.context.get("annual_entries") or [self.context]
+        priced = [entry for entry in entries if entry.get("usage_price_id")]
+        if not priced:
+            return  # Historical settlements predate explicit usage prices.
+        client = stripe.StripeClient(settings.stripe_secret_key, max_network_retries=1)
+        if not settings.stripe_account_id or client.v1.accounts.retrieve_current().id != settings.stripe_account_id:
+            raise SettlementReviewRequired("STRIPE_ACCOUNT_MISMATCH")
+        checked = {}
+        for entry in priced:
+            price_id = entry["usage_price_id"]
+            if price_id not in checked:
+                checked[price_id] = client.v1.prices.retrieve(price_id, {"expand": ["product"]})
+            price = checked[price_id]
+            product = field(price, "product", {})
+            if (field(price, "livemode") != livemode or field(price, "currency") != self.op["currency"]
+                    or field(price, "unit_amount") != entry["rate"] or field(price, "type") != "one_time"
+                    or field(price, "tax_behavior") != "exclusive"
+                    or field(field(product, "metadata", {}), "care_harbor_component") != "additional_client_usage"):
+                raise SettlementReviewRequired("USAGE_PRICE_MISMATCH")
+            # Archived prices remain valid for previously agreed, recorded periods.
+            # New agreements/rate changes must select an active price separately.
+
+    @staticmethod
+    def _pricing(entry):
+        if entry.get("usage_price_id"):
+            return {"pricing": {"price": entry["usage_price_id"]}}
+        return {"unit_amount_decimal": str(entry["rate"])}
+
+    @staticmethod
+    def _create_item(params, key):
+        if "pricing" in params:
+            return stripe.StripeClient(settings.stripe_secret_key).v1.invoice_items.create(
+                params, options={"idempotency_key": key}).id
+        return stripe.InvoiceItem.create(**params, idempotency_key=key).id
 
     def _annual_charge(self):
         if self.op["invoice_id"]:
@@ -107,7 +145,7 @@ class StripeUsageGateway:
             name = f"item-{entry['period_id']}"
             quantity = entry["amount"] // entry["rate"]
             params = dict(customer=self.customer, invoice=invoice.id, currency="cad", quantity=quantity,
-                unit_amount_decimal=str(entry["rate"]), discountable=False, tax_behavior="exclusive",
+                **self._pricing(entry), discountable=False, tax_behavior="exclusive",
                 description=f"Additional clients · {entry['starts_at'][:10]} to {entry['ends_at'][:10]}",
                 period=dict(start=int(datetime.fromisoformat(entry["starts_at"]).timestamp()),
                             end=int(datetime.fromisoformat(entry["ends_at"]).timestamp())), metadata=self._metadata(name))
@@ -115,7 +153,7 @@ class StripeUsageGateway:
                 params["tax_code"] = settings.stripe_usage_tax_code
             item_id = self._step(name, params,
                 lambda _, step=name: self._unique(stripe.InvoiceItem.list(customer=self.customer, limit=100).auto_paging_iter(), step),
-                lambda p, key: stripe.InvoiceItem.create(**p, idempotency_key=key).id)
+                self._create_item)
             item = self._check(stripe.InvoiceItem.retrieve(item_id))
             if remote_id(field(item, "invoice")) != invoice.id or item.amount != entry["amount"]:
                 raise SettlementReviewRequired("ANNUAL_ITEM_CHANGED")
@@ -198,7 +236,7 @@ class StripeUsageGateway:
                 raise SettlementReviewRequired("NONINTEGRAL_CLIENT_QUANTITY")
             quantity = amount // rate
             params = dict(customer=self.customer, invoice=invoice.id, currency="cad", quantity=quantity,
-                unit_amount_decimal=str(rate), discountable=False, tax_behavior="exclusive",
+                **self._pricing(self.context), discountable=False, tax_behavior="exclusive",
                 description=f"{quantity} additional active clients at CAD {rate / 100:.2f} each",
                 period=dict(start=int(datetime.fromisoformat(self.context["starts_at"]).timestamp()),
                             end=int(datetime.fromisoformat(self.context["ends_at"]).timestamp())), metadata=self._metadata("item"))
@@ -206,7 +244,7 @@ class StripeUsageGateway:
                 params["tax_code"] = settings.stripe_usage_tax_code
             item_id = self._step("item", params,
                 lambda _: self._unique(stripe.InvoiceItem.list(customer=self.customer, limit=100).auto_paging_iter(), "item"),
-                lambda p, key: stripe.InvoiceItem.create(**p, idempotency_key=key).id)
+                self._create_item)
             item = self._check(stripe.InvoiceItem.retrieve(item_id))
             if remote_id(field(item, "invoice")) != invoice.id or item.amount != amount or item.quantity != quantity:
                 raise SettlementReviewRequired("USAGE_ITEM_CHANGED")

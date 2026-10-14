@@ -7,6 +7,7 @@ import { usageDate, usageMoney } from '../utils/usage-format'
 import type { OperatorAccess, OperatorAction } from '../operator-api'
 import { OperatorCorrectionPanel } from './OperatorCorrectionPanel'
 import { OperatorWebhookAlerts } from './OperatorWebhookAlerts'
+import { OperatorBillingReviews } from './OperatorBillingReviews'
 
 const button = 'border border-ink rounded-full px-4 py-2 text-sm disabled:opacity-40'
 const labels: Record<OperatorAction, string> = {
@@ -27,10 +28,10 @@ export function BillingOperatorPage() {
   const access = useOperatorAccess(userId)
   const signOut = useOperatorSignOut()
   return <main className="min-h-screen bg-cream text-ink p-6 max-w-6xl mx-auto space-y-5">
-    <div className="flex flex-wrap justify-between gap-3"><Link to="/settings/billing" className="underline">Agency billing</Link>
+    <div className="flex flex-wrap justify-between gap-3"><span>Care Harbor · Operator workspace</span>
       <button className={button} disabled={signOut.isPending} onClick={() => signOut.mutate()}>Sign out</button></div>
     {signOut.isError && <p role="alert">Could not sign out. Please try again.</p>}
-    <h1 className="font-serif text-3xl">Internal billing controls</h1>
+    <h1 className="font-serif text-3xl">Billing operations</h1>
     {access.isPending ? <p>Checking operator access…</p> : access.isError ? <div role="alert">
       <p>{access.error instanceof ApiError && access.error.code === 'FORBIDDEN' ? 'This account is not an authorized billing operator. Agency owner access does not grant operator permissions.' : 'Could not verify operator access.'}</p>
       <button className={button} onClick={() => void access.refetch()}>Retry access check</button>
@@ -46,6 +47,7 @@ function OperatorWorkspace({ access }: { access: OperatorAccess }) {
   const agencies = useOperatorAgencies(userId, search)
   return <>
     <OperatorWebhookAlerts />
+    <OperatorBillingReviews onSelect={setSelected} />
     <p className="border border-ink p-4">Onboarding: {access.onboarding_enabled ? 'enabled' : 'disabled'} · Usage settlement: {access.settlement_enabled && access.onboarding_enabled ? 'enabled' : 'disabled'} · Live settlement permission: {access.live_settlement_enabled ? 'enabled' : 'disabled'}</p>
     <form className="flex gap-3 flex-wrap" onSubmit={e => { e.preventDefault(); setSearch(input.trim()); setSelected(null) }}>
       <label>Find an agency <input className="border border-ink p-2" maxLength={100} value={input} onChange={e => setInput(e.target.value)} /></label>

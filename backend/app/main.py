@@ -1,4 +1,6 @@
 import sentry_sdk
+import asyncio
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,6 +70,10 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    configuration_check = None
+    if os.getenv("RAILWAY_ENVIRONMENT_NAME"):
+        from app.services.billing_configuration import log_billing_configuration
+        configuration_check = asyncio.create_task(asyncio.to_thread(log_billing_configuration))
     scheduler.add_job(mark_shifts_completed, "interval", minutes=15)
     scheduler.add_job(request_due_trials, "interval", minutes=15)
     scheduler.add_job(process_founding_conversions, "interval", minutes=15)
@@ -80,6 +86,8 @@ async def lifespan(_app: FastAPI):
     scheduler.start()
     yield
     scheduler.shutdown()
+    if configuration_check:
+        await configuration_check
 
 
 async def rate_limit_exceeded_handler(_request: Request, exc: RateLimitExceeded) -> JSONResponse:
