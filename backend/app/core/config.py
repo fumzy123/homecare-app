@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     push_allowed_app_ids: list[str] = []
     expo_push_access_token: str = ""
     stripe_secret_key: str = ""
+    stripe_account_id: str = ""
     stripe_webhook_secret: str = ""
     billing_onboarding_enabled: bool = False
     billing_notifications_enabled: bool = False
