@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -53,6 +54,11 @@ import { Route as ProtectedDashboardClientsClientIdFundingRouteImport } from './
 import { Route as ProtectedDashboardClientsClientIdEditRouteImport } from './routes/_protected/dashboard/clients/$clientId/edit'
 import { Route as ProtectedDashboardClientsClientIdCareNeedRouteImport } from './routes/_protected/dashboard/clients/$clientId/care-need'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
   path: '/welcome',
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/workspace': typeof WorkspaceRoute
   '/settings': typeof ProtectedSettingsRouteWithChildren
   '/upgrade': typeof ProtectedUpgradeRoute
   '/dashboard/activity': typeof ProtectedDashboardActivityRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/workspace': typeof WorkspaceRoute
   '/upgrade': typeof ProtectedUpgradeRoute
   '/dashboard/activity': typeof ProtectedDashboardActivityRoute
   '/settings/agency': typeof ProtectedSettingsAgencyRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
   '/welcome': typeof WelcomeRoute
+  '/workspace': typeof WorkspaceRoute
   '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
   '/_protected/upgrade': typeof ProtectedUpgradeRoute
   '/_protected/dashboard/activity': typeof ProtectedDashboardActivityRoute
@@ -437,6 +446,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/terms'
     | '/welcome'
+    | '/workspace'
     | '/settings'
     | '/upgrade'
     | '/dashboard/activity'
@@ -481,6 +491,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/terms'
     | '/welcome'
+    | '/workspace'
     | '/upgrade'
     | '/dashboard/activity'
     | '/settings/agency'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/terms'
     | '/welcome'
+    | '/workspace'
     | '/_protected/settings'
     | '/_protected/upgrade'
     | '/_protected/dashboard/activity'
@@ -569,10 +581,18 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   WelcomeRoute: typeof WelcomeRoute
+  WorkspaceRoute: typeof WorkspaceRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/welcome': {
       id: '/welcome'
       path: '/welcome'
@@ -1006,6 +1026,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   WelcomeRoute: WelcomeRoute,
+  WorkspaceRoute: WorkspaceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

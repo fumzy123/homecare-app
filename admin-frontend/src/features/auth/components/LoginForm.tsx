@@ -28,7 +28,7 @@ export function LoginForm() {
       setServerError(null)
       try {
         await authApi.signIn(value.email, value.password)
-        navigate({ to: '/dashboard' })
+        await navigate({ to: '/workspace', replace: true })
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'code' in err && err.code === 'email_not_confirmed') {
           setUnconfirmedEmail(value.email)
