@@ -67,7 +67,7 @@ export function BillingOverview({ status }: { status: BillingStatus }) {
   useEffect(() => {
     if (!owner || returned.current || new URLSearchParams(window.location.search).get('card_setup') !== 'complete') return
     returned.current = true
-    confirmCard()
+    confirmCard(undefined, { onSuccess: result => setPaymentSecret(result.payment_client_secret) })
   }, [owner, confirmCard])
   const busy = confirm.isPending || cancel.isPending
   const error = confirm.error ?? cancel.error

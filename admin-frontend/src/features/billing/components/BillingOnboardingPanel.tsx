@@ -28,7 +28,7 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
   useEffect(() => {
     if (!owner || returnChecked.current || new URLSearchParams(window.location.search).get('card_setup') !== 'complete') return
     returnChecked.current = true
-    confirmCard()
+    confirmCard(undefined, { onSuccess: result => setCheckout(result.payment_client_secret ? result : null) })
   }, [owner, confirmCard])
   const error = setup.error ?? confirm.error ?? cancel.error ?? options.error
   const busy = setup.isPending || confirm.isPending || cancel.isPending
@@ -55,6 +55,7 @@ export function BillingOnboardingPanel({ status }: { status: BillingStatus }) {
       </div>}
       {conversion?.status === 'needs_review' && <p role="status">Your pricing transition needs a support review. Contact Care Harbor to confirm the effective date and rates.</p>}
       <h2 className="font-serif text-3xl">{status.is_trial_active ? `Trial: ${status.trial_days_left} days left` : status.subscription_status === 'active' ? `${status.plan_code === 'founding' ? 'Founding' : 'Standard'} plan` : 'Your subscription'}</h2>
+      {status.subscription_status === 'incomplete' && <p role="status">Your card is saved, but your first payment is not complete. Finish payment to activate your subscription.</p>}
       {end && status.is_trial_active && <p>{status.billing_canceled ? 'Trial access ends' : 'Trial ends; first base payment is due'}: {end}.</p>}
       {end && !status.is_trial_active && !status.is_onboarding && <p>Recorded trial end: {end}. Check your invoices below for payment status.</p>}
       {status.base_amount_cents != null && status.additional_client_amount_cents != null && <p>CAD ${(status.base_amount_cents / 100).toLocaleString()} / {status.plan_interval}. Ten active clients included; then CAD ${(status.additional_client_amount_cents / 100).toLocaleString()} per additional client each month, plus applicable taxes.</p>}

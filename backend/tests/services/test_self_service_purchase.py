@@ -93,7 +93,8 @@ def test_existing_subscription_cannot_be_purchased_again(state):
     state.remote.checkout.Session.create.assert_not_called()
 
 
-def test_confirmation_returns_hosted_invoice_for_authentication(state):
+@pytest.mark.parametrize('embedded', [False, True])
+def test_confirmation_returns_payment_continuation_until_stripe_confirms_paid(state, embedded):
     state.request.source = 'purchase'
     state.request.ends_at = state.now - timedelta(days=1)
     state.agreement.checkout_session_id = 'cs_own'
@@ -106,11 +107,24 @@ def test_confirmation_returns_hosted_invoice_for_authentication(state):
     state.sub.latest_invoice = 'in_payment'
     state.sub.customer = 'cus_own'
     state.remote.Subscription.retrieve.return_value = state.sub
-    state.remote.Invoice.retrieve.return_value = {'hosted_invoice_url': 'https://invoice.stripe.com/test'}
-    assert state.service.confirm_card()['url'] == 'https://invoice.stripe.com/test'
+    state.remote.Invoice.retrieve.return_value = {
+        'hosted_invoice_url': 'https://invoice.stripe.com/test',
+        'confirmation_secret': {'client_secret': 'pi_fictional_secret'},
+    }
+    result = state.service.confirm_card(embedded=embedded)
+    if embedded:
+        assert result['payment_client_secret'] == 'pi_fictional_secret'
+        assert result['url'] is None
+    else:
+        assert result['url'] == 'https://invoice.stripe.com/test'
+    assert state.org.subscription_status == 'incomplete'
     assert not billing_access(state.org, state.now).can_write
     state.sub.status = 'active'  # Payment completed; webhook has not arrived yet.
-    assert state.service.confirm_card()['url'] is None
+    result = state.service.confirm_card(embedded=embedded)
+    assert result['url'] is None
+    assert 'payment_client_secret' not in result
+    assert state.org.subscription_status == 'active'
+    state.remote.Subscription.create.assert_called_once()
     assert billing_access(state.org, state.now).can_write
 
 
