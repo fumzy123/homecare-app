@@ -63,7 +63,9 @@ function TermsPage() {
             or $3,360 per year paid in advance. Annual billing saves 20% on the base subscription.
             Each monthly usage period includes 10 active clients; additional clients cost $10 each for that period.</p>
           <p>A client counts once in a monthly billing period if they have a qualifying scheduled,
-            in-progress, completed or no-show visit in that period. Cancelled visits do not count.
+            in-progress, completed or no-show visit starting in that period. Cancelled and dropped visits do not count.
+            The visit date determines the period, not the date it was booked. Additional-client charges are not
+            prorated by day. Clients leaving and replacement clients each count if they have a qualifying visit.
             Your first monthly usage period starts when your paid subscription begins. Each new period
             starts on the same date of the following month: for example, a May 10 start means the next
             period starts June 10. If a month has no matching date, its last day is used. This monthly

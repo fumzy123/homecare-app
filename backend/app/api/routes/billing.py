@@ -18,8 +18,48 @@ from app.services.billing_upcoming_service import BillingUpcomingService
 from app.services.billing_operator_service import BillingOperatorService
 from app.services.billing_profile_service import BillingProfileService
 from app.services.billing_plan_service import BillingPlanService
+from app.services.billing_review_service import BillingReviewService
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
+
+
+def get_billing_review_service(current_user=Depends(require_admin), db: Session = Depends(get_db)):
+    return BillingReviewService(db, current_user, OrgService.get_user_org_id(current_user, db))
+
+
+def get_operator_review_service(current_user=Depends(require_billing_operator), db: Session = Depends(get_db)):
+    return BillingReviewService(db, current_user)
+
+
+class BillingReviewPayload(BaseModel):
+    request_id: UUID
+    message: str = Field(min_length=10, max_length=1000)
+
+
+class BillingReviewResponsePayload(BaseModel):
+    response: str = Field(min_length=10, max_length=1000)
+
+
+@router.get('/usage/periods/{period_id}/review-requests')
+def billing_reviews(period_id: UUID, billing_review_service: BillingReviewService = Depends(get_billing_review_service)):
+    return billing_review_service.list(period_id)
+
+
+@router.post('/usage/periods/{period_id}/review-requests')
+def submit_billing_review(period_id: UUID, payload: BillingReviewPayload,
+    billing_review_service: BillingReviewService = Depends(get_billing_review_service)):
+    return billing_review_service.submit(period_id, payload.request_id, payload.message)
+
+
+@router.get('/operator/review-requests')
+def billing_review_queue(billing_review_service: BillingReviewService = Depends(get_operator_review_service)):
+    return billing_review_service.queue()
+
+
+@router.post('/operator/review-requests/{request_id}/resolve')
+def resolve_billing_review(request_id: UUID, payload: BillingReviewResponsePayload,
+    billing_review_service: BillingReviewService = Depends(get_operator_review_service)):
+    return billing_review_service.resolve(request_id, payload.response)
 
 
 def get_billing_plan_service(current_user=Depends(require_owner), db: Session = Depends(get_db)):

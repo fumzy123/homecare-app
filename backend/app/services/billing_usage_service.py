@@ -22,6 +22,7 @@ from app.models.billing_period import BillingPeriod
 from app.core.stripe_objects import stripe_field
 from app.services.founding_conversion_service import reconcile_conversion
 from app.core.config import settings
+from app.services.billing_prices import additional_client_price_id
 
 
 class BillingUsageService:
@@ -166,6 +167,7 @@ class BillingUsageService:
                     anchor_at=org.trial_ends_at, agency_timezone=org.billing_timezone,
                     plan_code=plan.code, plan_version=plan.version, base_interval=plan.base_interval,
                     included_clients=plan.included_clients, additional_client_amount_cents=plan.additional_client_amount_cents,
+                    additional_client_price_id=additional_client_price_id(plan),
                     currency=plan.currency, finalization_eligible_at=ends_at + timedelta(hours=72),
                 )
                 self.period_repo.add(period)

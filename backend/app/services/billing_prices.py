@@ -18,3 +18,14 @@ def standard_prices():
     version = current_plan_version("standard")
     return {value: (interval, version) for interval in ("month", "year")
             if (value := price_id("standard", interval, version))}
+
+
+def additional_client_price_id(plan):
+    """Only new periods on current terms use the current catalogue mapping.
+
+    Historical periods retain their recorded amount and optional price ID.
+    A different configured amount is rejected by the gateway before collection.
+    """
+    if plan.version != current_plan_version(plan.code):
+        return None
+    return getattr(settings, f"stripe_{plan.code}_additional_client_price_id", "") or None

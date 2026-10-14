@@ -11,7 +11,7 @@ from app.repositories.founding_conversion_repository import FoundingConversionRe
 from app.repositories.billing_period_repository import BillingPeriodRepository
 from app.repositories.billing_settlement_repository import BillingSettlementRepository
 from app.services.billing_cutoff_service import utc
-from app.services.billing_prices import standard_prices
+from app.services.billing_prices import standard_prices, additional_client_price_id
 
 
 class BillingPeriodRecoveryService:
@@ -88,6 +88,7 @@ class BillingPeriodRecoveryService:
                         anchor_at=context["anchor"], agency_timezone=context["timezone"],
                         plan_code=plan.code, plan_version=plan.version, base_interval=plan.base_interval,
                         included_clients=plan.included_clients, additional_client_amount_cents=plan.additional_client_amount_cents,
+                        additional_client_price_id=additional_client_price_id(plan),
                         currency=plan.currency, finalization_eligible_at=end + timedelta(hours=72),
                         source_invoice_id=invoice_id, source_invoice_line_id=line_id))
             missing = any(utc(row.ends_at) <= now and utc(row.starts_at) not in proposals for row in

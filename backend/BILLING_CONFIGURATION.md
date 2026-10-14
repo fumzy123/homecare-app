@@ -1,5 +1,61 @@
 # Current billing configuration
 
+## Operator workspace and usage-price release (2026-10-14)
+
+The normal sign-in page now sends authenticated users through `/workspace`.
+That page checks `/api/billing/operator/access`: server-authorized operators open
+`/billing-operations`; a forbidden response sends ordinary accounts to their
+existing agency dashboard. Network/server failures offer retry, not a guessed role.
+The operator workspace is outside the agency subscription/layout guards. It does
+not create an agency or grant access to clinical records. All operator APIs retain
+their backend allowlist guard; emails and editable user metadata grant no access.
+
+Set `BILLING_OPERATOR_USER_IDS` to a JSON array of verified Supabase user IDs in
+each Railway environment. Staging and production have different identity IDs,
+even when an email is the same. The approved operator email is separate from the
+agency-admin test email. Configuration changes require a backend deployment.
+
+Agencies can submit billing review requests for their own periods; operators can
+record a response in the internal queue. Request retries are idempotent and recorded
+responses cannot be overwritten. Resolving a question does not issue a credit,
+pause collection, or extend the 72-hour correction window. Financial changes use
+the existing recorded adjustment workflow. Migration `c4e9812ab760` creates the
+private review table and adds nullable Stripe price evidence to billing periods.
+
+The additional-client product uses explicit one-time CAD prices on invoice items:
+
+| Variable | Sandbox price | Live price |
+| --- | --- | --- |
+| `STRIPE_STANDARD_ADDITIONAL_CLIENT_PRICE_ID` | `price_1UQR8LDwdrtTklyuH12TKo6S` | `price_1UQRJsDwdrtTklyuxL6Yc8yi` |
+| `STRIPE_FOUNDING_ADDITIONAL_CLIENT_PRICE_ID` | `price_1UQR8PDwdrtTklyujXBKFZkr` | `price_1UQRJvDwdrtTklyu1mqR8Om1` |
+
+Current rates remain CAD 10 Standard / CAD 5 Founding per distinct additional
+client above ten, without daily proration. Scheduled, in-progress, completed and
+no-show visits qualify by visit start within the monthly period; cancelled/dropped
+visits do not. Annual subscriptions retain monthly usage ledgers collected at
+annual renewal. Each new period saves its usage price ID; finalization and settlement
+preserve that ID alongside its unit rate. Historical periods without a price ID
+keep their original amount-based settlement path. No historical backfill occurs.
+
+Future rate changes require a new immutable pricing definition/Stripe price and
+an explicitly agreed effective transition. Changing metadata, creating a Stripe
+price, or replacing an environment variable alone must not reprice existing
+agreements. The gateway checks the saved price against the recorded rate/account/
+mode/currency before creating charges. This release does not add an arbitrary
+future-rate scheduling screen; existing plan-transition safeguards remain.
+
+For the current prelaunch setup, `BILLING_USAGE_TAX_MODE=none` and
+`BILLING_SETTLEMENT_LIVE_ENABLED=false`. Do not enable live collection merely
+because the application deployment succeeds. Complete signed webhook and full
+staging settlement verification first, and revisit tax collection when the
+business's actual registration status changes.
+
+Validation: 696 backend tests passed (24 skipped), production frontend build,
+`tests/billing-reviews.browser.cjs` and `tests/operator-login.browser.cjs` with
+fictional local fixtures. The latter covers operator/agency landing and a failed
+access check followed by retry. These checks do not assert a live-user login or
+real production payment was performed.
+
 Only three base-price environment variables are used by the backend:
 
 | Variable | CAD base price | Monthly charge per additional client above 10 |

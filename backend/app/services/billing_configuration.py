@@ -41,6 +41,20 @@ def verify_billing_configuration(config=settings, client=None):
             result["checks"][name] = {"id": price.id, "livemode": price.livemode, "valid": valid}
             if not valid:
                 result["errors"].append(f"INVALID_{name.upper()}_PRICE")
+        for code, amount in (("standard", 1000), ("founding", 500)):
+            name = f"{code}_additional_client"
+            price_id = getattr(config, f"stripe_{name}_price_id", "")
+            if not price_id:
+                result["errors"].append(f"MISSING_{name.upper()}_PRICE")
+                continue
+            price = client.v1.prices.retrieve(price_id, {"expand": ["product"]})
+            valid = (price.active and price.livemode == expected_live and price.currency == "cad"
+                     and price.unit_amount == amount and field(price, "type") == "one_time"
+                     and field(price, "tax_behavior") == "exclusive"
+                     and field(field(field(price, "product", {}), "metadata", {}), "care_harbor_component") == "additional_client_usage")
+            result["checks"][name] = {"id": price.id, "livemode": price.livemode, "valid": valid}
+            if not valid:
+                result["errors"].append(f"INVALID_{name.upper()}_PRICE")
         result["webhook_secret_configured"] = bool(config.stripe_webhook_secret)
         # Presence is not proof of a matching signature. A signed delivery is a separate gate.
         if not config.stripe_webhook_secret:

@@ -33,6 +33,7 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
       <p className="font-semibold">Estimated additional-client charge: {money(usage.estimated_usage_amount_cents)}</p>
       <p>{usage.additional_clients} additional clients × {money(period.additional_client_amount_cents)} per client.</p>
       <p className="text-sm">This estimate can rise or fall as visits change. It excludes your base subscription, taxes and adjustments.</p>
+      <p className="text-sm">Future visits scheduled within this period are included in the estimate. Each client counts once, with no daily proration. Clients leaving and replacement clients each count if they qualify.</p>
       {period.base_interval === 'year' && <p className="text-sm">Your base subscription is billed annually. The client allowance and additional-client charges are calculated monthly.</p>}
       <p className="text-sm">The correction window ends {usageDate(period.finalization_eligible_at, period.agency_timezone)}. This is not a finalized invoice.</p>
     </div>

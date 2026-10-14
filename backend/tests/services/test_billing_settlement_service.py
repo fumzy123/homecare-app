@@ -103,6 +103,36 @@ def test_live_customer_is_rejected_before_any_mutation(service, monkeypatch):
     fake.InvoiceItem.create.assert_not_called()
 
 
+@pytest.mark.parametrize("changed", [dict(unit_amount=1500), dict(currency="usd"), dict(livemode=True), dict(type="recurring")])
+def test_changed_usage_price_stops_before_invoice_mutation(service, monkeypatch, changed):
+    sid = operation(service)
+    op, token = service.claim(sid)
+    op["context"]["usage_price_id"] = "price_agreed"
+    fake = MagicMock()
+    fake.Customer.retrieve.return_value = {"id": "cus_test", "livemode": False}
+    fake.StripeClient.return_value.v1.accounts.retrieve_current.return_value.id = "acct_care"
+    fake.StripeClient.return_value.v1.prices.retrieve.return_value = {
+        "id": "price_agreed", "unit_amount": 500, "currency": "cad", "livemode": False,
+        "type": "one_time", "tax_behavior": "exclusive",
+        "product": {"metadata": {"care_harbor_component": "additional_client_usage"}}, **changed}
+    monkeypatch.setattr(settings, "stripe_account_id", "acct_care")
+    monkeypatch.setattr(gateway_module, "stripe", fake)
+    with pytest.raises(SettlementReviewRequired, match="USAGE_PRICE_MISMATCH"):
+        StripeUsageGateway(service, op, token).run()
+    fake.Invoice.create.assert_not_called()
+    fake.StripeClient.return_value.v1.invoice_items.create.assert_not_called()
+
+
+def test_explicit_price_item_preserves_idempotency_and_has_no_inline_rate(monkeypatch):
+    fake = MagicMock()
+    monkeypatch.setattr(gateway_module, "stripe", fake)
+    params = dict(quantity=3, **StripeUsageGateway._pricing({"usage_price_id": "price_saved", "rate": 1000}))
+    StripeUsageGateway._create_item(params, "durable-key")
+    fake.StripeClient.return_value.v1.invoice_items.create.assert_called_once_with(
+        {"quantity": 3, "pricing": {"price": "price_saved"}}, options={"idempotency_key": "durable-key"})
+    fake.InvoiceItem.create.assert_not_called()
+
+
 def test_zero_annual_usage_never_creates_invoice(service, monkeypatch):
     sid = operation(service, 0)
     op, token = service.claim(sid)

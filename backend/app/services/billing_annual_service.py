@@ -49,6 +49,7 @@ class BillingAnnualService(BillingSettlementService):
                 if amount < 0:
                     raise SettlementReviewRequired("ANNUAL_NEGATIVE_USAGE")
                 entries.append(dict(source_key=source.source_key, period_id=str(period.id), amount=amount,
+                    usage_price_id=period.additional_client_price_id,
                     rate=period.additional_client_amount_cents, starts_at=utc(period.starts_at).isoformat(),
                     ends_at=cursor.isoformat(), adjustments=[str(a.id) for a in adjustments]))
             if cursor != end:

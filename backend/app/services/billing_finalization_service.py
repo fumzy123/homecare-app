@@ -74,7 +74,7 @@ class BillingFinalizationService:
             amount = extra * period.additional_client_amount_cents
             terms = {field: _json_value(getattr(period, field)) for field in (
                 "id", "subscription_id", "source_invoice_id", "source_invoice_line_id", "agency_timezone", "plan_code", "plan_version",
-                "base_interval", "included_clients", "additional_client_amount_cents", "currency",
+                "base_interval", "included_clients", "additional_client_amount_cents", "additional_client_price_id", "currency",
             )}
             terms.update(starts_at=start.isoformat(), ends_at=end.isoformat(),
                          anchor_at=_utc(period.anchor_at).isoformat(), finalization_eligible_at=eligible.isoformat())

@@ -6,6 +6,7 @@ import { BillingUsageDetails } from './BillingUsageDetails'
 import { BillingPanel } from './BillingPanel'
 import { BillingUsageSummary, PendingUsageBalance } from './BillingUsageSummary'
 import { useUpcomingBilling } from '../hooks/useUpcomingBilling'
+import { BillingReviewForm } from './BillingReviewForm'
 
 // Layer 3: owns query orchestration; the details view receives data as props.
 export function BillingUsageSection({ status, compact = false }: { status: BillingStatus; compact?: boolean }) {
@@ -33,5 +34,6 @@ export function BillingUsageSection({ status, compact = false }: { status: Billi
                 {!query.data.trial_preview && upcoming.isError && <p role="alert" className="text-sm">Earlier pending charges could not be verified. Refresh to check the full breakdown.</p>}
                 <details className="border-t border-line-soft pt-4"><summary className="cursor-pointer text-sm font-medium">View counted clients and calculation</summary><div className="mt-5"><BillingUsageDetails key={query.data.period.id} data={query.data} /></div></details>
               </> : <BillingUsageDetails key={query.data.period.id} data={query.data} /> : null}
+    {query.isSuccess && query.data?.state === 'ready' && !query.data.trial_preview && <BillingReviewForm key={query.data.period.id} periodId={query.data.period.id} />}
   </BillingPanel>
 }

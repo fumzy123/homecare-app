@@ -4,6 +4,7 @@ import { useInvoiceHistory, usePeriodHistory, useUsageHistory } from '../hooks/u
 import { usageDate, usageMoney } from '../utils/usage-format'
 import type { BillingSettlement } from '../api'
 import { BillingPanel } from './BillingPanel'
+import { BillingReviewForm } from './BillingReviewForm'
 
 const button = 'border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase disabled:opacity-40'
 
@@ -53,6 +54,7 @@ function PeriodCorrections({ periodId, originalAmount, currency }: { periodId: s
   const rows = corrections.data?.adjustments ?? []
   const approved = rows.filter(row => row.status === 'approved')
   return <div className="space-y-4 border-t border-line-soft pt-4 mt-4">
+    <BillingReviewForm key={periodId} periodId={periodId} />
     <button className={button} disabled={busy} onClick={() => { void corrections.refetch(); void settlements.refetch() }}>Refresh corrections and payments</button>
     <h3 className="font-semibold">Usage payments</h3>
     {settlements.isPending && <p role="status">Loading payment status…</p>}
