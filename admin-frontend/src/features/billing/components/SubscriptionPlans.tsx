@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import { Check } from 'lucide-react'
 import type { OnboardingOptions } from '../api'
 
@@ -25,7 +25,6 @@ export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
   onChange: (value: 'month' | 'year') => void; disabled: boolean
 }) {
   const id = useId()
-  const [clients, setClients] = useState(10)
   const plan = plans.find(option => option.interval === interval) ?? plans[0]
   if (!plan) return <p role="status">No plans are available right now.</p>
   const monthly = plans.find(option => option.code === plan.code && option.interval === 'month')
@@ -33,7 +32,6 @@ export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
   const saving = monthly && yearly ? Math.max(0, monthly.base_amount_cents * 12 - yearly.base_amount_cents) : 0
   const annual = plan.interval === 'year'
   const founding = plan.code === 'founding'
-  const extra = Math.max(0, clients - plan.included_clients) * plan.additional_client_amount_cents
 
   return <div className="mx-auto max-w-3xl space-y-5">
     <h2 className="font-serif text-4xl tracking-tight">Choose how you pay</h2>
@@ -72,26 +70,7 @@ export function SubscriptionPlans({ plans, interval, onChange, disabled }: {
         </div>
       </div>
 
-      <div className="border-y border-ink bg-cream px-6 py-6 sm:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="font-serif text-2xl" htmlFor={`${id}-clients`}>Estimate your price</label>
-          <span className="text-sm font-medium tabular-nums">{clients} active clients</span>
-        </div>
-        <input id={`${id}-clients`} type="range" min="0" max="500" step="1" value={clients} onChange={e => setClients(Number(e.target.value))}
-          aria-valuetext={`${clients} active clients`} aria-describedby={`${id}-estimate-note`}
-          className="mt-4 h-8 w-full cursor-pointer accent-orange focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink" />
-        <div className="flex justify-between text-xs text-ink-soft" aria-hidden="true"><span>0 clients</span><span>500 clients</span></div>
-        <div className="mt-5" aria-live="polite" aria-atomic="true">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">Estimated total before tax</p>
-          <p className="mt-2 text-xl font-semibold tabular-nums">{annual
-            ? `${money(plan.base_amount_cents)}/year + ${money(extra)}/month`
-            : `${money(plan.base_amount_cents + extra)}/month`}</p>
-          <p className="mt-2 text-sm text-ink-soft">{annual ? 'Annual base paid upfront. Additional usage collected at year-end.' : `${money(plan.base_amount_cents)} base + ${money(extra)} additional-client usage.`}</p>
-        </div>
-        <p id={`${id}-estimate-note`} className="mt-4 text-sm text-ink-soft">Only actual qualifying clients are billed. Moving this slider does not change your subscription.</p>
-      </div>
-
-      <div className="space-y-5 px-6 py-6 sm:px-8">
+      <div className="space-y-5 border-t border-ink px-6 py-6 sm:px-8">
         <h4 className="text-sm font-semibold text-ink">What’s included</h4>
         <ul className="space-y-4 text-sm leading-6 text-ink">
           {features.map(feature =>
