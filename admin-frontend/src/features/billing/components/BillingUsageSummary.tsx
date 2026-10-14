@@ -1,5 +1,6 @@
 import type { ReadyBillingUsage, UpcomingBilling } from '../api'
 import { usageDate, usageMoney } from '../utils/usage-format'
+import { BillingPeriod } from './BillingPeriod'
 
 // Layer 2: also shown after prepaid access ends, while final usage is pending.
 export function PendingUsageBalance({ upcoming, currency = 'cad', timezone = 'UTC', currentEstimate = 0 }: {
@@ -30,7 +31,7 @@ export function BillingUsageSummary({ data, upcoming }: { data: ReadyBillingUsag
   const correctionPending = Boolean(upcoming?.corrections.length)
   const annual = upcoming?.annual_settlement
   return <div className="space-y-5">
-    <p className="font-mono text-[11px] text-ink-soft">Billing period: {usageDate(period.starts_at, period.agency_timezone)} → {usageDate(period.ends_at, period.agency_timezone)}</p>
+    <BillingPeriod startsAt={period.starts_at} endsAt={period.ends_at} timezone={period.agency_timezone} />
     <dl className="grid grid-cols-3 divide-x divide-line-soft">
       {[['Clients counted this billing period', usage.active_client_count], ['Included', period.included_clients], ['Additional', usage.additional_clients]].map(([label, value]) =>
         <div key={label} className="px-3 first:pl-0"><dt className="text-xs sm:text-sm text-ink-soft">{label}</dt><dd className="mt-2 font-serif text-3xl sm:text-4xl tabular-nums">{value}</dd></div>)}

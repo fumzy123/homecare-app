@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReadyBillingUsage } from '../api'
 import { usageDate, usageMoney, visitWallTime } from '../utils/usage-format'
+import { BillingPeriod } from './BillingPeriod'
 
 const statusLabels = { scheduled: 'Scheduled', in_progress: 'In progress', completed: 'Completed', no_show: 'No-show' }
 const pageSize = 25
@@ -19,9 +20,8 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
   if (data.trial_preview) return <p className="text-sm">Trial preview: {usage.active_client_count} clients have qualifying visits. Trial visits are free and are not carried into paid usage.</p>
 
   return <div className="space-y-5">
-    <div className="space-y-1 text-sm">
-      <p><strong>Period:</strong> {usageDate(period.starts_at, period.agency_timezone)} → {usageDate(period.ends_at, period.agency_timezone)}</p>
-      <p>Agency timezone: {period.agency_timezone}. Visits starting exactly at the end belong to the next period.</p>
+    <div className="space-y-3 text-sm">
+      <BillingPeriod startsAt={period.starts_at} endsAt={period.ends_at} timezone={period.agency_timezone} />
       <p className="text-ink-soft">Calculated {usageDate(usage.calculated_at, period.agency_timezone)}</p>
     </div>
     <dl className="grid gap-4 sm:grid-cols-3">
