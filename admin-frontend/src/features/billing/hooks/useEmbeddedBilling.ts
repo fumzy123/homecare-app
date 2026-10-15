@@ -6,6 +6,8 @@ export function useEmbeddedBilling() {
   const refresh = () => Promise.all([
     client.invalidateQueries({ queryKey: ['billing-status'] }),
     client.invalidateQueries({ queryKey: ['billing-invoices'] }),
+    client.invalidateQueries({ queryKey: ['billing-profile'] }),
+    client.invalidateQueries({ queryKey: ['billing-details'] }),
   ])
   const setup = useMutation({ mutationFn: billingApi.embeddedSetup })
   const confirm = useMutation({ mutationFn: billingApi.embeddedConfirm, onSuccess: refresh })
