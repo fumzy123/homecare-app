@@ -67,11 +67,13 @@ def verify(cancel):
                 pid = uuid4()
                 ids.append(pid)
                 terms = dict(subscription_id=sub.id, starts_at=a.isoformat(), ends_at=b.isoformat(),
-                    base_interval='year', plan_version=3, additional_client_amount_cents=1000, currency='cad')
+                    base_interval='year', plan_version=3, additional_client_amount_cents=1000, currency='cad',
+                    additional_client_price_id=settings.stripe_standard_additional_client_price_id)
                 db.add(BillingPeriod(id=pid, org_id=org.id, subscription_id=sub.id, starts_at=a, ends_at=b,
                     source_invoice_id=original.id, source_invoice_line_id=base.id, anchor_at=start, agency_timezone='UTC',
                     plan_code='standard', plan_version=3, base_interval='year', included_clients=10,
-                    additional_client_amount_cents=1000, currency='cad', finalization_eligible_at=b+timedelta(hours=72)))
+                    additional_client_amount_cents=1000, currency='cad', finalization_eligible_at=b+timedelta(hours=72),
+                    additional_client_price_id=settings.stripe_standard_additional_client_price_id))
                 db.add(BillingUsageSnapshot(period_id=pid, org_id=org.id, finalized_at=b+timedelta(hours=72),
                     active_client_count=30, additional_clients=20, usage_amount_cents=20000, payload={'period': terms}))
             db.commit()
@@ -106,6 +108,8 @@ def verify(cancel):
 if __name__ == '__main__':
     if not settings.stripe_secret_key.startswith(('sk_test_', 'rk_test_')):
         raise SystemExit('Test key required; no requests sent')
+    if not settings.stripe_standard_additional_client_price_id or not settings.stripe_account_id:
+        raise SystemExit('Current test usage price and account configuration required')
     stripe.api_key = settings.stripe_secret_key
     settings.billing_onboarding_enabled = settings.billing_settlement_enabled = True
     settings.billing_settlement_live_enabled = False

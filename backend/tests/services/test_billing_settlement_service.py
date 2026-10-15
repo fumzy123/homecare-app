@@ -126,11 +126,22 @@ def test_changed_usage_price_stops_before_invoice_mutation(service, monkeypatch,
 def test_explicit_price_item_preserves_idempotency_and_has_no_inline_rate(monkeypatch):
     fake = MagicMock()
     monkeypatch.setattr(gateway_module, "stripe", fake)
-    params = dict(quantity=3, **StripeUsageGateway._pricing({"usage_price_id": "price_saved", "rate": 1000}))
+    params = dict(quantity=3, tax_behavior="exclusive",
+                  **StripeUsageGateway._pricing({"usage_price_id": "price_saved", "rate": 1000}))
     StripeUsageGateway._create_item(params, "durable-key")
     fake.StripeClient.return_value.v1.invoice_items.create.assert_called_once_with(
         {"quantity": 3, "pricing": {"price": "price_saved"}}, options={"idempotency_key": "durable-key"})
     fake.InvoiceItem.create.assert_not_called()
+    assert params["tax_behavior"] == "exclusive"  # Durable request fingerprint stays unchanged.
+
+
+def test_legacy_inline_item_retains_tax_behavior(monkeypatch):
+    fake = MagicMock()
+    monkeypatch.setattr(gateway_module, "stripe", fake)
+    params = dict(quantity=3, unit_amount_decimal="1000", tax_behavior="exclusive")
+    StripeUsageGateway._create_item(params, "legacy-key")
+    fake.InvoiceItem.create.assert_called_once_with(**params, idempotency_key="legacy-key")
+    fake.StripeClient.assert_not_called()
 
 
 def test_zero_annual_usage_never_creates_invoice(service, monkeypatch):

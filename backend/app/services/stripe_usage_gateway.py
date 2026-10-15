@@ -101,6 +101,10 @@ class StripeUsageGateway:
     @staticmethod
     def _create_item(params, key):
         if "pricing" in params:
+            # Saved prices already define tax behavior (validated above). Stripe
+            # rejects an inline override alongside pricing. Keep the durable
+            # step parameters unchanged so an interrupted operation can resume.
+            params = {name: value for name, value in params.items() if name != "tax_behavior"}
             return stripe.StripeClient(settings.stripe_secret_key).v1.invoice_items.create(
                 params, options={"idempotency_key": key}).id
         return stripe.InvoiceItem.create(**params, idempotency_key=key).id

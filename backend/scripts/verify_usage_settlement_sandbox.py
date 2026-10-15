@@ -1,6 +1,7 @@
-"""Exercise the actual settlement services against disposable Stripe test clocks.
+"""Exercise monthly settlement services against a disposable Stripe test clock.
 
 No application database or live key is accepted. SQLite is process-local only.
+Annual accrual/renewal/cancellation is covered by verify_annual_billing_sandbox.py.
 """
 from pathlib import Path
 import sys
@@ -35,10 +36,14 @@ def stamp(value):
 def seed_period(db, org_id, sub_id, start, end, interval, amount):
     pid = uuid4()
     terms = dict(subscription_id=sub_id, starts_at=start.isoformat(), ends_at=end.isoformat(), base_interval=interval,
+                 plan_code="standard", plan_version=3,
+                 additional_client_price_id=settings.stripe_standard_additional_client_price_id,
                  included_clients=10, additional_client_amount_cents=1000, currency="cad")
     db.add(BillingPeriod(id=pid, org_id=org_id, subscription_id=sub_id, starts_at=start, ends_at=end, anchor_at=start,
         agency_timezone="UTC", plan_code="standard", plan_version=3, base_interval=interval,
-        included_clients=10, additional_client_amount_cents=1000, currency="cad", finalization_eligible_at=end + timedelta(hours=72)))
+        included_clients=10, additional_client_amount_cents=1000,
+        additional_client_price_id=settings.stripe_standard_additional_client_price_id,
+        currency="cad", finalization_eligible_at=end + timedelta(hours=72)))
     db.add(BillingUsageSnapshot(period_id=pid, org_id=org_id, finalized_at=end + timedelta(hours=72),
         active_client_count=10 + amount // 1000, additional_clients=amount // 1000, usage_amount_cents=amount,
         payload={"period": terms, "clients": []}))
@@ -66,6 +71,8 @@ def main():
     settings.billing_onboarding_enabled = settings.billing_settlement_enabled = True
     settings.billing_settlement_live_enabled = False
     settings.billing_usage_tax_mode = "none"
+    if not settings.stripe_standard_additional_client_price_id or not settings.stripe_account_id:
+        raise SystemExit("Current test usage price and account configuration required")
     engine = create_engine("sqlite://")
     for model in (Organization, BillingAgreement, FoundingConversion, BillingPeriod, BillingUsageSnapshot,
                   BillingAdjustment, BillingSettlement, BillingInvoiceHold):
@@ -76,7 +83,7 @@ def main():
         with Session(engine, autoflush=False) as db:
             results = []
             customers = {}
-            for interval in ("month", "year"):
+            for interval in ("month",):
                 customer = stripe.Customer.create(test_clock=clock.id, name="Sandbox usage verification")
                 intent = stripe.SetupIntent.create(customer=customer.id, payment_method="pm_card_visa", confirm=True,
                     usage="off_session", payment_method_types=["card"])
@@ -112,8 +119,8 @@ def main():
                 result = execute(db, sid)
                 invoice = stripe.Invoice.retrieve(result["invoice_id"])
                 assert result["payment_status"] == "paid"
-                assert invoice.amount_paid == (45000 if interval == "month" else 10000)
-                assert invoice.id == renewal.id if interval == "month" else invoice.id != renewal.id
+                assert invoice.amount_paid == 45000
+                assert invoice.id == renewal.id
                 # A replay never creates another invoice or invoice item.
                 before = len(list(stripe.Invoice.list(customer=customer_id, limit=100).auto_paging_iter()))
                 assert execute(db, sid) == result
