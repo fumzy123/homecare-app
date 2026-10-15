@@ -8,7 +8,7 @@ import {
   createColumnHelper,
   type SortingState,
 } from '@tanstack/react-table'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import type { ShiftOccurrence } from '@/features/shifts/api'
 import { useTimesheetShifts } from '../hooks/useTimesheetShifts'
 import { useWorkers } from '@/features/workers/hooks/useWorkers'
@@ -34,7 +34,7 @@ const col = createColumnHelper<ShiftOccurrence>()
 const columns = [
   col.accessor('date', {
     header: 'Date',
-    cell: (info) => <span className="font-mono text-[11px]">{format(new Date(info.getValue()), 'MMM d, yyyy')}</span>,
+    cell: (info) => <span className="font-mono text-[11px]">{format(parseISO(info.getValue()), 'MMM d, yyyy')}</span>,
   }),
   col.accessor((row) => `${row.worker.first_name} ${row.worker.last_name}`, {
     id: 'worker', header: 'Worker',
