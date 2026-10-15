@@ -43,6 +43,7 @@ def main():
             svc.trial_activation_repo.lock_organization.return_value = SimpleNamespace(
                 id=org_id, onboarding_deadline_at=instant(1, 17), billing_timezone="America/St_Johns",
                 subscription_id=sub.id, stripe_customer_id=customer.id, trial_ends_at=anchor,
+                subscription_status="active", trial_starts_at=instant(1, 17),
             )
             svc.agreement_repo.get_for_org.return_value = SimpleNamespace(
                 plan_code="standard", plan_version=3, stripe_price_id=price, base_interval=interval,

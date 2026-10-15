@@ -119,7 +119,7 @@ app.add_middleware(
         "https://careharbor.online",
         "https://homecare-app-git-staging-fumezs-projects.vercel.app",
     ],
-    allow_origin_regex=r"https://homecare-app-.*\.vercel\.app",
+    allow_origin_regex=r"https://homecare(?:-app)?-[a-z0-9-]+-fumezs-projects\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
