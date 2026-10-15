@@ -30,7 +30,7 @@ function ResetPasswordPage() {
             <span className="italic text-muted">Choose a new password.</span>
           </h1>
           <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
-            Your identity has been verified. Pick a strong password — at least 8 characters.
+            Open the link from your recovery email, then choose a strong password — at least 8 characters.
           </p>
         </div>
 

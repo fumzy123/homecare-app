@@ -17,16 +17,42 @@ const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text
 export function ResetPasswordForm() {
   const navigate      = useNavigate()
   const [ready, setReady]             = useState(false)
+  const [checking, setChecking]       = useState(true)
+  const [linkError, setLinkError]      = useState(false)
   const [done,  setDone]              = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm,  setShowConfirm]  = useState(false)
   const [serverError,  setServerError]  = useState<string | null>(null)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true)
+    let disposed = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' && session) {
+        setReady(true)
+        setChecking(false)
+      }
+      if (event === 'SIGNED_OUT') setReady(false)
     })
-    return () => subscription.unsubscribe()
+    // Initialization can finish before this screen mounts. Verify the restored
+    // identity as well as listening for the recovery event; never trust a saved token alone.
+    async function verifySession() {
+      try {
+        const hash = new URLSearchParams(window.location.hash.slice(1))
+        const query = new URLSearchParams(window.location.search)
+        if (hash.has('error') || query.has('error')) throw new Error('Invalid link')
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error || !session) throw new Error('No recovery session')
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (userError || !user) throw new Error('Session unavailable')
+        if (!disposed) setReady(true)
+      } catch {
+        if (!disposed) { setReady(false); setLinkError(true) }
+      } finally {
+        if (!disposed) setChecking(false)
+      }
+    }
+    void verifySession()
+    return () => { disposed = true; subscription.unsubscribe() }
   }, [])
 
   const form = useForm({
@@ -34,6 +60,9 @@ export function ResetPasswordForm() {
     onSubmit: async ({ value }) => {
       setServerError(null)
       try {
+        if (!ready) return
+        schema.parse(value)
+        if (value.password !== value.confirm) throw new Error('Passwords do not match')
         await authApi.setNewPassword(value.password)
         setDone(true)
         setTimeout(() => navigate({ to: '/login' }), 3000)
@@ -56,7 +85,10 @@ export function ResetPasswordForm() {
   if (!ready) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] text-ink-soft">Verifying your reset link…</p>
+        {checking ? <p role="status" className="font-mono text-[11px] text-ink-soft">Verifying your reset link…</p> : <>
+          <p role="alert" className="font-mono text-[11px] text-ink-soft">{linkError ? 'This reset link is missing, expired, or already used. Request a new link to continue.' : 'Your recovery session has ended. Request a new link to continue.'}</p>
+          <Link to="/forgot-password" className="font-mono text-[11px] underline">Request a new reset link</Link>
+        </>}
         <Link
           to="/login"
           className="font-mono text-[10px] text-ink-soft underline underline-offset-2 hover:text-ink transition-colors"

@@ -1,13 +1,13 @@
 import { BoatLogo } from '@/shared/components/ui/BoatLogo'
 import { createFileRoute, redirect, Link } from '@tanstack/react-router'
-import { useAuthStore } from '@/shared/stores/auth'
+import { supabase } from '@/shared/lib/supabase'
 import { RegisterForm } from '@/features/auth/components/RegisterForm'
 import { LegalFooter } from '@/shared/components/LegalFooter'
 
 export const Route = createFileRoute('/register')({
-  beforeLoad: () => {
-    const token = useAuthStore.getState().accessToken
-    if (token) throw redirect({ to: '/dashboard' })
+  beforeLoad: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (!error && user) throw redirect({ to: '/workspace' })
   },
   component: RegisterPage,
 })
