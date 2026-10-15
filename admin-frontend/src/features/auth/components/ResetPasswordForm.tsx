@@ -133,7 +133,7 @@ export function ResetPasswordForm() {
         )}
       </form.Field>
 
-      <form.Field name="confirm" validators={{ onChange: ({ value, fieldApi }) => {
+      <form.Field name="confirm" validators={{ onChangeListenTo: ['password'], onChange: ({ value, fieldApi }) => {
         if (!value.trim()) return 'Required'
         if (value !== fieldApi.form.getFieldValue('password')) return 'Passwords do not match'
         return undefined

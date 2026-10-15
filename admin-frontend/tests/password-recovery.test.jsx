@@ -25,6 +25,30 @@ beforeEach(() => {
 })
 afterEach(async () => { await act(async () => root.unmount()); container.remove() })
 async function render(element = <ResetPasswordForm />) { await act(async () => root.render(element)) }
+async function enter(input, value) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
+
+test('confirmation revalidates when only the new password changes', async () => {
+  fixture.getSession.mockResolvedValue({ data: { session: { user: { id: 'worker' } } }, error: null })
+  await render()
+  const [password, confirm] = container.querySelectorAll('input')
+  await enter(password, 'Fictional-password-one')
+  await enter(confirm, 'Fictional-password-two')
+  expect(container.textContent).toContain('Passwords do not match')
+
+  await enter(password, 'Fictional-password-two')
+  expect(container.textContent).not.toContain('Passwords do not match')
+  expect(confirm.value).toBe('Fictional-password-two')
+
+  await enter(password, 'Fictional-password-three')
+  expect(container.textContent).toContain('Passwords do not match')
+  await act(async () => container.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(fixture.update).not.toHaveBeenCalled()
+})
 
 test('missing session ends verification and offers a new reset link', async () => {
   await render()
