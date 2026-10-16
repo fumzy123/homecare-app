@@ -45,6 +45,7 @@ export function ShiftDetailView({ shiftId, occurrenceDate }: { shiftId: string; 
   const location = shift.location || `${shift.client.street}, ${shift.client.city}`;
 
   return (
+    <>
     <ScrollView
       className="flex-1 px-5"
       contentContainerStyle={{ paddingTop: 18, paddingBottom: 48 }}
@@ -68,7 +69,8 @@ export function ShiftDetailView({ shiftId, occurrenceDate }: { shiftId: string; 
       {['scheduled', 'in_progress', 'completed'].includes(shift.completion_status) && Date.parse(shift.start_time) <= Date.now() ? (
         <Btn className="mt-5" onPress={() => setShowNote(true)}>View / add progress note</Btn>
       ) : null}
-      {showNote ? <ProgressNoteSheet target={{ shiftId, occurrenceDate, clientName: `${shift.client.first_name} ${shift.client.last_name}` }} onClose={() => setShowNote(false)} /> : null}
     </ScrollView>
+    {showNote ? <ProgressNoteSheet key={`${shiftId}:${occurrenceDate}`} target={{ shiftId, occurrenceDate, clientName: `${shift.client.first_name} ${shift.client.last_name}` }} onClose={() => setShowNote(false)} /> : null}
+    </>
   );
 }

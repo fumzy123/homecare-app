@@ -8,10 +8,12 @@ interface BottomSheetProps {
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
+  fullScreen?: boolean;
+  closeLabel?: string;
 }
 
 /** Layer 2: presentation and keyboard handling only. */
-export function BottomSheet({ title, subtitle, onClose, children }: BottomSheetProps) {
+export function BottomSheet({ title, subtitle, onClose, children, fullScreen = false, closeLabel = 'Close sheet' }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const [viewportHeight, setViewportHeight] = useState(0);
   const [keyboardTop, setKeyboardTop] = useState<number | null>(() => Keyboard.metrics()?.screenY ?? null);
@@ -42,20 +44,20 @@ export function BottomSheet({ title, subtitle, onClose, children }: BottomSheetP
     <Modal visible transparent statusBarTranslucent navigationBarTranslucent animationType="none" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} onLayout={event => setViewportHeight(event.nativeEvent.layout.height)}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ justifyContent: 'flex-end', paddingTop: insets.top + 12, ...(availableHeight > 0 ? { height: availableHeight } : { flex: 1 }) }}>
-        <Pressable style={{ position: 'absolute', inset: 0 }} onPress={onClose} accessibilityLabel="Close sheet" accessibilityRole="button" />
-        <Animated.View accessibilityViewIsModal className="rounded-t-3xl bg-paper px-5 pt-5" style={{ maxHeight: '100%', flexShrink: 1, paddingBottom: keyboardTop !== null ? 12 : Math.max(insets.bottom, 20), opacity: entrance,
+        style={{ justifyContent: 'flex-end', paddingTop: fullScreen ? 0 : insets.top + 12, ...(availableHeight > 0 ? { height: availableHeight } : { flex: 1 }) }}>
+        <Pressable style={{ position: 'absolute', inset: 0 }} onPress={onClose} accessibilityLabel={closeLabel} accessibilityRole="button" />
+        <Animated.View accessibilityViewIsModal className={`${fullScreen ? '' : 'rounded-t-3xl'} bg-paper px-5 pt-5`} style={{ maxHeight: '100%', flexShrink: 1, ...(fullScreen ? { flex: 1, paddingTop: insets.top + 20 } : {}), paddingBottom: keyboardTop !== null ? 12 : Math.max(insets.bottom, 20), opacity: entrance,
           transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }}>
           <View className="mb-4 flex-row items-start gap-3">
             <View className="flex-1">
               <Text accessibilityRole="header" className="font-serif text-3xl text-ink">{title}</Text>
               {subtitle ? <Text className="mt-1 text-sm text-ink-soft">{subtitle}</Text> : null}
             </View>
-            <Pressable className="h-11 w-11 items-center justify-center rounded-full border border-cream-2" onPress={onClose} accessibilityRole="button" accessibilityLabel="Close sheet">
-              <Ionicons name="close" size={22} color="#4A453E" />
+            <Pressable className="h-11 w-11 items-center justify-center rounded-full border border-cream-2" onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel}>
+              <Ionicons name={fullScreen ? 'arrow-back' : 'close'} size={22} color="#4A453E" />
             </Pressable>
           </View>
-          <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 8 }}>{children}</ScrollView>
+          <ScrollView key={fullScreen ? 'reader' : 'sheet'} style={{ flexShrink: 1, ...(fullScreen ? { flex: 1 } : {}) }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 8 }}>{children}</ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
       </View>
