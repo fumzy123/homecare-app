@@ -1,6 +1,19 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createEnvironment } = require('./environment.cjs');
+const { execFileSync } = require('node:child_process');
+const { resolve } = require('node:path');
+const profiles = require('../eas.json').build;
+
+function appConfig(appEnv) {
+  const env = { ...process.env };
+  delete env.APP_ENV;
+  delete env.GOOGLE_SERVICES_JSON;
+  if (appEnv !== undefined) env.APP_ENV = appEnv;
+  return JSON.parse(execFileSync(process.execPath,
+    ['-e', 'console.log(JSON.stringify(require("./app.config.js").expo))'],
+    { cwd: resolve(__dirname, '..'), env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+}
 
 const settings = `
 EXPO_PUBLIC_BACKEND_API_URL="https://staging.example.com"
@@ -40,7 +53,7 @@ test('rejects unknown environment names including prototype properties', () => {
 
 test('allows local HTTP but requires HTTPS for hosted environments', () => {
   const local = settings.replace('https://staging.example.com', 'http://127.0.0.1:8000');
-  assert.equal(createEnvironment('local', local).APP_ENV, 'development');
+  assert.equal(createEnvironment('local', local).APP_ENV, 'local');
   assert.throws(() => createEnvironment('staging', local), /must use HTTPS/);
   assert.equal(createEnvironment('production', settings).APP_ENV, 'production');
 });
@@ -60,5 +73,49 @@ test('rejects secret keys and service-role JWTs', () => {
       assert.equal(error.message.includes(key), false);
       return true;
     });
+  }
+});
+
+test('local naming preserves installed identities and tooling mode across environments', () => {
+  for (const [name, label, packageId] of [
+    ['local', 'Care Harbor (Dev)', 'com.homecareapp.worker.dev'],
+    ['staging', 'Care Harbor (Staging)', 'com.homecareapp.worker.staging'],
+    ['production', 'Care Harbor', 'com.homecareapp.worker'],
+  ]) {
+    const env = createEnvironment(name, settings);
+    const config = appConfig(env.APP_ENV);
+    assert.equal(env.APP_ENV, name);
+    assert.equal(env.NODE_ENV, 'development');
+    assert.equal(config.name, label);
+    assert.equal(config.android.package, packageId);
+    assert.equal(config.ios.bundleIdentifier, packageId);
+  }
+  assert.equal(appConfig().android.package, 'com.homecareapp.worker.dev');
+});
+
+test('obsolete or misspelled APP_ENV cannot silently select production identity', () => {
+  for (const name of ['development', 'stagng', '']) {
+    assert.throws(() => appConfig(name), /APP_ENV must be local, staging or production/);
+  }
+});
+
+test('EAS profiles preserve settings groups and identities after the local rename', () => {
+  function resolved(name) {
+    const profile = profiles[name];
+    const parent = profile.extends ? resolved(profile.extends) : {};
+    return { ...parent, ...profile, env: { ...parent.env, ...profile.env } };
+  }
+  for (const [name, appEnv, group, devClient] of [
+    ['development', 'local', 'development', true],
+    ['development-staging', 'staging', 'preview', true],
+    ['preview', 'staging', 'preview', false],
+    ['production', 'production', 'production', false],
+  ]) {
+    const profile = resolved(name);
+    assert.equal(profile.env.APP_ENV, appEnv);
+    assert.equal(profile.environment, group);
+    assert.equal(Boolean(profile.developmentClient), devClient);
+    assert.equal(profile.env.EXPO_NO_DOTENV, '1');
+    assert.equal(appConfig(profile.env.APP_ENV).android.package, appConfig(appEnv).android.package);
   }
 });

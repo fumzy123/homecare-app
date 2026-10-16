@@ -1,14 +1,19 @@
-const APP_ENV = process.env.APP_ENV ?? 'development'
+// Service environments are local, staging and production. EAS profile names
+// and NODE_ENV describe build/tooling choices, not additional services.
+const APP_ENV = process.env.APP_ENV ?? 'local'
+if (!['local', 'staging', 'production'].includes(APP_ENV)) {
+  throw new Error('APP_ENV must be local, staging or production')
+}
 const IS_STAGING = APP_ENV === 'staging'
-const IS_DEV = APP_ENV === 'development'
+const IS_LOCAL = APP_ENV === 'local'
 
-const appName = IS_DEV
+const appName = IS_LOCAL
   ? 'Care Harbor (Dev)'
   : IS_STAGING
   ? 'Care Harbor (Staging)'
   : 'Care Harbor'
 
-const bundleId = IS_DEV
+const bundleId = IS_LOCAL
   ? 'com.homecareapp.worker.dev'
   : IS_STAGING
   ? 'com.homecareapp.worker.staging'

@@ -13,7 +13,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development",
+        "APP_ENV": "local",
         "EXPO_NO_DOTENV": "1"
       }
     },

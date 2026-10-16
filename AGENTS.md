@@ -221,6 +221,12 @@ VITE_APP_ENV=development
 `start:local` reads `.env.local`, `start:staging` reads `.env.staging`, and
 `start:production` reads `.env.production`. Supply matching URLs and a public key
 from the same environment. Neither the Git branch nor `APP_ENV` alone selects these.
+Mobile `APP_ENV` is `local`, `staging` or `production`; local startup and the
+`development` EAS profile use `local`. The four profile names stay `development`,
+`development-staging`, `preview` and `production`; their EAS settings groups are
+`development`, `preview`, `preview` and `production`, respectively, as documented
+in `worker-mobile-app/README.md`. `NODE_ENV=development` describes Metro tooling,
+not another backend environment. Existing app labels and package IDs are preserved.
 
 ```
 EXPO_PUBLIC_BACKEND_API_URL=https://xxxxx.ngrok-free.app   # ngrok tunnel URL (see Mobile Dev Gotchas)
@@ -668,8 +674,8 @@ Run `npm run test:schedule` for date navigation, itinerary, hours and note-statu
 
 Profile read/update, credentials, notification history/read state, shifts,
 clients and visit notes have worker endpoints. They are not missing MVP API work.
-Push device registration and delivery remain MVP backend work; route contracts
-must be designed with the implementation. Attendance/check-in/check-out and
+Push device registration and scheduling-event delivery are implemented; cloud
+configuration and physical-phone acceptance remain release gates. Attendance/check-in/check-out and
 leaderboard APIs are deferred. Availability work is also deferred from the MVP;
 the current working tree has an availability endpoint/hook under development,
 which is not evidence of a completed, tested mobile workflow.
@@ -731,7 +737,12 @@ See `worker-mobile-app/README.md` for configuration and EAS build environment se
 **ngrok:** Microsoft Store install (v3.39.1), available in PATH as `ngrok`. Authtoken saved. Regenerate token at dashboard.ngrok.com if compromised.
 
 ### Expo Go vs Development Builds
-- `expo-notifications` (starting SDK 53) will crash Expo Go immediately on import because native push capabilities were stripped from the Go app. It is currently commented out in `app/onboarding/permissions.tsx`. A custom development build must be created when we are ready to implement Push Notifications.
+- Android remote push requires an installed development or standalone build.
+  Native notification imports are guarded before loading, so Expo Go still runs
+  ordinary workflows and the API-backed inbox. Use `development-staging` with
+  `npm run start:staging:dev -- --tunnel` for staging native development, or
+  `preview` for standalone staging testing. Both execute on the phone; only the
+  development workflow loads changing JavaScript from Metro on the computer.
 
 ### Push registration foundation (2026-10-02)
 

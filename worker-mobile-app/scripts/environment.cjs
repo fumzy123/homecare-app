@@ -1,7 +1,7 @@
 const { parseEnv } = require('node:util');
 
 const environments = {
-  local: { file: '.env.local', appEnv: 'development' },
+  local: { file: '.env.local', appEnv: 'local' },
   staging: { file: '.env.staging', appEnv: 'staging' },
   production: { file: '.env.production', appEnv: 'production' },
 };
