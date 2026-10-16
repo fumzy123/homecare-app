@@ -60,14 +60,14 @@ export function WorkerMe({ openPersonalDetails = false }: { openPersonalDetails?
         <ProfileRow title="Care preferences" icon="heart-outline" detail="Languages, transport and comfort around pets" onPress={() => setPanel('preferences')} />
         <ProfileRow title="Emergency contact" icon="call-outline" detail={profile.emergency_contact_name ? [profile.emergency_contact_name, profile.emergency_contact_relationship].filter(Boolean).join(' · ') : 'Add someone your agency can contact'} last onPress={() => setPanel('emergency')} />
       </View>
+      <View className="mt-6 rounded-3xl border border-cream-2 bg-paper px-4">
+        <ProfileRow title="Settings" icon="settings-outline" detail="Notifications, privacy and account help" last onPress={() => router.push('/settings')} />
+      </View>
       <Pressable accessibilityRole="button" onPress={() => setPanel('support')} className="mt-7 min-h-16 flex-row items-center gap-3">
         <View className="h-11 w-11 items-center justify-center rounded-full bg-mint"><Ionicons name="chatbubble-ellipses-outline" size={22} color="#111" /></View>
         <View className="flex-1 gap-1"><Text className="font-serif text-xl text-ink">Your agency is here for you.</Text><Text className="font-sans text-xs text-ink-soft">Contact your care coordinator</Text></View>
         <Ionicons name="chevron-forward" size={18} color="#111" />
       </Pressable>
-      <View className="mt-6 rounded-3xl border border-cream-2 bg-paper px-4">
-        <ProfileRow title="Settings" icon="settings-outline" detail="Notifications, privacy and account help" last onPress={() => router.push('/settings')} />
-      </View>
       <Pressable accessibilityRole="button" onPress={requestSignOut} disabled={signOut.isPending} className="mt-6 min-h-12 items-center justify-center border-t border-cream-2 pt-4">
         <Text className="font-sans text-sm text-ink-soft">{signOut.isPending ? 'Signing out…' : 'Sign out'}</Text>
       </Pressable>
