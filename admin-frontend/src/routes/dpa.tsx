@@ -6,7 +6,7 @@ export const Route = createFileRoute('/dpa')({
   component: DpaPage,
 })
 
-const EFFECTIVE_DATE = 'Draft dated October 3, 2026'
+const EFFECTIVE_DATE = 'Draft dated October 16, 2026'
 
 function DpaPage() {
   return (
@@ -27,28 +27,36 @@ function DpaPage() {
           Data Processing Agreement
         </h1>
         <p className="font-mono text-[12px] text-ink-soft mb-12 leading-relaxed">
-          This Data Processing Agreement ("DPA") forms part of the Terms of Service between Care Harbor
-          ("Processor") and the home care Agency ("Controller") that has accepted those Terms. It governs
-          the processing of personal data on the Agency's behalf through the Care Harbor platform, in accordance
-          with applicable Canadian privacy legislation including PIPEDA.
+          This draft Data Processing Agreement ("DPA") describes the proposed information-handling
+          agreement between the legal operator of Care Harbor ("Provider") and the home care Agency
+          identified in the final customer agreement. For personal health information subject to
+          Newfoundland and Labrador&apos;s Personal Health Information Act ("PHIA"), it is intended
+          to serve as an Information Management Agreement under section 22. Other applicable privacy
+          laws, including PIPEDA where applicable, continue to apply.
         </p>
 
         <hr className="border-ink mb-12" />
 
         <Section number="1" title="Roles and Responsibilities">
           <p>
-            The Agency acts as the <strong>Controller</strong> — it determines the purposes for which personal data
-            is collected and processed (scheduling and care administration).
+            Where the Agency is a PHIA custodian, the Provider acts as its information manager for
+            the services covered by this agreement. The terms personal health information, custodian
+            and information manager have their meanings under PHIA. The Agency retains custody and
+            control of that information and its own statutory responsibilities.
           </p>
           <p>
-            Care Harbor acts as the <strong>Processor</strong> — it processes personal data only on
-            the Controller's documented instructions and solely to provide the Platform services.
+            The Provider must comply with PHIA, its regulations and this agreement in handling that
+            information. It may use or disclose the information only as this agreement authorises,
+            subject to applicable legal requirements. The Agency&apos;s instructions cannot authorise
+            unlawful handling. These roles do not determine the legal treatment of every worker,
+            account or billing record.
           </p>
+          <Placeholder>Identify both legal entities, addresses, authorised representatives and privacy contacts. Confirm the Agency&apos;s custodian status, the Provider&apos;s role and any health-authority contract requirements. Separately describe the Provider&apos;s own account and billing activities in the Privacy Policy.</Placeholder>
         </Section>
 
         <Section number="2" title="Categories of Personal Data Processed">
           <ul>
-            <li><strong>Client and care records:</strong> identity, contact details, date of birth, addresses, emergency contacts, medical conditions, allergies, medications, care instructions, weekly needs, funding records, visits and progress notes.</li>
+            <li><strong>Client and care records:</strong> identity, contact details, date of birth, addresses, emergency contacts, medical conditions, allergies, medications, care instructions, weekly needs, visits and progress notes.</li>
             <li><strong>Worker records:</strong> identity and contact details, supplied profile information, emergency contacts, employment, availability, preferences, credentials and uploaded documents, schedules and authored notes.</li>
             <li><strong>Service records:</strong> account identifiers and sessions, notification and read state, registered push devices and delivery records, and configured operational logs.</li>
             <li><strong>Visit timing:</strong> scheduled times and derived completion status/hours; these are not GPS-verified attendance or payroll records.</li>
@@ -58,62 +66,73 @@ function DpaPage() {
 
         <Section number="3" title="Purpose and Duration of Processing">
           <p>
-            The Processor processes personal data solely to provide the Platform services as described
-            in the Terms of Service. Processing continues for the duration of the Agency's subscription
-            and for any retention period specified in the Privacy Policy.
+            Authorised services comprise the agreed scheduling, care-record, worker-record and
+            notification functions. Imports, support and troubleshooting involving Agency records
+            require documented Agency authorisation and access limited to the task. Agency records
+            must not be used for the Provider&apos;s advertising, sold, or used to train general-purpose
+            AI models. New purposes require a lawful basis and an agreed written change before use.
           </p>
+          <p>Processing starts on the agreed service date and continues only for the service and the return, retention and deletion arrangements in the completed schedules. Ending a subscription does not itself authorise destruction of care records.</p>
+          <Placeholder>Complete Schedule A with the service start and end arrangements, enabled features, necessary data fields, authorised users and support/import access conditions. Confirm the proposed data-use commitments before execution.</Placeholder>
         </Section>
 
-        <Section number="4" title="Processor Obligations">
-          <p>The Processor agrees to:</p>
+        <Section number="4" title="Provider Obligations">
+          <p>The Provider agrees to:</p>
           <ul>
-            <li>Process personal data only on documented instructions from the Controller</li>
-            <li>Ensure that persons authorised to process personal data are bound by confidentiality</li>
-            <li>Implement appropriate technical and organisational security measures</li>
-            <li>Assist the Controller in responding to individual rights requests</li>
+            <li>Follow lawful documented Agency instructions within the purposes authorised by this agreement</li>
+            <li>Before allowing access to PHIA information, obtain written commitments from employees and persons acting on its behalf to comply with PHIA and this agreement&apos;s restrictions, as required by section 22(5)</li>
+            <li>Limit access to authorised duties, maintain confidentiality, and provide appropriate privacy training</li>
+            <li>Protect records against unauthorised access, use, disclosure, alteration, loss and disposal through the agreed safeguards</li>
+            <li>Assist the Agency with access, correction and complaint requests through the procedure in section 13</li>
             <li>Return or delete personal data under the agreed termination and retention arrangements, subject to applicable legal obligations</li>
-            <li>Provide information necessary to demonstrate compliance with this DPA</li>
+            <li>Keep appropriate evidence of its compliance and cooperate with the agreed compliance checks</li>
           </ul>
         </Section>
 
         <Section number="5" title="Sub-processors">
           <p>The current implementation integrates Supabase (authentication, database and document storage), Vercel (website hosting), Railway (API hosting), Resend (transactional email), Expo and Google Firebase Cloud Messaging (phone notifications), Stripe (agency payments) and Sentry when enabled (error monitoring, website performance traces and masked error-triggered session replay).</p>
-          <Placeholder>Approve a production subprocessor schedule with each legal entity, purpose, data categories, location, contractual role and safeguards. Confirm the change-notification process and any required authorisation. This implementation inventory does not establish that every listed provider acts as a processor for every activity.</Placeholder>
+          <p>The Provider will use providers handling Agency records only within the agreed scope and under written protections appropriate to their role. Delegation does not remove the Provider&apos;s obligations. The approved list must distinguish services enabled for the admin launch from deferred mobile services.</p>
+          <Placeholder>Complete Schedule B with each enabled provider&apos;s legal entity, purpose, data categories, processing/support locations, contractual role and applicable agreements. Verify written commitments throughout the access chain. Agree advance change notice, any required approval or objection process and the remedy if a proposed provider is unacceptable. This inventory alone is not an approved subprocessor list.</Placeholder>
         </Section>
 
         <Section number="6" title="Security Measures">
           <p>Application controls include authentication, role/agency/worker access checks, short-lived signed document download links, secure mobile session storage and HTTPS connections in the hosted setup.</p>
-          <Placeholder>Complete the operational security schedule: encryption at rest, administrator access, backups and restore tests, vulnerability management, incident response, confidentiality and training. These practices have not all been verified by a source-code review.</Placeholder>
+          <p>The Provider will maintain the safeguards agreed in Schedule C for transfer, storage, access, changes and disposal. The Agency and Provider will each maintain the agreed security of the devices, accounts and systems they control.</p>
+          <Placeholder>Complete and verify Schedule C: encryption in transit and at rest, administrator authentication, support access, access/change logs, device requirements, patching, backups, restoration, recovery targets, incident handling, confidentiality and training. Describe each party&apos;s hardware/software responsibilities. A description of application code does not establish that production safeguards have been verified.</Placeholder>
         </Section>
 
         <Section number="7" title="Data Breach Notification">
-          <p>The final agreement must define notification to the Agency, cooperation, available incident details and responsibilities for legally required reporting to individuals and authorities, in accordance with applicable law.</p>
-          <Placeholder>Confirm an achievable notification deadline and incident-response procedure. The previous draft&apos;s fixed 72-hour commitment has not been operationally verified; this draft does not establish that deadline. Obtain review of applicable federal and provincial breach-reporting requirements.</Placeholder>
+          <p>The Provider will notify the designated Agency incident contact without undue delay after becoming aware of a suspected or confirmed privacy breach affecting Agency information. It will take appropriate containment steps, preserve relevant evidence, investigate and provide updates as facts become available. Initial notice must not wait for a complete investigation.</p>
+          <p>Notices will include known timing, affected systems and information, likely consequences, containment measures and a response contact. The parties will coordinate individual and regulator notifications under applicable law. The Agency retains its custodian duties; neither party may use this agreement to delay its own statutory obligations.</p>
+          <Placeholder>Record monitored contacts, an absence/escalation arrangement, the contractual notification deadline and update frequency in Schedule C. Have the incident procedure checked against PHIA sections 15 and 20, the regulations&apos; material-breach factors, and PIPEDA where applicable. No universal 72-hour reporting rule is assumed.</Placeholder>
         </Section>
 
-        <Section number="8" title="Controller Obligations">
-          <p>The Controller agrees to:</p>
+        <Section number="8" title="Agency Obligations">
+          <p>The Agency agrees to:</p>
           <ul>
-            <li>Ensure it has a lawful basis to provide personal data to the Processor</li>
+            <li>Establish its authority to provide the information to the Provider, including consent where required</li>
             <li>Ensure individuals whose data is processed have been appropriately informed</li>
-            <li>Not instruct the Processor to process data in a manner that violates applicable law</li>
+            <li>Provide lawful instructions, designate privacy and incident contacts, and approve access only for authorised duties</li>
+            <li>Maintain its own required notices, confidentiality commitments, training and record-retention decisions</li>
+            <li>Notify the Provider of relevant access changes, restrictions, requests and preservation requirements</li>
           </ul>
         </Section>
 
         <Section number="9" title="Cross-border Data Transfers">
           <p>
-            Some subprocessors may process personal data outside Canada. The Processor will remain
+            Some subprocessors may process personal data outside Canada. The Provider will remain
             accountable for personal data transferred to its subprocessors and will use contractual and
             technical safeguards appropriate to the sensitivity of the information.
           </p>
           <Placeholder>
-            Confirm production data regions and identify the countries involved before launch.
+            Confirm storage, backup, support and other processing locations in Schedule B and assess the legal authority and safeguards for transfers, including PHIA section 47 where applicable. Check the Agency&apos;s contractual location restrictions. A Canadian database region alone does not establish that all processing remains in Canada.
           </Placeholder>
         </Section>
 
         <Section number="10" title="Term, Return and Deletion">
           <p>The agreement covers the agency service and the agreed period for return, deletion and any legally required retention. Deactivating an account alone does not delete stored care, employment or document records.</p>
-          <Placeholder>Agree and implement export and deletion procedures, identity/authority checks, retained-record reasons and periods, backup handling and subprocessor requests before execution. The previous draft&apos;s 30-day deletion and written-confirmation promise is not yet supported by a verified process.</Placeholder>
+          <p>On termination, the Provider will return or securely transfer Agency records using the agreed format and process, then remove copies according to Schedule D, subject to lawful retention or preservation requirements. Retained copies must remain protected, restricted to the retention purpose and scheduled for review or deletion. A completion record must distinguish completed removal from outstanding provider or backup expiry.</p>
+          <Placeholder>Complete and test Schedule D: category-specific retention grounds and periods, access during exit, export contents/format, transfer method, deadlines, fees, identity/authority checks, legal holds, secure destruction, provider cleanup and backup expiry. Define how completed deletions are reapplied after restoration. The worker-account helper is not a complete agency export/deletion service; no fixed 30-day deletion promise is made.</Placeholder>
         </Section>
 
         <Section number="11" title="Governing Law">
@@ -127,9 +146,18 @@ function DpaPage() {
 
         <Section number="12" title="Execution">
           <p>
-            This DPA is incorporated by reference into the Terms of Service. The Agency's acceptance of
-            the Terms of Service by an authorised representative constitutes acceptance of this DPA on behalf of the Controller. A worker signing into the mobile app does not by that action accept this agreement on the Agency&apos;s behalf.
+            Once finalised, this DPA and its completed schedules will form part of the customer agreement.
+            Acceptance must identify the parties, authorised representatives, accepted documents and
+            versions, and acceptance date. A worker signing into the mobile app does not accept this
+            agreement on the Agency&apos;s behalf.
           </p>
+          <Placeholder>Agree signatures or a reviewed electronic acceptance process and document precedence with the Terms. Complete Schedules A–D and retain an immutable copy of the accepted package. Draft-version acceptance is not acceptance of a future final agreement; publish and obtain acceptance of the reviewed final version before customer use.</Placeholder>
+        </Section>
+
+        <Section number="13" title="Requests, Accuracy and Compliance Checks">
+          <p>The Provider will route requests concerning Agency care records to the designated Agency contact and assist with locating, securely exporting and correcting records. It will verify identity and authority before disclosure or changes, preserve required history, and record authorised corrections without silently replacing original care entries. Requests concerning the Provider&apos;s own activities will be handled under its Privacy Policy.</p>
+          <p>The Provider will supply relevant compliance information and cooperate with proportionate reviews, including agreed audits. Reviews must protect other customers&apos; information and security credentials and do not restrict lawful regulator powers.</p>
+          <Placeholder>In Schedules C and D, agree request escalation and response times that support statutory deadlines, correction and integrity checks, complaint handling, audit scope/frequency, notice, costs, evidence access and remediation. Verify the necessary export and history-preservation capabilities before promising them.</Placeholder>
         </Section>
 
         <hr className="border-ink mt-12 mb-8" />
