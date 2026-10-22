@@ -2,6 +2,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
+import type { DevicePushToken } from 'expo-notifications';
 import { supabase } from '@/shared/lib/api-client';
 import { revokePushDevice, savePushDevice } from '../api';
 
@@ -47,7 +48,7 @@ export function unregisterPush() {
   return serial(revoke);
 }
 
-export function registerPush(userId: string, requestPermission = false) {
+export function registerPush(userId: string, requestPermission = false, devicePushToken?: DevicePushToken) {
   return serial(async () => {
     const notifications = await nativeNotifications();
     if (!notifications) return 'unsupported' as const;
@@ -68,7 +69,9 @@ export function registerPush(userId: string, requestPermission = false) {
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const appId = Constants.expoConfig?.android?.package;
     if (!projectId || !appId) throw new Error('Push configuration is missing');
-    const token = (await notifications.getExpoPushTokenAsync({ projectId })).data;
+    // Android's native token getter emits a token event, even for an unchanged
+    // token. Reuse listener-supplied tokens to avoid recursively registering.
+    const token = (await notifications.getExpoPushTokenAsync({ projectId, ...(devicePushToken ? { devicePushToken } : {}) })).data;
     const { data: { session } } = await supabase.auth.getSession();
     if (enabledUser !== userId || session?.user.id !== userId) return 'off' as const;
     if (!saved) {

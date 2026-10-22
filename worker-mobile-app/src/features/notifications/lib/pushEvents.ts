@@ -1,4 +1,4 @@
-import type { NotificationResponse } from 'expo-notifications';
+import type { DevicePushToken, NotificationResponse } from 'expo-notifications';
 type Notifications = typeof import('expo-notifications');
 
 // Navigation remains a caller-owned, fixed authenticated destination. Payload URLs
@@ -8,7 +8,7 @@ export function installPushEvents(
   isCurrentAccount: () => boolean,
   openInbox: () => void,
   refreshData: () => void,
-  refreshToken: () => void,
+  refreshToken: (token: DevicePushToken) => void,
 ) {
   let active = true;
   let lastOpened: string | undefined;
@@ -28,7 +28,7 @@ export function installPushEvents(
   }) });
   const taps = notifications.addNotificationResponseReceivedListener(open);
   const received = notifications.addNotificationReceivedListener(() => { if (allowed()) refreshData(); });
-  const tokens = notifications.addPushTokenListener(() => { if (allowed()) refreshToken(); });
+  const tokens = notifications.addPushTokenListener(token => { if (allowed()) refreshToken(token); });
   const last = notifications.getLastNotificationResponse();
   if (last) open(last);
   return () => {

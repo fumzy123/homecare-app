@@ -3,14 +3,20 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const ts = require('typescript');
 
-function setup({ go = false, granted = true, put } = {}) {
+function setup({ go = false, granted = true, put, onNativeToken } = {}) {
   let saved = null;
   const calls = [];
+  const tokenOptions = [];
   const notifications = {
     AndroidImportance: { HIGH: 4 },
     setNotificationChannelAsync: async () => {},
     getPermissionsAsync: async () => ({ granted, canAskAgain: true }),
-    getExpoPushTokenAsync: async () => ({ data: 'ExpoPushToken[test]' }),
+    getExpoPushTokenAsync: async options => {
+      tokenOptions.push(options);
+      // SDK 57 Android emits a token event whenever the native getter runs.
+      if (!options.devicePushToken) onNativeToken?.({ type: 'android', data: 'native-test-token' });
+      return { data: 'ExpoPushToken[test]' };
+    },
   };
   const mocks = {
     'expo-constants': { default: { executionEnvironment: go ? 'store' : 'standalone', expoConfig: { extra: { eas: { projectId: 'project' } }, android: { package: 'com.homecareapp.worker.staging' } } }, ExecutionEnvironment: { StoreClient: 'store' } },
@@ -34,7 +40,7 @@ function setup({ go = false, granted = true, put } = {}) {
     if (go && name === 'expo-notifications') throw Error('Native import in Expo Go');
     return mocks[name];
   }, module.exports, module);
-  return { ...module.exports, calls, saved: () => JSON.parse(saved) };
+  return { ...module.exports, calls, tokenOptions, saved: () => JSON.parse(saved) };
 }
 
 test('Expo Go never imports native push', async () => {
@@ -84,7 +90,18 @@ test('an old user cannot register after the active account changes', async () =>
   assert.equal(app.calls.length, 0);
 });
 
-function eventsSetup(lastResponse = null) {
+test('token event registration reuses the native token without requesting another', async () => {
+  let nativeReads = 0;
+  const app = setup({ onNativeToken: () => nativeReads++ });
+  app.setPushUser('worker');
+  const devicePushToken = { type: 'android', data: 'rotated-test-token' };
+  assert.equal(await app.registerPush('worker', false, devicePushToken), 'registered');
+  assert.equal(nativeReads, 0);
+  assert.deepEqual(app.tokenOptions, [{ projectId: 'project', devicePushToken }]);
+  assert.equal(app.calls.filter(call => call[0] === 'register').length, 1);
+});
+
+function eventsSetup(lastResponse = null, refreshToken) {
   const code = ts.transpileModule(readFileSync(require.resolve('../src/features/notifications/lib/pushEvents.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   const module = { exports: {} };
   new Function('exports', 'module', code)(module.exports, module);
@@ -99,10 +116,47 @@ function eventsSetup(lastResponse = null) {
     clearLastNotificationResponseAsync: async () => calls.push('clear'),
   };
   const cleanup = module.exports.installPushEvents(notifications, () => current,
-    () => calls.push('inbox'), () => calls.push('refresh'), () => calls.push('register'));
+    () => calls.push('inbox'), () => calls.push('refresh'), token => { calls.push('register'); refreshToken?.(token); });
   return { listeners, calls, cleanup, handler: () => handler, changeAccount: () => { current = false; } };
 }
 const tap = { actionIdentifier: 'default', notification: { request: { identifier: 'notice-1', content: { data: { url: 'https://untrusted.example' } } } } };
+
+test('native token events forward their exact token and stop after account change or cleanup', () => {
+  const forwarded = [];
+  const app = eventsSetup(null, token => forwarded.push(token));
+  const first = { type: 'android', data: 'first-native-token' };
+  const rotated = { type: 'android', data: 'rotated-native-token' };
+  app.listeners.token(first); app.listeners.token(rotated);
+  assert.deepEqual(forwarded, [first, rotated]);
+  app.changeAccount(); app.listeners.token(first);
+  app.cleanup(); app.listeners.token(rotated);
+  assert.equal(forwarded.length, 2);
+});
+
+test('registration and its Android token event settle without an endless registration loop', async () => {
+  let nativeReads = 0;
+  const followups = [];
+  const failures = [];
+  let events;
+  const app = setup({ onNativeToken: token => {
+    if (++nativeReads > 3) throw new Error('Recursive native token request');
+    events.listeners.token(token);
+  } });
+  app.setPushUser('worker');
+  events = eventsSetup(null, token => {
+    followups.push(app.registerPush('worker', false, token).catch(error => { failures.push(error); }));
+  });
+  assert.equal(await app.registerPush('worker', true), 'registered');
+  // Process any follow-ups added during registration, including a regression loop.
+  for (let i = 0; i < followups.length; i++) await followups[i];
+  assert.equal(nativeReads, 1);
+  assert.equal(followups.length, 1);
+  assert.deepEqual(failures, []);
+  assert.equal(app.calls.filter(call => call[0] === 'register').length, 2);
+  events.cleanup();
+  await app.unregisterPush();
+  assert.equal(app.saved().owner, undefined);
+});
 
 test('cold-start and background taps open the inbox once and ignore payload URLs', () => {
   const app = eventsSetup(tap);

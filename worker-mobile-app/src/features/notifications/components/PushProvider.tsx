@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { router } from 'expo-router';
+import type { DevicePushToken } from 'expo-notifications';
 import { useAuthStore } from '@/shared/lib/auth-store';
 import { useWorkerEntry } from '@/features/auth/hooks/useWorkerEntry';
 import { usePushRegistration } from '../hooks/usePushRegistration';
@@ -26,10 +27,10 @@ export function PushProvider({ children }: { children: ReactNode }) {
     setPushUser(activeUser);
     let alive = true;
     let cleanupNative = () => {};
-    async function refresh() {
+    async function refresh(devicePushToken?: DevicePushToken) {
       try {
         if (!activeUser) { await unregisterPush(); if (alive) setStatus(supportsPush() ? 'off' : 'unsupported'); return; }
-        const result = await mutateAsync({ userId: activeUser, requestPermission: false });
+        const result = await mutateAsync({ userId: activeUser, requestPermission: false, devicePushToken });
         if (alive) setStatus(result);
       } catch { if (alive) setStatus('error'); }
     }
@@ -39,7 +40,7 @@ export function PushProvider({ children }: { children: ReactNode }) {
       if (!notifications || !alive || !activeUser) return;
       cleanupNative = installPushEvents(notifications,
         () => alive && useAuthStore.getState().user?.id === activeUser,
-        () => router.push('/notifications'), refreshData, () => { void refresh(); });
+        () => router.push('/notifications'), refreshData, token => { void refresh(token); });
     }).catch(() => { if (alive) setStatus('error'); });
     return () => { alive = false; setPushUser(null); subscription.remove(); cleanupNative(); };
   }, [userId, ready, loading, mutateAsync, refreshData]);
