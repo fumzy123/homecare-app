@@ -1,7 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ShiftStatusBadge } from '@/features/shifts/components/ShiftStatusBadge';
-import { serviceTypeLabel } from '@/features/shifts/lib/schedule';
 import type { WorkerShiftDetail } from '@/features/shifts/types';
 import { formatTime } from '@/shared/utils/formatTime';
 
@@ -18,7 +17,7 @@ export function ClientVisitCard({ visit, recorded, onPress }: {
         <Text className="mt-1 font-serif text-3xl text-ink">{day.getDate()}</Text>
       </View>
       <View className="flex-1">
-        <Text className="font-serif text-xl text-ink">{serviceTypeLabel(visit.service_type)}</Text>
+        <Text className="font-serif text-xl text-ink">Care visit</Text>
         <Text className="mb-3 mt-1 font-mono text-[11px] text-ink-soft">{formatTime(visit.start_time)} – {formatTime(visit.end_time)}</Text>
         <ShiftStatusBadge status={visit.completion_status} />
       </View>

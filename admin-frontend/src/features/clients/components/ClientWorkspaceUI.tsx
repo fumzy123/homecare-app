@@ -78,11 +78,13 @@ export function ClientDialog({
   children,
   onClose,
   wide = false,
+  compact = false,
 }: {
   title: string
   children: ReactNode
   onClose: () => void
   wide?: boolean
+  compact?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -94,7 +96,7 @@ export function ClientDialog({
   return (
     <dialog
       ref={ref}
-      className={`cw-dialog client-workspace ${wide ? 'cw-dialog-wide' : ''}`}
+      className={`cw-dialog client-workspace ${wide ? 'cw-dialog-wide' : ''} ${compact ? 'cw-dialog-compact' : ''}`}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()

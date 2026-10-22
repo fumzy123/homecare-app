@@ -1,4 +1,4 @@
-import { WEEKDAY_LABELS } from '@/features/authorizations/constants'
+import { WEEKDAY_LABELS } from '@/features/weekly-care-need/constants'
 import type { Assignment } from '../api'
 
 export function slotLabel(assignment: Assignment) {

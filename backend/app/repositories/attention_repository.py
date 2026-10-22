@@ -11,7 +11,6 @@ from app.models.weekly_care_need import WeeklyCareNeed
 from app.models.placement import Placement, CareSlotAssignment, PlacementInterest
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.repositories.authorization_repository import AuthorizationRepository
 
 
 class AttentionRepository:
@@ -59,9 +58,6 @@ class AttentionRepository:
             or_(Credential.expiry_date <= today + timedelta(days=30),
                 and_(Credential.file_url.isnot(None), Credential.verified_at.is_(None))),
         ).all()
-
-    def authorizations(self, org_id):
-        return AuthorizationRepository(self.db).list_for_org_with_client(org_id)
 
     def shifts(self, org_id, from_date, to_date):
         # Include recurring series and all explicit modifications. Expansion and

@@ -17,7 +17,7 @@ def push_message(delivery):
 
 def schedule_snapshot(shift):
     return tuple(getattr(shift, field, None) for field in (
-        'worker_id', 'client_id', 'start_time', 'end_time', 'service_type',
+        'worker_id', 'client_id', 'start_time', 'end_time',
         'is_recurring', 'recurrence_rule', 'recurrence_end_date', 'location', 'notes'))
 
 

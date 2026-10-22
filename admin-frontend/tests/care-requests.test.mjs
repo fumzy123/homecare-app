@@ -6,8 +6,16 @@ import {
   selectWorkerSlots,
   requestDate,
   sortCareSlots,
+  firstCareVisitDate,
+  requestNotes,
 } from '../src/features/placements/lib/careRequests.ts'
 import { weeklyHours } from '../src/features/clients/lib/care.ts'
+
+test('scheduled-care link uses the first selected visit, including a week/year boundary', () => {
+  assert.equal(firstCareVisitDate([{ day_of_week: 'MO' }, { day_of_week: 'WE' }], '2026-10-17'), '2026-10-19')
+  assert.equal(firstCareVisitDate([{ day_of_week: 'FR' }], '2026-12-31'), '2027-01-01')
+  assert.equal(firstCareVisitDate([{ day_of_week: 'SA' }], '2026-10-17'), '2026-10-17')
+})
 
 test('care slots display in weekday and time order rather than the API enum order', () => {
   const slots = [
@@ -92,4 +100,19 @@ test('hours reflect actual slot lengths, and calendar dates never shift with UTC
   assert.equal(weeklyHours(p.care_slots.slice(0, 2)), 5.5)
   assert.equal(requestDate('2026-10-01'), 'Oct 1, 2026')
   assert.equal(requestDate(null), 'Not set')
+})
+
+test('active roster selection without interest explicitly records admin-arranged coverage', () => {
+  assert.deepEqual(validSelections(p, { short: 'office', long: 'daniel', covered: 'office', unknown: 'office' }, ['office']), [
+    { care_slot_id: 'short', employment_id: 'office', assignment_source: 'admin_arranged' },
+    { care_slot_id: 'long', employment_id: 'daniel' },
+  ])
+  assert.deepEqual(validSelections(p, { short: 'office' }, []), [])
+})
+
+ test('posted notes separate the stored optional notes marker without dropping free text', () => {
+  assert.deepEqual(requestNotes('Bath and cooking.\n\nAdditional notes:\nOne cat.'), { care: 'Bath and cooking.', additional: 'One cat.' })
+  assert.deepEqual(requestNotes('Additional notes:\nOne cat.'), { care: '', additional: 'One cat.' })
+  assert.deepEqual(requestNotes('Keep Additional notes: in this sentence.'), { care: 'Keep Additional notes: in this sentence.', additional: '' })
+  assert.deepEqual(requestNotes(null), { care: '', additional: '' })
 })

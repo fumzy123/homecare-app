@@ -23,7 +23,7 @@ class Placement(Base):
     # shift generation on fill. Nullable for placements posted before this field.
     start_date        = Column(Date, nullable=True)
     # Structured weekly care need frozen at post time — the schedule that gets
-    # generated on fill. List of {day_of_week, start_time, end_time, service_type}.
+    # generated on fill. List of {day_of_week, start_time, end_time}.
     care_slot_snapshot = Column(JSONB, nullable=True)
     status            = Column(Enum(PlacementStatus), nullable=False, default=PlacementStatus.open)
     filled_by         = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=True)
@@ -61,12 +61,14 @@ class CareSlotAssignment(Base):
         Index('uq_care_slot_open_assignment', 'care_slot_id', unique=True,
               postgresql_where=text('ends_before IS NULL'), sqlite_where=text('ends_before IS NULL')),
         CheckConstraint('ends_before IS NULL OR ends_before >= starts_on', name='ck_assignment_dates'),
+        CheckConstraint("assignment_source IN ('worker_interest', 'admin_arranged')", name='ck_assignment_source'),
     )
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     care_slot_id = Column(UUID(as_uuid=True), ForeignKey('care_slots.id'), nullable=False, index=True)
     placement_id = Column(UUID(as_uuid=True), ForeignKey('placements.id'), nullable=False, index=True)
     employment_id = Column(UUID(as_uuid=True), ForeignKey('employments.id'), nullable=False)
     approved_by = Column(UUID(as_uuid=True), ForeignKey('employments.id'), nullable=False)
+    assignment_source = Column(String, nullable=False, default='worker_interest', server_default='worker_interest')
     starts_on = Column(Date, nullable=False)
     # Exclusive boundary: no visits from this agency-local date onward.
     ends_before = Column(Date, nullable=True)

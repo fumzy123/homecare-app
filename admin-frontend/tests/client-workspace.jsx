@@ -17,7 +17,6 @@ import { ClientWorkspace } from '../src/features/clients/components/ClientWorksp
 import { ClientDirectory } from '../src/features/clients/components/ClientDirectory'
 import { ClientOverview } from '../src/features/clients/components/ClientOverview'
 import { ClientCareMetrics } from '../src/features/clients/components/ClientCareMetrics'
-import { ClientFunding } from '../src/features/clients/components/ClientFunding'
 import { ClientNotes } from '../src/features/clients/components/ClientNotes'
 import { ClientEdit } from '../src/features/clients/components/ClientEdit'
 import { WeeklyCareNeedEditor } from '../src/features/weekly-care-need/components/WeeklyCareNeedEditor'
@@ -103,7 +102,6 @@ let clients = [
     city: 'St. John’s',
     province: 'NL',
     postal_code: 'A1B 2K3',
-    care_arrangement: 'funded',
     status: 'active',
     allergies: 'Penicillin',
     medical_conditions: 'Osteoarthritis; reduced mobility',
@@ -119,37 +117,10 @@ let clients = [
       coverage: [i === 0 ? 'Mon · Wed · Fri' : 'Tue · Thu'],
     })),
     service_types: ['personal_care', 'homemaking'],
-    care_start: day(-90),
-    care_end: day(90),
     coverage: 'covered',
     created_at: stamp,
     updated_at: stamp,
     current_care_need: needs[1],
-  },
-]
-let auths = [
-  {
-    id: 'auth-1',
-    client_id: id,
-    funder: 'NL Health Services',
-    authorization_number: 'NL-2026-0482',
-    funder_file_number: null,
-    covering_start: day(-90),
-    covering_end: day(90),
-    date_issued: null,
-    authorized_by: null,
-    hours_period: 'bi_weekly',
-    client_monthly_contribution_amount: null,
-    invoice_to: null,
-    cancelled_at: null,
-    supersedes_id: null,
-    notes: null,
-    created_at: stamp,
-    status: 'active',
-    services: [
-      { id: 'as-1', service_type: 'personal_care', authorized_hours: 28 },
-      { id: 'as-2', service_type: 'homemaking', authorized_hours: 4 },
-    ],
   },
 ]
 const visits = [1, 2, 3, 4, 5].map((n, i) => ({
@@ -238,7 +209,6 @@ apiClient.defaults.adapter = async (config) => {
     return response(config, {
       id: 'fixture-org',
       name: 'Care Harbor',
-      uses_authorizations: true,
     })
   if (url === '/api/org-members?role=home_support_worker')
     return response(config, workers)
@@ -278,19 +248,6 @@ apiClient.defaults.adapter = async (config) => {
       return response(config, n)
     }
     return response(config, needs)
-  }
-  if (url === `/api/clients/${id}/authorizations`) {
-    if (method === 'post') {
-      const a = { ...auths[0], ...body, id: crypto.randomUUID() }
-      if (a.supersedes_id)
-        auths = auths.map((old) => ({
-          ...old,
-          status: old.id === a.supersedes_id ? 'superseded' : old.status,
-        }))
-      auths.unshift(a)
-      return response(config, a)
-    }
-    return response(config, auths)
   }
   if (url === `/api/clients/${id}/notes`)
     return response(
@@ -406,7 +363,6 @@ const pages = [
   ['/', ClientOverview],
   ['visits', ClientCareMetrics],
   ['care-need', WeeklyCareNeedEditor],
-  ['funding', ClientFunding],
   ['notes', ClientNotes],
   ['edit', ClientEdit],
 ].map(([path, Component]) =>

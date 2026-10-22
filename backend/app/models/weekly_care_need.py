@@ -53,7 +53,7 @@ class WeeklyCareNeed(Base):
 
 
 class CareSlot(Base):
-    """A recurring day/time/service requirement belonging to one immutable version."""
+    """A recurring day/time requirement belonging to one immutable version."""
 
     __tablename__ = "care_slots"
 
@@ -70,7 +70,8 @@ class CareSlot(Base):
     day_of_week = Column(Enum(WeekDay), nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-    service_type = Column(Enum(ServiceType), nullable=False)
+    # Retired classification: retained only for historical data, never required or used.
+    service_type = Column(Enum(ServiceType), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     client = relationship(

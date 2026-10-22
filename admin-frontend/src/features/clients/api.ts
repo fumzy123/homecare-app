@@ -3,27 +3,11 @@ import type { NoteEntry } from '@/features/shifts/api'
 import type { WeeklyCareNeed } from '@/features/weekly-care-need/api'
 
 export type ClientStatus = 'active' | 'on_hold' | 'discharged'
-export type ServiceType =
-  | 'personal_care'
-  | 'companionship'
-  | 'respite'
-  | 'nursing'
-  | 'homemaking'
-export type AuthorizationCoverage = 'covered' | 'lapsed'
-export type CareArrangement = 'self_pay' | 'funded'
 
 export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
   active: 'Active',
   on_hold: 'On Hold',
   discharged: 'Discharged',
-}
-
-export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  personal_care: 'Personal Care',
-  companionship: 'Companionship',
-  respite: 'Respite',
-  nursing: 'Nursing',
-  homemaking: 'Homemaking',
 }
 
 export interface Client {
@@ -54,13 +38,7 @@ export interface Client {
   emergency_contact_phone: string
   emergency_contact_relationship: string
   status: ClientStatus
-  care_arrangement: CareArrangement
   notes: string | null
-  // Derived from authorizations (not stored on the client)
-  service_types: ServiceType[]
-  care_start: string | null
-  care_end: string | null
-  coverage: AuthorizationCoverage
   created_at: string
   updated_at: string | null
 }
@@ -84,7 +62,6 @@ export interface ClientCreatePayload {
   emergency_contact_phone: string
   emergency_contact_relationship: string
   status: ClientStatus
-  care_arrangement?: CareArrangement
   notes?: string | null
 }
 

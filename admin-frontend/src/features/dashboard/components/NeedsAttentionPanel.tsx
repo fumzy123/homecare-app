@@ -5,7 +5,6 @@ import { format } from 'date-fns'
 import { Card, Kicker } from '@/shared/components/ui'
 import type { ShiftOccurrence } from '@/features/shifts/api'
 import { useExpiringCredentials } from '@/features/workers/hooks/useExpiringCredentials'
-import { useExpiringAuthorizations } from '@/features/authorizations/hooks/useAuthorizations'
 import { DOCUMENT_LABELS } from '@/features/workers/constants'
 import { AttentionReviewSection } from './AttentionReviewSection'
 import { CareActions } from './CareActions'
@@ -24,9 +23,7 @@ export function NeedsAttentionPanel({
   droppedShifts, droppedPending, droppedError, onRetryDropped, onSelectShift, children,
 }: NeedsAttentionPanelProps) {
   const credentials = useExpiringCredentials()
-  const authorizations = useExpiringAuthorizations()
   const expiringCredentials = [...(credentials.data ?? [])].sort((a, b) => a.days_remaining - b.days_remaining)
-  const expiringAuthorizations = [...(authorizations.data ?? [])].sort((a, b) => a.days_remaining - b.days_remaining)
   const dropped = [...droppedShifts].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
   const needsCoverage = !droppedPending && !droppedError && dropped.length > 0
 
@@ -86,20 +83,6 @@ export function NeedsAttentionPanel({
           </li>)}
         </AttentionReviewSection>
 
-        <AttentionReviewSection title="Care authorizations" description="Renewals within the next 15 days"
-          count={expiringAuthorizations.length} action="Review clients" isPending={authorizations.isPending} isError={authorizations.isError}
-          onRetry={() => void authorizations.refetch()}
-          emptyMessage="No upcoming expirations. Client records may still have missing or already expired authorizations."
-          emptyAction={<Link to="/dashboard/clients" className="inline-flex items-center gap-2 hover:underline">Review clients<ArrowRight size={14} aria-hidden="true" /></Link>}>
-          {expiringAuthorizations.map((authorization) => <li key={authorization.authorization_id}>
-            <Link to="/dashboard/clients/$clientId/care-need" params={{ clientId: authorization.client_id }}
-              className="flex items-start justify-between gap-3 px-6 py-4 hover:bg-cream-2 transition-colors">
-              <span className="min-w-0"><span className="block text-[12px] font-medium">{authorization.client_first_name} {authorization.client_last_name}</span>
-                <span className="block mt-1 font-mono text-[10px] text-ink-soft break-words">{authorization.funder} · {authorization.authorization_number}</span></span>
-              <span className="shrink-0 text-right font-mono text-[10px]"><span className={authorization.days_remaining <= 7 ? 'text-orange' : 'text-ink-soft'}>{authorization.days_remaining === 0 ? 'Today' : `${authorization.days_remaining}d`}</span><span className="block mt-1 text-ink-soft">{authorization.covering_end}</span></span>
-            </Link>
-          </li>)}
-        </AttentionReviewSection>
         {children}
         <CareActions />
       </section>

@@ -143,19 +143,6 @@ let entries = [
     unread: false,
     target: { ...target("credential", 6), document_type: "first_aid_cpr" },
   },
-  {
-    id: "event:" + id(34),
-    situation_key: "authorization:" + id(7),
-    category: "authorizations",
-    kind: "completed",
-    title: "Amended funding authorization",
-    detail: "Jane Doe · Renewed through December",
-    actor: "Amara Wilson",
-    mine: false,
-    created_at: now(),
-    unread: false,
-    target: { ...target("authorization", 7), detail_id: id(8) },
-  },
 ];
 let overtime = {
   id: id(3),

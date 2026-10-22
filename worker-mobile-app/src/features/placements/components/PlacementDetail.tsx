@@ -33,7 +33,7 @@ export function PlacementDetail({ placementId }: { placementId: string }) {
       disabled={!open || !!slot.worker_id || !slot.id || busy} onPress={() => toggle(slot.id)}
       className={`mb-3 rounded-xl border border-ink p-4 ${chosen.includes(slot.id) ? 'bg-mint-soft' : 'bg-paper'}`}>
       <Text className="font-sans font-semibold text-ink">{chosen.includes(slot.id) ? '✓ ' : ''}{dayNames[slot.day_of_week] ?? slot.day_of_week} · {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}</Text>
-      <Text className="mt-1 text-sm text-ink-soft">{slot.service_type.replaceAll('_', ' ')}</Text>
+      <Text className="mt-1 text-sm text-ink-soft">Care visit</Text>
       <Text className="mt-2 text-sm text-ink">{slot.worker_name ? `Approved · ${slot.worker_name}` : 'Available'}</Text>
     </Pressable>)}
     {!p.care_slots.some(slot => slot.id) && <Text className="mt-2 text-ink-soft">This earlier placement needs to be reposted by your agency.</Text>}

@@ -65,11 +65,3 @@ export function uniqueClientCount(shifts: ShiftOccurrence[]): number {
       .map((shift) => shift.client.id),
   ).size;
 }
-
-export function serviceTypeLabel(value: string | null): string {
-  if (!value) return 'Care shift';
-  return value
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}

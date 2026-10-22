@@ -477,50 +477,6 @@ button.cw-slot:hover {
 .cw-form-full {
   grid-column: 1/-1;
 }
-.cw-editor-group {
-  border: 1px solid var(--cw-border);
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.cw-slot-inputs {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
-  gap: 14px;
-  align-items: end;
-}
-.cw-day-picker {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  margin-top: 16px;
-}
-.cw-day-picker label {
-  cursor: pointer;
-}
-.cw-day-picker input {
-  accent-color: var(--color-ink);
-  margin-right: 6px;
-}
-.cw-day-picker span {
-  display: inline-flex;
-  padding: 8px 10px;
-  border: 1px solid var(--cw-border);
-  background: var(--color-cream);
-}
-.cw-day-picker label:has(input:checked) span {
-  background: var(--color-ink);
-  color: var(--color-paper);
-}
-.cw-funding-strip {
-  padding: 16px 24px;
-  background: #edf0e5;
-  border-block: 1px solid var(--cw-border);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  font-size: 12px;
-}
 .cw-workbench-footer {
   padding: 20px 24px;
   display: flex;
@@ -573,6 +529,14 @@ button.cw-slot:hover {
 }
 .cw-dialog-wide {
   width: min(1000px, 96vw);
+}
+.cw-dialog-compact {
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-height: 90dvh;
+  width: min(500px, calc(100vw - 32px));
+  border: 1px solid var(--color-ink);
 }
 .cw-dialog-content {
   padding: 24px;
@@ -631,12 +595,6 @@ button.cw-slot:hover {
   }
   .cw-facts dd {
     font-size: 13px;
-  }
-  .cw-slot-inputs {
-    grid-template-columns: 1fr 1fr;
-  }
-  .cw-slot-inputs > label:first-child {
-    grid-column: 1/-1;
   }
   .cw-form-grid {
     grid-template-columns: 1fr;

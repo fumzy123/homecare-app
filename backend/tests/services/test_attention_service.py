@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-from app.core.enums import CareArrangement, ComplianceDocumentType, ShiftCompletionStatus, OrgMemberRole
+from app.core.enums import ComplianceDocumentType, ShiftCompletionStatus, OrgMemberRole
 from app.services.attention_service import AttentionService
 
 
@@ -26,13 +26,13 @@ def service(monkeypatch):
     service.org_repo = MagicMock()
     service.org_repo.get_by_id.return_value = NS(billing_timezone='America/St_Johns')
     service.attention_repo = MagicMock()
-    for name in ['clients', 'care_needs', 'placements', 'assignments', 'credentials', 'authorizations', 'shifts']:
+    for name in ['clients', 'care_needs', 'placements', 'assignments', 'credentials', 'shifts']:
         getattr(service.attention_repo, name).return_value = []
     return service
 
 
 def client():
-    return NS(id=uuid4(), first_name='Robert', last_name='Ellis', care_arrangement=CareArrangement.funded)
+    return NS(id=uuid4(), first_name='Robert', last_name='Ellis')
 
 
 def shift(c, day, status=ShiftCompletionStatus.scheduled, moved=None):
@@ -94,20 +94,6 @@ def test_renewed_document_progresses_to_verification_then_disappears(service):
     assert before.id == after.id
     service.attention_repo.credentials.return_value = []  # Renewed and verified by the existing document flow.
     assert not service.list_items().items
-
-
-def test_authorization_excludes_cancelled_superseded_and_outside_window(service):
-    c = client()
-    service.attention_repo.clients.return_value = [c]
-    def auth(**changes):
-        return NS(**(dict(id=uuid4(), client_id=c.id, client=c, supersedes_id=None, cancelled_at=None,
-                         covering_start=date(2026, 1, 1), covering_end=date(2026, 10, 10), funder='Funder', authorization_number='A') | changes))
-    old, cancelled, later = auth(), auth(cancelled_at=datetime.now()), auth(covering_end=date(2026, 12, 1))
-    replacement = auth(supersedes_id=old.id)
-    boundary = auth(covering_end=date(2026, 10, 16))
-    service.attention_repo.authorizations.return_value = [old, cancelled, later, replacement, boundary]
-    items = [i for i in service.list_items().items if i.category == 'authorizations']
-    assert {i.target.detail_id for i in items} == {replacement.id, boundary.id}
 
 
 def test_failed_source_is_not_reported_as_all_clear(service):

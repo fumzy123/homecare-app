@@ -20,7 +20,7 @@ from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.models.progress_note import ProgressNote
 from app.models.activity import ActivityEvent
-from app.core.enums import OrgMemberRole, CareArrangement, WeekDay, ServiceType, PlacementStatus, ShiftCompletionStatus
+from app.core.enums import OrgMemberRole, WeekDay, ServiceType, PlacementStatus, ShiftCompletionStatus
 from app.core.exceptions import AppError
 from app.schemas.assignment import EndAssignments
 from app.schemas.placement import PlacementApproval
@@ -58,7 +58,7 @@ def case(monkeypatch):
                    for i, p in enumerate(people)]
         client = add(Client, org_id=org.id, first_name='Margaret', last_name='Example', date_of_birth=date(1940, 1, 1),
                      street='1 Example', city='Example', province='NL', postal_code='A1A1A1', emergency_contact_name='Contact',
-                     emergency_contact_phone='555', emergency_contact_relationship='Family', care_arrangement=CareArrangement.self_pay)
+                     emergency_contact_phone='555', emergency_contact_relationship='Family')
         need = add(WeeklyCareNeed, org_id=org.id, client_id=client.id, version=1, effective_from=date(2090, 9, 1),
                    scheduled_from=date(2090, 9, 1), activated_at=datetime.now(timezone.utc))
         slots = [add(CareSlot, weekly_care_need_id=need.id, client_id=client.id, day_of_week=day, start_time=time(9),

@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/shared/components/ui';
 import { getInitials } from '@/shared/utils/getInitials';
 import { formatDuration } from '@/shared/utils/formatDuration';
-import { serviceTypeLabel } from '@/features/shifts/lib/schedule';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 function formatHour(iso: string): string {
@@ -24,7 +23,6 @@ export function CompactShiftRow({ shift, onPress, className = '' }: CompactShift
   const { client, start_time, end_time } = shift;
   const initials = getInitials(client.first_name, client.last_name);
   const duration = formatDuration(start_time, end_time, 'short');
-  const serviceLabel = serviceTypeLabel(shift.service_type);
   const address = client.city ? `${client.street} · ${client.city}` : client.street;
 
   return (
@@ -45,7 +43,7 @@ export function CompactShiftRow({ shift, onPress, className = '' }: CompactShift
           {client.first_name} {client.last_name}
         </Text>
         <Text className="font-sans text-xs text-muted" numberOfLines={1}>
-          {serviceLabel} · {address}
+          {address}
         </Text>
       </View>
 

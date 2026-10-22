@@ -2,8 +2,9 @@ from pydantic import BaseModel, model_validator
 from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
-from app.core.enums import ClientStatus, ServiceType, AuthorizationCoverage, CareArrangement
+from app.core.enums import ClientStatus
 from app.schemas.weekly_care_need import WeeklyCareNeedResponse
+from app.schemas.phone import OptionalPhone, RequiredPhone
 
 
 class CareTeamMember(BaseModel):
@@ -30,7 +31,7 @@ class ClientCreateSchema(BaseModel):
     last_name: str
     date_of_birth: date
     gender: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone_number: OptionalPhone = None
     email: Optional[str] = None
 
     # Address
@@ -49,13 +50,11 @@ class ClientCreateSchema(BaseModel):
 
     # Emergency Contact
     emergency_contact_name: str
-    emergency_contact_phone: str
+    emergency_contact_phone: RequiredPhone
     emergency_contact_relationship: str
 
     # Administrative
     status: ClientStatus = ClientStatus.active
-    # None → resolve from the org's default (funded if the org uses authorizations).
-    care_arrangement: Optional[CareArrangement] = None
     notes: Optional[str] = None
 
 
@@ -65,7 +64,7 @@ class ClientUpdateSchema(BaseModel):
     last_name: Optional[str] = None
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone_number: OptionalPhone = None
     email: Optional[str] = None
 
     # Address
@@ -84,12 +83,11 @@ class ClientUpdateSchema(BaseModel):
 
     # Emergency Contact
     emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
+    emergency_contact_phone: RequiredPhone = None
     emergency_contact_relationship: Optional[str] = None
 
     # Administrative
     status: Optional[ClientStatus] = None
-    care_arrangement: Optional[CareArrangement] = None
     notes: Optional[str] = None
 
 
@@ -128,14 +126,9 @@ class ClientResponse(BaseModel):
 
     # Administrative
     status: ClientStatus
-    care_arrangement: CareArrangement
     notes: Optional[str]
 
-    # Derived from authorizations (not stored on the client)
-    service_types: list[ServiceType] = []
-    care_start: Optional[date] = None
-    care_end: Optional[date] = None
-    coverage: AuthorizationCoverage = AuthorizationCoverage.covered
+    # Derived from weekly care needs (not stored on the client)
 
     # Metadata
     created_at: Optional[datetime]

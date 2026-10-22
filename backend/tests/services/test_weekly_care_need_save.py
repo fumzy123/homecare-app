@@ -2,7 +2,7 @@ from datetime import date, time, timedelta
 from types import SimpleNamespace as NS
 from unittest.mock import MagicMock
 import pytest
-from app.core.enums import CareArrangement, WeekDay, ServiceType
+from app.core.enums import WeekDay
 from app.schemas.weekly_care_need import WeeklyCareNeedCreate
 from app.services.weekly_care_need_service import WeeklyCareNeedService
 
@@ -11,8 +11,7 @@ def setup_save(effective=None):
     payload = WeeklyCareNeedCreate(
         effective_from=effective or date.today() + timedelta(days=10),
         care_slots=[
-            dict(day_of_week=day, start_time="09:00", end_time="17:00",
-                 service_type="personal_care")
+            dict(day_of_week=day, start_time="09:00", end_time="17:00")
             for day in ["MO", "WE"]
         ],
     )
@@ -28,7 +27,7 @@ def setup_save(effective=None):
     service.org_repo = MagicMock()
     service.org_repo.lock_by_id.return_value = NS(billing_timezone="America/St_Johns")
     service.client_repo = MagicMock()
-    service.client_repo.get_active_client.return_value = NS(care_arrangement=CareArrangement.self_pay, first_name='Sample', last_name='Client')
+    service.client_repo.get_active_client.return_value = NS(first_name='Sample', last_name='Client')
     service.care_need_repo = MagicMock()
     service.care_need_repo.latest.return_value = latest
     service.care_need_repo.versions.return_value = []
@@ -58,7 +57,6 @@ def test_retry_after_effective_date_is_still_noop():
     ("start_time", time(10)),
     ("end_time", time(16)),
     ("day_of_week", WeekDay.FR),
-    ("service_type", ServiceType.respite),
 ])
 def test_meaningful_change_creates_version(field, value):
     service, payload, latest = setup_save()
@@ -73,3 +71,18 @@ def test_meaningful_change_creates_version(field, value):
     result = service.create_version(None, payload)
     assert result.version == 3
     service.care_need_repo.add.assert_called_once_with(result)
+
+
+@pytest.mark.parametrize("offset", [-5, 0, 5])
+def test_future_approved_revision_can_be_revised_without_waiting(offset):
+    service, payload, latest = setup_save()
+    latest.activated_at = date.today()
+    latest.scheduled_from = latest.effective_from
+    service.care_need_repo.versions.return_value = [latest]
+    payload = payload.model_copy(deep=True)
+    payload.effective_from += timedelta(days=offset)
+    payload.care_slots[0].start_time = time(10)
+    result = service.create_version(None, payload)
+    assert result.supersedes_id == latest.id
+    assert result.effective_from == payload.effective_from
+    assert latest.ends_on is None

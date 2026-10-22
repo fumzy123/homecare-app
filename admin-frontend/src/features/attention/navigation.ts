@@ -43,12 +43,6 @@ export function attentionDestination(item: AttentionItem) {
         params: { workerId: t.record_id },
         search: { document: t.document_type ?? undefined },
       };
-    case "authorization":
-      return {
-        to: "/dashboard/clients/$clientId/funding" as const,
-        params: { clientId: t.record_id },
-        search: { authorization: t.detail_id ?? undefined },
-      };
     case "visit":
       return {
         to: "/dashboard/shifts" as const,

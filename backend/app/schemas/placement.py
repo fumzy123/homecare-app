@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from uuid import UUID
+from typing import Literal
 from pydantic import BaseModel, Field
 from app.core.enums import PlacementStatus
 
@@ -106,10 +107,12 @@ class WorkerPlacementResponse(BaseModel):
 class CareSlotSelection(BaseModel):
     care_slot_id: UUID
     employment_id: UUID
+    assignment_source: Literal['worker_interest', 'admin_arranged'] = 'worker_interest'
 
 
 class PlacementApproval(BaseModel):
     selections: list[CareSlotSelection] = Field(min_length=1, max_length=100)
     starts_on: date
     accept_uncovered: bool = False
+    confirm_admin_arranged: bool = False
     review_token: str | None = None

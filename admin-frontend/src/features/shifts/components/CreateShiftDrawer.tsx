@@ -1,6 +1,6 @@
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useForm, useStore } from '@tanstack/react-form'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import {
@@ -18,11 +18,6 @@ import {
 import { useWeeklyCareNeed } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
 import { useClients } from '@/features/clients/hooks/useClients'
 import { useWorkers } from '@/features/workers/hooks/useWorkers'
-import {
-  SERVICE_TYPES,
-  SERVICE_TYPE_LABELS,
-} from '@/features/authorizations/constants'
-import type { ServiceType } from '@/features/authorizations/api'
 import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
 
@@ -153,7 +148,7 @@ export function CreateShiftDrawer({
     defaultValues: {
       worker_id: '',
       client_id: preselectedClientId ?? '',
-      service_type: '' as '' | ServiceType,
+
       date: defaultDate,
       start_time: defaultStartTime,
       end_time: defaultEndTime,
@@ -182,7 +177,7 @@ export function CreateShiftDrawer({
           client_id: value.client_id,
           start_time: startISO,
           end_time: endISO,
-          service_type: value.service_type || undefined,
+
           location: location || undefined,
           notes: value.notes || undefined,
           recurrence: isRecurring
@@ -327,14 +322,6 @@ export function CreateShiftDrawer({
       : null
   const hasPlan = planEntries.length > 0
 
-  // Pre-fill the service from the matched plan entry, unless the admin set one.
-  useEffect(() => {
-    if (matchedPlanEntry && !form.state.values.service_type) {
-      form.setFieldValue('service_type', matchedPlanEntry.service_type)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchedPlanEntry?.service_type])
-
   function handleApproveOverride() {
     setPendingOverride(null)
     overrideRef.current = true
@@ -352,7 +339,7 @@ export function CreateShiftDrawer({
     try {
       await requestOvertime.mutateAsync({
         worker_id: pendingOverride.workerIdForApproval,
-        service_type: values.service_type || undefined,
+
         location: location || undefined,
         notes: values.notes || undefined,
         week_start: pendingOverride.weekStart!,
@@ -506,32 +493,6 @@ export function CreateShiftDrawer({
                   ))}
                 </select>
                 <FieldError error={field.state.meta.errors[0]} />
-              </div>
-            )}
-          </form.Field>
-
-          {/* Service */}
-          <form.Field name="service_type">
-            {(field) => (
-              <div>
-                <label className={labelClass}>
-                  Service{' '}
-                  <span className="text-muted normal-case">(optional)</span>
-                </label>
-                <select
-                  className={selectClass}
-                  value={field.state.value}
-                  onChange={(e) =>
-                    field.handleChange(e.target.value as '' | ServiceType)
-                  }
-                >
-                  <option value="">No specific service</option>
-                  {SERVICE_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {SERVICE_TYPE_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
               </div>
             )}
           </form.Field>

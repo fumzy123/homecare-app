@@ -16,7 +16,6 @@ from app.core.enums import (
     OrgMemberRole,
     NotificationType,
     TargetAudience,
-    CareArrangement,
 )
 from app.core.exceptions import AppError
 from app.repositories.activity_repository import ActivityRepository
@@ -88,7 +87,6 @@ def scene():
                 city="Example",
                 province="NL",
                 postal_code="A1A1A1",
-                care_arrangement=CareArrangement.self_pay,
                 emergency_contact_name="Family",
                 emergency_contact_phone="555",
                 emergency_contact_relationship="Family",

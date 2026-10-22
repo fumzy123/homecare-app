@@ -1,11 +1,10 @@
 # Client workspace checks
 
 The app routes are under `/dashboard/clients`; the client index is Overview.
-Funding is now a separate route. Old care-need links with an authorization query
-redirect to the matching Funding record.
+Funding is retired. Client intake continues directly to Weekly care need.
 
 Run `node --experimental-strip-types --test tests/client-care.test.mjs` for the
-care/funding calculations, and the normal TypeScript, ESLint and production build.
+care/visit calculations, and the normal TypeScript, ESLint and production build.
 Backend coverage is in `tests/services/test_client_workspace.py` plus the existing
 weekly-care save, placement assignment and worker note tests.
 
@@ -20,8 +19,7 @@ Verified with the host:
 - Directory and three-step client creation; saved client appears in the table.
 - Profile validation, saving and return to Overview.
 - Current and proposed care, revision creation, history, and posting without visits.
-- Funding stays on the current revision after a proposed revision is saved.
-- Service dropdown additions and authorization amendment/history.
+- Service selection and revision saves without funding setup or allowance checks.
 - Visit List/Week views, status filters, totals, details and note follow-ups.
 - Monthly notes and worker filtering.
 - Desktop, tablet and narrow layouts; active-tab state and native dialog focus.

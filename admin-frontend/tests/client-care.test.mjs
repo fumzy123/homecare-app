@@ -2,8 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   currentCareNeed,
-  authorizationForDate,
-  fundingRows,
+  careState,
   validateSlots,
   countsAsCare,
   visitHours,
@@ -29,7 +28,7 @@ const current = {
   ends_on: '2026-10-04',
   imported: false,
 }
-test('funding uses effective current care, not a newer proposed or future approved revision', () => {
+test('overview uses effective current care, not a newer proposed or future approved revision', () => {
   const proposed = {
     ...current,
     id: 'proposed',
@@ -63,76 +62,7 @@ test('funding uses effective current care, not a newer proposed or future approv
     'current',
   )
 })
-test('each service retains its own allowance and uncovered slots still count as care needed', () => {
-  const auth = {
-    hours_period: 'bi_weekly',
-    services: [
-      { service_type: 'personal_care', authorized_hours: 28 },
-      { service_type: 'homemaking', authorized_hours: 4 },
-    ],
-  }
-  const slots = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA']
-    .map((day) => slot(day))
-    .concat(slot('SU', 'homemaking'))
-  const rows = fundingRows(auth, slots)
-  assert.deepEqual(
-    rows.map((r) => [r.needed, r.remaining]),
-    [
-      [24, 4],
-      [4, 0],
-    ],
-  )
-  assert.equal(
-    fundingRows(auth, [slot('MO', 'nursing')]).find(
-      (r) => r.service === 'nursing',
-    ).remaining,
-    -4,
-  )
-  assert.equal(
-    fundingRows({ ...auth, hours_period: 'per_week' }, slots)[0].limit,
-    56,
-  )
-  assert.equal(
-    fundingRows(
-      {
-        hours_period: 'per_month',
-        services: [{ service_type: 'personal_care', authorized_hours: 65 }],
-      },
-      slots,
-    )[0].limit,
-    30,
-  )
-})
-test('authorization selection excludes superseded, cancelled and future records', () => {
-  const auth = {
-    id: 'old',
-    covering_start: '2026-01-01',
-    covering_end: '2026-12-31',
-    cancelled_at: null,
-    supersedes_id: null,
-  }
-  assert.equal(
-    authorizationForDate(
-      [auth, { ...auth, id: 'new', supersedes_id: 'old' }],
-      '2026-10-01',
-    ).id,
-    'new',
-  )
-  assert.equal(
-    authorizationForDate(
-      [{ ...auth, cancelled_at: '2026-09-01' }],
-      '2026-10-01',
-    ),
-    undefined,
-  )
-  assert.equal(
-    authorizationForDate(
-      [{ ...auth, covering_start: '2026-11-01' }],
-      '2026-10-01',
-    ),
-    undefined,
-  )
-})
+
 test('care slots reject overlap, including different services; adjacent slots are allowed', () => {
   assert.match(validateSlots([]), /Add a care slot/)
   assert.match(
@@ -164,4 +94,11 @@ test('visit care totals exclude cancelled, missed and dropped visits', () => {
     visits.filter(countsAsCare).reduce((sum, v) => sum + visitHours(v), 0),
     4,
   )
+})
+
+
+test('a future revision replaced before its start is never presented as upcoming care', () => {
+  const need = { version: 2, scheduled_from: '2026-10-26', effective_from: '2026-10-21', activated_at: '2026-10-21', ends_on: '2026-10-23' }
+  assert.equal(careState(need, '2026-10-21'), 'Replaced before starting')
+  assert.equal(currentCareNeed([need], '2026-10-26'), undefined)
 })

@@ -36,9 +36,10 @@ class AssignmentService:
         return dict(id=str(a.id), client_id=str(p.client_id), client_name=f'{p.client.first_name} {p.client.last_name}',
             worker_id=str(a.employment_id), worker_name=f'{a.employment.person.first_name} {a.employment.person.last_name}',
             placement_id=str(p.id), care_slot_id=str(a.care_slot_id), day_of_week=slot.day_of_week.value,
-            start_time=slot.start_time.isoformat(), end_time=slot.end_time.isoformat(), service_type=slot.service_type.value,
+            start_time=slot.start_time.isoformat(), end_time=slot.end_time.isoformat(),
             starts_on=a.starts_on, stops_from=stop, revision_ends_on=natural_end, end_reason=a.end_reason,
             ended_at=a.ended_at, ended_by=str(a.ended_by) if a.ended_by else None,
+            assignment_source=a.assignment_source, approved_by=str(a.approved_by), approved_at=a.approved_at,
             status='ended' if ended else 'ending' if stop else 'scheduled' if a.starts_on > today else 'active',
             can_end=not stop and not natural_end)
 

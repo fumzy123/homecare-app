@@ -13,7 +13,7 @@ from datetime import date, datetime, time, timedelta
 from uuid import UUID
 from dateutil.rrule import rrulestr
 from sqlalchemy.orm import Session
-from app.core.enums import RecurrenceFrequency, ServiceType, ShiftCompletionStatus, WeekDay
+from app.core.enums import RecurrenceFrequency, ShiftCompletionStatus, WeekDay
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
 from app.repositories.shift_repository import ShiftRepository
@@ -90,7 +90,6 @@ class EffectiveShiftOccurrence:
     start_time: datetime
     end_time: datetime
     completion_status: ShiftCompletionStatus
-    service_type: ServiceType | None
     location: str | None
     instructions: str | None
     is_modified: bool
@@ -137,7 +136,6 @@ def resolve_effective_occurrence(
         start_time=start_time,
         end_time=end_time,
         completion_status=completion_status,
-        service_type=shift.service_type,
         location=shift.location,
         instructions=instructions,
         is_modified=modification is not None,

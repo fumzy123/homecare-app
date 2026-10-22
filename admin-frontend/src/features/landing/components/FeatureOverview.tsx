@@ -62,7 +62,7 @@ export function FeatureOverview({
               whole person in mind.
             </h3>
             <p>
-              Keep client details, authorized hours, and recurring care
+              Keep client details, care instructions, and recurring care
               together. Build the week from what each client needs.
             </p>
             <button

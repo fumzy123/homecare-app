@@ -13,7 +13,6 @@ const tabs = [
   ['Overview', '/dashboard/clients/$clientId'],
   ['Visits & metrics', '/dashboard/clients/$clientId/visits'],
   ['Weekly care need', '/dashboard/clients/$clientId/care-need'],
-  ['Funding', '/dashboard/clients/$clientId/funding'],
   ['Progress notes', '/dashboard/clients/$clientId/notes'],
 ] as const
 
@@ -71,12 +70,6 @@ export function ClientWorkspace({ clientId }: { clientId: string }) {
               <span>·</span>
               <span>
                 {client.city}, {client.province}
-              </span>
-              <span>·</span>
-              <span>
-                {client.care_arrangement === 'funded'
-                  ? 'Funded care'
-                  : 'Self-pay care'}
               </span>
             </div>
           </div>

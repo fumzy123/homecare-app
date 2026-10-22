@@ -2,7 +2,7 @@ from pydantic import BaseModel, NaiveDatetime, model_validator
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
-from app.core.enums import ShiftCompletionStatus, ServiceType
+from app.core.enums import ShiftCompletionStatus
 
 
 # ─────────────────────────────────────────
@@ -28,7 +28,6 @@ class ShiftCreateSchema(BaseModel):
     client_id:            UUID
     start_time:           NaiveDatetime
     end_time:             NaiveDatetime
-    service_type:         ServiceType | None = None
     location:             str | None = None   # defaults to client's address in the service
     notes:                str | None = None
     recurrence:           RecurrenceSchema | None = None  # absent = single shift
@@ -119,7 +118,6 @@ class ShiftEditFromSchema(BaseModel):
     new_end_time:         NaiveDatetime | None = None
     worker_id:            UUID | None = None
     client_id:            UUID | None = None
-    service_type:         ServiceType | None = None
     location:             str | None = None
     recurrence_end_date:  date | None = None
     recurrence:           RecurrenceSchema | None = None
@@ -138,7 +136,6 @@ class ShiftEditFromSchema(BaseModel):
 # POST /shifts/request-overtime-approval
 # ─────────────────────────────────────────
 class OvertimeApprovalRequestSchema(BaseModel):
-    service_type: ServiceType | None = None
     location: str | None = None
     notes: str | None = None
     shift_id: UUID | None = None
@@ -211,7 +208,6 @@ class ShiftOccurrenceResponse(BaseModel):
     is_modification:         bool
     has_visit_changes:       bool = False
     is_recurring:            bool
-    service_type:            ServiceType | None
     worker:                  WorkerSummary
     client:                  ClientSummary
     location:                str | None
@@ -231,7 +227,6 @@ class WorkerShiftDetailResponse(BaseModel):
     start_time:        datetime
     end_time:          datetime
     completion_status: ShiftCompletionStatus
-    service_type:      ServiceType | None
     client:            ClientSummary
     location:          str | None
     instructions:      str | None
@@ -250,20 +245,11 @@ class ShiftStatsResponse(BaseModel):
 # Returned by GET /shifts/care-metrics — scheduled vs delivered over a period.
 # "Scheduled" = every non-cancelled occurrence in range; "Delivered" = completed
 # occurrences (provisional — from completed shifts until EVV lands).
-class ServiceCareMetric(BaseModel):
-    service_type:     ServiceType | None
-    scheduled_shifts: int
-    scheduled_hours:  float
-    delivered_shifts: int
-    delivered_hours:  float
-
-
 class CareMetricsResponse(BaseModel):
     scheduled_shifts: int
     scheduled_hours:  float
     delivered_shifts: int
     delivered_hours:  float
-    by_service:       list[ServiceCareMetric]
 
 
 # Returned by GET /shifts/{id} — the master record
@@ -277,7 +263,6 @@ class ShiftMasterResponse(BaseModel):
     recurrence_rule:     str | None
     recurrence_end_date: date | None
     status:              str
-    service_type:        ServiceType | None
     location:            str | None
     notes:               str | None
     created_at:          datetime

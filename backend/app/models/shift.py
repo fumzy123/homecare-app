@@ -24,9 +24,7 @@ class Shift(Base):
     assignment = relationship('CareSlotAssignment')
     created_by = Column(UUID(as_uuid=True), ForeignKey("employments.id"), nullable=False)
 
-    # Which service this shift delivers — nullable so admins can still schedule
-    # freely (and legacy shifts predate it). Lets delivered/scheduled care roll
-    # up per service, alongside the per-service authorization and care need.
+    # Retired classification retained only for historical data.
     service_type = Column(Enum(ServiceType), nullable=True)
 
     # Shift timing

@@ -50,7 +50,6 @@ export function AttentionProvider({
       "workers",
       "worker",
       "worker-credentials",
-      "authorizations",
       "placements",
       "weekly-care-need",
       "notifications",

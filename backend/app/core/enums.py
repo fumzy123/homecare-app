@@ -14,17 +14,12 @@ class ClientStatus(str, enum.Enum):
     discharged = "discharged"
 
 class ServiceType(str, enum.Enum):
+    """Legacy database values only; not part of the live care API or workflow."""
     personal_care = "personal_care"
     companionship = "companionship"
     respite = "respite"
     nursing = "nursing"
     homemaking = "homemaking"
-
-
-class HoursPeriod(str, enum.Enum):
-    per_week = "per_week"
-    bi_weekly = "bi_weekly"
-    per_month = "per_month"
 
 
 class WeekDay(str, enum.Enum):
@@ -36,30 +31,6 @@ class WeekDay(str, enum.Enum):
     SA = "SA"
     SU = "SU"
 
-
-class AuthorizationStatus(str, enum.Enum):
-    """Derived/display only — never stored. Computed from covering dates,
-    cancelled_at, and the supersede chain."""
-    pending = "pending"
-    active = "active"
-    expired = "expired"
-    superseded = "superseded"
-    cancelled = "cancelled"
-
-
-class AuthorizationCoverage(str, enum.Enum):
-    """Derived. Whether an active client is currently covered by an
-    active authorization."""
-    covered = "covered"
-    lapsed = "lapsed"
-
-
-class CareArrangement(str, enum.Enum):
-    """How a client's care is funded/governed.
-    - self_pay: the agency schedules directly; no funder authorization, no caps.
-    - funded: care is governed by a funder authorization; compliance applies."""
-    self_pay = "self_pay"
-    funded = "funded"
 
 class EmploymentType(str, enum.Enum):
     full_time = "full_time"

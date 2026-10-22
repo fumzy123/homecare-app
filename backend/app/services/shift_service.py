@@ -215,7 +215,6 @@ class ShiftService:
             is_modification=mod is not None,
             has_visit_changes=effective.has_visit_changes,
             is_recurring=shift.is_recurring,
-            service_type=effective.service_type,
             worker=WorkerSummary(
                 id=worker.id,
                 first_name=worker.person.first_name,
@@ -273,7 +272,6 @@ class ShiftService:
                 created_by=self.current_employment_id,
                 start_time=payload.start_time,
                 end_time=payload.end_time,
-                service_type=payload.service_type,
                 is_recurring=is_recurring,
                 recurrence_rule=recurrence_rule,
                 recurrence_end_date=recurrence_end_date,
@@ -376,7 +374,7 @@ class ShiftService:
         }
 
     # ─────────────────────────────────────────
-    # 2c. Care metrics — scheduled vs delivered, with per-service breakdown
+    # 2c. Care metrics — scheduled vs delivered
     # ─────────────────────────────────────────
     async def get_care_metrics(
         self,
@@ -386,7 +384,7 @@ class ShiftService:
         client_id: str | None = None,
     ) -> dict:
         """Period totals of scheduled care (every non-cancelled occurrence) vs
-        delivered care (completed occurrences), broken down per service. Delivered
+        delivered care (completed occurrences). Delivered
         is provisional — derived from completed shifts until EVV lands."""
         try:
             occurrences = await self.get_shifts(from_date, to_date, worker_id, client_id)
@@ -394,45 +392,20 @@ class ShiftService:
             def hours(o) -> float:
                 return (o.end_time - o.start_time).total_seconds() / 3600.0
 
-            # service_type value (or None) → running tallies
-            buckets: dict = {}
             sched_shifts = sched_hours = deliv_shifts = deliv_hours = 0.0
             for o in occurrences:
-                svc = o.service_type.value if o.service_type else None
-                b = buckets.setdefault(svc, {
-                    "scheduled_shifts": 0, "scheduled_hours": 0.0,
-                    "delivered_shifts": 0, "delivered_hours": 0.0,
-                })
                 h = hours(o)
-                b["scheduled_shifts"] += 1
-                b["scheduled_hours"] += h
                 sched_shifts += 1
                 sched_hours += h
                 if o.completion_status == ShiftCompletionStatus.completed:
-                    b["delivered_shifts"] += 1
-                    b["delivered_hours"] += h
                     deliv_shifts += 1
                     deliv_hours += h
-
-            # Named services first (alphabetical), Unspecified (None) last.
-            ordered = sorted(buckets.keys(), key=lambda s: (s is None, s or ""))
-            by_service = [
-                {
-                    "service_type": svc,
-                    "scheduled_shifts": buckets[svc]["scheduled_shifts"],
-                    "scheduled_hours": round(buckets[svc]["scheduled_hours"], 2),
-                    "delivered_shifts": buckets[svc]["delivered_shifts"],
-                    "delivered_hours": round(buckets[svc]["delivered_hours"], 2),
-                }
-                for svc in ordered
-            ]
 
             return {
                 "scheduled_shifts": int(sched_shifts),
                 "scheduled_hours": round(sched_hours, 2),
                 "delivered_shifts": int(deliv_shifts),
                 "delivered_hours": round(deliv_hours, 2),
-                "by_service": by_service,
             }
 
         except AppError:
@@ -536,7 +509,6 @@ class ShiftService:
             start_time=effective.start_time,
             end_time=effective.end_time,
             completion_status=effective.completion_status,
-            service_type=effective.service_type,
             client=ClientSummary.model_validate(shift.client),
             location=effective.location,
             instructions=effective.instructions,
@@ -897,8 +869,7 @@ class ShiftService:
                     shift.worker_id = payload.worker_id
                 if payload.client_id:
                     shift.client_id = payload.client_id
-                if payload.service_type is not None:
-                    shift.service_type = payload.service_type
+
                 if payload.location is not None:
                     shift.location = payload.location
                 if payload.recurrence_end_date is not None:
@@ -964,7 +935,6 @@ class ShiftService:
                 created_by=self.current_employment_id,
                 start_time=new_start,
                 end_time=new_end,
-                service_type=payload.service_type if payload.service_type is not None else shift.service_type,
                 is_recurring=shift.is_recurring,
                 recurrence_rule=new_rule,
                 recurrence_end_date=new_end_date,

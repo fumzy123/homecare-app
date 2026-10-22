@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDuration } from '@/shared/utils/formatDuration';
 import { formatTime } from '@/shared/utils/formatTime';
-import { serviceTypeLabel } from '../lib/schedule';
 import type { WorkerShiftDetail } from '../types';
 
 export function ShiftTimeCard({ shift }: { shift: WorkerShiftDetail }) {
@@ -16,8 +15,8 @@ export function ShiftTimeCard({ shift }: { shift: WorkerShiftDetail }) {
       <View className="my-4 h-px bg-cream opacity-10" />
       <View className="flex-row items-end justify-between">
         <View>
-          <Text className="font-mono text-[10px] uppercase tracking-widest text-cream opacity-50">Service</Text>
-          <Text className="mt-1 font-serif text-xl text-cream">{serviceTypeLabel(shift.service_type)}</Text>
+          <Text className="font-mono text-[10px] uppercase tracking-widest text-cream opacity-50">Visit</Text>
+          <Text className="mt-1 font-serif text-xl text-cream">Care visit</Text>
         </View>
         <View className="items-end">
           <Text className="font-mono text-[10px] uppercase tracking-widest text-cream opacity-50">Duration</Text>

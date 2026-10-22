@@ -1,7 +1,6 @@
 export type AttentionCategory =
   | "coverage"
   | "credentials"
-  | "authorizations"
   | "schedule"
   | "workers"
   | "clients"
@@ -16,7 +15,6 @@ export type AttentionStage =
   | "review_dropped_visit"
   | "renew_credential"
   | "verify_credential"
-  | "renew_authorization"
   | "review_schedule"
   | "review_overtime"
   | "await_approval"
@@ -46,7 +44,6 @@ export interface AttentionItem {
       | "placement"
       | "care_need"
       | "credential"
-      | "authorization"
       | "visit"
       | "weekly_schedule"
       | "worker"
@@ -81,7 +78,6 @@ export const actionLabels: Record<AttentionStage, string> = {
   review_dropped_visit: "Review visit outcome",
   renew_credential: "Review document",
   verify_credential: "Verify document",
-  renew_authorization: "Review authorization",
   review_schedule: "Review weekly schedule",
 };
 
@@ -111,7 +107,6 @@ export const categoryLabels: Record<AttentionCategory, string> = {
   workers: "Workers",
   credentials: "Credentials & compliance",
   clients: "Client care",
-  authorizations: "Funding authorizations",
   documentation: "Visit documentation",
   billing: "Agency billing",
 };

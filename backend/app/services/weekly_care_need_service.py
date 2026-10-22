@@ -1,12 +1,11 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from app.core.enums import CareArrangement, PlacementStatus
+from app.core.enums import PlacementStatus
 from app.core.exceptions import AppError
 from app.models.weekly_care_need import WeeklyCareNeed, CareSlot
 from app.repositories.client_repository import ClientRepository
 from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 from app.repositories.organization_repository import OrganizationRepository
-from app.services.authorization_compliance_service import AuthorizationComplianceService
 from app.services.org_service import OrgService
 from app.repositories.placement_repository import PlacementRepository
 from app.services.notification_service import NotificationService
@@ -34,7 +33,7 @@ class WeeklyCareNeedService:
             # retries must preserve the existing placement and its interests.
             def slots_key(slots):
                 return sorted(
-                    (s.day_of_week, s.start_time, s.end_time, s.service_type)
+                    (s.day_of_week, s.start_time, s.end_time)
                     for s in slots
                 )
 
@@ -52,32 +51,6 @@ class WeeklyCareNeedService:
                 raise AppError(
                     400, "PAST_EFFECTIVE_DATE", "Choose today or a future date"
                 )
-            if (
-                latest
-                and latest.activated_at
-                and (latest.scheduled_from or latest.effective_from) > today
-            ):
-                raise AppError(
-                    409,
-                    "SCHEDULE_CHANGE_PENDING",
-                    "The approved future version must start before another replacement is created",
-                )
-            if latest and payload.effective_from < latest.effective_from:
-                raise AppError(
-                    409,
-                    "EARLIER_EFFECTIVE_DATE",
-                    "New versions cannot start before the previous version",
-                )
-            if client.care_arrangement == CareArrangement.funded:
-                result = AuthorizationComplianceService(self.db).evaluate_entries(
-                    client_id, self.org_id, payload.care_slots, payload.effective_from
-                )
-                if any(s.status == "exceeded" for s in result.services):
-                    raise AppError(
-                        400,
-                        "AUTHORIZATION_EXCEEDED",
-                        "Weekly Care Need exceeds authorization for its effective date",
-                    )
             previous = next(
                 (
                     n

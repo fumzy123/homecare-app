@@ -7,14 +7,13 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 const base = process.env.ATTENTION_TEST_URL || 'http://127.0.0.1:5197'
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-const clientId = id(1), workerId = id(2), placementId = id(3), needId = id(4), slotId = id(5), orgId = id(6), authId = id(7)
+const clientId = id(1), workerId = id(2), placementId = id(3), needId = id(4), slotId = id(5), orgId = id(6)
 const user = { id: id(9), email: 'admin@example.test', email_confirmed_at: '2026-01-01', user_metadata: { first_name: 'Alex', last_name: 'Admin', role: 'owner', org_id: orgId }, app_metadata: {}, aud: 'authenticated' }
-const client = { id: clientId, org_id: orgId, first_name: 'Robert', last_name: 'Ellis', date_of_birth: '1940-01-01', status: 'active', care_arrangement: 'funded', care_team: [], service_types: [], street: '1 Example Street', city: 'St. John’s', province: 'NL', postal_code: 'A1A1A1', created_at: '2026-01-01', coverage: 'covered' }
+const client = { id: clientId, org_id: orgId, first_name: 'Robert', last_name: 'Ellis', date_of_birth: '1940-01-01', status: 'active', care_team: [], service_types: [], street: '1 Example Street', city: 'St. John’s', province: 'NL', postal_code: 'A1A1A1', created_at: '2026-01-01' }
 const worker = { id: workerId, first_name: 'Maria', last_name: 'Chen', email: 'maria@example.test', is_active: true, employment_status: 'active', role: 'home_support_worker', created_at: '2026-01-01' }
 const slot = { id: slotId, day_of_week: 'TH', start_time: '09:00', end_time: '10:00', service_type: 'personal_care', worker_id: null, worker_name: null }
 const placement = { id: placementId, org_id: orgId, client_id: clientId, client_first_name: 'Robert', client_last_name: 'Ellis', masked_location: 'St. John’s', start_date: '2026-10-01', status: 'open', weekly_care_need_id: needId, covered_count: 0, care_slots: [slot], interests: [{ employment_id: workerId, first_name: 'Maria', last_name: 'Chen', care_slot_ids: [slotId], note: null }] }
 const need = { id: needId, client_id: clientId, version: 2, effective_from: '2026-10-01', created_at: '2026-09-28', imported: false, care_slots: [slot], ends_on: null }
-const authorization = { id: authId, client_id: clientId, authorization_number: 'AUTH-2026-0482', funder: 'Sample funder', covering_start: '2026-01-01', covering_end: '2026-10-10', status: 'active', hours_period: 'bi_weekly', services: [{ id: id(10), service_type: 'personal_care', authorized_hours: 32 }] }
 const credential = { id: id(11), document_type: 'first_aid_cpr', expiry_date: '2027-10-01', file_url: 'sample.pdf', uploaded_at: '2026-09-30', verified_at: null }
 function action(n, category, stage, kind, record, detail, extra = {}) {
   return { id: n, category, stage, urgency: 'review', subject: category === 'credentials' ? 'Maria Chen' : 'Robert Ellis', detail, due_on: null, target: { kind, record_id: record, detail_id: null, document_type: null, occurrence_date: null }, ...extra }
@@ -22,7 +21,6 @@ function action(n, category, stage, kind, record, detail, extra = {}) {
 const items = [
   action(`care:${needId}`, 'coverage', 'review_interest', 'placement', placementId, '1 interested worker · 1 open Care Slot', { urgency: 'urgent', due_on: '2026-10-01' }),
   action('credential:1', 'credentials', 'verify_credential', 'credential', workerId, 'First Aid / CPR', { target: { kind: 'credential', record_id: workerId, document_type: 'first_aid_cpr' } }),
-  action('authorization:1', 'authorizations', 'renew_authorization', 'authorization', clientId, 'Sample funder · AUTH-2026-0482', { target: { kind: 'authorization', record_id: clientId, detail_id: authId } }),
   action('gap:1', 'schedule', 'review_schedule', 'weekly_schedule', clientId, 'Active client · No visits this week', { target: { kind: 'weekly_schedule', record_id: clientId, occurrence_date: '2026-09-27' } }),
 ]
 
@@ -49,7 +47,6 @@ async function run() {
       else if (p === '/api/clients') data = [client]
       else if (p === `/api/clients/${clientId}`) data = client
       else if (p === `/api/clients/${clientId}/care-need`) data = [need]
-      else if (p === `/api/clients/${clientId}/authorizations`) data = [authorization]
       else if (p.includes('compliance')) data = { coverage: 'covered', services: [] }
       else if (p === '/api/org-members') data = [worker]
       else if (p === `/api/org-members/${workerId}`) data = worker
@@ -107,11 +104,6 @@ async function run() {
     await page.waitForTimeout(350)
     await bubble().click()
     assert.equal(await panel().getByRole('button', { name: /Worker credentials/ }).count(), 0, 'Empty groups should disappear')
-    await panel().getByRole('button', { name: /Expiring authorizations/ }).click()
-    await panel().getByRole('button', { name: 'Review authorization' }).click()
-    await page.waitForURL(`**/care-need?authorization=${authId}`)
-    await page.getByText('Selected authorization: AUTH-2026-0482 · active').waitFor()
-    await bubble().click()
     await screenshot('action-tower-floating')
     assert.ok(await panel().evaluate(el => parseFloat(getComputedStyle(el).borderRadius) > 0), 'Floating panel should have rounded outer corners')
     assert.equal(await page.getByRole('button', { name: 'Hide Action Tower button' }).count(), 0)
@@ -174,7 +166,7 @@ async function run() {
     assert.equal(writes, 2)
     assert.deepEqual(errors, [])
     assert.deepEqual(unexpected, [])
-    console.log('PASS: dashboard, all six destination types, repeat selection, unsaved edits, approval/verification refresh, empty/error states, hide/restore, Escape focus, overlay priority and mobile bounds')
+    console.log('PASS: dashboard, remaining care and credential destinations, repeat selection, unsaved edits, approval/verification refresh, empty/error states, hide/restore, Escape focus, overlay priority and mobile bounds')
   } finally { await browser.close() }
 }
 run().catch(e => { console.error(e); process.exitCode = 1 })

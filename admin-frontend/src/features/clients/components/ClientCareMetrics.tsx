@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { addDays, addWeeks, format, parseISO, startOfWeek } from 'date-fns'
+import {
+  addDays,
+  addWeeks,
+  differenceInCalendarWeeks,
+  format,
+  parseISO,
+  startOfWeek,
+} from 'date-fns'
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,19 +18,30 @@ import { Avatar, ShiftStatusBadge } from '@/shared/components/ui'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { useCalendarShifts } from '@/features/shifts/hooks/useShifts'
 import type { ShiftOccurrence } from '@/features/shifts/api'
-import { fmtHours } from '@/features/authorizations/utils'
+import { fmtHours } from '@/features/weekly-care-need/utils'
 import { useClientNotes } from '../hooks/useClients'
-import { countsAsCare, serviceName, visitHours, visitKey } from '../lib/care'
+import { countsAsCare, visitHours, visitKey } from '../lib/care'
 import {
   ClientEmpty,
   ClientLoading,
-  ClientPanel,
   ClientBadge,
 } from './ClientWorkspaceUI'
 import { ClientVisitDialog } from './ClientVisitDialog'
 
-export function ClientCareMetrics({ clientId }: { clientId: string }) {
-  const [offset, setOffset] = useState(0)
+export function ClientCareMetrics({
+  clientId,
+  initialDate,
+}: {
+  clientId: string
+  initialDate?: string
+}) {
+  const [offset, setOffset] = useState(() =>
+    initialDate
+      ? differenceInCalendarWeeks(parseISO(initialDate), new Date(), {
+          weekStartsOn: WEEK_STARTS_ON,
+        })
+      : 0,
+  )
   const [filter, setFilter] = useState('all')
   const [view, setView] = useState('list')
   const [selected, setSelected] = useState<ShiftOccurrence | null>(null)
@@ -137,7 +155,6 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
               <tr>
                 {[
                   'Date & time',
-                  'Service',
                   'Worker',
                   'Duration',
                   'Status',
@@ -160,7 +177,7 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
                       {format(parseISO(v.end_time), 'HH:mm')}
                     </small>
                   </td>
-                  <td>{serviceName(v.service_type)}</td>
+
                   <td>
                     <div className="cw-person">
                       <Avatar
@@ -207,7 +224,7 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
               ))}
               {!visible.length && (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={6}>
                     <ClientEmpty title="No visits in this view">
                       Choose another week or schedule a visit.
                     </ClientEmpty>
@@ -239,7 +256,7 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
                           {format(parseISO(v.start_time), 'HH:mm')}–
                           {format(parseISO(v.end_time), 'HH:mm')}
                         </strong>
-                        <span>{serviceName(v.service_type)}</span>
+
                         <small>
                           {v.worker.first_name} {v.worker.last_name}
                         </small>
@@ -282,51 +299,6 @@ export function ClientCareMetrics({ clientId }: { clientId: string }) {
             )}
           </div>
         </div>
-      )}
-      {!visits.isPending && !visits.isError && (
-        <ClientPanel
-          title="Care by service"
-          action={<span className="cw-label">Selected week</span>}
-        >
-          <div className="overflow-x-auto">
-            <table className="cw-table">
-              <thead>
-                <tr>
-                  <th>Service</th>
-                  <th>Scheduled</th>
-                  <th>Completed</th>
-                  <th>Visits</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ...new Set(
-                    all.filter(countsAsCare).map((v) => v.service_type),
-                  ),
-                ].map((service) => {
-                  const rows = all.filter(
-                    (v) => v.service_type === service && countsAsCare(v),
-                  )
-                  return (
-                    <tr key={service || 'none'}>
-                      <td>{serviceName(service)}</td>
-                      <td>{sum(rows)}h</td>
-                      <td>
-                        {sum(
-                          rows.filter(
-                            (v) => v.completion_status === 'completed',
-                          ),
-                        )}
-                        h
-                      </td>
-                      <td>{rows.length}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </ClientPanel>
       )}
       {selected && (
         <ClientVisitDialog visit={selected} onClose={() => setSelected(null)} />

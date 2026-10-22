@@ -12,15 +12,18 @@ import { ClientDialog } from '@/features/clients/components/ClientWorkspaceUI'
 import { errorMessage, weeklyHours } from '@/features/clients/lib/care'
 import { useAgencyDate } from '../hooks/useAgencyDate'
 import {
-  requestDate,
   selectWorkerSlots,
   validSelections,
   sortCareSlots,
+  firstCareVisitDate,
 } from '../lib/careRequests'
+import { CareRequestSummary } from './CareRequestSummary'
+import { useCoverageReturnDraft } from '../hooks/useCoverageReturnDraft'
 import { RequestStatus } from './CareRequestUI'
 import { CareRequestSlots, CareRequestWorkers } from './CareRequestWork'
 import { CareRequestReview } from './CareRequestReview'
 import type { ApprovalReview } from '../api'
+import { useWorkers } from '@/features/workers/hooks/useWorkers'
 
 // Layer 3: owns the live request, draft selections and server-reviewed approval.
 export function PlacementCoverage({
@@ -31,19 +34,23 @@ export function PlacementCoverage({
   embedded?: boolean
 }) {
   const query = usePlacement(placementId)
+  const roster = useWorkers()
   const versions = useCareNeedVersions(query.data?.client_id ?? '')
   const { review, approve } = useApproveCareSlots(placementId)
   const close = useClosePlacement()
   const today = useAgencyDate()
-  const [tab, setTab] = useState<'coverage' | 'interest'>('coverage')
-  const [selected, setSelected] = useState<Record<string, string>>({})
-  const [startsOn, setStartsOn] = useState('')
+  const returnDraft = useCoverageReturnDraft(placementId)
+  const [tab, setTab] = useState<'coverage' | 'interest'>(returnDraft.initial?.tab ?? 'coverage')
+  const [selected, setSelected] = useState<Record<string, string>>(returnDraft.initial?.selected ?? {})
+  const [startsOn, setStartsOn] = useState(returnDraft.initial?.startsOn ?? '')
   const [preview, setPreview] = useState<ApprovalReview | null>(null)
   const [reviewedState, setReviewedState] = useState('')
   const [acceptGaps, setAcceptGaps] = useState(false)
+  const [confirmArranged, setConfirmArranged] = useState(false)
   const [error, setError] = useState('')
   const [closing, setClosing] = useState(false)
   const [success, setSuccess] = useState('')
+  const [scheduledDate, setScheduledDate] = useState('')
   useUnsavedChanges(Object.values(selected).some(Boolean) && !approve.isPending)
   if (query.isPending)
     return (
@@ -62,12 +69,31 @@ export function PlacementCoverage({
     )
   const p = { ...query.data, care_slots: sortCareSlots(query.data.care_slots) }
   const revision = versions.data?.find((v) => v.id === p.weekly_care_need_id)
-  const earliestDate = [today, p.start_date ?? '', p.scheduled_from ?? '',
-    ...p.care_slots.filter(s => selected[s.id] && !s.worker_id).map(s => s.replacement_from || '')]
+  const earliestDate = [
+    today,
+    p.start_date ?? '',
+    p.scheduled_from ?? '',
+    ...p.care_slots
+      .filter((s) => selected[s.id] && !s.worker_id)
+      .map((s) => s.replacement_from || ''),
+  ]
     .sort()
     .at(-1)!
   const effectiveDate = startsOn || earliestDate
-  const selections = validSelections(p, selected)
+  const activeWorkers = (roster.data ?? []).filter(
+    (w) => w.employment_status === 'active' && w.is_active,
+  )
+  const selections = validSelections(
+    p,
+    selected,
+    activeWorkers.map((w) => w.id),
+  )
+  const unavailableSelection = p.care_slots.some(
+    (s) =>
+      !s.worker_id &&
+      selected[s.id] &&
+      !selections.some((v) => v.care_slot_id === s.id),
+  )
   const selectedSlots = p.care_slots.filter((s) =>
     selections.some((v) => v.care_slot_id === s.id),
   )
@@ -78,12 +104,16 @@ export function PlacementCoverage({
     p.care_slots,
     p.interests,
     p.scheduled_from,
+    selections,
+    effectiveDate,
   ])
   function resetReview() {
     setPreview(null)
     setAcceptGaps(false)
+    setConfirmArranged(false)
     setError('')
     setSuccess('')
+    setScheduledDate('')
   }
   async function handleReview() {
     setError('')
@@ -95,6 +125,7 @@ export function PlacementCoverage({
       setPreview(result)
       setReviewedState(requestState)
       setAcceptGaps(false)
+      setConfirmArranged(false)
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -108,11 +139,13 @@ export function PlacementCoverage({
         starts_on: effectiveDate,
         review_token: preview.review_token,
         accept_uncovered: acceptGaps,
+        confirm_admin_arranged: confirmArranged,
       })
       setSelected({})
       setPreview(null)
       setAcceptGaps(false)
       setSuccess('Coverage approved and visits scheduled.')
+      setScheduledDate(firstCareVisitDate(selectedSlots, effectiveDate))
     } catch (err) {
       setError(errorMessage(err))
       setPreview(null)
@@ -132,6 +165,8 @@ export function PlacementCoverage({
           stale={reviewedState !== requestState}
           error={error}
           onAcceptGaps={setAcceptGaps}
+          confirmArranged={confirmArranged}
+          onConfirmArranged={setConfirmArranged}
           onBack={resetReview}
           onApprove={() => void handleApproval()}
         />
@@ -160,18 +195,36 @@ export function PlacementCoverage({
               </h1>
               <p className="cr-muted">{p.masked_location}</p>
             </div>
-            {p.status === 'open' && (
-              <button
-                className="cr-button"
-                disabled={busy}
-                onClick={() => {
-                  setError('')
-                  setClosing(true)
-                }}
-              >
-                Close care request
-              </button>
-            )}
+            <div className="cr-row">
+              {!embedded && (
+                <Link
+                  className="cr-button"
+                  to="/dashboard/clients/$clientId/care-need"
+                  params={{ clientId: p.client_id }}
+                  search={{ need: p.weekly_care_need_id ?? undefined }}
+                  disabled={busy}
+                  ignoreBlocker
+                  onClick={(event) => {
+                    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey)
+                      returnDraft.remember({ selected, startsOn: effectiveDate, tab })
+                  }}
+                >
+                  Open weekly care need <ArrowRight size={16} />
+                </Link>
+              )}
+              {p.status === 'open' && (
+                <button
+                  className="cr-button"
+                  disabled={busy}
+                  onClick={() => {
+                    setError('')
+                    setClosing(true)
+                  }}
+                >
+                  Close care request
+                </button>
+              )}
+            </div>
           </header>
           {p.weekly_care_need_id && versions.isError && (
             <p className="cr-error">
@@ -184,45 +237,7 @@ export function PlacementCoverage({
               </button>
             </p>
           )}
-          <div className="cr-facts">
-            <span>
-              Care request start date{' '}
-              <strong className="font-normal">
-                {requestDate(p.start_date)}
-              </strong>
-              {p.status === 'open' &&
-                !p.scheduled_from &&
-                p.start_date &&
-                p.start_date <= today && (
-                  <span className="cr-overdue"> · Start date reached</span>
-                )}
-            </span>
-            {p.care_slots.length > 0 && (
-              <span>{weeklyHours(p.care_slots)} hours / week</span>
-            )}
-          </div>
-          <details className="cr-details">
-            <summary>Request details</summary>
-            <div className="cr-details-body">
-              {p.requirements && (
-                <div>
-                  <p className="cr-label mb-2">Care & notes</p>
-                  <p>{p.requirements}</p>
-                </div>
-              )}
-              {!p.weekly_care_need_id && p.shift_description && (
-                <p>{p.shift_description}</p>
-              )}
-              <div className="cr-small cr-posted">
-                Posted {requestDate(p.created_at)}
-                {p.scheduled_from && (
-                  <p className="mt-2">
-                    Scheduled from {requestDate(p.scheduled_from)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </details>
+          <CareRequestSummary request={p} today={today} />
           {!p.weekly_care_need_id && (
             <p className="cr-callout">
               This earlier request has no revision-linked Care Slots.{' '}
@@ -240,6 +255,16 @@ export function PlacementCoverage({
             <p role="status" className="cr-success">
               {success}
             </p>
+          )}
+          {scheduledDate && (
+            <Link
+              className="cr-button mb-4"
+              to="/dashboard/clients/$clientId/visits"
+              params={{ clientId: p.client_id }}
+              search={{ week: scheduledDate }}
+            >
+              View newly scheduled visits <ArrowRight size={16} />
+            </Link>
           )}
           {error && !closing && (
             <p role="alert" className="cr-error">
@@ -277,6 +302,10 @@ export function PlacementCoverage({
                 request={p}
                 selected={selected}
                 busy={busy}
+                workers={activeWorkers}
+                workersLoading={roster.isPending}
+                workersError={roster.isError}
+                onRetryWorkers={() => void roster.refetch()}
                 onSelect={(slot, worker) => {
                   setSelected((prev) => ({ ...prev, [slot]: worker }))
                   resetReview()
@@ -334,11 +363,18 @@ export function PlacementCoverage({
                         <p className="cr-small">
                           Visits are created only after approval.
                         </p>
+                        {unavailableSelection && (
+                          <p role="alert" className="cr-error">
+                            A selected worker is no longer available in the
+                            agency roster. Refresh workers and choose again.
+                          </p>
+                        )}
                         <button
                           className="cr-button cr-primary"
                           disabled={
                             busy ||
                             !selections.length ||
+                            unavailableSelection ||
                             effectiveDate < earliestDate
                           }
                           onClick={() => void handleReview()}
@@ -366,6 +402,12 @@ export function PlacementCoverage({
                           className="cr-button"
                           to="/dashboard/clients/$clientId/visits"
                           params={{ clientId: p.client_id }}
+                          search={{
+                            week: firstCareVisitDate(
+                              p.care_slots.filter((s) => s.worker_id),
+                              p.scheduled_from || p.start_date || today,
+                            ),
+                          }}
                         >
                           View scheduled care <ArrowRight size={16} />
                         </Link>
@@ -430,6 +472,7 @@ export function PlacementCoverage({
                       setSuccess(
                         'Care request closed. Approved visits remain scheduled.',
                       )
+                      setScheduledDate('')
                     },
                     onError: (err) => setError(errorMessage(err)),
                   })

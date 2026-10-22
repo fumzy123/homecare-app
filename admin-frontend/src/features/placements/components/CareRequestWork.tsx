@@ -1,8 +1,7 @@
 import { ArrowRight, Check } from 'lucide-react'
 import {
   WEEKDAY_LABELS,
-  SERVICE_TYPE_LABELS,
-} from '@/features/authorizations/constants'
+} from '@/features/weekly-care-need/constants'
 import { slotHours } from '@/features/clients/lib/care'
 import type { PlacementDetail } from '../api'
 
@@ -17,19 +16,71 @@ export function CareRequestSlots({
   selected,
   busy,
   onSelect,
-}: RequestProps & { onSelect: (slot: string, worker: string) => void }) {
+  workers,
+  workersLoading,
+  workersError,
+  onRetryWorkers,
+}: RequestProps & {
+  onSelect: (slot: string, worker: string) => void
+  workers: {
+    id: string
+    first_name: string
+    last_name: string
+    max_hours_per_week: number | null
+  }[]
+  workersLoading: boolean
+  workersError: boolean
+  onRetryWorkers: () => void
+}) {
   return (
     <section>
       <p className="cr-muted">
         {p.status === 'open'
-          ? 'Choose a worker for each open Care Slot.'
+          ? 'Choose a worker for each open Care Slot. Scheduling checks run when you review.'
           : 'Approved workers and remaining Care Slots.'}
       </p>
+      {p.status === 'open' && p.weekly_care_need_id && (
+        <>
+          {workersLoading && <p role="status">Loading agency workers…</p>}
+          {workersError && (
+            <p role="alert">
+              Could not refresh agency workers.{' '}
+              <button
+                className="cr-link"
+                disabled={busy}
+                onClick={onRetryWorkers}
+              >
+                Retry workers
+              </button>
+            </p>
+          )}
+        </>
+      )}
       <div className="cr-slots">
         {p.care_slots.map((slot) => {
           const interested = p.interests.filter((w) =>
             w.care_slot_ids.includes(slot.id),
           )
+          // Keep existing interest usable while the roster loads or fails.
+          const candidates = new Map(
+            workers.map((w) => [
+              w.id,
+              { id: w.id, name: `${w.first_name} ${w.last_name}` },
+            ]),
+          )
+          if (workersLoading || workersError)
+            for (const w of interested)
+              if (!candidates.has(w.employment_id))
+                candidates.set(w.employment_id, {
+                  id: w.employment_id,
+                  name: `${w.first_name} ${w.last_name}`,
+                })
+          const options = [...candidates.values()].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          )
+          const interestedIds = new Set(interested.map((w) => w.employment_id))
+          const interestedOptions = options.filter((w) => interestedIds.has(w.id))
+          const otherOptions = options.filter((w) => !interestedIds.has(w.id))
           return (
             <article
               className={`cr-slot ${selected[slot.id] && !slot.worker_id ? 'cr-selected' : ''}`}
@@ -51,7 +102,7 @@ export function CareRequestSlots({
                 </span>
               </div>
               <p className="cr-small mt-2">
-                {SERVICE_TYPE_LABELS[slot.service_type]} · {slotHours(slot)}{' '}
+                {slotHours(slot)}{' '}
                 hours / week
               </p>
               <div className="cr-between cr-slot-bottom">
@@ -59,6 +110,9 @@ export function CareRequestSlots({
                   <span className="cr-row">
                     <Check size={16} />
                     {slot.worker_name || 'Assigned worker'}
+                    {slot.assignment_source === 'admin_arranged' && (
+                      <span className="cr-small"> · Arranged by admin</span>
+                    )}
                   </span>
                 ) : p.status === 'open' && p.weekly_care_need_id ? (
                   <>
@@ -73,18 +127,37 @@ export function CareRequestSlots({
                       onChange={(e) => onSelect(slot.id, e.target.value)}
                     >
                       <option value="">Choose worker…</option>
-                      {interested.map((w) => (
-                        <option key={w.employment_id} value={w.employment_id}>
-                          {w.first_name} {w.last_name}
-                        </option>
-                      ))}
+                      {!options.length && (
+                        <option disabled>No active workers available</option>
+                      )}
+                      {interestedOptions.length > 0 && (
+                        <optgroup label="Interested in this slot">
+                          {interestedOptions.map((w) => (
+                            <option key={w.id} value={w.id}>
+                              {w.name} · Interested
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {otherOptions.length > 0 && (
+                        <optgroup label="Other active workers">
+                          {otherOptions.map((w) => (
+                            <option key={w.id} value={w.id}>{w.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   </>
                 ) : (
                   <span className="cr-muted">No worker assigned</span>
                 )}
               </div>
-              {!slot.worker_id && slot.replacement_from && <p className="cr-small mt-3">Previous assignment stops from {slot.replacement_from}. Choose replacement coverage from that date or later.</p>}
+              {!slot.worker_id && slot.replacement_from && (
+                <p className="cr-small mt-3">
+                  Previous assignment stops from {slot.replacement_from}. Choose
+                  replacement coverage from that date or later.
+                </p>
+              )}
             </article>
           )
         })}
@@ -155,7 +228,9 @@ export function CareRequestWorkers({
                     onClick={() => onSelect(w.employment_id)}
                   >
                     Select for {selectable.length || available.length} Care Slot
-                    {(selectable.length || available.length) === 1 ? '' : 's'}{' '}
+                    {(selectable.length || available.length) === 1
+                      ? ''
+                      : 's'}{' '}
                     <ArrowRight size={16} />
                   </button>
                 )}
@@ -166,7 +241,8 @@ export function CareRequestWorkers({
         <div className="cr-empty">
           <h2>No worker interest yet.</h2>
           <p className="cr-muted">
-            Workers who respond to this request will appear here.
+            Workers who respond to this request will appear here. You can also
+            assign an agency worker directly from Care coverage.
           </p>
         </div>
       )}

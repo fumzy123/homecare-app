@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/shared/components/ui/Avatar';
 import { getInitials } from '@/shared/utils/getInitials';
 import { formatTimeRange } from '@/shared/utils/formatTime';
-import { serviceTypeLabel } from '@/features/shifts/lib/schedule';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 interface Props {
@@ -30,7 +29,7 @@ export function CurrentShiftCard({ shift, now, visitIndex, total, hasNote, onPre
       <Avatar initials={getInitials(shift.client.first_name, shift.client.last_name)} size="md" />
       <View className="flex-1">
         <Text className="font-serif text-2xl text-ink">{shift.client.first_name} <Text className="font-serif-italic">{shift.client.last_name}</Text></Text>
-        <Text className="mt-1 text-xs text-ink-soft">{serviceTypeLabel(shift.service_type)} · Visit {visitIndex} of {total}</Text>
+        <Text className="mt-1 text-xs text-ink-soft">Care visit · Visit {visitIndex} of {total}</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color="#8A8378" />
     </Pressable>

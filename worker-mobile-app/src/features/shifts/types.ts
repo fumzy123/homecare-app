@@ -1,5 +1,4 @@
 export type ShiftCompletionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'dropped' | 'no_show';
-export type ServiceType = 'personal_care' | 'companionship' | 'respite' | 'nursing' | 'homemaking';
 
 export interface ShiftWorkerSummary {
   id: string;
@@ -29,7 +28,6 @@ export interface ShiftOccurrence {
   /** Absent on older backends; do not infer an edit from lifecycle records. */
   has_visit_changes?: boolean;
   is_recurring: boolean;
-  service_type: ServiceType | null;
   worker: ShiftWorkerSummary;
   client: ShiftClientSummary;
   location: string | null;
@@ -46,7 +44,6 @@ export interface WorkerShiftDetail {
   start_time: string;
   end_time: string;
   completion_status: ShiftCompletionStatus;
-  service_type: ServiceType | null;
   client: ShiftClientSummary;
   location: string | null;
   instructions: string | null;

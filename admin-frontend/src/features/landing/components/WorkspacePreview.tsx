@@ -372,7 +372,7 @@ export function WorkspacePreview({
               </div>
             </div>
             <p className="panel-footnote">
-              Weekly plans are checked against authorized hours before saving.
+              Save weekly care revisions, then review worker availability and conflicts before scheduling.
             </p>
           </section>
           <section

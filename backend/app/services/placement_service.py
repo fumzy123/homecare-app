@@ -6,7 +6,6 @@ from collections import defaultdict
 from app.models.placement import CareSlotAssignment
 from app.domain.care_coverage import end_previous_coverage
 from app.domain.assignments import open_assignments, replacement_from
-from app.services.authorization_compliance_service import AuthorizationComplianceService
 from types import SimpleNamespace
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -14,8 +13,6 @@ from app.core.exceptions import AppError
 from app.core.enums import (
     PlacementStatus,
     WeekDay,
-    ServiceType,
-    CareArrangement,
     ClientStatus,
 )
 from app.models.shift import Shift
@@ -24,12 +21,13 @@ from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.client_repository import ClientRepository
 from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 from app.repositories.worker_availability_repository import WorkerAvailabilityRepository
-from app.repositories.authorization_repository import AuthorizationRepository
 from app.repositories.shift_repository import ShiftRepository
 from app.domain.scheduling import (
     SchedulingChecker,
     care_slots_to_time_blocks,
     WEEKDAY_INDEX,
+    hours_by_week,
+    iso_week_range,
 )
 from app.domain.availability import availability_covers_care_need
 from app.services.notification_service import NotificationService
@@ -67,14 +65,6 @@ _WEEKDAY_ORDER = {
         ]
     )
 }
-_SERVICE_LABELS = {
-    ServiceType.personal_care: "Personal Care",
-    ServiceType.companionship: "Companionship",
-    ServiceType.respite: "Respite",
-    ServiceType.nursing: "Nursing",
-    ServiceType.homemaking: "Homemaking",
-}
-
 
 class PlacementService:
     def __init__(self, db: Session, current_user, org_id: UUID):
@@ -85,7 +75,6 @@ class PlacementService:
         self.client_repo = ClientRepository(db)
         self.care_need_repo = WeeklyCareNeedRepository(db)
         self.availability_repo = WorkerAvailabilityRepository(db)
-        self.auth_repo = AuthorizationRepository(db)
         self.shift_repo = ShiftRepository(db)
         self.cutoff_service = BillingCutoffService(db)
         self.checker = SchedulingChecker(db, org_id)
@@ -216,12 +205,11 @@ class PlacementService:
             "day_of_week": e.day_of_week.value,
             "start_time": e.start_time.isoformat(),
             "end_time": e.end_time.isoformat(),
-            "service_type": e.service_type.value,
         }
 
     def _format_care_need(self, entries) -> str:
         """Render the client's weekly care need as a frozen text block, e.g.
-        "Mon · 9am–7pm · Personal Care"."""
+        "Mon · 9am–7pm"."""
         if not entries:
             return "No weekly care need has been set for this client yet."
         ordered = sorted(
@@ -230,11 +218,16 @@ class PlacementService:
         )
         lines = [
             f"{_WEEKDAY_LABELS.get(e.day_of_week, e.day_of_week.value)} · "
-            f"{self._fmt_time(e.start_time)}–{self._fmt_time(e.end_time)} · "
-            f"{_SERVICE_LABELS.get(e.service_type, e.service_type.value)}"
+            f"{self._fmt_time(e.start_time)}–{self._fmt_time(e.end_time)}"
             for e in ordered
         ]
         return "\n".join(lines)
+
+    def _care_description(self, placement):
+        # Preserve frozen history in storage; present structured slots without retired labels.
+        if placement.care_slot_snapshot:
+            return self._format_care_need(self._parse_snapshot(placement.care_slot_snapshot))
+        return placement.shift_description
 
     def list_placements(
         self, status: PlacementStatus | None = None
@@ -311,7 +304,7 @@ class PlacementService:
                 )
         today = date.today()
         start = self._effective_start(placement, today)
-        horizon = self._check_horizon(client, start, today)
+        horizon = start + timedelta(days=365)
         if not care_slots_to_time_blocks(entries, start, horizon):
             raise AppError(
                 409,
@@ -376,7 +369,7 @@ class PlacementService:
             client_first_name=placement.client.first_name,
             client_last_name=placement.client.last_name,
             masked_location=placement.masked_location,
-            shift_description=placement.shift_description,
+            shift_description=self._care_description(placement),
             requirements=placement.requirements,
             start_date=placement.start_date,
             scheduled_from=placement.weekly_care_need.scheduled_from if placement.weekly_care_need else None,
@@ -469,7 +462,7 @@ class PlacementService:
             client_first_name=p.client.first_name,
             client_last_name=p.client.last_name,
             created_by=p.created_by,
-            shift_description=p.shift_description,
+            shift_description=self._care_description(p),
             requirements=p.requirements,
             masked_location=p.masked_location,
             start_date=p.start_date,
@@ -499,46 +492,15 @@ class PlacementService:
                     day_of_week=WeekDay(d["day_of_week"]),
                     start_time=time.fromisoformat(d["start_time"]),
                     end_time=time.fromisoformat(d["end_time"]),
-                    service_type=ServiceType(d["service_type"]),
                 )
             )
         return out
-
-    def _funded_covering_end(self, client, today: date, service_type=None):
-        """The active authorization's covering end for a funded client. None when
-        self-pay, open-ended, or no active authorization — i.e. no hard end date."""
-        if client.care_arrangement != CareArrangement.funded:
-            return None
-        auths = self.auth_repo.list_active_for_client(client.id, self.org_id, today)
-        if service_type is not None:
-            auths = [
-                a
-                for a in auths
-                if any(s.service_type == service_type for s in a.services)
-            ]
-        ends = [a.covering_end for a in auths]
-        if not ends or any(e is None for e in ends):
-            return None
-        return max(ends)
 
     @staticmethod
     def _effective_start(p, today: date) -> date:
         """The date care actually starts when generating/checking — the placement's
         advertised start, never earlier than today (so we never schedule the past)."""
         return max(p.start_date or today, today)
-
-    def _check_horizon(self, client, base_date: date, today: date) -> date:
-        """How far ahead to project the plan when checking conflicts/hours — the
-        funded end date if sooner, else a one-year cap from the start (matches the
-        recurring conflict window used in shift creation)."""
-        cap = base_date + timedelta(days=365)
-        end = self._funded_covering_end(client, today)
-        return end if (end and end < cap) else cap
-
-    def _slot_horizon(self, client, slot, start):
-        end = self._funded_covering_end(client, start, slot.service_type)
-        cap = start + timedelta(days=365)
-        return min(end, cap) if end else cap
 
     def _eligibility_for(
         self, employment, snapshot_entries, client, effective_start: date, today: date
@@ -553,7 +515,7 @@ class PlacementService:
             for block in care_slots_to_time_blocks(
                 [slot],
                 effective_start,
-                self._slot_horizon(client, slot, effective_start),
+                effective_start + timedelta(days=365),
             )
         ]
         conflicts = self.checker.find_conflicts(employment.id, blocks)
@@ -618,23 +580,20 @@ class PlacementService:
         effective_start: date,
         today: date,
     ) -> list:
-        """One recurring shift per (start, end, service) group; BYDAY lists the
-        group's weekdays. First occurrence on/after the start date; ends at the
-        funded covering_end, else open-ended."""
+        """One recurring shift per (start, end) group; BYDAY lists the
+        group's weekdays. First occurrence on/after the start date; continues until
+        explicitly ended or replaced by a later care revision."""
         location = self._format_address(client)
 
         groups: dict = {}
         for e in snapshot_entries:
-            groups.setdefault((e.start_time, e.end_time, e.service_type), []).append(
+            groups.setdefault((e.start_time, e.end_time), []).append(
                 e.day_of_week
             )
 
         shifts = []
-        for (start_t, end_t, service), days in groups.items():
-            covering_end = self._funded_covering_end(client, today, service)
+        for (start_t, end_t), days in groups.items():
             first = self._first_occurrence_date(days, effective_start)
-            if covering_end and first > covering_end:
-                continue
             byday = ",".join(
                 d.value for d in sorted(days, key=lambda x: WEEKDAY_INDEX[x])
             )
@@ -644,12 +603,11 @@ class PlacementService:
                     worker_id=worker_id,
                     client_id=placement.client_id,
                     created_by=self.employment_id,
-                    service_type=service,
                     start_time=datetime.combine(first, start_t),
                     end_time=datetime.combine(first, end_t),
                     is_recurring=True,
                     recurrence_rule=f"FREQ=WEEKLY;BYDAY={byday}",
-                    recurrence_end_date=covering_end,
+                    recurrence_end_date=None,
                     location=location,
                 )
             )
@@ -676,7 +634,7 @@ class PlacementService:
             client_first_name=p.client.first_name,
             client_last_name=p.client.last_name,
             created_by=p.created_by,
-            shift_description=p.shift_description,
+            shift_description=self._care_description(p),
             requirements=p.requirements,
             masked_location=p.masked_location,
             start_date=p.start_date,
@@ -711,8 +669,9 @@ class PlacementService:
             assignment = assignments.get(slot.get("id", ""))
             rows.append(
                 {
-                    **slot,
+                    **{key: value for key, value in slot.items() if key != "service_type"},
                     "worker_id": str(assignment.employment_id) if assignment else None,
+                    "assignment_source": assignment.assignment_source if assignment else None,
                     "replacement_from": str(replacement_from(history, UUID(slot['id'])))
                     if not assignment and slot.get('id') and replacement_from(history, UUID(slot['id'])) else None,
                     "worker_name": f"{assignment.employment.person.first_name} {assignment.employment.person.last_name}"
@@ -721,6 +680,23 @@ class PlacementService:
                 }
             )
         return rows
+
+    def _replaced_revisions(self, previous, starts_on):
+        """Include earlier coverage when a new revision starts before a queued one.
+
+        Dates only shorten on approval. A cancelled future revision remains in
+        history with an empty effective interval; its predecessor is never revived.
+        """
+        revisions, seen = [], set()
+        while previous and previous.id not in seen:
+            seen.add(previous.id)
+            if previous.ends_on is None or previous.ends_on >= starts_on:
+                revisions.append(previous)
+            previous = (
+                self.care_need_repo.get(previous.supersedes_id, self.org_id)
+                if previous.supersedes_id else None
+            )
+        return revisions
 
     def _approval_context(self, placement_id, payload):
         org = OrganizationRepository(self.db).lock_by_id(self.org_id)
@@ -806,7 +782,7 @@ class PlacementService:
             interest = self.placement_repo.get_interest(
                 placement.id, selection.employment_id
             )
-            if (
+            if selection.assignment_source == 'worker_interest' and (
                 not interest
                 or str(selection.care_slot_id) not in interest.care_slot_ids
             ):
@@ -821,9 +797,11 @@ class PlacementService:
             if need.supersedes_id and not need.activated_at
             else None
         )
-        old_shifts = (
-            self.shift_repo.for_care_need(previous.id, self.org_id) if previous else []
-        )
+        old_shifts = [
+            shift
+            for revision in self._replaced_revisions(previous, payload.starts_on)
+            for shift in self.shift_repo.for_care_need(revision.id, self.org_id)
+        ]
         remaining = [
             slot
             for key, slot in slots.items()
@@ -835,7 +813,7 @@ class PlacementService:
             sorted((str(a.id), str(getattr(a, 'ends_before', None))) for a in assignment_history),
             sorted(str(i) for i in covered),
             sorted(
-                (str(a.care_slot_id), str(a.employment_id)) for a in payload.selections
+                (str(a.care_slot_id), str(a.employment_id), a.assignment_source) for a in payload.selections
             ),
             [
                 (
@@ -866,36 +844,40 @@ class PlacementService:
         )
 
     def _validate_selected_coverage(self, client, need, by_worker, start, today):
-        if client.care_arrangement == CareArrangement.funded:
-            compliance = AuthorizationComplianceService(self.db).evaluate_entries(
-                client.id, self.org_id, need.care_slots, start
-            )
-            if any(s.status == "exceeded" for s in compliance.services):
-                raise AppError(
-                    409,
-                    "AUTHORIZATION_EXCEEDED",
-                    "The Weekly Care Need exceeds authorization at the selected start date",
-                )
         results = []
         for worker_id, slots in by_worker.items():
             worker = self._assignment_worker(worker_id)
             eligibility = self._eligibility_for(worker, slots, client, start, start)
+            first_visit = min(self._first_occurrence_date([slot.day_of_week], start) for slot in slots)
+            week_start, week_end = iso_week_range(first_visit)
+            current_hours = sum(hours_by_week(
+                self.shift_repo.get_active_shifts_for_conflict_check(worker_id, self.org_id),
+                week_start, week_end,
+            ).values())
+            proposed_hours = sum((end - begin).total_seconds() / 3600
+                for slot in slots
+                for _, begin, end in care_slots_to_time_blocks(
+                    [slot], start, min(week_end, start + timedelta(days=365))))
             if not all(
                 care_slots_to_time_blocks(
-                    [slot], start, self._slot_horizon(client, slot, start)
+                    [slot], start, start + timedelta(days=365)
                 )
                 for slot in slots
             ):
                 raise AppError(
                     409,
                     "NO_SCHEDULE_WINDOW",
-                    "A selected Care Slot has no visit before authorization ends",
+                    "A selected Care Slot has no visit in the scheduling window",
                 )
             results.append(
                 {
                     "worker_id": str(worker_id),
                     "worker_name": f"{worker.person.first_name} {worker.person.last_name}",
                     "eligibility": eligibility.model_dump(),
+                    "hours": {"week_start": str(week_start), "week_end": str(week_end),
+                              "current": round(current_hours, 2), "proposed": round(proposed_hours, 2),
+                              "total": round(current_hours + proposed_hours, 2),
+                              "max_weekly_hours": worker.max_hours_per_week},
                 }
             )
         return results
@@ -968,6 +950,9 @@ class PlacementService:
                     "UNCOVERED_SLOTS",
                     "Acknowledge the remaining uncovered Care Slots",
                 )
+            if any(s.assignment_source == 'admin_arranged' for s in payload.selections) and not payload.confirm_admin_arranged:
+                raise AppError(409, 'ADMIN_ARRANGEMENT_REQUIRED',
+                               'Confirm that you arranged coverage with the directly selected workers')
             from app.services.worker_notification_service import WorkerNotificationService
             previous_workers = {shift.worker_id for shift in old}
             end_previous_coverage(old, payload.starts_on)
@@ -989,9 +974,9 @@ class PlacementService:
                 need.activated_at = datetime.now(timezone.utc)
                 # Keep the proposed date separately from the approved schedule start.
                 need.scheduled_from = payload.starts_on
-                if previous:
-                    previous.ends_on = payload.starts_on - timedelta(days=1)
-                    previous_placement = self.placement_repo.for_care_need(previous.id)
+                for replaced in self._replaced_revisions(previous, payload.starts_on):
+                    replaced.ends_on = payload.starts_on - timedelta(days=1)
+                    previous_placement = self.placement_repo.for_care_need(replaced.id)
                     if (
                         previous_placement
                         and previous_placement.status == PlacementStatus.open
@@ -1004,11 +989,13 @@ class PlacementService:
                         )
             for worker_id, slots in by_worker.items():
                 for slot in slots:
+                    selection = next(s for s in payload.selections if s.care_slot_id == slot.id)
                     assignment = CareSlotAssignment(
                             care_slot_id=slot.id,
                             placement_id=p.id,
                             employment_id=worker_id,
                             approved_by=self.employment_id,
+                            assignment_source=selection.assignment_source,
                             starts_on=payload.starts_on,
                     )
                     self.placement_repo.add_assignment(assignment)

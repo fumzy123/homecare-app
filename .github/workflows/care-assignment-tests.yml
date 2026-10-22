@@ -1,0 +1,84 @@
+name: Care assignment workflow
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+    paths: ['backend/**', 'admin-frontend/**', '.github/workflows/care-assignment-tests.yml']
+
+jobs:
+  care-assignment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: care_assignment_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/care_assignment_test
+      CARE_TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/care_assignment_test
+      SUPABASE_URL: http://127.0.0.1:5198
+      SUPABASE_SECRET_KEY: test-secret-key
+      CARE_REQUEST_TEST_URL: http://127.0.0.1:5198
+      BROWSER_CHANNEL: chromium
+      VITE_BACKEND_API_URL: http://127.0.0.1:5198
+      VITE_SUPABASE_URL: http://127.0.0.1:5198
+      VITE_SUPABASE_PUBLISHABLE_KEY: dummy-publishable-key
+      VITE_STRIPE_PUBLISHABLE_KEY: pk_test_dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: admin-frontend/package-lock.json
+      - run: pip install -r backend/requirements.txt
+      - run: npm ci
+        working-directory: admin-frontend
+      - name: Install browser test runtime
+        working-directory: admin-frontend
+        run: |
+          npm install --no-save --package-lock=false playwright@1.62.1
+          npx playwright install --with-deps chromium
+      - name: Initialize disposable database
+        working-directory: backend
+        # Historical migrations also require Supabase's auth/storage schemas.
+        # Use model tables here; the coverage suite independently exercises the
+        # new provenance migration against the previous table shape and rows.
+        run: python -c "import os, app.models; from sqlalchemy import create_engine; app.models.Base.metadata.create_all(create_engine(os.environ['CARE_TEST_DATABASE_URL']))"
+      - name: Backend safeguards and migration
+        working-directory: backend
+        run: python -m pytest tests/services/test_placement_assignment.py tests/services/test_assignment_management.py tests/integration/test_care_coverage.py tests/integration/test_funding_retirement.py tests/services/test_funding_retired.py tests/services/test_service_type_retirement.py tests/integration/test_service_type_retirement.py -q
+      - name: Start test frontend
+        working-directory: admin-frontend
+        run: |
+          node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5198 --strictPort > /tmp/care-assignment-vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5198/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/care-assignment-vite.log
+          exit 1
+      - name: Selection and existing browser regressions
+        working-directory: admin-frontend
+        run: |
+          node --experimental-strip-types --test tests/care-requests.test.mjs
+          node --experimental-strip-types --test tests/phone.test.mjs
+          node tests/care-requests.browser.cjs
+          node tests/client-setup.browser.cjs
+      - name: Browser to API to PostgreSQL, both admin entry points
+        working-directory: backend
+        run: python -m pytest tests/integration/test_direct_assignment_browser.py -q

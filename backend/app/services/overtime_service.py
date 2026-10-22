@@ -292,7 +292,6 @@ class OvertimeService:
                     or datetime.fromisoformat(p["start_time"]),
                     end_time=payload.end_time or datetime.fromisoformat(p["end_time"]),
                     recurrence=recurrence,
-                    service_type=p.get("service_type"),
                     location=p.get("location"),
                     notes=p.get("notes"),
                     override_hours_check=True,

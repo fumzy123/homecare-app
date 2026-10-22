@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
-import { useOrganization } from '@/features/organization/hooks/useOrganization'
-import { validatePhone } from '@/shared/lib/phone'
+import { normalizePhone, validatePhone } from '@/shared/lib/phone'
+import { PhoneInput } from '@/shared/components/PhoneInput'
 import { useSaveClient } from '../hooks/useClients'
-import type { Client, ClientStatus, CareArrangement } from '../api'
+import type { Client, ClientStatus } from '../api'
 import { ClientPanel } from './ClientWorkspaceUI'
 import { ClientDangerZone } from './ClientDangerZone'
+import { HelpTooltip } from '@/shared/components/HelpTooltip'
 import { errorMessage } from '../lib/care'
 
 const required = z.string().trim().min(1, 'Required')
@@ -53,7 +54,6 @@ const sections = [
   {
     title: 'Care profile',
     fields: [
-      'care_arrangement',
       'medical_conditions',
       'allergies',
       'medications',
@@ -77,7 +77,6 @@ const labels: Record<string, string> = {
   emergency_contact_name: 'Contact name',
   emergency_contact_relationship: 'Relationship',
   emergency_contact_phone: 'Contact phone',
-  care_arrangement: 'Care arrangement',
   medical_conditions: 'Medical conditions',
   allergies: 'Allergies',
   medications: 'Medications',
@@ -99,14 +98,16 @@ export function ClientProfileForm({
   onCancel,
   onSuccess,
   onDirtyChange,
+  onBusyChange,
 }: {
   client?: Client
   onCancel: () => void
-  onSuccess: () => void
+  onSuccess: (saved: Client) => void
   onDirtyChange?: (dirty: boolean) => void
+  onBusyChange?: (busy: boolean) => void
 }) {
   const save = useSaveClient(client?.id)
-  const org = useOrganization()
+  const statusId = useId()
   const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const form = useForm({
@@ -126,8 +127,6 @@ export function ClientProfileForm({
       emergency_contact_relationship:
         client?.emergency_contact_relationship || '',
       emergency_contact_phone: client?.emergency_contact_phone || '',
-      care_arrangement:
-        client?.care_arrangement || ('self_pay' as CareArrangement),
       medical_conditions: client?.medical_conditions || '',
       allergies: client?.allergies || '',
       medications: client?.medications || '',
@@ -138,31 +137,28 @@ export function ClientProfileForm({
       if (!check(true)) return
       setError('')
       try {
-        await save.mutateAsync({
+        const saved = await save.mutateAsync({
           ...value,
           ...Object.fromEntries(
             optionalKeys.map((key) => [key, value[key].trim() || null]),
           ),
+          phone_number: normalizePhone(value.phone_number),
+          emergency_contact_phone: normalizePhone(value.emergency_contact_phone)!,
         })
-        onSuccess()
+        onSuccess(saved)
       } catch (err) {
         setError(errorMessage(err))
       }
     },
   })
-  const [defaulted, setDefaulted] = useState(false)
-  if (org.data && !client && !defaulted) {
-    setDefaulted(true)
-    form.setFieldValue(
-      'care_arrangement',
-      org.data.uses_authorizations ? 'funded' : 'self_pay',
-    )
-  }
   const dirty = useStore(form.store, (s) => s.isDirty)
   useUnsavedChanges(dirty && !save.isPending && !save.isSuccess)
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
+  useEffect(() => {
+    onBusyChange?.(save.isPending)
+  }, [save.isPending, onBusyChange])
   const visibleSections = client
     ? sections
     : step === 0
@@ -237,11 +233,6 @@ export function ClientProfileForm({
                   const options =
                     name === 'status'
                       ? ['active', 'on_hold', 'discharged']
-                      : name === 'care_arrangement'
-                        ? org.data?.uses_authorizations ||
-                          client?.care_arrangement === 'funded'
-                          ? ['self_pay', 'funded']
-                          : ['self_pay']
                         : name === 'gender'
                           ? [
                               '',
@@ -275,6 +266,40 @@ export function ClientProfileForm({
                     'special_instructions',
                     'notes',
                   ].includes(name)
+                  if (name === 'phone_number' || name === 'emergency_contact_phone') return (
+                    <PhoneInput label={labels[name]} value={field.state.value}
+                      onChange={field.handleChange} onBlur={field.handleBlur}
+                      required={name === 'emergency_contact_phone'} inputClassName="cw-input"
+                      labelClassName="text-xs" />
+                  )
+                  if (name === 'status') return (
+                    <div className="cw-field">
+                      <HelpTooltip
+                        id={`${statusId}-help`}
+                        buttonLabel="About client status"
+                        tone="light"
+                        text={<>
+                          <span className="block mb-2">Where this client is in their care relationship with your agency.</span>
+                          <span className="block mb-1"><strong>Active:</strong> Currently receiving care or being set up for care.</span>
+                          <span className="block mb-1"><strong>On hold:</strong> Care is temporarily paused.</span>
+                          <span className="block"><strong>Discharged:</strong> The client is no longer receiving care from your agency.</span>
+                        </>}
+                      >
+                        <label htmlFor={statusId}>Client status</label>
+                      </HelpTooltip>
+                      <select
+                        id={statusId}
+                        className="cw-input"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value as ClientStatus)}
+                        onBlur={field.handleBlur}
+                      >
+                        <option value="active">Active</option>
+                        <option value="on_hold">On hold</option>
+                        <option value="discharged">Discharged</option>
+                      </select>
+                    </div>
+                  )
                   return (
                     <label className={`cw-field ${long ? 'cw-form-full' : ''}`}>
                       {labels[name]}
@@ -309,6 +334,11 @@ export function ClientProfileForm({
                       ) : (
                         <input
                           className="cw-input"
+                          placeholder={
+                            name.includes('phone')
+                              ? '+1 709 555 0123'
+                              : undefined
+                          }
                           type={
                             name === 'date_of_birth'
                               ? 'date'
@@ -361,6 +391,7 @@ export function ClientProfileForm({
             <button
               type="button"
               className="cw-btn"
+              disabled={save.isPending}
               onClick={() => {
                 setStep((s) => s - 1)
                 setError('')

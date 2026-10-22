@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { type Client, SERVICE_TYPE_LABELS } from '@/features/clients/api'
+import { type Client } from '@/features/clients/api'
 import { ClientStatusBadge } from '@/features/clients/components/ClientStatusBadge'
 
 function getInitials(firstName: string, lastName: string) {
@@ -23,9 +23,6 @@ export function ClientCard({ client }: { client: Client }) {
           <p className="truncate font-medium text-gray-900">
             {client.first_name} {client.last_name}
           </p>
-          <p className="truncate text-sm text-gray-500">
-            {client.service_types.map((t) => SERVICE_TYPE_LABELS[t]).join(', ') || '—'}
-          </p>
         </div>
         <div className="ml-auto shrink-0">
           <ClientStatusBadge status={client.status} />
@@ -40,18 +37,6 @@ export function ClientCard({ client }: { client: Client }) {
         <div>
           <p className="text-xs text-gray-400">Phone</p>
           <p className="text-gray-700 truncate">{client.phone_number ?? '—'}</p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-400">Care Start</p>
-          <p className="text-gray-700">
-            {client.care_start
-              ? new Date(client.care_start).toLocaleDateString('en-CA', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                })
-              : '—'}
-          </p>
         </div>
         <div>
           <p className="text-xs text-gray-400">Worker</p>

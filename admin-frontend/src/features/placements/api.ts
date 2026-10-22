@@ -24,7 +24,12 @@ export interface InterestWorkerSummary {
 export interface Placement {
   scheduled_from: string | null
   weekly_care_need_id: string | null
-  care_slots: (CareSlot & { worker_id: string | null; worker_name: string | null; replacement_from?: string | null })[]
+  care_slots: (CareSlot & {
+    worker_id: string | null
+    worker_name: string | null
+    replacement_from?: string | null
+    assignment_source?: 'worker_interest' | 'admin_arranged' | null
+  })[]
   covered_count: number
   transition_applied: boolean
   id: string
@@ -66,14 +71,66 @@ export interface PlacementFillPayload {
   employment_id: string
 }
 
-export interface ApprovalPayload { selections: { care_slot_id: string; employment_id: string }[]; starts_on: string; accept_uncovered?: boolean; review_token?: string }
-export interface ApprovalReview { review_token: string; starts_on: string; ends_previous_schedule: boolean; old_shifts: { shift_id: string; worker_name: string; description: string; start_time: string; recurrence_rule: string | null }[]; uncovered_slots: CareSlot[]; all_clear: boolean; workers: { worker_id: string; worker_name: string; eligibility: InterestEligibility }[] }
+export interface ApprovalPayload {
+  selections: {
+    care_slot_id: string
+    employment_id: string
+    assignment_source?: 'worker_interest' | 'admin_arranged'
+  }[]
+  starts_on: string
+  accept_uncovered?: boolean
+  confirm_admin_arranged?: boolean
+  review_token?: string
+}
+export interface ApprovalReview {
+  review_token: string
+  starts_on: string
+  ends_previous_schedule: boolean
+  old_shifts: {
+    shift_id: string
+    worker_name: string
+    description: string
+    start_time: string
+    recurrence_rule: string | null
+  }[]
+  uncovered_slots: CareSlot[]
+  all_clear: boolean
+  workers: {
+    worker_id: string
+    worker_name: string
+    eligibility: InterestEligibility
+    hours?: {
+      week_start: string
+      week_end: string
+      current: number
+      proposed: number
+      total: number
+      max_weekly_hours?: number | null
+    }
+  }[]
+}
 export const placementsApi = {
-  review: async (id: string, payload: ApprovalPayload): Promise<ApprovalReview> => (await apiClient.post(`/api/placements/${id}/approval-review`, payload)).data,
-  approve: async (id: string, payload: ApprovalPayload): Promise<PlacementDetail> => (await apiClient.post(`/api/placements/${id}/approve`, payload)).data,
-  previewAssignment: async (id: string, worker: string): Promise<AssignmentPreview> =>
-    (await apiClient.get(`/api/placements/${id}/workers/${worker}/eligibility`)).data,
-  assign: async (id: string, payload: PlacementFillPayload): Promise<PlacementDetail> =>
+  review: async (
+    id: string,
+    payload: ApprovalPayload,
+  ): Promise<ApprovalReview> =>
+    (await apiClient.post(`/api/placements/${id}/approval-review`, payload))
+      .data,
+  approve: async (
+    id: string,
+    payload: ApprovalPayload,
+  ): Promise<PlacementDetail> =>
+    (await apiClient.post(`/api/placements/${id}/approve`, payload)).data,
+  previewAssignment: async (
+    id: string,
+    worker: string,
+  ): Promise<AssignmentPreview> =>
+    (await apiClient.get(`/api/placements/${id}/workers/${worker}/eligibility`))
+      .data,
+  assign: async (
+    id: string,
+    payload: PlacementFillPayload,
+  ): Promise<PlacementDetail> =>
     (await apiClient.post(`/api/placements/${id}/assign`, payload)).data,
   list: async (status?: PlacementStatus): Promise<Placement[]> => {
     const { data } = await apiClient.get('/api/placements', {
@@ -92,7 +149,10 @@ export const placementsApi = {
     return data
   },
 
-  fill: async (id: string, payload: PlacementFillPayload): Promise<PlacementDetail> => {
+  fill: async (
+    id: string,
+    payload: PlacementFillPayload,
+  ): Promise<PlacementDetail> => {
     const { data } = await apiClient.post(`/api/placements/${id}/fill`, payload)
     return data
   },

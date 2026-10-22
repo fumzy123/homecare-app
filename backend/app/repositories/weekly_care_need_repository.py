@@ -34,22 +34,6 @@ class WeeklyCareNeedRepository:
         need = self.latest(client_id)
         return need.care_slots if need else []
 
-    def service_types_by_client(self, client_ids):
-        result = {}
-        rows = (
-            self.db.query(WeeklyCareNeed)
-            .options(selectinload(WeeklyCareNeed.care_slots))
-            .filter(WeeklyCareNeed.client_id.in_(client_ids))
-            .order_by(WeeklyCareNeed.version.desc())
-            .all()
-            if client_ids
-            else []
-        )
-        for need in rows:
-            if need.client_id not in result:
-                result[need.client_id] = {slot.service_type for slot in need.care_slots}
-        return result
-
     def list_for_org(self, org_id):
         return (
             self.db.query(WeeklyCareNeed)

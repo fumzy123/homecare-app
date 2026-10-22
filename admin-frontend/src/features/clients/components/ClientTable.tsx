@@ -10,7 +10,7 @@ import {
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
-import { type Client, SERVICE_TYPE_LABELS } from '@/features/clients/api'
+import { type Client } from '@/features/clients/api'
 import { ClientStatusBadge } from '@/features/clients/components/ClientStatusBadge'
 
 const columnHelper = createColumnHelper<Client>()
@@ -29,14 +29,6 @@ const columns = [
     header: 'Status',
     cell: ({ getValue }) => <ClientStatusBadge status={getValue()} />,
   }),
-  columnHelper.accessor('service_types', {
-    header: 'Service',
-    cell: ({ getValue }) => (
-      <span className="text-gray-600">
-        {getValue().map((t) => SERVICE_TYPE_LABELS[t]).join(', ') || '—'}
-      </span>
-    ),
-  }),
   columnHelper.display({
     id: 'location',
     header: 'Location',
@@ -51,17 +43,6 @@ const columns = [
     cell: ({ getValue }) => (
       <span className="text-gray-600">{getValue() ?? '—'}</span>
     ),
-  }),
-  columnHelper.accessor('care_start', {
-    header: 'Care Start',
-    cell: ({ getValue }) => {
-      const v = getValue()
-      return (
-        <span className="text-gray-600">
-          {v ? new Date(v).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-        </span>
-      )
-    },
   }),
   columnHelper.display({
     id: 'worker',

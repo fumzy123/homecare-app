@@ -65,17 +65,6 @@ class AttentionService:
                 urgency='urgent' if due and due <= today else 'upcoming' if due and due <= today + timedelta(days=7) else 'review',
                 subject=f'{first} {last}', detail=credential.document_type.value.replace('_', ' ').capitalize(), due_on=due,
                 target=AttentionTarget(kind='credential', record_id=worker_id, detail_id=credential.id, document_type=credential.document_type.value)))
-        auths = self.attention_repo.authorizations(self.org_id)
-        superseded = {a.supersedes_id for a in auths if a.supersedes_id}
-        for auth in auths:
-            if auth.client_id not in clients or auth.client.care_arrangement.value != 'funded' or auth.cancelled_at or auth.id in superseded:
-                continue
-            if not auth.covering_end or not (auth.covering_start <= today and auth.covering_end <= today + timedelta(days=15)):
-                continue
-            items.append(AttentionItem(id=f'authorization:{auth.id}', category='authorizations', stage='renew_authorization',
-                urgency='urgent' if auth.covering_end <= today else 'upcoming',
-                subject=f'{auth.client.first_name} {auth.client.last_name}', detail=f'{auth.funder} · {auth.authorization_number}', due_on=auth.covering_end,
-                target=AttentionTarget(kind='authorization', record_id=auth.client_id, detail_id=auth.id)))
         scheduled, dropped_clients = set(), set()
         start, end = today - timedelta(days=7), today + timedelta(days=60)
         for shift in self.attention_repo.shifts(self.org_id, start, end):

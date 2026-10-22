@@ -24,7 +24,6 @@ class OrganizationUpdateSchema(BaseModel):
     city:            str | None = None
     province:        str | None = None
     postal_code:     str | None = None
-    uses_authorizations: bool | None = None
 
 
 class OrganizationResponseSchema(BaseModel):
@@ -32,7 +31,6 @@ class OrganizationResponseSchema(BaseModel):
     name: str
     owner_id: UUID
     is_active: bool
-    uses_authorizations: bool = False
     legal_name:      str | None = None
     business_number: str | None = None
     street:          str | None = None

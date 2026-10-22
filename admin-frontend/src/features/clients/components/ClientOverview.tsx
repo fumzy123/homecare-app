@@ -5,7 +5,6 @@ import {
   ArrowRight,
   FileText,
   Phone,
-  ShieldCheck,
   Users,
   MapPin,
 } from 'lucide-react'
@@ -13,20 +12,16 @@ import { Avatar } from '@/shared/components/ui'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { useCalendarShifts } from '@/features/shifts/hooks/useShifts'
 import { useCareNeedVersions } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
-import { useClientAuthorizations } from '@/features/authorizations/hooks/useAuthorizations'
 import { usePlacements } from '@/features/placements/hooks/usePlacements'
-import { fmtHours } from '@/features/authorizations/utils'
+import { fmtHours } from '@/features/weekly-care-need/utils'
 import { useClient } from '../hooks/useClients'
 import {
-  authorizationForDate,
   currentCareNeed,
   weeklyHours,
-  serviceName,
 } from '../lib/care'
 import {
   ClientPanel,
   ClientLoading,
-  ClientBadge,
   ClientDialog,
 } from './ClientWorkspaceUI'
 import { ClientVisitDialog } from './ClientVisitDialog'
@@ -38,7 +33,6 @@ export function ClientOverview({ clientId }: { clientId: string }) {
   const clientQuery = useClient(clientId)
   const needs = useCareNeedVersions(clientId)
   const placements = usePlacements()
-  const auths = useClientAuthorizations(clientId)
   const visits = useCalendarShifts(
     today,
     format(addDays(new Date(), 14), 'yyyy-MM-dd'),
@@ -71,20 +65,12 @@ export function ClientOverview({ clientId }: { clientId: string }) {
     .filter((v) => ['scheduled', 'in_progress'].includes(v.completion_status))
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
     .slice(0, 3)
-  const auth = authorizationForDate(auths.data || [], today)
-  const activity = [
+    const activity = [
     ...(needs.data || []).map((n) => ({
       id: n.id,
       date: n.created_at,
       title: `Weekly care need revision ${n.version} saved`,
     })),
-    ...(auths.data || [])
-      .filter((a) => a.created_at)
-      .map((a) => ({
-        id: a.id,
-        date: a.created_at!,
-        title: `Authorization ${a.authorization_number} recorded`,
-      })),
     {
       id: 'profile',
       date: c.updated_at || c.created_at,
@@ -278,7 +264,7 @@ export function ClientOverview({ clientId }: { clientId: string }) {
                       – {format(parseISO(v.end_time), 'HH:mm')}
                     </span>
                   </strong>
-                  <p className="cw-muted">{serviceName(v.service_type)}</p>
+
                   <div className="cw-person mt-4">
                     <Avatar
                       initials={`${v.worker.first_name[0]}${v.worker.last_name[0]}`}
@@ -355,40 +341,6 @@ export function ClientOverview({ clientId }: { clientId: string }) {
             <button className="cw-link mt-5" onClick={() => setContact(true)}>
               Contact details <ArrowRight size={15} />
             </button>
-          </div>
-        </ClientPanel>
-        <ClientPanel
-          title="Funding snapshot"
-          action={<ShieldCheck size={18} />}
-        >
-          <div className="cw-panel-body">
-            {c.care_arrangement === 'self_pay' ? (
-              <p>Self-pay care</p>
-            ) : auths.isPending || auths.isError ? (
-              <ClientLoading error={auths.isError} />
-            ) : (
-              <>
-                <ClientBadge tone={auth ? 'mint' : 'peach'}>
-                  {auth ? 'Authorized' : 'No active authorization'}
-                </ClientBadge>
-                {auth && (
-                  <p className="cw-muted mt-4">
-                    {auth.funder}
-                    <br />
-                    {auth.covering_end
-                      ? `Ends ${format(parseISO(auth.covering_end), 'MMM d, yyyy')}`
-                      : 'No end date recorded'}
-                  </p>
-                )}
-              </>
-            )}
-            <Link
-              className="cw-link mt-5"
-              to="/dashboard/clients/$clientId/funding"
-              params={{ clientId }}
-            >
-              View funding <ArrowRight size={15} />
-            </Link>
           </div>
         </ClientPanel>
         <ClientPanel title="Contact & home" action={<MapPin size={18} />}>

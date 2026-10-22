@@ -1,30 +1,21 @@
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useAgencyDate } from '@/features/placements/hooks/useAgencyDate'
 import { format, parseISO } from 'date-fns'
-import { Plus, Trash2, ArrowRight, ShieldCheck, Check } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Plus, ArrowRight } from 'lucide-react'
 import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 import { useClient } from '@/features/clients/hooks/useClients'
-import { useClientAuthorizations } from '@/features/authorizations/hooks/useAuthorizations'
 import { usePlacements } from '@/features/placements/hooks/usePlacements'
 import { PostPlacementDrawer } from '@/features/placements/components/PostPlacementDrawer'
-import { PlacementCoverage } from '@/features/placements/components/PlacementCoverage'
-import {
-  WEEKDAYS,
-  SERVICE_TYPES,
-  SERVICE_TYPE_LABELS,
-} from '@/features/authorizations/constants'
-import type { WeekDay, ServiceType } from '@/features/authorizations/api'
-import { fmtHours } from '@/features/authorizations/utils'
+import { WEEKDAYS } from '@/features/weekly-care-need/constants'
+import { fmtHours } from '@/features/weekly-care-need/utils'
 import {
   ClientBadge,
-  ClientDialog,
   ClientEmpty,
   ClientLoading,
 } from '@/features/clients/components/ClientWorkspaceUI'
 import {
-  authorizationForDate,
   careState,
-  fundingRows,
   weeklyHours,
   validateSlots,
   errorMessage,
@@ -33,58 +24,27 @@ import {
   useCareNeedVersions,
   useSaveWeeklyCareNeed,
 } from '../hooks/useWeeklyCareNeed'
-import type { CareSlotInput, WeeklyCareNeed } from '../api'
+import type { CareSlotInput } from '../api'
+import { WeeklyCareBoard, type DraftCareSlot } from './WeeklyCareBoard'
 
-type Group = {
-  key: string
-  days: WeekDay[]
-  start_time: string
-  end_time: string
-  service_type: ServiceType
-}
-function groupsFor(need?: WeeklyCareNeed): Group[] {
-  const groups: Group[] = []
-  for (const slot of need?.care_slots || []) {
-    const group = groups.find(
-      (g) =>
-        g.start_time === slot.start_time.slice(0, 5) &&
-        g.end_time === slot.end_time.slice(0, 5) &&
-        g.service_type === slot.service_type,
-    )
-    if (group) group.days.push(slot.day_of_week)
-    else
-      groups.push({
-        key: crypto.randomUUID(),
-        days: [slot.day_of_week],
-        start_time: slot.start_time.slice(0, 5),
-        end_time: slot.end_time.slice(0, 5),
-        service_type: slot.service_type,
-      })
-  }
-  return groups
-}
 export function WeeklyCareNeedEditor({
   clientId,
-  enforceCompliance = true,
   attentionNeedId,
 }: {
   clientId: string
-  enforceCompliance?: boolean
   attentionNeedId?: string
 }) {
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = useAgencyDate()
   const needs = useCareNeedVersions(clientId)
-  const authorizations = useClientAuthorizations(clientId)
   const placements = usePlacements()
   const client = useClient(clientId)
   const save = useSaveWeeklyCareNeed(clientId)
   const [selectedId, setSelectedId] = useState(attentionNeedId || '')
   const [editing, setEditing] = useState(false)
   const [date, setDate] = useState(today)
-  const [groups, setGroups] = useState<Group[]>([])
+  const [draftSlots, setDraftSlots] = useState<DraftCareSlot[]>([])
   const [error, setError] = useState('')
   const [posting, setPosting] = useState(false)
-  const [review, setReview] = useState<string | null>(null)
   useUnsavedChanges(editing && !save.isPending)
   const latest = needs.data?.[0]
   const selected = needs.data?.find((n) => n.id === selectedId) || latest
@@ -92,32 +52,22 @@ export function WeeklyCareNeedEditor({
     (p) => p.weekly_care_need_id === selected?.id,
   )
   const slots: CareSlotInput[] = editing
-    ? groups.flatMap((g) =>
-        g.days.map((day) => ({
-          day_of_week: day,
-          start_time: g.start_time,
-          end_time: g.end_time,
-          service_type: g.service_type,
-        })),
-      )
+    ? draftSlots.map(({ day_of_week, start_time, end_time }) => ({ day_of_week, start_time, end_time }))
     : selected?.care_slots || []
   const checkDate = editing
     ? date
     : selected?.scheduled_from || selected?.effective_from || today
-  const auth = authorizationForDate(authorizations.data || [], checkDate)
-  const funding = fundingRows(auth, slots)
-  const invalid =
-    validateSlots(slots) ||
-    (editing && groups.some((g) => !g.days.length)
-      ? 'Select at least one day for each care slot group.'
-      : '')
-  const over =
-    enforceCompliance && (!auth || funding.some((row) => row.remaining < -1e-9))
+  const invalid = validateSlots(slots)
   const status = selected
     ? careState(selected, today, !!placement, selected.id === latest?.id)
     : ''
   function createRevision() {
-    setGroups(groupsFor(selected))
+    setDraftSlots((selected?.care_slots || []).map(slot => ({
+      key: slot.id,
+      day_of_week: slot.day_of_week,
+      start_time: slot.start_time.slice(0, 5),
+      end_time: slot.end_time.slice(0, 5),
+    })))
     setDate(
       selected?.effective_from && selected.effective_from > today
         ? selected.effective_from
@@ -126,11 +76,12 @@ export function WeeklyCareNeedEditor({
     setError('')
     setEditing(true)
   }
-  function update(key: string, patch: Partial<Group>) {
-    setGroups((prev) =>
-      prev.map((g) => (g.key === key ? { ...g, ...patch } : g)),
-    )
+  function updateSlots(next: DraftCareSlot[]) {
+    const problem = next.length ? validateSlots(next) : ''
+    if (problem) return problem
+    setDraftSlots(next)
     setError('')
+    return ''
   }
   async function submit() {
     if (invalid || !date || date < today) {
@@ -207,113 +158,19 @@ export function WeeklyCareNeedEditor({
                   type="date"
                   min={today}
                   value={date}
+                  disabled={save.isPending}
                   onChange={(e) => setDate(e.target.value)}
                   required
                 />
+                <span className="cw-muted">Choose today or a future date. Existing visits change only after you approve the new coverage.</span>
               </label>
             </div>
             <div className="cw-panel-body">
-              {groups.map((group, index) => (
-                <fieldset key={group.key} className="cw-editor-group">
-                  <legend className="cw-label px-2">
-                    Care slot {index + 1}
-                  </legend>
-                  <div className="cw-slot-inputs">
-                    <label className="cw-field">
-                      Service
-                      <select
-                        className="cw-input"
-                        value={group.service_type}
-                        onChange={(e) =>
-                          update(group.key, {
-                            service_type: e.target.value as ServiceType,
-                          })
-                        }
-                      >
-                        {SERVICE_TYPES.map((s) => (
-                          <option key={s} value={s}>
-                            {SERVICE_TYPE_LABELS[s]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="cw-field">
-                      Start time
-                      <input
-                        className="cw-input"
-                        type="time"
-                        value={group.start_time}
-                        onChange={(e) =>
-                          update(group.key, { start_time: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="cw-field">
-                      End time
-                      <input
-                        className="cw-input"
-                        type="time"
-                        value={group.end_time}
-                        onChange={(e) =>
-                          update(group.key, { end_time: e.target.value })
-                        }
-                      />
-                    </label>
-                    <button
-                      className="cw-icon"
-                      aria-label={`Remove care slot ${index + 1}`}
-                      onClick={() =>
-                        setGroups((prev) =>
-                          prev.filter((g) => g.key !== group.key),
-                        )
-                      }
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <div className="cw-day-picker">
-                    {WEEKDAYS.map((day) => (
-                      <label key={day.key}>
-                        <span>
-                          <input
-                            type="checkbox"
-                            checked={group.days.includes(day.key)}
-                            onChange={(e) =>
-                              update(group.key, {
-                                days: e.target.checked
-                                  ? [...group.days, day.key]
-                                  : group.days.filter((d) => d !== day.key),
-                              })
-                            }
-                          />
-                          {day.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-              <div className="cw-between">
-                <button
-                  className="cw-btn"
-                  onClick={() =>
-                    setGroups((prev) => [
-                      ...prev,
-                      {
-                        key: crypto.randomUUID(),
-                        days: [],
-                        start_time: '09:00',
-                        end_time: '11:00',
-                        service_type: 'personal_care',
-                      },
-                    ])
-                  }
-                >
-                  <Plus size={15} /> Add care slot
-                </button>
-                <span className="text-sm">
-                  {fmtHours(weeklyHours(slots))}h / week · {slots.length} care
-                  slots
+              <WeeklyCareBoard slots={draftSlots} onChange={updateSlots} disabled={save.isPending} />
+              <div className="cw-between mt-5">
+                <p className="cw-muted">Save this revision, then review coverage to schedule visits.</p>
+                <span className="text-sm" aria-live="polite">
+                  {fmtHours(weeklyHours(slots))}h / week · {slots.length} care slots
                 </span>
               </div>
             </div>
@@ -368,9 +225,7 @@ export function WeeklyCareNeedEditor({
                                 {slot.start_time.slice(0, 5)}–
                                 {slot.end_time.slice(0, 5)}
                               </strong>
-                              <span>
-                                {SERVICE_TYPE_LABELS[slot.service_type]}
-                              </span>
+
                               <small>
                                 {assigned?.worker_name ||
                                   (selected.imported
@@ -394,53 +249,8 @@ export function WeeklyCareNeedEditor({
           </>
         ) : (
           <ClientEmpty title="Start with the care they need">
-            Choose a start date, days, services and times.
+            Choose a start date, days and times.
           </ClientEmpty>
-        )}
-        {(selected || editing) && enforceCompliance && (
-          <div className="cw-funding-strip">
-            <ShieldCheck size={17} />
-            <span>Funding · 2-week need / limit</span>
-            {authorizations.isPending ? (
-              'Checking…'
-            ) : authorizations.isError ? (
-              <span role="alert">
-                Funding check unavailable.{' '}
-                <button
-                  className="cw-link"
-                  onClick={() => void authorizations.refetch()}
-                >
-                  Retry
-                </button>
-              </span>
-            ) : !auth ? (
-              <span className="text-orange">
-                No authorization for {checkDate}
-              </span>
-            ) : (
-              funding
-                .filter((row) => row.needed > 0)
-                .map((row) => (
-                  <span
-                    key={row.service}
-                    className={`cw-row ${row.remaining < 0 ? 'text-orange' : ''}`}
-                  >
-                    {SERVICE_TYPE_LABELS[row.service]}{' '}
-                    <strong className="font-mono text-xs">
-                      {fmtHours(row.needed)} / {fmtHours(row.limit)}h
-                    </strong>
-                    {row.remaining >= 0 && <Check size={14} />}
-                  </span>
-                ))
-            )}
-            <Link
-              className="cw-link ml-auto"
-              to="/dashboard/clients/$clientId/funding"
-              params={{ clientId }}
-            >
-              Funding <ArrowRight size={15} />
-            </Link>
-          </div>
         )}
         {error && (
           <p role="alert" className="cw-error m-5">
@@ -461,12 +271,7 @@ export function WeeklyCareNeedEditor({
             </button>
             <button
               className="cw-btn cw-btn-primary"
-              disabled={
-                save.isPending ||
-                over ||
-                (enforceCompliance &&
-                  (authorizations.isPending || authorizations.isError))
-              }
+              disabled={save.isPending}
               onClick={() => void submit()}
             >
               {save.isPending ? 'Saving…' : 'Save revision'}
@@ -487,12 +292,9 @@ export function WeeklyCareNeedEditor({
                 </p>
               ) : placement ? (
                 <>
-                  <button
-                    className="cw-btn cw-btn-primary"
-                    onClick={() => setReview(placement.id)}
-                  >
-                    Review coverage <ArrowRight size={15} />
-                  </button>
+                  <Link className="cw-btn cw-btn-primary" to="/dashboard/placements/$placementId" params={{ placementId: placement.id }}>
+                    View posted care request <ArrowRight size={15} />
+                  </Link>
                   {selected.id === latest?.id &&
                     placement.status === 'closed' &&
                     !selected.ends_on && (
@@ -610,15 +412,6 @@ export function WeeklyCareNeedEditor({
           weeklyCareNeedId={selected?.id}
           onClose={() => setPosting(false)}
         />
-      )}
-      {review && (
-        <ClientDialog
-          title="Review coverage"
-          wide
-          onClose={() => setReview(null)}
-        >
-          <PlacementCoverage placementId={review} embedded />
-        </ClientDialog>
       )}
     </div>
   )

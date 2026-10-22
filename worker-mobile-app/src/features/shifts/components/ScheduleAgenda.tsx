@@ -2,7 +2,6 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatTime } from '@/shared/utils/formatTime';
 import { formatDuration } from '@/shared/utils/formatDuration';
-import { serviceTypeLabel } from '../lib/schedule';
 import { formatScheduleHours, occurrenceKey, type ScheduleDay } from '../lib/scheduleView';
 import type { ShiftOccurrence } from '../types';
 
@@ -29,7 +28,7 @@ export function ScheduleAgenda({ days, todayKey, onSelectDay, onSelectShift }: {
           </View>
           <View className="flex-1">
             <Text className="font-serif text-xl text-ink">{shift.client.first_name} {shift.client.last_name}</Text>
-            <Text className="mt-1 text-xs leading-4 text-ink-soft">{serviceTypeLabel(shift.service_type)} · {isNext ? 'Up next' : shift.completion_status === 'no_show' ? 'Missed' : shift.completion_status.replace('_', ' ')}</Text>
+            <Text className="mt-1 text-xs leading-4 text-ink-soft">Care visit · {isNext ? 'Up next' : shift.completion_status === 'no_show' ? 'Missed' : shift.completion_status.replace('_', ' ')}</Text>
             {shift.has_visit_changes ? <Text className="mt-1 text-[10px] text-ink-soft">Updated visit</Text> : null}
           </View>
           <Ionicons name={shift.completion_status === 'completed' ? 'checkmark' : 'chevron-forward'} size={15} color={shift.completion_status === 'completed' ? '#32634F' : '#8A8378'} />

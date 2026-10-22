@@ -4,7 +4,7 @@ from app.api.routes import worker_notes, worker_clients
 from app.api.routes import attention
 from app.api.routes import assignments
 from app.api.routes import push_devices
-from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, worker_shifts, credentials, notifications, compliance, placements, authorizations, weekly_care_need
+from app.api.routes import invitations, org_members, clients, organization, shifts, progress_notes, legal, leave, billing, worker_me, worker_shifts, credentials, notifications, compliance, placements, weekly_care_need
 
 router = APIRouter(prefix="/api")
 router.include_router(push_devices.cleanup_router)
@@ -31,7 +31,6 @@ operations.include_router(credentials.router)
 operations.include_router(compliance.router)
 operations.include_router(notifications.router)
 operations.include_router(placements.router)
-operations.include_router(authorizations.router)
 operations.include_router(weekly_care_need.router)
 operations.include_router(attention.router)
 operations.include_router(assignments.router)

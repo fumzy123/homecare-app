@@ -4,7 +4,6 @@ import { Avatar } from '@/shared/components/ui/Avatar';
 import { getInitials } from '@/shared/utils/getInitials';
 import { formatDuration } from '@/shared/utils/formatDuration';
 import { formatTimeRange } from '@/shared/utils/formatTime';
-import { serviceTypeLabel } from '../lib/schedule';
 import { shiftAddress, type ScheduleVisit } from '../lib/scheduleView';
 
 const STATUS_LABELS = {
@@ -40,7 +39,7 @@ export function ScheduleVisitCard({ visit, onPress, onDirections, onCareInstruct
         <Avatar initials={getInitials(shift.client.first_name, shift.client.last_name)} size="md" className={isNext ? 'bg-orange' : completed ? 'bg-mint/30' : 'bg-cream-2'} />
         <View className="min-w-0 flex-1">
           <Text className={`font-serif text-2xl ${foreground}`}>{shift.client.first_name} <Text className="font-serif-italic">{shift.client.last_name}</Text></Text>
-          <Text className={`mt-1 text-xs ${secondary}`}>{serviceTypeLabel(shift.service_type)}</Text>
+          <Text className={`mt-1 text-xs ${secondary}`}>Care visit</Text>
         </View>
         <Ionicons name="chevron-forward" size={15} color={isNext ? '#EDE8DC' : '#8A8378'} />
       </View>

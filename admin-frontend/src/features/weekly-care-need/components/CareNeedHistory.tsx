@@ -1,4 +1,4 @@
-import { WEEKDAY_LABELS, SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
+import { WEEKDAY_LABELS } from '@/features/weekly-care-need/constants'
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useCareNeedVersions } from '../hooks/useWeeklyCareNeed'
@@ -24,7 +24,7 @@ export function CareNeedHistory({ clientId, attentionNeedId }: { clientId: strin
         <summary className="cursor-pointer font-mono text-xs">Version {need.version} · Effective {need.effective_from} · {need.ends_on ? `Ended ${need.ends_on}` : need.imported ? 'Imported schedule' : need.activated_at ? 'Coverage approved' : index > 0 ? 'Superseded proposal' : 'Awaiting coverage approval'}</summary>
         {need.imported && <p className="mt-2 text-sm text-ink-soft">Existing care and shift history were preserved. Save a new version below to post Care Slots and review replacement coverage.</p>}
         <p className="mt-2 text-xs text-ink-soft">Recorded {new Date(need.created_at).toLocaleString()}{need.scheduled_from ? ` · Scheduled from ${need.scheduled_from}` : ''}</p>
-        <ul className="my-3 space-y-2">{need.care_slots.map(slot => <li key={slot.id} className="text-sm">{WEEKDAY_LABELS[slot.day_of_week]} · {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)} · {SERVICE_TYPE_LABELS[slot.service_type]}</li>)}</ul>
+        <ul className="my-3 space-y-2">{need.care_slots.map(slot => <li key={slot.id} className="text-sm">{WEEKDAY_LABELS[slot.day_of_week]} · {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}</li>)}</ul>
         {placement ? <Link to="/dashboard/placements/$placementId" params={{ placementId: placement.id }} className="underline text-sm">Review care request · {placement.covered_count}/{placement.care_slots.length} Care Slots covered</Link>
           : index === 0 && !need.imported && <button className="rounded-full bg-ink text-cream px-5 py-2 text-sm" onClick={() => setPosting(true)}>Post care request</button>}
         {index === 0 && placement?.status === 'closed' && !need.ends_on && <button className="block mt-3 rounded-full bg-ink text-cream px-5 py-2 text-sm" onClick={() => setPosting(true)}>Reopen care request</button>}

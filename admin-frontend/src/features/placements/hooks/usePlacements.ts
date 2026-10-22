@@ -105,7 +105,6 @@ export function useApproveCareSlots(id: string) {
         'clients',
         'client',
         'care-metrics',
-        'authorization-compliance',
         'weekly-care-need',
         'notifications',
         'care-actions',

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class AttentionTarget(BaseModel):
-    kind: Literal['placement', 'care_need', 'credential', 'authorization', 'visit', 'weekly_schedule', 'worker', 'billing', 'overtime', 'client', 'notes']
+    kind: Literal['placement', 'care_need', 'credential', 'visit', 'weekly_schedule', 'worker', 'billing', 'overtime', 'client', 'notes']
     record_id: UUID
     detail_id: UUID | None = None
     document_type: str | None = None
@@ -21,8 +21,8 @@ class InterestedWorker(BaseModel):
 
 class AttentionItem(BaseModel):
     id: str
-    category: Literal['coverage', 'credentials', 'authorizations', 'schedule', 'workers', 'clients', 'documentation', 'billing']
-    stage: Literal['post_placement', 'review_interest', 'await_interest', 'cover_slots', 'replace_worker', 'review_dropped_visit', 'renew_credential', 'verify_credential', 'renew_authorization', 'review_schedule', 'review_overtime', 'await_approval', 'review_billing', 'view_update']
+    category: Literal['coverage', 'credentials', 'schedule', 'workers', 'clients', 'documentation', 'billing']
+    stage: Literal['post_placement', 'review_interest', 'await_interest', 'cover_slots', 'replace_worker', 'review_dropped_visit', 'renew_credential', 'verify_credential', 'review_schedule', 'review_overtime', 'await_approval', 'review_billing', 'view_update']
     urgency: Literal['urgent', 'upcoming', 'review', 'waiting']
     subject: str
     detail: str

@@ -1,20 +1,17 @@
-from collections import defaultdict
 from app.domain.workforce import Workforce
 from app.domain.client_care import current_care_by_client
 from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.client import Client
-from app.models.organization import Organization
 from app.schemas.client import ClientCreateSchema, ClientUpdateSchema
-from app.core.enums import ClientStatus, ShiftStatus, AuthorizationCoverage, CareArrangement
+from app.core.enums import ClientStatus, ShiftStatus
 from app.core.exceptions import AppError
 from app.services.org_service import OrgService
 from app.services.billing_evidence_service import BillingEvidenceService
 from app.services.billing_cutoff_service import BillingCutoffService
 from app.repositories.client_repository import ClientRepository
 from app.repositories.shift_repository import ShiftRepository
-from app.repositories.authorization_repository import AuthorizationRepository
 from app.repositories.weekly_care_need_repository import WeeklyCareNeedRepository
 import uuid
 
@@ -26,71 +23,27 @@ class ClientService:
         self.current_user = current_user
         self.client_repo = ClientRepository(db)
         self.shift_repo = ShiftRepository(db)
-        self.auth_repo = AuthorizationRepository(db)
         self.care_need_repo = WeeklyCareNeedRepository(db)
         self.org_id = OrgService.get_user_org_id(current_user, db)
         self.evidence_service = BillingEvidenceService(db, self.org_id)
         self.cutoff_service = BillingCutoffService(db)
 
-    # ── Derived authorization summary (service types, care dates, coverage) ────
-
-    def _derive(
-        self, client: Client, auths: list, superseded_ids: set, today: date, plan_service_types: set
-    ) -> Client:
-        """Attach derived data onto a client instance for the ClientResponse.
-
-        `service_types` come from the client's care need (what we actually
-        deliver), falling back to the active authorization's services when the
-        plan is empty. Coverage only means anything for funded clients —
-        self-pay clients are never "lapsed"."""
-        active = [
-            a for a in auths
-            if a.cancelled_at is None and a.id not in superseded_ids
-            and a.covering_start <= today
-            and (a.covering_end is None or a.covering_end >= today)
-        ]
-        auth_service_types = {s.service_type for a in active for s in a.services}
-        client.service_types = sorted(
-            plan_service_types or auth_service_types, key=lambda x: x.value
-        )
-        starts = [a.covering_start for a in auths]
-        ends = [a.covering_end for a in auths if a.covering_end]
-        client.care_start = min(starts) if starts else None
-        client.care_end = max(ends) if ends else None
-        client.coverage = (
-            AuthorizationCoverage.lapsed
-            if client.care_arrangement == CareArrangement.funded
-            and client.status == ClientStatus.active and not active
-            else AuthorizationCoverage.covered
-        )
-        return client
-
     def _attach_one(self, client: Client | None) -> Client | None:
         if client is None:
             return None
-        auths = self.auth_repo.list_for_client(client.id, self.org_id)
-        superseded = {a.supersedes_id for a in auths if a.supersedes_id}
-        plan = self.care_need_repo.service_types_by_client([client.id]).get(client.id, set())
         client.care_team = Workforce(self.db, self.org_id).care_teams().get(client.id, [])
         client.current_care_need = current_care_by_client(
             self.care_need_repo.versions(client.id), date.today()
         ).get(client.id)
-        return self._derive(client, auths, superseded, date.today(), plan)
+        return client
 
     def _attach_many(self, clients: list[Client]) -> list[Client]:
-        all_auths = self.auth_repo.list_for_org(self.org_id)
-        by_client: dict = defaultdict(list)
-        for a in all_auths:
-            by_client[a.client_id].append(a)
-        superseded = {a.supersedes_id for a in all_auths if a.supersedes_id}
-        plans = self.care_need_repo.service_types_by_client([c.id for c in clients])
         today = date.today()
         teams = Workforce(self.db, self.org_id).care_teams()
         current_needs = current_care_by_client(self.care_need_repo.list_for_org(self.org_id), today)
         for c in clients:
             c.care_team = teams.get(c.id, [])
             c.current_care_need = current_needs.get(c.id)
-            self._derive(c, by_client.get(c.id, []), superseded, today, plans.get(c.id, set()))
         return clients
 
     # ─────────────────────────────────────────
@@ -99,18 +52,9 @@ class ClientService:
     async def create_client(self, payload: ClientCreateSchema):
         try:
             data = payload.model_dump()
-            arrangement = data.pop("care_arrangement", None)
-            if arrangement is None:
-                org = self.db.get(Organization, self.org_id)
-                arrangement = (
-                    CareArrangement.funded
-                    if org is not None and org.uses_authorizations
-                    else CareArrangement.self_pay
-                )
             client = Client(
                 id=uuid.uuid4(),
                 org_id=self.org_id,
-                care_arrangement=arrangement,
                 **data,
             )
             self.client_repo.add(client)

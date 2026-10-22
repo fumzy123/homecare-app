@@ -23,7 +23,6 @@ const order: AttentionCategory[] = [
   "workers",
   "credentials",
   "clients",
-  "authorizations",
   "documentation",
   "billing",
 ];
@@ -250,7 +249,7 @@ export function AttentionList({
               <details className="tower-checks">
                 <summary>What’s included</summary>
                 <p>
-                  Care coverage, dropped visits, credentials, funding renewals,
+                  Care coverage, dropped visits, credentials,
                   overtime and billing alerts. Updates and completed actions are
                   retained in Recent activity. Date-based checks are a review
                   aid, not a complete compliance audit.

@@ -25,7 +25,6 @@ export function useSaveWeeklyCareNeed(clientId: string) {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       qc.invalidateQueries({ queryKey: ['attention-items'] })
       qc.invalidateQueries({ queryKey: ['weekly-care-need', clientId] })
-      qc.invalidateQueries({ queryKey: ['authorization-compliance', clientId] })
       qc.invalidateQueries({ queryKey: ['care-actions'] })
     },
   })

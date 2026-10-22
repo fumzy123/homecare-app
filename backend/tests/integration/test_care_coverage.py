@@ -18,10 +18,10 @@ from app.models.shift import Shift
 from app.models.weekly_care_need import WeeklyCareNeed, CareSlot
 from app.models.worker_availability import WorkerAvailabilityEntry
 from app.models.placement import CareSlotAssignment
+from app.models.placement import PlacementInterest
 from app.models.admin_notification import Notification
 from app.core.enums import (
     OrgMemberRole,
-    CareArrangement,
     WeekDay,
     ServiceType,
     PlacementStatus,
@@ -102,8 +102,7 @@ def scenario():
                 emergency_contact_name="Family",
                 emergency_contact_phone="555",
                 emergency_contact_relationship="Family",
-                care_arrangement=CareArrangement.self_pay,
-            )
+                )
             db.add(client)
             db.flush()
             start = date.today() + timedelta(days=14)
@@ -222,6 +221,7 @@ def test_partial_transition_and_later_approval_preserve_history(scenario):
     assert s.db.query(Shift).filter(Shift.weekly_care_need_id == s.need.id).count() == 0
     review = s.service.review_approval(s.placement.id, s.payload)
     assert review["all_clear"] and review["ends_previous_schedule"]
+    assert all(w["hours"]["max_weekly_hours"] == 40 for w in review["workers"])
     assert [r["day_of_week"] for r in review["uncovered_slots"]] == ["SA"]
     assert all(x.recurrence_end_date is None for x in s.old_shifts), (
         "Preview must roll back every mutation"
@@ -265,8 +265,13 @@ def test_partial_transition_and_later_approval_preserve_history(scenario):
     assert s.db.query(Shift).filter(Shift.weekly_care_need_id == s.need.id).count() == 3
 
 
-def test_notification_failure_rolls_back_cutoff_and_assignments(scenario, monkeypatch):
+@pytest.mark.parametrize("direct", [False, True])
+def test_notification_failure_rolls_back_cutoff_and_assignments(
+    scenario, monkeypatch, direct
+):
     s = scenario
+    if direct:
+        s.payload = direct_payload(s)
     s.payload.review_token = s.service.review_approval(s.placement.id, s.payload)[
         "review_token"
     ]
@@ -395,3 +400,373 @@ def test_ended_care_need_cannot_be_extended_through_shift_edit(scenario):
     shift_service._check_coverage_bounds(
         s.old_shifts[0], s.old_shifts[0].start_time, s.start - timedelta(days=1), True
     )
+
+
+def direct_payload(s):
+    s.db.query(PlacementInterest).filter(
+        PlacementInterest.placement_id == s.placement.id
+    ).delete()
+    s.db.commit()
+    return PlacementApproval(
+        starts_on=s.start,
+        accept_uncovered=True,
+        confirm_admin_arranged=True,
+        selections=[
+            dict(
+                care_slot_id=s.slots["TU"].id,
+                employment_id=s.members[1].id,
+                assignment_source="admin_arranged",
+            ),
+            dict(
+                care_slot_id=s.slots["TH"].id,
+                employment_id=s.members[1].id,
+                assignment_source="admin_arranged",
+            ),
+        ],
+    )
+
+
+def test_direct_coverage_without_interest_preserves_transition_history_and_notifications(
+    scenario,
+):
+    s = scenario
+    payload = direct_payload(s)
+    review = s.service.review_approval(s.placement.id, payload)
+    assert review["all_clear"] and review["ends_previous_schedule"]
+    assert review["workers"][0]["worker_name"] == "Maria Test"
+    assert review["workers"][0]["hours"]["proposed"] > 0
+    assert s.db.query(CareSlotAssignment).count() == 0
+    payload.review_token = review["review_token"]
+    result = s.service.approve_coverage(s.placement.id, payload)
+    assert result.covered_count == 2 and result.status == PlacementStatus.open
+    assert result.interest_count == 0 and result.interests == []
+    assignments = s.db.query(CareSlotAssignment).all()
+    assert len(assignments) == 2
+    assert all(
+        a.assignment_source == "admin_arranged"
+        and a.approved_by == s.members[0].id
+        and a.approved_at
+        for a in assignments
+    )
+    assert all(
+        slot["assignment_source"] == "admin_arranged"
+        for slot in result.care_slots
+        if slot["worker_id"]
+    )
+    assert all(
+        shift.recurrence_end_date == s.start - timedelta(days=1)
+        for shift in s.old_shifts
+    )
+    assert s.unrelated.status.value == "active"
+    assert s.db.query(Shift).filter(Shift.weekly_care_need_id == s.need.id).count() == 2
+    assert (
+        s.db.query(Notification)
+        .filter(
+            Notification.type == NotificationType.placement_filled,
+            Notification.recipient_id == s.members[1].id,
+        )
+        .count()
+        == 1
+    )
+    from app.services.assignment_service import AssignmentService
+
+    history = AssignmentService(
+        s.db, s.service.current_user, s.service.org_id
+    ).list_assignments(client_id=s.client.id)
+    assert all(
+        a["assignment_source"] == "admin_arranged" for a in history["assignments"]
+    )
+    with pytest.raises(AppError):
+        s.service.approve_coverage(s.placement.id, payload)
+    assert s.db.query(CareSlotAssignment).count() == 2
+    later = PlacementApproval(
+        starts_on=s.start,
+        confirm_admin_arranged=True,
+        selections=[
+            dict(
+                care_slot_id=s.slots["SA"].id,
+                employment_id=s.members[2].id,
+                assignment_source="admin_arranged",
+            )
+        ],
+    )
+    later.review_token = s.service.review_approval(s.placement.id, later)[
+        "review_token"
+    ]
+    assert (
+        s.service.approve_coverage(s.placement.id, later).status
+        == PlacementStatus.filled
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "confirmation",
+        "gaps",
+        "review",
+        "source_changed",
+        "inactive",
+        "foreign",
+        "admin",
+        "availability",
+        "conflict",
+        "hours",
+        "duplicate_slot",
+        "unknown_slot",
+    ],
+)
+def test_direct_approval_keeps_all_guards_and_rolls_back(scenario, case):
+    from app.core.enums import EmploymentStatus
+
+    s = scenario
+    payload = direct_payload(s)
+    payload.review_token = s.service.review_approval(s.placement.id, payload)[
+        "review_token"
+    ]
+    if case == "confirmation":
+        payload.confirm_admin_arranged = False
+    elif case == "gaps":
+        payload.accept_uncovered = False
+    elif case == "review":
+        payload.review_token = None
+    elif case == "source_changed":
+        s.service.express_interest(
+            s.placement.id, s.members[1].id, None, [s.slots["TU"].id]
+        )
+        payload.selections[0].assignment_source = "worker_interest"
+    elif case == "inactive":
+        s.members[1].employment_status = EmploymentStatus.terminated
+        s.db.commit()
+    elif case == "foreign":
+        org = Organization(name="Other agency", owner_id=uuid4())
+        s.db.add(org)
+        s.db.flush()
+        s.members[1].org_id = org.id
+        s.db.commit()
+    elif case == "admin":
+        s.members[1].role = OrgMemberRole.manager
+        s.db.commit()
+    elif case == "availability":
+        s.db.query(WorkerAvailabilityEntry).filter(
+            WorkerAvailabilityEntry.person_id == s.members[1].person_id
+        ).delete()
+        s.db.commit()
+    elif case == "hours":
+        s.members[1].max_hours_per_week = 1
+        s.db.commit()
+    elif case == "conflict":
+        first = s.service._first_occurrence_date([WeekDay.TU], s.start)
+        s.db.add(
+            Shift(
+                org_id=s.service.org_id,
+                client_id=s.client.id,
+                worker_id=s.members[1].id,
+                created_by=s.members[0].id,
+                start_time=datetime.combine(first, time(9)),
+                end_time=datetime.combine(first, time(11)),
+            )
+        )
+        s.db.commit()
+    elif case == "duplicate_slot":
+        payload.selections.append(payload.selections[0])
+    elif case == "unknown_slot":
+        payload.selections[0].care_slot_id = uuid4()
+    with pytest.raises(AppError):
+        s.service.approve_coverage(s.placement.id, payload)
+    assert s.db.query(CareSlotAssignment).count() == 0
+    assert s.need.activated_at is None
+    assert all(shift.recurrence_end_date is None for shift in s.old_shifts)
+
+
+def test_mixed_interest_and_direct_assignment_keep_independent_provenance(scenario):
+    s = scenario
+    s.payload.selections[1].assignment_source = "admin_arranged"
+    s.payload.confirm_admin_arranged = True
+    s.service.withdraw_interest(s.placement.id, s.members[2].id)
+    s.payload.review_token = s.service.review_approval(s.placement.id, s.payload)[
+        "review_token"
+    ]
+    s.service.approve_coverage(s.placement.id, s.payload)
+    assert {
+        a.care_slot_id: a.assignment_source for a in s.db.query(CareSlotAssignment)
+    } == {s.slots["TU"].id: "worker_interest", s.slots["TH"].id: "admin_arranged"}
+
+
+def test_direct_replacement_preserves_ended_assignment_and_rejects_overlap(scenario):
+    from app.schemas.assignment import EndAssignments
+    from app.services.assignment_service import AssignmentService
+
+    s = scenario
+    payload = direct_payload(s)
+    payload.review_token = s.service.review_approval(s.placement.id, payload)[
+        "review_token"
+    ]
+    s.service.approve_coverage(s.placement.id, payload)
+    previous = (
+        s.db.query(CareSlotAssignment).filter_by(care_slot_id=s.slots["TU"].id).one()
+    )
+    stop = s.start + timedelta(days=7)
+    ending = EndAssignments(
+        assignment_ids=[previous.id],
+        stops_from=stop,
+        reason="Worker arranged replacement by phone",
+    )
+    manager = AssignmentService(s.db, s.service.current_user, s.service.org_id)
+    manager.cutoff_service = MagicMock()
+    ending.review_token = manager.review_end(ending)["review_token"]
+    manager.end_assignments(ending)
+    replacement = PlacementApproval(
+        starts_on=s.start,
+        accept_uncovered=True,
+        confirm_admin_arranged=True,
+        selections=[
+            dict(
+                care_slot_id=s.slots["TU"].id,
+                employment_id=s.members[2].id,
+                assignment_source="admin_arranged",
+            )
+        ],
+    )
+    with pytest.raises(AppError) as error:
+        s.service.review_approval(s.placement.id, replacement)
+    assert error.value.code == "ASSIGNMENT_OVERLAP"
+    replacement.starts_on = stop
+    replacement.review_token = s.service.review_approval(s.placement.id, replacement)[
+        "review_token"
+    ]
+    s.service.approve_coverage(s.placement.id, replacement)
+    history = (
+        s.db.query(CareSlotAssignment).filter_by(care_slot_id=s.slots["TU"].id).all()
+    )
+    assert len(history) == 2
+    assert previous.ends_before == stop and previous.end_reason == ending.reason
+    assert all(a.assignment_source == "admin_arranged" for a in history)
+    assert sum(a.ends_before is None for a in history) == 1
+    assert s.service.get_placement(s.placement.id).interests == []
+
+
+def test_assignment_source_migration_backfills_and_constrains_existing_rows(scenario):
+    import importlib.util
+    from pathlib import Path
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import text
+    from sqlalchemy.exc import IntegrityError
+
+    s = scenario
+    s.payload.review_token = s.service.review_approval(s.placement.id, s.payload)[
+        "review_token"
+    ]
+    s.service.approve_coverage(s.placement.id, s.payload)
+    connection = s.db.connection()
+    # Recreate the previous table shape inside this isolated rollback transaction.
+    connection.execute(
+        text("ALTER TABLE care_slot_assignments DROP CONSTRAINT ck_assignment_source")
+    )
+    connection.execute(
+        text("ALTER TABLE care_slot_assignments DROP COLUMN assignment_source")
+    )
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic/versions/2e11cbcf7fed_record_care_slot_assignment_source.py"
+    )
+    spec = importlib.util.spec_from_file_location("assignment_source_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    with Operations.context(MigrationContext.configure(connection)):
+        migration.upgrade()
+    assert connection.execute(
+        text("SELECT assignment_source FROM care_slot_assignments")
+    ).scalars().all() == ["worker_interest", "worker_interest"]
+    with pytest.raises(IntegrityError), s.db.begin_nested():
+        s.db.execute(
+            text("UPDATE care_slot_assignments SET assignment_source = 'fabricated'")
+        )
+
+
+@pytest.mark.parametrize("offset", [-7, 0, 7])
+def test_replace_approved_future_revision_before_on_or_after_start(scenario, offset):
+    from app.domain.scheduling import expand_occurrences
+    from app.models.shift_modification import ShiftModification
+    from app.core.enums import ShiftCompletionStatus
+
+    s = scenario
+    past = date.today() - timedelta(days=7)
+    historical = ShiftModification(
+        shift_id=s.old_shifts[0].id, original_date=past,
+        new_start_time=datetime.combine(past, time(10)),
+        new_end_time=datetime.combine(past, time(12)),
+        completion_status=ShiftCompletionStatus.cancelled,
+        cancellation_reason="Client unavailable", notes="Keep this history",
+    )
+    s.db.add(historical)
+    s.db.commit()
+    s.payload.review_token = s.service.review_approval(s.placement.id, s.payload)["review_token"]
+    s.service.approve_coverage(s.placement.id, s.payload)
+    initial_shifts = s.db.query(Shift).filter(Shift.weekly_care_need_id == s.need.id).all()
+    original_cutoff = s.old.ends_on
+    start = s.start + timedelta(days=offset)
+    replacement = s.need_service.create_version(s.client.id, WeeklyCareNeedCreate(
+        effective_from=start,
+        care_slots=[dict(day_of_week="MO", start_time="10:00", end_time="12:00")],
+    ))
+    assert replacement.supersedes_id == s.need.id
+    assert s.need.ends_on is None and s.old.ends_on == original_cutoff
+    assert all(shift.recurrence_end_date is None for shift in initial_shifts)
+    posted = s.service.create_placement(PlacementCreateSchema(
+        client_id=s.client.id, weekly_care_need_id=replacement.id, start_date=start,
+    ))
+    assert all(shift.recurrence_end_date is None for shift in initial_shifts)
+    payload = PlacementApproval(starts_on=start, confirm_admin_arranged=True, selections=[dict(
+        care_slot_id=replacement.care_slots[0].id, employment_id=s.members[1].id,
+        assignment_source="admin_arranged",
+    )])
+    review = s.service.review_approval(posted.id, payload)
+    assert review["all_clear"]
+    expected_ids = {str(shift.id) for shift in initial_shifts}
+    if offset < 0:
+        expected_ids.update(str(shift.id) for shift in s.old_shifts)
+    assert {shift["shift_id"] for shift in review["old_shifts"]} == expected_ids
+    # Review must leave both generations intact.
+    assert s.need.ends_on is None and s.old.ends_on == original_cutoff
+    assert all(shift.recurrence_end_date is None for shift in initial_shifts)
+    payload.review_token = review["review_token"]
+    result = s.service.approve_coverage(posted.id, payload)
+    assert result.covered_count == 1 and result.status == PlacementStatus.filled
+    assert s.need.ends_on == start - timedelta(days=1)
+    assert s.old.ends_on == min(original_cutoff, start - timedelta(days=1))
+    for shift in [*s.old_shifts, *initial_shifts]:
+        assert not expand_occurrences(shift, start, start + timedelta(days=21))
+    if offset > 0:
+        assert any(expand_occurrences(shift, s.start, start - timedelta(days=1)) for shift in initial_shifts)
+    assert historical.new_start_time == datetime.combine(past, time(10))
+    assert historical.completion_status == ShiftCompletionStatus.cancelled
+    assert historical.cancellation_reason == "Client unavailable"
+    assert historical.notes == "Keep this history"
+    assert s.unrelated.status.value == "active"
+    assert s.db.query(CareSlotAssignment).count() == 3
+    with pytest.raises(AppError):
+        s.service.review_approval(s.placement.id, s.payload)
+
+    # A second future replacement can move earlier again, across the whole chain.
+    earliest = date.today() + timedelta(days=2)
+    third = s.need_service.create_version(s.client.id, WeeklyCareNeedCreate(
+        effective_from=earliest,
+        care_slots=[dict(day_of_week="MO", start_time="10:00", end_time="12:00")],
+    ))
+    third_post = s.service.create_placement(PlacementCreateSchema(
+        client_id=s.client.id, weekly_care_need_id=third.id, start_date=earliest,
+    ))
+    third_payload = PlacementApproval(starts_on=earliest, confirm_admin_arranged=True, selections=[dict(
+        care_slot_id=third.care_slots[0].id, employment_id=s.members[1].id,
+        assignment_source="admin_arranged",
+    )])
+    third_review = s.service.review_approval(third_post.id, third_payload)
+    assert third_review["all_clear"]
+    third_payload.review_token = third_review["review_token"]
+    s.service.approve_coverage(third_post.id, third_payload)
+    assert all(n.ends_on == earliest - timedelta(days=1) for n in [s.old, s.need, replacement])
+    old_ids = [s.old.id, s.need.id, replacement.id]
+    for shift in s.db.query(Shift).filter(Shift.weekly_care_need_id.in_(old_ids)):
+        assert not expand_occurrences(shift, earliest, earliest + timedelta(days=35))

@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/lib/api-client'
-import type { WeekDay, ServiceType } from '@/features/authorizations/api'
+import type { WeekDay } from '@/features/weekly-care-need/types'
 
 export interface Assignment {
   id: string
@@ -12,11 +12,11 @@ export interface Assignment {
   day_of_week: WeekDay
   start_time: string
   end_time: string
-  service_type: ServiceType
   starts_on: string
   stops_from: string | null
   revision_ends_on: string | null
   end_reason: string | null
+  assignment_source?: 'worker_interest' | 'admin_arranged'
   ended_at: string | null
   status: 'active' | 'scheduled' | 'ending' | 'ended'
   can_end: boolean

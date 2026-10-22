@@ -20,8 +20,6 @@ from app.models.leave_record import LeaveRecord as LeaveRecord
 from app.models.credential import Credential as Credential
 from app.models.admin_notification import AdminNotification as AdminNotification
 from app.models.admin_notification import AdminNotificationRead as AdminNotificationRead
-from app.models.authorization import Authorization as Authorization
-from app.models.authorization import AuthorizationService as AuthorizationService
 from app.models.weekly_care_need import CareSlot as CareSlot
 from app.models.weekly_care_need import WeeklyCareNeed as WeeklyCareNeed
 from app.models.placement import Placement as Placement, PlacementInterest as PlacementInterest, CareSlotAssignment as CareSlotAssignment

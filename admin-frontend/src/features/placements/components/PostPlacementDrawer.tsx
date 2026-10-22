@@ -8,8 +8,7 @@ import { useClient } from '@/features/clients/hooks/useClients'
 import { useCareNeedVersions } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
 import {
   WEEKDAY_LABELS,
-  SERVICE_TYPE_LABELS,
-} from '@/features/authorizations/constants'
+} from '@/features/weekly-care-need/constants'
 import { useCreatePlacement } from '../hooks/usePlacements'
 import { requestDate, sortCareSlots } from '../lib/careRequests'
 import '../care-requests.css'
@@ -126,7 +125,6 @@ export function PostPlacementDrawer({
                       {WEEKDAY_LABELS[s.day_of_week]} ·{' '}
                       {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
                     </span>
-                    <span>{SERVICE_TYPE_LABELS[s.service_type]}</span>
                   </div>
                 ))}
               </div>
@@ -205,7 +203,6 @@ export function PostPlacementDrawer({
                         {WEEKDAY_LABELS[s.day_of_week]} ·{' '}
                         {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
                       </span>
-                      <span>{SERVICE_TYPE_LABELS[s.service_type]}</span>
                     </div>
                   ))}
                   <div className="cr-between mt-5">

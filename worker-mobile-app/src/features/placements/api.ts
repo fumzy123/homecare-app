@@ -3,7 +3,7 @@ import { apiClient } from '@/shared/lib/api-client';
 export type PlacementStatus = 'open' | 'filled' | 'closed';
 
 export interface WorkerPlacement {
-  care_slots: { id: string; day_of_week: string; start_time: string; end_time: string; service_type: string; worker_id: string | null; worker_name: string | null }[];
+  care_slots: { id: string; day_of_week: string; start_time: string; end_time: string; worker_id: string | null; worker_name: string | null }[];
   interested_care_slot_ids: string[];
   id: string;
   status: PlacementStatus;

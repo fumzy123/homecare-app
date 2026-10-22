@@ -14,7 +14,6 @@ from app.models.weekly_care_need import WeeklyCareNeed, CareSlot
 from app.models.placement import Placement, PlacementInterest, CareSlotAssignment
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
-from app.models.authorization import Authorization
 from app.repositories.attention_repository import AttentionRepository
 
 
@@ -55,7 +54,7 @@ def test_credentials_scope_active_workers_and_expiry_boundaries():
 
 def test_related_reads_enforce_tenant_latest_version_and_effective_visit_window():
     engine = create_engine('sqlite://')
-    for model in [Person, Employment, Client, WeeklyCareNeed, CareSlot, Placement, PlacementInterest, CareSlotAssignment, Shift, ShiftModification, Authorization]:
+    for model in [Person, Employment, Client, WeeklyCareNeed, CareSlot, Placement, PlacementInterest, CareSlotAssignment, Shift, ShiftModification]:
         model.__table__.create(engine)
     org, foreign, worker = uuid4(), uuid4(), uuid4()
     today = date(2026, 10, 1)
@@ -79,7 +78,6 @@ def test_related_reads_enforce_tenant_latest_version_and_effective_visit_window(
                       created_by=worker, shift_description='Care', masked_location='Example') for n in [latest, other_need]]
         for p in places:
             add(CareSlotAssignment, placement_id=p.id, care_slot_id=uuid4(), employment_id=worker, approved_by=worker, starts_on=today)
-        auths = [add(Authorization, org_id=c.org_id, client_id=c.id, funder='Example', authorization_number='A', covering_start=today) for c in [local, other]]
         def visit(c, agency, day, **extra):
             return add(Shift, org_id=agency, client_id=c.id, worker_id=worker, created_by=worker,
                        start_time=datetime.combine(day, datetime.min.time()), end_time=datetime.combine(day, datetime.min.time()) + timedelta(hours=1), **extra)
@@ -105,6 +103,5 @@ def test_related_reads_enforce_tenant_latest_version_and_effective_visit_window(
         assert [n.id for n in repo.care_needs(org, today)] == [latest.id]
         assert [p.id for p in repo.placements(org, [latest.id, other_need.id])] == [places[0].id]
         assert [p for p, _ in repo.assignments(org, [p.id for p in places])] == [places[0].id]
-        assert [a.id for a in repo.authorizations(org)] == [auths[0].id]
         assert {s.id for s in repo.shifts(org, today, today)} == {visible.id, moved.id}
     engine.dispose()

@@ -1,4 +1,3 @@
-import { SERVICE_TYPE_LABELS } from '@/features/authorizations/constants'
 import type { Assignment } from '../api'
 import { slotLabel } from '../lib/labels'
 
@@ -22,12 +21,13 @@ export function AssignmentList({ rows, workerView, onManage }: {
         <ul className="space-y-3">
           {assignments.map(a => <li key={a.id}>
             <div className="flex flex-wrap justify-between gap-2">
-              <span>{slotLabel(a)} · {SERVICE_TYPE_LABELS[a.service_type]}</span>
+              <span>{slotLabel(a)}</span>
               <span className="cw-badge">{a.status === 'ended' ? 'Ended' : a.status === 'ending' ? 'Ending' : a.status === 'scheduled' ? 'Upcoming' : 'Active'}</span>
             </div>
             <p className="text-sm text-ink-soft mt-1">From {a.starts_on}
               {a.stops_from ? ` · Visits stop from ${a.stops_from}` : a.revision_ends_on ? ` · Revision ends ${a.revision_ends_on}` : ' · Ongoing'}</p>
             {a.end_reason && <p className="text-sm text-ink-soft mt-1">Reason: {a.end_reason}</p>}
+            {a.assignment_source === 'admin_arranged' && <p className="text-sm text-ink-soft mt-1">Coverage arranged by admin</p>}
           </li>)}
         </ul>
       </article>

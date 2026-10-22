@@ -1,13 +1,13 @@
-import { ArrowLeft, ArrowRight, Check, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import {
-  WEEKDAY_LABELS,
-  SERVICE_TYPE_LABELS,
-} from '@/features/authorizations/constants'
+import { WEEKDAYS, WEEKDAY_LABELS } from '@/features/weekly-care-need/constants'
+import { weeklyHours } from '@/features/clients/lib/care'
+import { fmtHours } from '@/features/weekly-care-need/utils'
 import type { ApprovalReview, PlacementDetail, ApprovalPayload } from '../api'
 import { requestDate } from '../lib/careRequests'
+import { WorkerSchedulingChecks } from './WorkerSchedulingChecks'
 
-// Layer 2: shows the server's review, never invents eligibility or funding results.
+// Layer 2: shows the server's review, never invents eligibility results.
 export function CareRequestReview({
   request: p,
   preview,
@@ -17,6 +17,8 @@ export function CareRequestReview({
   stale,
   error,
   onAcceptGaps,
+  confirmArranged,
+  onConfirmArranged,
   onBack,
   onApprove,
 }: {
@@ -28,6 +30,8 @@ export function CareRequestReview({
   stale: boolean
   error: string
   onAcceptGaps: (value: boolean) => void
+  confirmArranged: boolean
+  onConfirmArranged: (value: boolean) => void
   onBack: () => void
   onApprove: () => void
 }) {
@@ -52,30 +56,77 @@ export function CareRequestReview({
       </p>
       <div className="cr-review-box">
         <p className="cr-label">New recurring coverage</p>
-        {selections.map((s) => {
-          const slot = p.care_slots.find((slot) => slot.id === s.care_slot_id)
-          const worker = p.interests.find(
-            (w) => w.employment_id === s.employment_id,
-          )
-          return (
-            slot && (
-              <div className="cr-review-row" key={s.care_slot_id}>
-                <div>
-                  {WEEKDAY_LABELS[slot.day_of_week]} ·{' '}
-                  {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
-                  <p className="cr-small">
-                    {SERVICE_TYPE_LABELS[slot.service_type]}
-                  </p>
-                </div>
-                <span>
-                  {worker?.first_name} {worker?.last_name}
-                </span>
-              </div>
-            )
-          )
-        })}
+        <p className="cr-small mt-2">
+          Only the care slots being added in this approval are shown.
+        </p>
+        <div
+          className="cr-review-week-scroll"
+          role="region"
+          aria-label="New recurring coverage by weekday"
+          tabIndex={0}
+        >
+          <div className="cr-review-week">
+            {WEEKDAYS.map((day) => {
+              const slots = p.care_slots
+                .filter(
+                  (slot) =>
+                    slot.day_of_week === day.key &&
+                    selections.some((s) => s.care_slot_id === slot.id),
+                )
+                .sort((a, b) => a.start_time.localeCompare(b.start_time))
+              return (
+                <section
+                  className="cr-review-day"
+                  aria-label={`${day.label} new coverage`}
+                  key={day.key}
+                >
+                  <h2 className="cr-label">{day.label}</h2>
+                  {slots.length ? (
+                    slots.map((slot) => {
+                      const selection = selections.find(
+                        (s) => s.care_slot_id === slot.id,
+                      )!
+                      const worker = preview.workers.find(
+                        (w) => w.worker_id === selection.employment_id,
+                      )
+                      return (
+                        <div className="cr-review-care-slot" key={slot.id}>
+                          <p className="cr-review-slot-time">
+                            {slot.start_time.slice(0, 5)}–
+                            {slot.end_time.slice(0, 5)}
+                          </p>
+                          <p>{worker?.worker_name || 'Worker unavailable'}</p>
+                          <p className="cr-small">
+                            {fmtHours(weeklyHours([slot]))}h
+                          </p>
+                          {selection.assignment_source === 'admin_arranged' && (
+                            <p className="cr-small">Arranged by admin</p>
+                          )}
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <p className="cr-small mt-5">No new coverage</p>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+        </div>
       </div>
-      {preview.ends_previous_schedule && (
+      {selections.some((s) => s.assignment_source === 'admin_arranged') && (
+        <label className="cr-check cr-review-box">
+          <input
+            type="checkbox"
+            checked={confirmArranged}
+            disabled={busy}
+            onChange={(e) => onConfirmArranged(e.target.checked)}
+          />
+          I have arranged this coverage with the directly selected workers. This
+          records my confirmation, not an expression of worker interest.
+        </label>
+      )}
+      {preview.ends_previous_schedule && preview.old_shifts.length > 0 && (
         <div className="cr-callout">
           <h3>The previous schedule ends.</h3>
           <p className="mt-3">
@@ -98,24 +149,7 @@ export function CareRequestReview({
       <div className="cr-review-box">
         <p className="cr-label">Eligibility checks</p>
         {preview.workers.map((w) => (
-          <div className="cr-review-row" key={w.worker_id}>
-            <div>
-              <p>{w.worker_name}</p>
-              {w.eligibility.reasons.map((reason) => (
-                <p className="cr-error" key={reason}>
-                  {reason}
-                </p>
-              ))}
-            </div>
-            <span className="cr-row">
-              {w.eligibility.all_clear ? (
-                <Check size={16} />
-              ) : (
-                <TriangleAlert size={16} />
-              )}
-              {w.eligibility.all_clear ? 'Checks passed' : 'Needs review'}
-            </span>
-          </div>
+          <WorkerSchedulingChecks key={w.worker_id} worker={w} />
         ))}
         {!preview.all_clear && (
           <p className="cr-error">
@@ -137,9 +171,6 @@ export function CareRequestReview({
               <span>
                 {WEEKDAY_LABELS[slot.day_of_week]} ·{' '}
                 {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
-              </span>
-              <span className="cr-small">
-                {SERVICE_TYPE_LABELS[slot.service_type]}
               </span>
             </div>
           ))}
@@ -176,6 +207,8 @@ export function CareRequestReview({
             busy ||
             stale ||
             !preview.all_clear ||
+            (selections.some((s) => s.assignment_source === 'admin_arranged') &&
+              !confirmArranged) ||
             (preview.uncovered_slots.length > 0 && !acceptGaps)
           }
           onClick={onApprove}

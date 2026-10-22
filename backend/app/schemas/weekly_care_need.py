@@ -1,14 +1,13 @@
 from datetime import time, date, datetime
 from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
-from app.core.enums import WeekDay, ServiceType
+from app.core.enums import WeekDay
 
 
 class CareSlotInput(BaseModel):
     day_of_week: WeekDay
     start_time: time
     end_time: time
-    service_type: ServiceType
 
     @model_validator(mode="after")
     def validate_times(self):

@@ -4,7 +4,6 @@ import { Avatar } from '@/shared/components/ui/Avatar';
 import { getInitials } from '@/shared/utils/getInitials';
 import { formatDuration } from '@/shared/utils/formatDuration';
 import { formatTimeRange } from '@/shared/utils/formatTime';
-import { serviceTypeLabel } from '@/features/shifts/lib/schedule';
 import type { ShiftOccurrence } from '@/features/shifts/types';
 
 interface Props {
@@ -34,7 +33,7 @@ export function NextShiftCard({ shift, shiftIndex, totalToday, gapMinutes, onDet
         <Avatar initials={getInitials(shift.client.first_name, shift.client.last_name)} size="md" className="bg-orange" />
         <View className="flex-1">
           <Text className="font-serif text-2xl text-cream">{shift.client.first_name} <Text className="font-serif-italic">{shift.client.last_name}</Text></Text>
-          <Text className="mt-1 text-xs text-cream/70">{serviceTypeLabel(shift.service_type)}</Text>
+          <Text className="mt-1 text-xs text-cream/70">Care visit</Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color="#F2EEE5" />
       </Pressable>

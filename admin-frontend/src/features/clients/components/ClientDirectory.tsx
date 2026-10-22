@@ -4,7 +4,7 @@ import { Plus, Search, ArrowRight } from 'lucide-react'
 import { differenceInYears, parseISO } from 'date-fns'
 import { Avatar, StatusDot } from '@/shared/components/ui'
 import { usePlacements } from '@/features/placements/hooks/usePlacements'
-import { fmtHours } from '@/features/authorizations/utils'
+import { fmtHours } from '@/features/weekly-care-need/utils'
 import { useClients } from '../hooks/useClients'
 import { CreateClientDrawer } from './CreateClientDrawer'
 import { ClientEmpty, ClientLoading, ClientBadge } from './ClientWorkspaceUI'
@@ -132,10 +132,7 @@ export function ClientDirectory() {
                               new Date(),
                               parseISO(c.date_of_birth),
                             )}{' '}
-                            years ·{' '}
-                            {c.care_arrangement === 'funded'
-                              ? 'Funded'
-                              : 'Self-pay'}
+                            years
                           </small>
                         </div>
                       </div>

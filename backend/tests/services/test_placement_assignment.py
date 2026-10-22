@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.enums import PlacementStatus, WeekDay, ServiceType, CareArrangement
+from app.core.enums import PlacementStatus, WeekDay, ServiceType
 from app.core.exceptions import AppError
 from app.schemas.placement import InterestEligibility
 from app.services.placement_service import PlacementService
@@ -23,7 +23,6 @@ def setup(monkeypatch):
         "cutoff_service",
         "availability_repo",
         "checker",
-        "auth_repo",
     ):
         setattr(service, name, MagicMock())
     worker = NS(
@@ -51,7 +50,6 @@ def setup(monkeypatch):
     service.placement_repo.active_worker.return_value = worker
     service.client_repo.get_active_client.return_value = NS(
         id=placement.client_id,
-        care_arrangement=CareArrangement.self_pay,
         street="1 Main",
         city="City",
         province="NL",
@@ -91,10 +89,9 @@ def test_legacy_assignment_cannot_bypass_care_slot_review(setup, method):
     service.shift_repo.add.assert_not_called()
 
 
-def test_generation_omits_groups_starting_after_authorization_end(setup):
+def test_generation_groups_days_by_time_ignoring_legacy_service(setup):
     service, placement, worker, _ = setup
     start = date(2026, 9, 28)  # Monday
-    service._funded_covering_end = lambda *a: start
     entries = [
         NS(day_of_week=day, start_time=time(9), end_time=time(11), service_type=kind)
         for day, kind in [
@@ -111,7 +108,8 @@ def test_generation_omits_groups_starting_after_authorization_end(setup):
         start,
     )
     assert len(shifts) == 1
-    assert shifts[0].recurrence_rule == "FREQ=WEEKLY;BYDAY=MO"
+    assert {s.recurrence_rule for s in shifts} == {"FREQ=WEEKLY;BYDAY=MO,TU"}
+    assert all(s.recurrence_end_date is None for s in shifts)
 
 
 def test_new_routes_have_admin_and_operational_guards():
@@ -161,36 +159,3 @@ def test_real_eligibility_gates_block_assignment(setup, gate):
     assert not eligibility.all_clear
     assert eligibility.reasons
     service.shift_repo.add.assert_not_called()
-
-
-def test_funded_slots_end_with_their_own_service_authorization(setup):
-    from datetime import timedelta
-
-    service, placement, worker, _ = setup
-    client = service.client_repo.get_active_client.return_value
-    client.care_arrangement = CareArrangement.funded
-    start = date(2090, 1, 2)
-    nursing_end, personal_end = start + timedelta(days=7), start + timedelta(days=30)
-    service.auth_repo.list_active_for_client.return_value = [
-        NS(covering_end=nursing_end, services=[NS(service_type=ServiceType.nursing)]),
-        NS(
-            covering_end=personal_end,
-            services=[NS(service_type=ServiceType.personal_care)],
-        ),
-    ]
-    slots = [
-        NS(
-            day_of_week=WeekDay.MO,
-            start_time=time(9),
-            end_time=time(11),
-            service_type=kind,
-        )
-        for kind in [ServiceType.nursing, ServiceType.personal_care]
-    ]
-    generated = service._generate_shifts(
-        placement, worker.id, slots, client, start, start
-    )
-    assert {shift.service_type: shift.recurrence_end_date for shift in generated} == {
-        ServiceType.nursing: nursing_end,
-        ServiceType.personal_care: personal_end,
-    }

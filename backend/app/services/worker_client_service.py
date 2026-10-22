@@ -47,7 +47,7 @@ class WorkerClientService:
                     modification_id=occurrence.modification_id,
                     start_time=occurrence.start_time, end_time=occurrence.end_time,
                     completion_status=occurrence.completion_status,
-                    service_type=occurrence.service_type, client=ClientSummary.model_validate(client),
+                    client=ClientSummary.model_validate(client),
                     location=occurrence.location, instructions=occurrence.instructions,
                     is_modified=occurrence.is_modified,
                 ))

@@ -32,6 +32,7 @@ const client = {
   province: 'NL',
   postal_code: 'A1A 1A1',
   status: 'active',
+  date_of_birth: '1950-01-01',
 }
 const slots = [
   ['MO', '09:00', '10:30'],
@@ -42,7 +43,6 @@ const slots = [
   day_of_week,
   start_time,
   end_time,
-  service_type: 'personal_care',
   worker_id: null,
   worker_name: null,
 }))
@@ -70,7 +70,7 @@ const makeRequest = () => ({
   covered_count: 0,
   start_date: '2026-10-01',
   created_at: '2026-09-28T12:00:00Z',
-  requirements: 'First Aid required.',
+  requirements: 'First Aid required.\n\nAdditional notes:\nOne cat at home',
   interest_count: 1,
   interests: [
     {
@@ -106,6 +106,8 @@ async function run() {
     const later = {
       ...makeRequest(),
       id: id(30),
+      client_id: id(31),
+      weekly_care_need_id: id(32),
       client_first_name: 'Amelia',
       client_last_name: 'Clarke',
       start_date: '2026-10-10',
@@ -174,9 +176,14 @@ async function run() {
         }
       else if (p === '/api/notifications')
         data = { notifications: [], unread_count: 0, action_needed_count: 0 }
+      else if (p === '/api/org-members') data = [
+        { id: id(70), first_name: 'Alex', last_name: 'Demo', employment_status: 'active', is_active: true },
+        { id: workerId, first_name: 'Maya', last_name: 'Chen', employment_status: 'active', is_active: true },
+      ]
       else if (p === '/api/clients') data = [client]
       else if (p === `/api/clients/${clientId}`) data = client
-      else if (p.endsWith('/care-need')) data = emptyNeeds ? [] : [need]
+      else if (p === '/api/assignments') data = []
+      else if (p.endsWith('/care-need')) data = emptyNeeds ? [] : [{ ...need, id: id(41), version: 5 }, need]
       else if (p === '/api/placements' && method === 'POST') {
         posts.push(r.request().postDataJSON())
         data = request
@@ -193,7 +200,7 @@ async function run() {
         data = {
           review_token: 'reviewed-token',
           starts_on: body.starts_on,
-          ends_previous_schedule: true,
+          ends_previous_schedule: !request.scheduled_from,
           old_shifts: [
             {
               shift_id: id(90),
@@ -211,7 +218,11 @@ async function run() {
             {
               worker_id: workerId,
               worker_name: 'Maya Chen',
+              hours: { week_start: '2026-10-25', week_end: '2026-10-31', current: 0, proposed: 1.5, total: 1.5, max_weekly_hours: 40 },
               eligibility: {
+                availability_ok: true,
+                no_conflicts: !blocked,
+                within_hours: true,
                 all_clear: !blocked,
                 reasons: blocked ? ['Already scheduled at this time.'] : [],
               },
@@ -305,6 +316,48 @@ async function run() {
     await page.getByText('Request details', { exact: true }).click()
     await page.getByText('First Aid required.', { exact: true }).waitFor()
     await shot('care-request-detail')
+    // Interest is grouped per slot, ahead of alphabetically earlier direct candidates.
+    assert.equal(await page.getByRole('searchbox', { name: 'Search workers' }).count(), 0)
+    assert.equal(await page.getByRole('checkbox', { name: 'Show interested workers only' }).count(), 0)
+    await select().first().locator('optgroup[label="Other active workers"]').waitFor({ state: 'attached' })
+    assert.deepEqual(await select().first().locator('optgroup').evaluateAll((groups) => groups.map((g) => g.label)), ['Interested in this slot', 'Other active workers'])
+    assert.equal(await select().first().locator('optgroup').first().locator('option').getAttribute('value'), workerId)
+    // A direct choice survives tab changes and an interested-worker selection for other slots.
+    await select().first().selectOption(id(70))
+    await page.getByRole('button', { name: 'Interested workers · 1', exact: true }).click()
+    await page.getByRole('button', { name: /Select for 2 Care Slots/ }).click()
+    assert.deepEqual(await select().evaluateAll((inputs) => inputs.map((input) => input.value)), [id(70), workerId, workerId])
+    await page.getByRole('button', { name: 'Interested workers · 1', exact: true }).click()
+    await page.getByRole('button', { name: 'Care coverage', exact: true }).click()
+    assert.deepEqual(await select().evaluateAll((inputs) => inputs.map((input) => input.value)), [id(70), workerId, workerId])
+    await select().nth(1).selectOption('')
+    await select().nth(2).selectOption('')
+    // The explicit revision round trip retains draft coverage, targets the posted
+    // revision even when a newer one exists, and never silently saves/approves.
+    await page.getByLabel('Coverage starts', { exact: true }).fill('2026-11-02')
+    await page.getByRole('link', { name: 'Open weekly care need', exact: true }).click()
+    await page.getByRole('heading', { name: 'Revision 4', exact: true }).waitFor()
+    assert.match(page.url(), /need=00000000-0000-4000-8000-000000000004/)
+    await page.getByRole('link', { name: 'View posted care request', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Create new revision', exact: true }).click()
+    page.once('dialog', (dialog) => dialog.dismiss())
+    await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('link', { name: 'Clients', exact: true }).click()
+    await page.getByRole('heading', { name: 'New revision', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await page.getByRole('button', { name: 'View revision 5', exact: true }).click()
+    await page.getByRole('heading', { name: 'Revision 5', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'View revision 4', exact: true }).click()
+    await page.getByRole('link', { name: 'View posted care request', exact: true }).click()
+    await select().first().waitFor()
+    assert.equal(await select().first().inputValue(), id(70))
+    assert.equal(await page.getByLabel('Coverage starts', { exact: true }).inputValue(), '2026-11-02')
+    assert.equal(approvals.length, 0)
+    // Return drafts are consumed: a confirmed unrelated departure discards edits.
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('link', { name: 'All care requests', exact: true }).click()
+    await page.getByRole('link', { name: 'View Robert Ellis' }).click()
+    await select().first().waitFor()
+    assert.equal(await select().first().inputValue(), '')
     // Partial selection uses actual durations and requires the gap acknowledgment.
     await select().first().selectOption(workerId)
     await page.getByText('1.5h / week', { exact: true }).waitFor()
@@ -327,6 +380,24 @@ async function run() {
     const confirm = () =>
       page.getByRole('button', { name: 'Approve and schedule', exact: true })
     await confirm().waitFor()
+    await page.getByText('The selected care slots fit Maya Chen’s recorded availability.', { exact: true }).waitFor()
+    await page.getByText('No overlapping visits were found in this worker’s schedule.', { exact: true }).waitFor()
+    await page.getByText('The selected care keeps this worker within their maximum of 40 hours per week and passes the overtime check.', { exact: true }).waitFor()
+    assert.equal(await page.getByText(/Reflects any previous coverage ending/).count(), 0)
+    await page.getByText('View first-week hours', { exact: true }).click()
+    await page.getByText(/Oct 25, 2026–Oct 31, 2026: the week containing/).waitFor()
+    const reviewWeek = page.getByRole('region', { name: 'New recurring coverage by weekday', exact: true })
+    assert.equal(await reviewWeek.locator('.cr-review-day').count(), 7)
+    const monday = reviewWeek.getByRole('region', { name: 'Mon new coverage', exact: true })
+    await monday.getByText('Maya Chen', { exact: true }).waitFor()
+    await monday.getByText('09:00–10:30', { exact: true }).waitFor()
+    await monday.getByText('1.5h', { exact: true }).waitFor()
+    assert.equal(await reviewWeek.locator('.cr-review-care-slot').count(), 1)
+    await shot('care-request-weekly-review')
+    await page.setViewportSize({ width: 390, height: 844 })
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+    assert.equal(await reviewWeek.evaluate((el) => el.scrollWidth > el.clientWidth), true)
+    await page.setViewportSize({ width: 1440, height: 1100 })
     assert.equal(await confirm().isDisabled(), true)
     await page.getByRole('checkbox').check()
     await confirm().click()
@@ -346,6 +417,7 @@ async function run() {
       .getByText('Already scheduled at this time.', { exact: true })
       .waitFor()
     assert.equal(await confirm().isDisabled(), true)
+    assert.equal(await page.getByRole('heading', { name: 'The previous schedule ends.', exact: true }).count(), 0)
     await page
       .getByRole('button', { name: 'Back to coverage', exact: true })
       .click()
@@ -427,7 +499,7 @@ async function run() {
       .getByRole('button', { name: 'Post care request', exact: true })
       .click()
     assert.equal(posts.length, 1)
-    assert.equal(posts[0].weekly_care_need_id, needId)
+    assert.equal(posts[0].weekly_care_need_id, id(41))
     assert.match(
       posts[0].requirements,
       /First Aid required\n\nAdditional notes:\nOne cat at home/,

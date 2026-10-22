@@ -6,8 +6,8 @@ import type { ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { ShiftStatusBadge } from '@/shared/components/ui'
 import { useVisitNote, useAppendVisitNote } from '../hooks/useVisitNotes'
-import { serviceName, visitHours, errorMessage } from '../lib/care'
-import { fmtHours } from '@/features/authorizations/utils'
+import { visitHours, errorMessage } from '../lib/care'
+import { fmtHours } from '@/features/weekly-care-need/utils'
 import { ClientDialog, ClientLoading } from './ClientWorkspaceUI'
 
 export function VisitNotes({
@@ -176,7 +176,6 @@ export function ClientVisitDialog({
             ],
             ['Duration', `${fmtHours(visitHours(visit))}h`],
             ['Worker', `${visit.worker.first_name} ${visit.worker.last_name}`],
-            ['Service', serviceName(visit.service_type)],
             ['Location', visit.location || 'Not recorded'],
           ].map(([label, value]) => (
             <div key={label}>
