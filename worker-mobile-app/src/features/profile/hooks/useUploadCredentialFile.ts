@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/shared/lib/auth-store';
 import { pickAndUploadDocument } from '@/features/profile/lib/uploadDocument';
 import { upsertCredential } from '@/features/profile/api';
-import type { ComplianceDocumentType } from '@/features/profile/types';
+import { DOCUMENT_TYPE_LABELS, type ComplianceDocumentType } from '@/features/profile/types';
 
 export function useUploadCredentialFile() {
   const queryClient = useQueryClient();
@@ -16,8 +16,9 @@ export function useUploadCredentialFile() {
       const storagePath = await pickAndUploadDocument(userId, documentType);
       return upsertCredential(documentType, storagePath);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-credentials'] });
+    onSuccess: (_credential, documentType) => {
+      void queryClient.invalidateQueries({ queryKey: ['my-credentials'] });
+      Alert.alert('Document uploaded successfully', `${DOCUMENT_TYPE_LABELS[documentType]} is awaiting agency verification.`);
     },
     onError: (error: Error) => {
       if (error.message === 'CANCELLED') return;

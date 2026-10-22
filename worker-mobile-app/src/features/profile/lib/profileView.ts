@@ -54,7 +54,7 @@ export function documentState(credential: Credential | undefined, today = new Da
 }
 
 export const DOCUMENT_STATE_LABELS: Record<DocumentState, string> = {
-  missing: 'No document uploaded', pending: 'Awaiting verification', expired: 'Expired',
+  missing: 'No document uploaded', pending: 'Awaiting agency verification', expired: 'Expired',
   expiring: 'Renewal coming up', current: 'Verified',
 };
 
