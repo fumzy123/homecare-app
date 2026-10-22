@@ -42,6 +42,7 @@ function Navigation() {
       <Stack.Screen name="profile/index" />
       <Stack.Screen name="profile/edit" />
       <Stack.Screen name="notifications/index" />
+      <Stack.Screen name="notifications/schedule" />
       <Stack.Screen name="settings/index" />
       <Stack.Screen name="introduction" />
     </Stack.Protected>

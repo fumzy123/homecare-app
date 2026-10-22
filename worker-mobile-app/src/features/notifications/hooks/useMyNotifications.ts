@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMyNotifications, markNotificationRead } from '../api';
+import { getMyNotifications } from '../api';
+import { useAuthStore } from '@/shared/lib/auth-store';
+import { notificationKey, notificationReadOptions } from '../lib/notificationRead';
 
 export function useMyNotifications() {
   return useQuery({
-    queryKey: ['my-notifications'],
+    queryKey: notificationKey,
     queryFn: getMyNotifications,
     staleTime: 1000 * 30,
   });
@@ -11,10 +13,7 @@ export function useMyNotifications() {
 
 export function useMarkNotificationRead() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: markNotificationRead,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-notifications'] });
-    },
-  });
+  const userId = useAuthStore(state => state.user?.id);
+  return useMutation(notificationReadOptions(qc,
+    () => !!userId && useAuthStore.getState().user?.id === userId));
 }

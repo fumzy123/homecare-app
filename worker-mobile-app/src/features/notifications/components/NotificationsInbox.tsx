@@ -1,179 +1,85 @@
-import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useMyNotifications, useMarkNotificationRead } from '@/features/notifications/hooks/useMyNotifications';
+import { useMyNotifications, useMarkNotificationRead } from '../hooks/useMyNotifications';
+import { useNotificationVisits } from '../hooks/useNotificationVisits';
 import { useRefreshControl } from '@/shared/hooks/useRefreshControl';
-import { Kicker } from '@/shared/components/ui';
-import type { WorkerNotification } from '@/features/notifications/api';
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins < 1)  return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
-}
-
-function notificationTitle(n: WorkerNotification): string {
-  const loc = n.payload.masked_location as string | undefined;
-  const client = n.payload.client_name as string | undefined;
-  const suffix = loc ? ` — ${loc}` : '';
-  if (typeof n.payload.message === 'string') return n.payload.message;
-  switch (n.type) {
-    case 'placement_created':
-      // Lead with the client's name so the worker knows who they'd take on.
-      return client ? `New placement available — ${client}` : `New placement available${suffix}`;
-    case 'placement_filled':
-      return `You've been selected for the placement${suffix}`;
-    case 'placement_closed':
-      return `Placement no longer available${suffix}`;
-    default:
-      return 'New notification';
-  }
-}
-
-function notificationIcon(type: string): React.ComponentProps<typeof Ionicons>['name'] {
-  switch (type) {
-    case 'shift_assigned':
-    case 'shift_updated':
-      return 'calendar-outline';
-    case 'shift_cancelled':
-      return 'close-circle-outline';
-    case 'placement_created':
-      return 'briefcase-outline';
-    case 'placement_filled':
-      return 'checkmark-circle-outline';
-    case 'placement_closed':
-      return 'close-circle-outline';
-    default:
-      return 'notifications-outline';
-  }
-}
-
-function NotificationRow({
-  n,
-  onPress,
-}: {
-  n: WorkerNotification;
-  onPress: () => void;
-}) {
-  const isUnread = n.read_at === null;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={notificationTitle(n)}
-      className={`flex-row items-start gap-3 border-b border-cream-2 px-5 py-4 ${isUnread ? 'bg-orange-soft' : 'bg-paper'}`}
-    >
-      <View className="mt-0.5 h-9 w-9 items-center justify-center rounded-full bg-cream-2">
-        <Ionicons name={notificationIcon(n.type)} size={18} color="#3D3935" />
-      </View>
-
-      <View className="flex-1">
-        <Text className="font-sans text-sm font-medium text-ink leading-snug">
-          {notificationTitle(n)}
-        </Text>
-        <Text className="mt-0.5 font-mono text-xs text-muted">
-          {timeAgo(n.created_at)}
-        </Text>
-      </View>
-
-      <View className="items-center gap-1.5 pt-1">
-        {isUnread && (
-          <View className="h-2 w-2 rounded-full bg-orange" />
-        )}
-        <Ionicons name="chevron-forward" size={14} color="#8A8378" />
-      </View>
-    </Pressable>
-  );
-}
+import type { WorkerNotification } from '../api';
+import { notificationDestination } from '../lib/notificationDestination';
+import { groupNotifications, notificationPresentation, notificationTime, type InboxFilter } from '../lib/inboxView';
+import { NotificationCard } from './NotificationCard';
+import { useAuthStore } from '@/shared/lib/auth-store';
 
 export function NotificationsInbox() {
   const { data, isLoading, isError, refetch } = useMyNotifications();
-  const { mutate: markRead } = useMarkNotificationRead();
+  const { mutateAsync: markRead, isPending } = useMarkNotificationRead();
+  const [filter, setFilter] = useState<InboxFilter>('all');
+  const opening = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const { refreshing, onRefresh } = useRefreshControl(refetch);
-
   const notifications = data?.notifications ?? [];
-  const unreadCount   = data?.unread_count ?? 0;
+  const visits = useNotificationVisits(notifications);
+  const groups = groupNotifications(notifications, filter);
+  const unreadCount = data?.unread_count ?? 0;
 
-  function handlePress(n: WorkerNotification) {
-    if (n.read_at === null) {
-      markRead(n.id);
-    }
-    if (n.type === 'shift_assigned' || n.type === 'shift_updated' || n.type === 'shift_cancelled' || n.type === 'placement_filled') {
-      router.push('/(tabs)/schedule');
-      return;
-    }
-    if (
-      n.type === 'placement_created' ||
-      n.type === 'placement_closed' || n.type === 'placement_coverage_updated'
-    ) {
-      const placementId = n.payload.placement_id as string | undefined;
-      if (placementId) {
-        router.push(`/placements/${placementId}` as never);
-        return;
-      }
+  async function handlePress(n: WorkerNotification) {
+    if (opening.current) return;
+    opening.current = true;
+    const userId = useAuthStore.getState().user?.id;
+    const stillHere = () => mounted.current && !!userId && useAuthStore.getState().user?.id === userId;
+    try {
+      if (n.read_at === null) await markRead(n.id);
+      const destination = notificationDestination(n);
+      if (stillHere() && destination) router.push(destination);
+    } catch {
+      if (stillHere()) Alert.alert('Could not mark as read',
+        'Check your connection and try again. This notification is still unread.',
+        [{ text: 'Cancel', style: 'cancel' }, { text: 'Retry', onPress: () => { void handlePress(n); } }]);
+    } finally {
+      opening.current = false;
     }
   }
 
-  return (
-    <SafeAreaView className="flex-1 bg-cream">
-      {/* Header */}
-      <View className="flex-row items-center justify-between border-b border-cream-2 bg-paper px-5 py-4">
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" className="mr-3 p-1">
-          <Ionicons name="arrow-back" size={22} color="#3D3935" />
+  return <SafeAreaView className="flex-1 bg-cream">
+    <View className="border-b border-cream-2 bg-paper px-5 pb-5 pt-2">
+      <View className="flex-row items-center justify-between gap-3">
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')} accessibilityRole="button" accessibilityLabel="Back" className="min-h-11 flex-row items-center gap-2 pr-4">
+          <Ionicons name="arrow-back" size={21} color="#4A453E" /><Text className="font-sans text-sm text-ink-soft">Back</Text>
         </Pressable>
-        <View className="flex-1">
-          <Kicker>Inbox</Kicker>
-          <Text className="font-serif-semibold text-xl text-ink leading-tight">Notifications</Text>
-        </View>
-        {unreadCount > 0 && (
-          <View className="rounded-full bg-orange px-2.5 py-1">
-            <Text className="font-mono text-xs font-bold text-white">{unreadCount} unread</Text>
-          </View>
-        )}
+        <Text className="font-mono text-[10px] uppercase tracking-widest text-[#6E685E]">Care Harbor</Text>
       </View>
-
-      {isLoading && !refreshing ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#FF5A1F" />
-        </View>
-      ) : (
-        <ScrollView
-          className="flex-1"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#FF5A1F"
-              colors={['#FF5A1F']}
-            />
-          }
-        >
-          {isError ? (
-            <View className="items-center px-6 py-20">
-              <Text className="font-sans text-ink">Could not load notifications. Pull down to retry.</Text>
-            </View>
-          ) : notifications.length === 0 ? (
-            <View className="flex-1 items-center justify-center px-6 py-20">
-              <Ionicons name="checkmark-circle-outline" size={40} color="#8A8378" />
-              <Text className="mt-4 font-serif text-xl text-ink">All caught up.</Text>
-              <Text className="mt-1 text-center font-sans text-sm text-muted">
-                Notifications will appear here when there's something for you.
-              </Text>
-            </View>
-          ) : (
-            notifications.map((n) => (
-              <NotificationRow key={n.id} n={n} onPress={() => handlePress(n)} />
-            ))
-          )}
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
+      <View className="mt-4 flex-row flex-wrap items-center justify-between gap-3">
+        <Text accessibilityRole="header" className="font-serif text-4xl text-ink">Notifications</Text>
+        {!isLoading && !isError ? <View className="rounded-full bg-orange-soft px-2.5 py-1.5"><Text accessibilityLiveRegion="polite" className="font-sans text-xs font-semibold text-[#95340F]">{unreadCount} unread</Text></View> : null}
+      </View>
+      <View accessibilityRole="tablist" className="mt-5 flex-row rounded-full bg-cream-2 p-1">
+        {(['all', 'unread'] as const).map(value => <Pressable key={value} onPress={() => setFilter(value)} accessibilityRole="tab" accessibilityState={{ selected: value === filter }} className={`min-h-11 flex-1 items-center justify-center rounded-full px-4 ${filter === value ? 'bg-paper' : ''}`}>
+          <Text className={`font-sans text-sm ${filter === value ? 'font-semibold text-ink' : 'text-ink-soft'}`}>{value === 'all' ? 'All' : 'Unread'}</Text>
+        </Pressable>)}
+      </View>
+    </View>
+    {isPending ? <Text accessibilityLiveRegion="polite" className="px-5 py-2 font-sans text-sm text-ink-soft">Opening notification…</Text> : null}
+    {isLoading && !refreshing ? <View className="flex-1 items-center justify-center"><ActivityIndicator accessibilityLabel="Loading notifications" color="#FF5A1F" /></View>
+      : <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF5A1F" colors={['#FF5A1F']} />}>
+        {isError ? <View className="items-center px-6 py-16"><Text accessibilityRole="alert" className="text-center font-sans text-sm leading-6 text-ink">Could not load notifications. Pull down to retry.</Text></View>
+          : groups.length === 0 ? <View className="items-center px-5 py-16">
+            <Ionicons name="checkmark-circle-outline" size={36} color="#6E685E" />
+            <Text className="mt-4 font-serif text-3xl text-ink">{filter === 'unread' ? unreadCount > 0 ? 'No recent unread items.' : 'All caught up.' : 'No notifications yet.'}</Text>
+            <Text className="mt-2 text-center font-sans text-sm leading-6 text-ink-soft">{filter === 'unread' ? unreadCount > 0 ? 'The unread count includes older notifications outside this recent list.' : 'You have no unread notifications. Your history is still available under All.' : 'Updates from your agency will appear here.'}</Text>
+          </View>
+          : <>{groups.map(group => <View key={group.title}>
+            <Text accessibilityRole="header" className="mb-3 ml-1 mt-6 font-mono text-[11px] uppercase tracking-widest text-[#6E685E]">{group.title}</Text>
+            {group.items.map(n => {
+              const destination = notificationDestination(n);
+              const visit = destination?.pathname === '/shifts/[shiftId]' ? visits.get(`${destination.params.shiftId}:${destination.params.occurrenceDate}`) : undefined;
+              return <NotificationCard key={n.id} content={notificationPresentation(n, visit?.isError ? undefined : visit?.data)} unread={n.read_at === null} time={notificationTime(n.created_at)}
+                visitState={visit?.isPending ? 'loading' : visit?.isError ? 'error' : undefined} disabled={isPending} onPress={() => { void handlePress(n); }} />;
+            })}
+          </View>)}<Text className="mt-6 text-center font-sans text-xs leading-5 text-ink-soft">Opening a notification marks it as read.</Text></>}
+      </ScrollView>}
+  </SafeAreaView>;
 }

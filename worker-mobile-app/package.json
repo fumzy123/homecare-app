@@ -51,6 +51,7 @@
     "test:env": "node --test scripts/environment.test.cjs",
     "test:website-links": "node --test scripts/website-links.test.cjs",
     "test:push": "node --test scripts/push.test.cjs",
+    "test:inbox": "node --test scripts/notification-inbox.test.cjs",
     "test:schedule": "node --test scripts/schedule.test.cjs",
     "test:profile": "node --test scripts/profile.test.cjs",
     "test:action-stack": "node --test scripts/action-stack.test.cjs",

@@ -17,11 +17,12 @@ export default function ShiftDetailScreen() {
         <Pressable
           onPress={() => router.back()}
           className="mr-3 rounded-full p-2"
-          accessibilityLabel={source === 'clients' ? 'Back to client' : 'Back to schedule'}
+          accessibilityRole="button"
+          accessibilityLabel={source === 'notifications' ? 'Back to notifications' : source === 'clients' ? 'Back to client' : 'Back to schedule'}
         >
           <Ionicons name="arrow-back" size={22} color="#111111" />
         </Pressable>
-        <Text className="font-mono text-xs uppercase tracking-widest text-muted">{source === 'clients' ? 'Client visit' : 'Schedule'}</Text>
+        <Text className="font-mono text-xs uppercase tracking-widest text-muted">{source === 'notifications' ? 'Notifications · Visit' : source === 'clients' ? 'Client visit' : 'Schedule'}</Text>
       </View>
       {shiftId && occurrenceDate ? (
         <ShiftDetailView shiftId={shiftId} occurrenceDate={occurrenceDate} />
