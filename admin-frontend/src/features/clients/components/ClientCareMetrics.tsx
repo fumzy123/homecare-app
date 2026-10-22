@@ -43,7 +43,7 @@ export function ClientCareMetrics({
       : 0,
   )
   const [filter, setFilter] = useState('all')
-  const [view, setView] = useState('list')
+  const [view, setView] = useState('week')
   const [selected, setSelected] = useState<ShiftOccurrence | null>(null)
   const start = addWeeks(
     startOfWeek(new Date(), { weekStartsOn: WEEK_STARTS_ON }),

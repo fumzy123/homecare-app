@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatPostalCode } from '../lib/address'
 import { Link } from '@tanstack/react-router'
 import { format, addDays, startOfWeek, parseISO } from 'date-fns'
 import {
@@ -347,7 +348,7 @@ export function ClientOverview({ clientId }: { clientId: string }) {
           <div className="cw-panel-body">
             <p>{c.street}</p>
             <p className="cw-muted">
-              {c.city}, {c.province} {c.postal_code}
+              {c.city}, {c.province} {formatPostalCode(c.postal_code)}
             </p>
             {c.phone_number && (
               <a href={`tel:${c.phone_number}`} className="cw-link mt-4">
@@ -369,7 +370,7 @@ export function ClientOverview({ clientId }: { clientId: string }) {
               <p className="mt-3">
                 {c.street}
                 <br />
-                {c.city}, {c.province} {c.postal_code}
+                {c.city}, {c.province} {formatPostalCode(c.postal_code)}
               </p>
             </div>
             <div>

@@ -12,6 +12,7 @@ import { ClientPanel } from './ClientWorkspaceUI'
 import { ClientDangerZone } from './ClientDangerZone'
 import { HelpTooltip } from '@/shared/components/HelpTooltip'
 import { errorMessage } from '../lib/care'
+import { formatPostalCode } from '../lib/address'
 
 const required = z.string().trim().min(1, 'Required')
 const schema = z.object({
@@ -122,7 +123,7 @@ export function ClientProfileForm({
       street: client?.street || '',
       city: client?.city || '',
       province: client?.province || '',
-      postal_code: client?.postal_code || '',
+      postal_code: formatPostalCode(client?.postal_code || ''),
       emergency_contact_name: client?.emergency_contact_name || '',
       emergency_contact_relationship:
         client?.emergency_contact_relationship || '',
@@ -142,6 +143,7 @@ export function ClientProfileForm({
           ...Object.fromEntries(
             optionalKeys.map((key) => [key, value[key].trim() || null]),
           ),
+          postal_code: formatPostalCode(value.postal_code),
           phone_number: normalizePhone(value.phone_number),
           emergency_contact_phone: normalizePhone(value.emergency_contact_phone)!,
         })
@@ -300,6 +302,27 @@ export function ClientProfileForm({
                       </select>
                     </div>
                   )
+                  if (name === 'special_instructions' || name === 'notes') return (
+                    <div className="cw-field cw-form-full">
+                      <HelpTooltip
+                        id={`${statusId}-${name}-help`}
+                        buttonLabel={`About ${labels[name].toLowerCase()}`}
+                        tone="light"
+                        text={name === 'special_instructions'
+                          ? "Practical guidance shown to workers providing this client's care, such as routines, preferences and entry instructions."
+                          : 'Internal information for agency staff. These notes are not shown to workers.'}
+                      >
+                        <label htmlFor={`${statusId}-${name}`}>{labels[name]}</label>
+                      </HelpTooltip>
+                      <textarea id={`${statusId}-${name}`} className="cw-input" rows={3}
+                        value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        aria-describedby={name === 'notes' ? `${statusId}-notes-private` : undefined} />
+                      {name === 'notes' && <span id={`${statusId}-notes-private`} className="cw-muted">
+                        Agency-only notes; not shown to workers.
+                      </span>}
+                    </div>
+                  )
                   return (
                     <label className={`cw-field ${long ? 'cw-form-full' : ''}`}>
                       {labels[name]}
@@ -355,14 +378,13 @@ export function ClientProfileForm({
                           }
                           value={field.state.value}
                           onChange={(e) => field.handleChange(e.target.value)}
-                          onBlur={field.handleBlur}
+                          onBlur={() => {
+                            if (name === 'postal_code') field.handleChange(formatPostalCode(field.state.value))
+                            field.handleBlur()
+                          }}
+                          autoComplete={name === 'postal_code' ? 'postal-code' : undefined}
                           required={name in schema.shape && name !== 'email'}
                         />
-                      )}
-                      {name === 'notes' && (
-                        <span className="cw-muted">
-                          Agency-only notes; not shown to workers.
-                        </span>
                       )}
                     </label>
                   )

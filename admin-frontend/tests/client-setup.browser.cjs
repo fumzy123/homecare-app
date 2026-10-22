@@ -239,12 +239,13 @@ async function journey(browser, returnToDirectory = false) {
   for (const [name, value] of [
     ['Street address *', '1 Example Street'],
     ['City *', 'St. John’s'],
-    ['Postal code *', 'A1A 1A1'],
+    ['Postal code *', 'a1a1a1'],
     ['Contact name *', 'Casey Example'],
     ['Relationship *', 'Family'],
     ['Contact phone *', '+17095550123'],
   ])
     await page.getByLabel(name, { exact: true }).fill(value)
+  assert.equal(await page.getByLabel('Postal code *', { exact: true }).inputValue(), 'A1A 1A1')
   await page.getByRole('combobox', { name: /^Province/ }).selectOption('NL')
   // Shared phone entry: country-aware formatting, paste, caret editing and validation.
   const phone = page.getByRole('textbox', { name: 'Phone', exact: true })
@@ -292,6 +293,12 @@ async function journey(browser, returnToDirectory = false) {
     0,
     await page.getByRole('dialog').innerText(),
   )
+  await page.getByRole('button', { name: 'About care instructions', exact: true }).focus()
+  await page.getByRole('tooltip').filter({ hasText: 'Practical guidance shown to workers' }).waitFor()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'About agency notes', exact: true }).click()
+  await page.getByRole('tooltip').filter({ hasText: 'Internal information for agency staff' }).waitFor()
+  await page.getByRole('textbox', { name: 'Agency notes', exact: true }).fill('Internal test note')
   await page
     .getByRole('textbox', { name: 'Care instructions', exact: true })
     .fill('Retain these instructions')
@@ -308,6 +315,8 @@ async function journey(browser, returnToDirectory = false) {
   )
   await page.getByRole('button', { name: 'Create client', exact: true }).click()
   await page.getByRole('dialog', { name: 'Client created' }).waitFor()
+  assert.equal(client.postal_code, 'A1A 1A1')
+  assert.equal(client.notes, 'Internal test note')
   assert.equal(client.phone_number, null)
   assert.equal(client.emergency_contact_phone, '+17095550123')
   if (process.env.CLIENT_SETUP_SCREENSHOT_DIR)
@@ -482,14 +491,20 @@ async function journey(browser, returnToDirectory = false) {
   await link.click()
   await page.waitForURL(`**/${client.id}/visits?week=${firstVisit}`)
   await page
-    .getByRole('button', { name: `Open visit on ${firstVisit} at 09:00` })
+    .getByRole('button', { name: /09:00.*Maya Test/ })
     .waitFor()
   assert(
     visitQueries.at(-1).from <= firstVisit &&
       visitQueries.at(-1).to >= firstVisit,
   )
+  assert.equal(await page.getByRole('button', { name: 'Week', exact: true }).getAttribute('aria-pressed'), 'true')
+  await page.getByRole('button', { name: 'List', exact: true }).click()
+  assert.equal(await page.getByRole('button', { name: 'List', exact: true }).getAttribute('aria-pressed'), 'true')
+  await page.getByRole('button', { name: 'Week', exact: true }).click()
+  assert(visitQueries.at(-1).from <= firstVisit && visitQueries.at(-1).to >= firstVisit)
   await page.getByRole('button', { name: 'This week' }).click()
-  await page.getByText('No visits in this view', { exact: true }).waitFor()
+  await page.getByText('No visits', { exact: true }).first().waitFor()
+  assert.equal(await page.getByText('No visits', { exact: true }).count(), 7)
   assert(visitQueries.at(-1).to < firstVisit)
   assert.equal(
     writes.filter((w) => w.p === '/api/clients').length,
