@@ -79,8 +79,8 @@ def test_worker_on_leave_can_still_access_profile(context):
 
 def test_partial_personal_update_preserves_other_sections_and_readonly_fields(context):
     context.person.emergency_contact_name = 'Keep this contact'
-    profile = context.service().update_profile(WorkerProfileUpdateSchema(phone_number='555-0100'), context.tasks)
-    assert profile.phone_number == '555-0100'
+    profile = context.service().update_profile(WorkerProfileUpdateSchema(phone_number='7095550100'), context.tasks)
+    assert profile.phone_number == '+17095550100'
     assert profile.emergency_contact_name == 'Keep this contact'
     assert profile.max_hours_per_week == 32
     context.db.commit.assert_called_once()

@@ -4,6 +4,8 @@ import { orgMembersApi } from '@/features/org-members/api'
 import { useAuthStore } from '@/shared/stores/auth'
 import { DateInput } from '@/shared/components/ui'
 import type { OrgMember } from '@/features/org-members/api'
+import { PhoneInput } from '@/shared/components/PhoneInput'
+import { normalizePhone, validatePhone } from '@/shared/lib/phone'
 
 const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
 const inputClass = 'w-full bg-cream border border-ink px-3 py-2.5 font-mono text-[12px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
@@ -25,12 +27,14 @@ export function ProfileForm({ member }: { member: OrgMember }) {
     onSubmit: async ({ value }) => {
       if (!user) return
       setServerError(null)
+      const phoneError = validatePhone(value.phone_number)
+      if (phoneError) { setServerError(phoneError); return }
       try {
         const updated = await orgMembersApi.updateSelf(user.id, {
           first_name:    value.first_name   || undefined,
           last_name:     value.last_name    || undefined,
           email:         value.email        || undefined,
-          phone_number:  value.phone_number || undefined,
+          phone_number:  normalizePhone(value.phone_number),
           gender:        value.gender       || undefined,
           date_of_birth: value.date_of_birth || undefined,
         })
@@ -135,9 +139,9 @@ export function ProfileForm({ member }: { member: OrgMember }) {
           <form.Field name="phone_number">
             {(field) => (
               <div className="col-span-2">
-                <label className={labelClass}>Phone number</label>
-                <input className={inputClass} value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)} placeholder="+1 (000) 000-0000" />
+                <PhoneInput label="Phone number" value={field.state.value}
+                  onChange={field.handleChange} onBlur={field.handleBlur}
+                  inputClassName={inputClass} labelClassName={labelClass} />
               </div>
             )}
           </form.Field>

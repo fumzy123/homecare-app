@@ -5,6 +5,7 @@ from uuid import UUID
 from typing import Optional, List
 from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus, ComplianceDocumentType
 from app.schemas.worker_availability import AvailabilityEntryInput, AvailabilityEntryResponse, AvailabilityPutSchema
+from app.schemas.phone import OptionalPhone
 
 
 class WorkerProfileResponse(BaseModel):
@@ -98,7 +99,7 @@ class CredentialUpsertSchema(BaseModel):
 class WorkerProfileUpdateSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    phone_number: Optional[str] = None
+    phone_number: OptionalPhone = None
     gender: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None
@@ -106,7 +107,7 @@ class WorkerProfileUpdateSchema(BaseModel):
     postal_code: Optional[str] = None
     languages: Optional[List[str]] = None
     emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
+    emergency_contact_phone: OptionalPhone = None
     emergency_contact_relationship: Optional[str] = None
     pet_tolerance: Optional[str] = Field(default=None, max_length=200)
     has_vehicle: Optional[bool] = None

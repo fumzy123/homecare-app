@@ -11,7 +11,8 @@ import { Avatar, DateInput, Kicker } from '@/shared/components/ui'
 import { WorkerDocumentsTab } from '@/features/workers/components/WorkerDocumentsTab'
 import { WorkerDangerZone } from '@/features/workers/components/WorkerDangerZone'
 import { useWorkerCredentials } from '@/features/workers/hooks/useWorkerCredentials'
-import { validatePhone, formatPhone } from '@/shared/lib/phone'
+import { validatePhone, normalizePhone } from '@/shared/lib/phone'
+import { PhoneInput } from '@/shared/components/PhoneInput'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/edit')({
   validateSearch: (search: Record<string, unknown>): { document?: string } => ({ document: typeof search.document === 'string' && Object.hasOwn(DOCUMENT_LABELS, search.document) ? search.document : undefined }),
@@ -160,12 +161,14 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
     },
     onSubmit: async ({ value }) => {
       setServerError(null)
+      const phoneError = validatePhone(value.phone_number) || validatePhone(value.emergency_contact_phone)
+      if (phoneError) { setServerError(phoneError); return }
       try {
         const maxHours = value.max_hours_per_week ? parseInt(value.max_hours_per_week, 10) : undefined
         await orgMembersApi.updateOrgMember(worker.id, {
           first_name:                     value.first_name,
           last_name:                      value.last_name,
-          phone_number:                   value.phone_number || undefined,
+          phone_number:                   normalizePhone(value.phone_number),
           gender:                         value.gender || undefined,
           date_of_birth:                  value.date_of_birth || undefined,
           hire_date:                      value.hire_date || undefined,
@@ -174,7 +177,7 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
           province:                       value.province || undefined,
           postal_code:                    value.postal_code || undefined,
           emergency_contact_name:         value.emergency_contact_name || undefined,
-          emergency_contact_phone:        value.emergency_contact_phone || undefined,
+          emergency_contact_phone:        normalizePhone(value.emergency_contact_phone),
           emergency_contact_relationship: value.emergency_contact_relationship || undefined,
           is_active:                      value.is_active,
           employment_type:                (value.employment_type as EmploymentType) || undefined,
@@ -361,11 +364,9 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
               <form.Field name="phone_number" validators={{ onBlur: ({ value }) => validatePhone(value) }}>
                 {(field) => (
                   <div>
-                    <label className={labelCls}>Phone</label>
-                    <input className={`${inputCls} font-mono`} value={field.state.value}
-                      onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur}
-                      placeholder="604 555 1234" />
-                    <FieldError error={field.state.meta.errors[0]} />
+                    <PhoneInput label="Phone" value={field.state.value}
+                      onChange={field.handleChange} onBlur={field.handleBlur}
+                      inputClassName={`${inputCls} font-mono`} labelClassName={labelCls} />
                   </div>
                 )}
               </form.Field>
@@ -464,11 +465,9 @@ function WorkerEditForm({ worker }: { worker: OrgMember }) {
                 <form.Field name="emergency_contact_phone" validators={{ onBlur: ({ value }) => validatePhone(value) }}>
                   {(field) => (
                     <div>
-                      <label className={labelCls}>Phone</label>
-                      <input className={`${inputCls} font-mono`} value={field.state.value}
-                        onChange={(e) => field.handleChange(formatPhone(e.target.value))} onBlur={field.handleBlur}
-                        placeholder="604 555 1234" />
-                      <FieldError error={field.state.meta.errors[0]} />
+                      <PhoneInput label="Emergency contact phone" value={field.state.value}
+                        onChange={field.handleChange} onBlur={field.handleBlur}
+                        inputClassName={`${inputCls} font-mono`} labelClassName={labelCls} />
                     </div>
                   )}
                 </form.Field>

@@ -5,6 +5,7 @@ from decimal import Decimal
 from uuid import UUID
 from app.core.enums import OrgMemberRole, EmploymentType, EmploymentStatus
 from app.schemas.worker_availability import AvailabilityEntryResponse
+from app.schemas.phone import OptionalPhone
 
 
 class OrgMemberResponse(BaseModel):
@@ -47,7 +48,7 @@ class OrgMemberUpdateSchema(BaseModel):
     """Admin updating any org member in their org."""
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone_number: OptionalPhone = None
     gender: Optional[str] = None
     date_of_birth: Optional[date] = None
     hire_date: Optional[date] = None
@@ -65,7 +66,7 @@ class OrgMemberUpdateSchema(BaseModel):
     pet_tolerance: Optional[str] = None
     preferred_client_types: Optional[List[str]] = None
     emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
+    emergency_contact_phone: OptionalPhone = None
     emergency_contact_relationship: Optional[str] = None
 
 
@@ -74,6 +75,6 @@ class OrgMemberSelfUpdateSchema(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None
-    phone_number: Optional[str] = None
+    phone_number: OptionalPhone = None
     gender: Optional[str] = None
     date_of_birth: Optional[date] = None

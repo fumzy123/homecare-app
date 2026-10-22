@@ -1,21 +1,28 @@
-import { isValidPhoneNumber, AsYouType } from 'libphonenumber-js'
+import { parsePhoneNumberWithError } from 'libphonenumber-js/max'
 
-export function formatPhone(value: string): string {
-  if (!value) return value
-  // Auto-prepend +1 if user hasn't typed a country code
-  const digits = value.replace(/[^\d+]/g, '')
-  const withCode = digits.startsWith('+') ? digits : '+1' + digits
-  // Cap at E.164 max (15 digits after the +)
-  const capped = '+' + withCode.slice(1).slice(0, 15)
-  return new AsYouType().input(capped)
+const invalidMessage = 'Enter a valid phone number. Include + and the country code for numbers outside Canada.'
+
+function parsePhone(value: string) {
+  // Do not extract a number from prose or silently discard an extension.
+  if (!/^\+?[0-9\s().-]+$/.test(value.trim())) throw new Error(invalidMessage)
+  const phone = parsePhoneNumberWithError(value.trim(), { defaultCountry: 'CA', extract: false })
+  if (phone.ext || !phone.isValid()) throw new Error(invalidMessage)
+  return phone
 }
 
 export function validatePhone(value: string | undefined | null, required = false): string | undefined {
-  if (!value || value.trim() === '') {
-    return required ? 'Phone number is required' : undefined
-  }
-  if (!isValidPhoneNumber(value)) {
-    return 'Enter a valid number with country code, e.g. +1 604 555 1234'
-  }
-  return undefined
+  if (!value?.trim()) return required ? 'Phone number is required' : undefined
+  try { parsePhone(value); return undefined } catch { return invalidMessage }
+}
+
+/** Canonical API/storage value. Empty optional numbers are explicitly cleared. */
+export function normalizePhone(value: string | undefined | null): string | null {
+  if (!value?.trim()) return null
+  return parsePhone(value).number
+}
+
+/** Display helper; keep invalid legacy data visible so an admin can correct it. */
+export function formatPhone(value: string): string {
+  if (!value) return value
+  try { return parsePhone(value).formatInternational() } catch { return value }
 }
