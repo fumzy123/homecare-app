@@ -140,6 +140,147 @@ retention. This is not native keyboard/layout verification. The source changes
 are not included in build `2c4d645c-4d97-43ee-a982-882b9df7e533`; a subsequent
 staging APK is needed for the phone retest.
 
+### Updated navigation and notification permission feedback — October 16
+
+The user supplied screenshots showing the Me tab's filled orange icon and soft
+orange pill, Settings above agency support, and the opened Settings screen. These
+verify the observed navigation styling/order and Settings entry. All-tab switching
+and Android Back behavior are not established by these screenshots alone.
+
+After tapping Enable notifications, the user reports accepting Android's permission
+prompt but remaining on Connecting. The screenshot simultaneously says the phone
+is registered and shows Connecting. Source returns registered only after the
+backend save resolves, while busy comes from a separate mutation state; overlapping
+automatic refresh/manual registration may explain the conflicting display but is
+not confirmed. Record this as a notification-registration UI defect. Current
+backend ownership, actual push delivery/taps and receipt acceptance remain untested.
+Next independent phone test: upload and reopen a fictional credential document.
+
+#### Notification registration loop fixed in source — October 16
+
+Inspection of the installed Expo SDK 57 source confirms Android's native token
+getter emits onDevicePushToken after returning the token. Our event adapter
+discarded that token and called registration, which used getExpoPushTokenAsync
+without devicePushToken, invoking the native getter again and perpetuating the
+registration queue. Expo's TokenEmitter documentation explicitly warns about this.
+
+The event adapter now forwards the received DevicePushToken through PushProvider
+and its mutation hook into registration, which supplies it to Expo instead of
+requesting a new native token. Initial and foreground registrations still acquire
+tokens normally; account ownership checks, serialized cleanup and backend-save
+requirements remain intact. Two regression tests failed before the change and
+passed afterward. All 13 push tests pass, including an integrated simulated Android
+token-event loop settling after the initial registration and one event follow-up.
+TypeScript and whitespace checks pass. Physical-device Connecting-state recovery,
+backend ownership and actual push delivery still need a newly built staging APK.
+
+### Document upload and viewing — October 16
+
+The user reports a successful document upload and opening it with View. Their
+screenshot shows Driver's License with Awaiting verification and View / Replace,
+while surrounding categories show No document uploaded and Upload. This passes
+the reported upload/open workflow for that tested category; it is not agency
+verification or evidence that every file type/category has been tested.
+The user finds the uploaded state insufficiently distinct and requests design
+feedback. Proposed improvement: a subtle attached-file treatment with an explicit
+Document uploaded label, separate from the agency-verification status.
+
+Implemented after user approval: uploaded categories have a soft orange tint,
+thin border, document icon and explicit Document uploaded label. Pending review
+reads Awaiting agency verification separately. View document is a bordered action;
+Replace is a quieter text action. Empty categories retain neutral styling and
+Upload. Expired/expiring/verified states still use the existing status logic, and
+upload success is confirmed only after the credential-save request succeeds.
+TypeScript, the four existing profile tests and whitespace checks passed. These
+source changes require a new staging APK and phone verification.
+
+### Notification inbox phone feedback — October 16
+
+The user reports that tapping unread notifications opens Schedule, but they needed
+to open each twice before the count and highlight changed. Back from Schedule
+returns Home rather than the inbox. Record both as unresolved usability defects.
+A read-only staging query scoped to the fictional agency/worker confirms all four
+shift_assigned notifications now have read_at timestamps. Each refers to a distinct
+shift (two October 15 visits, one October 16, one October 22), rather than four
+copies of one event. This does not establish whether the first tap persisted.
+
+Source currently starts mark-read then immediately navigates to the Schedule tab;
+the mutation invalidates the list only after success and has no optimistic update
+or user-visible failure handling. This is a candidate explanation for delayed read
+feedback, not a reproduced root cause. Shift IDs and occurrence dates exist in
+these payloads, but inbox navigation does not use them. Proposed UX: distinct
+title/context/action, date grouping, readable unread state, direct visit navigation
+with return to inbox, and immediate read feedback with failure recovery. No inbox
+redesign or read/navigation fix has been implemented in this review.
+
+#### Inbox behaviour fixes and separate design preview — October 16
+
+After user approval, mark-read now updates the shared row/count cache immediately,
+waits for server success before navigating, and rolls back only the failed row on
+error. A visible Cancel/Retry alert handles failure; rapid repeated taps are guarded.
+Account-change guards prevent late responses from repopulating the previous user's
+cache or navigating. Existing inbox styling is retained apart from pending feedback.
+
+Valid visit IDs and original occurrence dates open the existing protected visit
+detail as a stack screen above the inbox. Notifications without a specific visit,
+including care approvals, open a separate stack schedule route instead of switching
+tabs. Back can therefore return to the still-mounted inbox. Missing or removed
+visit access uses the existing unavailable screen; payloads grant no extra access.
+
+Six regression tests using real TanStack Query mutations pass: immediate read state,
+failure rollback with concurrent successful reads and retry, repeated-read count,
+account-switch isolation, occurrence-specific destinations and safe schedule
+fallbacks. TypeScript passes after regenerating Expo's local route declarations.
+Native Android Back, scroll retention and single-tap persistence remain device checks
+requiring a subsequent APK; the installed build has not changed.
+
+The requested redesigned inbox is a separate fictional browser preview outside the
+repository at http://127.0.0.1:5199/inbox-preview.html. It has date groups, All/Unread,
+distinct titles and visit context, subtle unread cards and a visit/back demonstration.
+Browser checks confirmed opening a card decreases the count once, returning preserves
+its read state, and Unread filters correctly. This is a visual proposal only: it
+does not access staging or apply the new card layout to the mobile app.
+
+#### Approved inbox design applied — October 16
+
+The user approved the browser preview and requested a new staging APK. The mobile
+inbox now uses a serif heading, cream/paper surfaces, soft orange unread cards with
+text/dot indicators, separate titles/context/actions, Today/Yesterday/Earlier groups
+and All/Unread filters. NotificationCard is controlled Layer 2 presentation; the
+inbox orchestrates feature hooks. Visit details use deduplicated queries through
+the existing authorized worker visit endpoint and shared visit cache, with no
+fabricated times or service labels if unavailable. Displayed times reflect the
+current visit, while navigation retains the original occurrence date. Errors do
+not display a false all-clear; older unread items outside the server's recent list
+are explicitly distinguished from zero unread items.
+
+All 26 inbox/push/profile tests pass, including nine inbox regression tests for
+read state, rollback, account changes, navigation, calendar grouping and safe card
+content. TypeScript and whitespace checks pass. The build requested here is profile
+preview / APP_ENV=staging / com.homecareapp.worker.staging, using the existing Expo
+project and credentials. It also includes earlier notes/documents/registration fixes.
+
+The build command was rejected before execution by automatic approval review:
+creating the APK was authorized, but the reviewer required explicit permission to
+upload the private mobile source payload to Expo. No new build ID or APK exists
+from this attempt. Do not claim the installed app includes these changes. The
+mobile-only upload is configured to exclude .env files, .expo, service-account JSON,
+credentials.json and signing-key files. Await explicit source-upload approval before
+retrying; no workaround was attempted. After the build, verify signature/package,
+install as an update, then use a fresh fictional unread notification for the
+single-tap/read-count/Back/persistence device retest.
+
+### Care preferences persistence — October 16
+
+The user confirms saving Comfort around pets with the keyboard open took one tap,
+and the text remained after leaving and reopening Care preferences. A read-only
+query of staging project `kqhnvgfailypobaogzwv`, restricted to the fictional worker
+and agency, independently returned `Fictional staging test: comfortable around pets`
+from persons.pet_tolerance, updated at 2026-10-16 12:17:41.950644 UTC. No database
+records were changed by this verification. This passes this profile field's
+single-tap save and persistence test; other profile fields and failure cases remain
+separate checks.
+
 - [ ] Install the new signed staging APK; verify label, package, version and effective Android permissions (no location access).
 - [ ] Worker login, welcome/skip, Home, returning session, wrong password and sign-out.
 - [ ] Schedule navigation, assigned client details, care instructions and visit history; admin-only notes remain hidden.

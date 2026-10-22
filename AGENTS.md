@@ -273,16 +273,43 @@ npm run start:staging -- --tunnel --go
 
 ---
 
+## Phone inputs (2026-10-21)
+
+Admin client intake/editing, worker editing and account settings share the Layer 2
+`shared/components/PhoneInput.tsx`. Canada is the default; the country selector and
+`react-phone-number-input` handle international input and caret-aware formatting.
+`shared/lib/phone.ts` uses `libphonenumber-js/max` for validation and E.164 normalization.
+Errors appear on blur or submission. Optional blanks are saved as null (clearing an
+existing number); client emergency phone is required. Full international numbers are
+stored, and a leading North American `1` is not prefixed again.
+Backend write schemas share `schemas/phone.py` with pinned `phonenumberslite`, including
+worker-mobile profile writes. Response schemas and existing saved values are not rewritten.
+Extensions are not supported in the phone field; malformed or extended API inputs are rejected.
+This validates numbering rules, not ownership or reachability. Tests share international
+fixtures in `backend/tests/fixtures/phone-cases.json`; run `tests/phone.test.mjs`, backend
+`tests/test_phone_validation.py`, and the client setup browser suite.
+
 ## Email Confirmation
 
 Registration uses Supabase sign-up and sends a confirmation email. The demo
 `register-direct` bypass has been removed. Supabase must have Confirm email enabled.
-After confirmation, `/confirm-email` creates the organization and records the
-accepted terms. Signup profile details (never passwords or roles) are stored in Supabase user
+After confirmation, `/confirm-email` automatically creates the organization, records
+the accepted terms and opens the dashboard when a complete saved profile, explicit
+agency timezone and current terms acceptance for the same email are available.
+The discarded StrictMode load cannot submit setup. Failures retain signup details
+and expose an explicit retry; missing details or consent show the completion form.
+Signup profile details (never passwords or roles) are stored in Supabase user
 metadata so confirmation works across browsers. Local storage remembers terms
 acceptance for the original browser; other browsers request acceptance again.
 Allow `/confirm-email` for each frontend URL in Supabase Auth URL Configuration.
 Templates live in Supabase Authentication → Emails; Resend handles SMTP delivery.
+Local confirmation is enabled in `supabase/config.toml`; emails go to the local
+inbox at `http://localhost:54324`, using `supabase/templates/confirmation.html`.
+Local configuration does not update hosted staging or production projects.
+Validation: `tests/email-confirmation.test.jsx` and `tests/registration-timezone.test.mjs`
+in `admin-frontend`; the local inbox walkthrough on 2026-10-15 verified an unconfirmed
+signup creates no agency, then email verification completes setup without a second
+form submission, retaining one owner membership and a 14-day trial.
 
 ---
 
@@ -294,9 +321,36 @@ Templates live in Supabase Authentication → Emails; Resend handles SMTP delive
 
 Frontend catches this and displays the localized times to the admin.
 
-### Still to build on this branch
-- Overtime prevention (max hours/week, approval by owner/manager)
-- Push notification to workers when a new client is dispatched
+### Remaining scheduling release work (updated 2026-10-16)
+- Overtime limits and owner override are implemented. The 2026-10-15 staging
+  agency walkthrough rejected a 42-hour week without override and accepted an
+  owner override with its history recorded. The separate admin-request/owner-review
+  inbox journey still needs end-to-end acceptance; do not describe all overtime
+  prevention as unbuilt. See `docs/staging-agency-walkthrough-2026-10-15.md`.
+- Worker push registration and scheduling-event delivery are implemented. Cloud
+  rollout and physical-device acceptance are separate from the admin web release;
+  see `backend/WORKER_PUSH.md` and the mobile release checklist below.
+- Direct Care Slot assignment is implemented (2026-10-16). Both Care requests and
+  client Weekly care need → View posted care request offer active agency workers,
+  including workers without interest. Each slot's dropdown groups interested workers
+  first, then other active workers; there is no separate worker search/filter.
+  Coverage and Interested workers tabs retain the same draft selections (2026-10-20).
+  Direct selections carry `admin_arranged`
+  provenance and require the admin's coverage-arrangement confirmation. Existing
+  interest selections default to `worker_interest`. Both use the existing review,
+  eligibility, locking, transition, notification and history transaction.
+  Apply migration `2e11cbcf7fed` after `c4e9812ab760` before deploying the API.
+  Local PostgreSQL/browser evidence and test instructions: `backend/DIRECT_ASSIGNMENT.md`.
+  Hosted rollout and agency acceptance remain pending.
+
+### Admin web release planning
+
+`docs/admin-release-checklist.md` tracks the first-agency admin release separately
+from Android. `docs/admin-workflow-review.md` maps the current admin journeys and
+proposes targeted consolidation; `docs/admin-production-safeguards.md` explains
+security, recovery and operating checks. These plans do not constitute production
+configuration changes or release sign-off. Historical staging evidence remains in
+the dated October 15 reports.
 
 ### Scaling prep (do before running >1 backend process/replica)
 The APScheduler instance lives **in-process** (see `app/main.py` `lifespan`). With
@@ -312,11 +366,22 @@ lookback window, skip already-finalized rows) — see `app/jobs/shift_completion
 
 ---
 
-## The Care Chain — Authorization → Weekly Care Need → Scheduled Care
+## The Care Chain — Weekly Care Need → Scheduled Care
 
-Authorization is the funding limit; a **Weekly Care Need** is the client's recurring demand;
-a **Care Slot** is one weekday, time interval and service within a version of that need.
+A **Weekly Care Need** is the client's recurring demand;
+a **Care Slot** is one weekday and time interval within a version of that need.
 Worker availability is capacity, and approved shifts are scheduled delivery.
+
+### Service type retired (2026-10-21)
+
+Care Slots now contain weekday and start/end times, without service classification.
+Admin and mobile displays, new care/visit inputs and API responses omit service type;
+care reporting retains overall visit/hour totals. Care instructions and all scheduling
+safeguards remain. Migration `6783506efc77` after `c8a1a667710e` makes the old care-slot
+column nullable. Existing classifications and frozen snapshots remain historical
+metadata only; new records do not receive an invented category. Updated clients and
+API must be released together. Local migration and regression checks passed; hosted
+rollout is pending. See `backend/SERVICE_TYPE_RETIREMENT.md`.
 
 Use these names throughout the stack:
 
@@ -332,9 +397,17 @@ Use these names throughout the stack:
 
 - Saving creates an immutable version with `created_at` and proposed `effective_from`.
   Its Care Slots retain their IDs and history. Saving or posting never generates shifts.
+- Revisions may be saved before an approved future revision starts (2026-10-21).
+  The proposed date may be today or any future date, including before the queued
+  revision. Approval shortens all affected predecessor schedules from that date;
+  it never revives an older schedule. Revisions replaced before starting retain
+  their history and display **Replaced before starting**. Saving and reviewing
+  leave existing visits unchanged. PostgreSQL regression tests cover replacement
+  before/on/after a queued start, another earlier replacement, and retained history.
 - **Post care request** advertises one whole version. Workers express interest in
   one, several or all available Care Slots. Interest does not reserve coverage.
-- The admin selects interested workers, reviews availability/conflicts/hours/funding,
+- The admin selects interested workers or active agency workers with whom coverage
+  was arranged outside the app, reviews availability/conflicts/hours,
   and chooses **Approve and schedule**. Partial approval is supported, with explicit
   acknowledgment of the remaining uncovered Care Slots.
 - First approval records `scheduled_from` and activates the new version. In the same
@@ -403,12 +476,20 @@ scheduled. A distant next shift is shown separately. Employment status stays Act
 The indicator is computed from schedule data on reads (the roster refreshes every minute),
 so no status-changing background worker or backdated assignment timer is needed.
 
-### Funding
+### Funding retired (2026-10-21)
 
-Funded care is checked per service at the proposed/approved start date. Weekly hours are
-multiplied by two to compare with bi-weekly authorizations. Save and approval reject
-exceeded caps. Worker eligibility checks only selected Care Slots, rather than demanding
-one worker cover the entire week. Delivered hours remain provisional until EVV.
+Client funding authorizations are outside the current product scope. The agency
+checks funding outside Care Harbor. No funded/self-pay classification, allowance
+checks, funding-derived scheduling cutoffs, funding endpoints or renewal alerts remain.
+Weekly care revisions, selected-slot eligibility, worker-hours checks,
+assignment transitions, credentials and progress notes remain. New recurring coverage
+has no funding-derived end date; existing visit dates are never extended by migration.
+
+Apply Alembic `c8a1a667710e` after `2e11cbcf7fed` with the updated app. It deletes the
+retired pre-launch funding tables, funding activity, client classification and agency
+setting. There is no funding archive or data-restoring downgrade. It does not modify
+visits, care revisions, assignments, notes, worker credentials or subscription billing.
+See `backend/FUNDING_RETIREMENT.md` for verification and rollout status.
 
 ### Admin Action Tower
 
@@ -417,7 +498,7 @@ one worker cover the entire week. Delivered hours remain provisional until EVV.
 `domain/attention.py`. It combines the latest Weekly Care Need's posting, interest,
 and uncovered-slot stages into one stable case per version, plus dropped visit
 occurrences, expiring credentials, uploaded credentials awaiting verification,
-expiring authorizations, and active clients without weekly visits. Specific coverage
+and active clients without weekly visits. Specific coverage
 cases suppress duplicate weekly-gap prompts. Dates use the agency's billing timezone;
 recurring visit targets retain their original occurrence date even when rescheduled.
 
@@ -429,15 +510,15 @@ the topbar restores it. Existing modal overlays take precedence. Successful reco
 invalidations, focus and a 60-second poll refresh the feed; viewing an item does not
 resolve it. No action table, migration, or manual completion endpoint is introduced.
 
-Current windows remain 30 days for credential expiry, 15 for authorization expiry,
+Current windows remain 30 days for credential expiry
 and 7 days back / 60 ahead for dropped visits. Missing/expired-record compliance rules,
 onboarding, overtime requests and billing notices are not new tower checks; existing
 notifications and workflows remain available. Empty categories are omitted and a
 failed feed is never displayed as all clear.
 
 Validation: backend attention tests cover progression, deduplication, effective dates
-and agency isolation. `admin-frontend/attention.browser.test.cjs` exercises all six
-destination types and shared UI behavior using intercepted fictional fixtures.
+and agency isolation. `admin-frontend/attention.browser.test.cjs` covers care and credential
+destinations and shared UI behavior using intercepted fictional fixtures.
 Run against local Vite with dummy public configuration (`VITE_SUPABASE_URL` and
 `VITE_BACKEND_API_URL` matching `ATTENTION_TEST_URL`, default `http://127.0.0.1:5197`;
 dummy publishable auth/Stripe keys). Set `PLAYWRIGHT_MODULE` to a shared Playwright
@@ -450,7 +531,7 @@ installation if it is not installed locally; `BROWSER_CHANNEL` defaults to `msed
 ### Client workspace (2026-10-01)
 
 The admin client routes now share the Care Harbor workspace layout: client directory,
-Overview (the client index), Visits & metrics, Weekly care need, Funding, Progress
+Overview (the client index), Visits & metrics, Weekly care need, Progress
 notes, and grouped profile editing. The header is the single profile-edit entry.
 Client creation uses a three-step intake drawer. Components and query/mutation hooks
 live in `features/clients`; routes only compose them.
@@ -458,9 +539,17 @@ live in `features/clients`; routes only compose them.
 Use **revision** in the weekly-care UI. The existing `version` API/database field is
 retained for compatibility. Creating a revision preserves history and creates no
 visits; posting and approving still use the existing placement workflow and checks.
-Funding compares only the currently effective activated/imported care need with
-the current authorization. Proposed revisions are checked in the care-need editor.
-Each service's two-week care need is its weekly slot hours multiplied by two.
+
+Weekly care editing uses the visual Sunday–Saturday board (2026-10-21).
+`WeeklyCareBoard` is a controlled Layer 2 component: per-day Add buttons, compact
+day/time dialogs, optional copies to other days, and desktop drag-to-move. The day
+selector supports keyboard/touch moves. Each card is an independent draft slot;
+editing one day does not alter another. `WeeklyCareNeedEditor` owns validation,
+draft state and saving through existing hooks. Overlaps are rejected without
+moving/changing the original slot. Failed saves retain the draft; cancelling a
+revision retains saved care. `tests/client-setup.browser.cjs` exercises these
+interactions, responsive controls and the full posting/approval handoff. No new
+backend rules or migration are required for this editor.
 
 Client responses include `current_care_need`, derived in bulk for the directory.
 `POST /api/shifts/{id}/notes/entries` appends admin follow-ups with an expected entry
@@ -468,12 +557,36 @@ count under the same shift lock used by worker notes. It preserves existing entr
 and rejects stale writes. Monthly client notes include `worker_id` for filtering.
 
 Validation: frontend `tests/client-care.test.mjs` covers current revision selection,
-funding and slot/visit calculations; backend `test_client_workspace.py` covers the
+and slot/visit calculations; backend `test_client_workspace.py` covers the
 current-care projection and safe note appends. `admin-frontend/tests/client-workspace.html`
 is a development-only component verification host with an in-memory API adapter;
 it is not a production entry point and never reads or writes agency records.
 
+Client setup handoffs (updated 2026-10-21): successful intake offers Continue setting
+up care → Weekly care need, or Back to clients, preserving the directory filters.
+Partial/full approval links to the first newly
+scheduled visit via the visits route's validated optional `week` query parameter.
+`ClientCareMetrics` opens that week and retains This week navigation. No backend
+scheduling rules changed. `tests/client-setup.browser.cjs` covers the full UI path,
+failed saves and draft preservation using intercepted fictional records; the
+existing real-database direct-assignment browser suite remains separate.
+
 ### Care Requests workspace (2026-10-02)
+
+Request/revision navigation (2026-10-21): the request header's **Open weekly care
+need** opens its exact revision in the client workspace. The validated `need`
+search parameter selects the revision. Every posted revision offers **View posted
+care request** as its primary action, opening the full request page. The duplicate
+Review coverage dialog and Back to care request link were removed at the user’s request. Unsaved
+revision edits remain protected. An explicit same-tab trip keeps draft worker
+selections, coverage date and tab in a one-use, user/request-scoped memory cache
+(up to 30 minutes, cleared on reload/sign-out); review tokens and confirmations
+are never carried over. Existing eligibility and stale-review checks still apply.
+The request summary groups requested start, weekly care, scheduling and posted
+date, and separates the existing posted requirements/additional-notes text for
+display. No stored postings or scheduling rules change. Browser coverage in
+`tests/care-requests.browser.cjs` includes exact-revision navigation, revision switching,
+draft preservation, discard protection and responsive layout.
 
 The admin UI calls placements **Care requests**. Existing `/dashboard/placements`
 links, API paths, query keys and stored domain names remain compatible. The directory
