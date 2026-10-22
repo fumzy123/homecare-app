@@ -131,6 +131,46 @@ If you must test over Wi-Fi and it's blocking traffic, you can tunnel your servi
 
 ---
 
+## Local agency signup and email verification
+
+Local Supabase requires email confirmation. Create a new account and open its
+confirmation email in [the local inbox](http://localhost:54324). Messages stay
+on your computer; this setup does not send through Resend.
+
+Open the confirmation link in the same browser and frontend origin used for signup
+(`localhost` and `127.0.0.1` have separate browser storage). The app automatically
+creates the agency, records the previously accepted terms, starts the 14-day trial,
+and opens the dashboard. If signup details, the saved timezone, or current terms
+acceptance are unavailable, it shows the completion form. A different browser must
+accept the terms again. Setup failures preserve the details and permit an explicit
+retry. Existing confirmed accounts remain confirmed when this setting is enabled.
+
+Changes to local Auth settings require `npx supabase stop` followed by
+`npx supabase start`. The normal stop preserves data; do not use `--no-backup`.
+
+## Staging and production signup settings
+
+Each hosted Supabase project has independent Auth settings. Local `config.toml`
+changes do not update either hosted project. Before deploying this flow:
+
+- Keep **Confirm email** enabled. Read-only checks on 2026-10-15 found it enabled
+  in both configured staging and production projects.
+- Set each project's Site URL to its own frontend, and allow that frontend's exact
+  `/confirm-email` callback URL in Auth URL Configuration. Include each supported
+  frontend origin explicitly; preserve existing invite and recovery callbacks.
+- Keep the project's Resend custom SMTP configuration working. The public Auth
+  settings check does not verify SMTP credentials or email delivery.
+- The Confirm signup template must contain `{{ .ConfirmationURL }}` so Supabase
+  verifies the email before returning to the app. Copy the updated
+  `supabase/templates/confirmation.html` if you want matching explanatory text.
+- Deploy the updated admin frontend to each environment, then test with a fresh
+  account. No database migration or backend change is required for this update.
+
+The local test used a fictional `@example.test` account and did not change hosted
+Auth configuration or send an external email.
+
+---
+
 ## 🛑 Shutting Down
 When you are done working, cleanly shut down your environments to save system resources:
 

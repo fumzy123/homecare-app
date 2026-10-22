@@ -30,7 +30,7 @@ function ConfirmEmailPage() {
             <span className="italic text-muted">email address.</span>
           </h1>
           <p className="mt-6 font-mono text-[12px] text-ink-soft leading-relaxed max-w-sm">
-            Verify your email, then confirm your agency details to finish setting up your account.
+            Once your email is verified, we’ll finish setting up your agency using your saved signup details. We’ll ask only if anything still needs your attention.
           </p>
         </div>
 
