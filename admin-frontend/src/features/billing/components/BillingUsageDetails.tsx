@@ -7,7 +7,7 @@ const statusLabels = { scheduled: 'Scheduled', in_progress: 'In progress', compl
 const pageSize = 25
 
 // Layer 2: renders supplied billing data; local state is search/pagination only.
-export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
+export function BillingUsageDetails({ data, clientsOnly = false }: { data: ReadyBillingUsage; clientsOnly?: boolean }) {
   const { period, usage } = data
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
@@ -20,7 +20,7 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
   if (data.trial_preview) return <p className="text-sm">Trial preview: {usage.active_client_count} clients have qualifying visits. Trial visits are free and are not carried into paid usage.</p>
 
   return <div className="space-y-5">
-    <div className="space-y-3 text-sm">
+    {!clientsOnly && <><div className="space-y-3 text-sm">
       <BillingPeriod startsAt={period.starts_at} endsAt={period.ends_at} timezone={period.agency_timezone} />
       <p className="text-ink-soft">Calculated {usageDate(usage.calculated_at, period.agency_timezone)}</p>
     </div>
@@ -37,6 +37,7 @@ export function BillingUsageDetails({ data }: { data: ReadyBillingUsage }) {
       {period.base_interval === 'year' && <p className="text-sm">Your base subscription is billed annually. The client allowance and additional-client charges are calculated monthly.</p>}
       <p className="text-sm">The correction window ends {usageDate(period.finalization_eligible_at, period.agency_timezone)}. This is not a finalized invoice.</p>
     </div>
+    </>}
     <div className="space-y-3">
       <h3 className="font-semibold">Clients counted this billing period</h3>
       <p className="text-sm">Each client counts once. One qualifying visit is shown as evidence, even if they have many visits. Scheduled, in-progress, completed and no-show visits count; canceled and dropped visits do not.</p>

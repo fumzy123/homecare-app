@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { stripePromise, stripeAppearance } from '@/shared/lib/stripe'
 import { BillingDialog } from '@/shared/components/BillingDialog'
 import { useAuthStore } from '@/shared/stores/auth'
-import { useBillingProfile, useCardSetup } from '../hooks/useBillingProfile'
+import { useBillingProfile, type useCardSetup } from '../hooks/useBillingProfile'
 
 function CardForm({ onSuccess, setBusy }: { onSuccess: () => void; setBusy: (busy: boolean) => void }) {
   const stripe = useStripe()
@@ -33,12 +33,10 @@ function CardForm({ onSuccess, setBusy }: { onSuccess: () => void; setBusy: (bus
   </form>
 }
 
-export function UpdateCardModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const setup = useCardSetup()
-  const started = useRef(false)
-  const start = setup.mutate
+export function UpdateCardModal({ setup, onClose, onSuccess }: {
+  setup: ReturnType<typeof useCardSetup>; onClose: () => void; onSuccess: () => void
+}) {
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (!started.current) { started.current = true; start() } }, [start])
   return <BillingDialog title="Add payment method" busy={busy} onClose={onClose}>
     {setup.isPending && <p role="status">Loading secure payment form…</p>}
     {setup.isError && <p role="alert">Could not load the form. <button className="underline" onClick={() => setup.mutate()}>Try again</button></p>}

@@ -6,7 +6,7 @@ import { createRootRoute, createRouter, createMemoryHistory, RouterContextProvid
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-const server = await createServer({ configFile: false, server: { middlewareMode: true }, resolve: { alias: { '@': path.resolve('src') } } })
+const server = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true, include: [] }, resolve: { alias: { '@': path.resolve('src') } } })
 try {
   const { BillingOverview, BillingPlanSummary } = await server.ssrLoadModule('/src/features/billing/components/BillingOverview.tsx')
   const { useAuthStore } = await server.ssrLoadModule('/src/shared/stores/auth.ts')
@@ -23,14 +23,14 @@ try {
   const status = { new_billing_flow: true, subscription_status: 'active', plan_code: 'standard', plan_interval: 'month', base_amount_cents: 30000, subscription_current_period_end: '2026-10-01T00:00:00Z', billing_timezone: 'UTC' }
   const render = props => renderToStaticMarkup(createElement(QueryClientProvider, { client: qc }, createElement(RouterContextProvider, { router }, createElement(BillingOverview, { status: props }))))
   const html = render(status)
-  for (const label of ['Compare plans', 'Monthly client usage', '30', '100.00', 'Invoice history', 'Payment method', '4242', 'Cancel renewal']) assert.ok(html.includes(label), label)
+  for (const label of ['Manage subscription', 'Client usage', 'Next payment', '30', '100.00', 'Invoice history', 'Payment method', '4242', 'Cancel plan']) assert.ok(html.includes(label), label)
   assert.doesNotMatch(html, /Choose your plan|Subscribe with Stripe|I authorize|type="range"/)
   assert.match(html, /<details[^>]*><summary[^>]*>Billing breakdown/)
   assert.doesNotMatch(html, /<details[^>]*\bopen[ =>]/)
   const trial = render({ subscription_status: null, is_trial_active: true, trial_days_left: 8, trial_ends_at: '2026-10-01T00:00:00Z' })
   assert.match(trial, /Free trial/)
   assert.match(trial, /8 days left/)
-  assert.match(trial, /Compare plans/)
+  assert.match(trial, /Choose billing frequency/)
   assert.doesNotMatch(trial, /Billing breakdown|Monthly client usage/)
   const payment = renderToStaticMarkup(createElement(BillingPlanSummary, { status: { ...status, subscription_status: 'past_due' }, owner: true, busy: false, onAction() {} }))
   assert.match(payment, /Payment needs attention/)

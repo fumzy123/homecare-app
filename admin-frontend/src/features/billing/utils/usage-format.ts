@@ -17,3 +17,4 @@ export function visitWallTime(local: string): string {
     hour: 'numeric', minute: '2-digit', second: '2-digit',
   }).format(new Date(`${local}Z`))
 }
+export const billingMoney = (cents: number) => `CA$${new Intl.NumberFormat('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)}`

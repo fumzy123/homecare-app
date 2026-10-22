@@ -24,6 +24,7 @@ vi.mock('../src/features/billing/hooks/useBillingOnboarding', () => ({ useBillin
 vi.mock('../src/features/billing/components/SubscriptionPlans', () => ({ SubscriptionPlans: () => <p>Monthly plan</p> }))
 vi.mock('../src/features/billing/components/CompareBillingPlans', () => ({ CompareBillingPlans: ({ status }) => <p>Manage {status.subscription_status} subscription</p> }))
 vi.mock('../src/features/billing/components/BillingUsageSection', () => ({ BillingUsageSection: () => null }))
+vi.mock('../src/features/billing/components/BillingPaymentSummary', () => ({ BillingPaymentCard: () => null }))
 vi.mock('../src/features/billing/components/BillingHistorySection', () => ({ BillingUsageHistorySection: () => null, InvoiceHistorySection: () => null }))
 vi.mock('../src/features/billing/components/BillingProfileSection', () => ({ BillingProfileSection: () => null }))
 vi.mock('../src/features/billing/components/UpcomingBillingSection', () => ({ UpcomingBillingSection: () => null }))

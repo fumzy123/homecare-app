@@ -4,7 +4,7 @@ import { createServer } from 'vite'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-const server = await createServer({ configFile: false, server: { middlewareMode: true },
+const server = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true, include: [] },
   resolve: { alias: { '@': path.resolve('src') } } })
 try {
   const { BillingUsageSummary, PendingUsageBalance } = await server.ssrLoadModule('/src/features/billing/components/BillingUsageSummary.tsx')
@@ -27,7 +27,7 @@ try {
   assert.match(html, /Final usage only; renewal canceled/)
   assert.doesNotMatch(html, /500\.00/)
   html = renderToStaticMarkup(createElement(BillingUsageSummary, { data: { ...data, trial_preview: true, usage: { ...data.usage, estimated_usage_amount_cents: 0 } } }))
-  assert.match(html, /No usage charges/)
+  assert.match(html, /Trial visits are free/)
   assert.doesNotMatch(html, /100\.00/)
   html = render(upcoming)
   assert.match(html, /400\.00/)

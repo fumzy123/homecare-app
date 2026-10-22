@@ -1,6 +1,6 @@
 import type { ReadyBillingUsage, UpcomingBilling } from '../api'
-import { usageDate, usageMoney } from '../utils/usage-format'
-import { BillingPeriod } from './BillingPeriod'
+import { billingMoney, usageDate, usageMoney } from '../utils/usage-format'
+import type { ReactNode } from 'react'
 
 // Layer 2: also shown after prepaid access ends, while final usage is pending.
 export function PendingUsageBalance({ upcoming, currency = 'cad', timezone = 'UTC', currentEstimate = 0 }: {
@@ -23,27 +23,34 @@ export function PendingUsageBalance({ upcoming, currency = 'cad', timezone = 'UT
 }
 
 // Layer 2: renders verified usage and upcoming obligations supplied by hooks.
-export function BillingUsageSummary({ data, upcoming }: { data: ReadyBillingUsage; upcoming?: UpcomingBilling }) {
+export function BillingUsageSummary({ data, upcoming, action }: { data: ReadyBillingUsage; upcoming?: UpcomingBilling; action?: ReactNode }) {
   const { period, usage } = data
-  const money = (value: number) => usageMoney(value, period.currency)
+  const money = (value: number) => period.currency === 'cad' ? billingMoney(value) : usageMoney(value, period.currency)
   const pending = upcoming?.periods ?? []
   const unresolved = upcoming?.history_needs_review || pending.some(row => row.state !== 'ready' || row.usage_amount_cents === null || row.currency !== period.currency)
   const correctionPending = Boolean(upcoming?.corrections.length)
   const annual = upcoming?.annual_settlement
   return <div className="space-y-5">
-    <BillingPeriod startsAt={period.starts_at} endsAt={period.ends_at} timezone={period.agency_timezone} />
-    <dl className="grid grid-cols-3 divide-x divide-line-soft">
-      {[['Clients counted this billing period', usage.active_client_count], ['Included', period.included_clients], ['Additional', usage.additional_clients]].map(([label, value]) =>
+    <dl className="grid grid-cols-3 divide-x divide-line-soft border-y border-line-soft py-5">
+      {[['Clients counted', usage.active_client_count], ['Included', period.included_clients], ['Additional', usage.additional_clients]].map(([label, value]) =>
         <div key={label} className="px-3 first:pl-0"><dt className="text-xs sm:text-sm text-ink-soft">{label}</dt><dd className="mt-2 font-serif text-3xl sm:text-4xl tabular-nums">{value}</dd></div>)}
     </dl>
-    <div className="border border-ink bg-cream-2 p-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="font-mono text-[10px] uppercase tracking-[0.08em]">{data.trial_preview ? 'Trial preview · No usage charges' : 'Additional usage · This period'}</p>{!data.trial_preview && <p className="mt-2 text-sm text-ink-soft">{usage.additional_clients} additional clients × {money(period.additional_client_amount_cents)}</p>}</div>
-        <p className="font-serif text-4xl tabular-nums">{money(usage.estimated_usage_amount_cents)}</p>
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm"><strong className="mr-2 text-xl font-semibold tabular-nums">{money(data.trial_preview ? 0 : usage.estimated_usage_amount_cents)}</strong>{data.trial_preview ? '· Trial visits are free' : 'estimated additional usage'}</p>
+        {action}
       </div>
-      <p className="mt-4 border-t border-line-soft pt-3 text-sm">{data.trial_preview ? 'Trial visits are free. Paid usage starts after your trial.' : annual ? 'Added to your annual usage balance. No monthly usage payment.' : 'Estimated addition to your next bill. Before base subscription and tax.'}</p>
-      {!data.trial_preview && <p className="mt-1 text-xs text-ink-soft">Updates as visits change · Final after {usageDate(period.finalization_eligible_at, period.agency_timezone)}</p>}
+      <p className="mt-3 text-sm text-ink-soft">{data.trial_preview ? 'Trial visits do not carry into paid usage.' : `${usage.additional_clients} additional clients × ${money(period.additional_client_amount_cents)} · Before tax`}</p>
+      {annual && !data.trial_preview && <p className="mt-2 text-sm text-ink-soft">Collected at year-end. No monthly usage payment.</p>}
     </div>
-    {upcoming && (annual || pending.length > 0 || unresolved || correctionPending) && <PendingUsageBalance upcoming={upcoming} currency={period.currency} timezone={period.agency_timezone} currentEstimate={usage.estimated_usage_amount_cents} />}
+    <details className="text-sm">
+      <summary className="w-fit cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4">How client usage is counted</summary>
+      <div className="mt-3 space-y-3 text-ink-soft">
+        <p>Each distinct client counts once when a scheduled, in-progress, completed, or no-show visit starts in this period. Cancelled and dropped visits do not count. No daily proration.</p>
+        {!data.trial_preview && <p>Estimates update as visits change. Corrections close {usageDate(period.finalization_eligible_at, period.agency_timezone)}. Later changes need a billing review.</p>}
+        <p>Exact period: {usageDate(period.starts_at, period.agency_timezone)} → {usageDate(period.ends_at, period.agency_timezone)}. Visits starting at the end boundary count toward the next period.</p>
+      </div>
+    </details>
+    {!data.trial_preview && upcoming && (annual || pending.length > 0 || unresolved || correctionPending) && <details className="text-sm"><summary className="w-fit cursor-pointer">Pending usage balance</summary><div className="mt-3"><PendingUsageBalance upcoming={upcoming} currency={period.currency} timezone={period.agency_timezone} currentEstimate={usage.estimated_usage_amount_cents} /></div></details>}
   </div>
 }

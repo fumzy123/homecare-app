@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '@/shared/stores/auth'
 import { BillingDialog } from '@/shared/components/BillingDialog'
 import type { BillingProfile } from '../api'
-import { useBillingProfile } from '../hooks/useBillingProfile'
+import { useBillingProfile, useCardSetup } from '../hooks/useBillingProfile'
 import { UpdateCardModal } from './UpdateCardModal'
 import { BillingPanel } from './BillingPanel'
 
@@ -33,6 +33,7 @@ function ProfileEditor({ profile, onClose }: { profile: BillingProfile; onClose:
 export function BillingProfileSection() {
   const user = useAuthStore(s => s.user)
   const { profile, setDefault, remove, confirmSetup } = useBillingProfile(user?.id)
+  const cardSetup = useCardSetup()
   const returned = useRef(false)
   const completeSetup = confirmSetup.mutate
   useEffect(() => {
@@ -44,6 +45,15 @@ export function BillingProfileSection() {
   }, [completeSetup])
   const [editor, setEditor] = useState(false)
   const [card, setCard] = useState(false)
+  // Start from the user action, keeping the mutation observer outside the modal's mount cycle.
+  function openCard() {
+    cardSetup.mutate()
+    setCard(true)
+  }
+  function closeCard() {
+    setCard(false)
+    cardSetup.reset()
+  }
   const [removing, setRemoving] = useState<string | null>(null)
   const busy = setDefault.isPending || remove.isPending
   if (profile.isPending) return <p role="status">Loading billing information…</p>
@@ -56,7 +66,7 @@ export function BillingProfileSection() {
         {[['Billing email', data.email], ['Name', data.name], ['Billing address', [data.address.line1, data.address.line2, data.address.city, data.address.state, data.address.postal_code, data.address.country].filter(Boolean).join(', ')]].map(([label, value]) => <div key={label} className="py-4 text-sm"><dt className="font-medium">{label}</dt><dd className="mt-1 text-ink-soft">{value || 'Not added'}</dd></div>)}
       </dl>
     </BillingPanel>
-    <BillingPanel label="Cards on file" title="Payment methods" action={<button className={button} onClick={() => setCard(true)}>Add new</button>}>
+    <BillingPanel label="Cards on file" title="Payment methods" action={<button className={button} onClick={openCard}>Add new</button>}>
       <div className="divide-y divide-dashed divide-line-soft">
         {!data.cards.length && <p className="py-5 text-sm text-ink-soft">No payment method saved.</p>}
         {data.cards.map(method => <div key={method.id} className="flex flex-wrap items-center justify-between gap-3 py-5 text-sm"><div><p className="capitalize font-medium">{method.brand} ···· {method.last4}</p><p className="mt-1 text-ink-soft">Expires {String(method.exp_month).padStart(2, '0')}/{method.exp_year}</p></div>
@@ -66,7 +76,7 @@ export function BillingProfileSection() {
       {(setDefault.isError || remove.isError) && <p role="alert" className="text-sm text-orange">Could not update the payment method. Please refresh and try again.</p>}
     </BillingPanel>
     {editor && <ProfileEditor profile={data} onClose={() => setEditor(false)} />}
-    {card && <UpdateCardModal onClose={() => setCard(false)} onSuccess={() => setCard(false)} />}
+    {card && <UpdateCardModal setup={cardSetup} onClose={closeCard} onSuccess={closeCard} />}
     {removing && <BillingDialog title="Remove payment method?" busy={remove.isPending} onClose={() => setRemoving(null)}><div className="space-y-4"><p>This card will no longer be available for future payments.</p><button className={button} disabled={remove.isPending} onClick={() => remove.mutate(removing, { onSuccess: () => setRemoving(null) })}>Remove card</button>{remove.isError && <p role="alert">Could not remove this card. Choose another default first.</p>}</div></BillingDialog>}
   </>
 }
