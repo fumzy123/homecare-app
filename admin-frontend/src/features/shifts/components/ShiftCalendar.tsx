@@ -96,7 +96,7 @@ function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps<Calendar
 // ─── Overtime computation ─────────────────────────────────────────────────────
 
 const OVERTIME_THRESHOLD = 40
-const OT_COLOR = '#2d2a26'
+const OT_COLOR = '#D88989'
 
 function computeOvertimeMap(occurrences: ShiftOccurrence[]): Map<string, number> {
   const map = new Map<string, number>()
@@ -276,10 +276,11 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
               let color = m.color
               if (otFraction >= 1) {
                 background = OT_COLOR
-                color = '#f5f0e8'
+                color = STATUS_TOKENS.scheduled.color
               } else if (otFraction > 0) {
                 const normalPct = Math.round((1 - otFraction) * 100)
                 background = `linear-gradient(to bottom, ${m.bg} ${normalPct}%, ${OT_COLOR} ${normalPct}%)`
+                color = STATUS_TOKENS.scheduled.color
               }
 
               return { style: { background, border: `1px ${m.dashed ? 'dashed' : 'solid'} ${m.border}`, borderRadius: 0, color, fontSize: 11, padding: '3px 7px', fontFamily: "'JetBrains Mono', monospace" } }
