@@ -1,6 +1,8 @@
+import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
+import { requireVisitConnection, visitWriteError } from '../lib/visitWrite'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useForm, useStore } from '@tanstack/react-form'
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { z } from 'zod'
 import { format } from 'date-fns'
 import {
@@ -18,7 +20,7 @@ import {
 import { useWeeklyCareNeed } from '@/features/weekly-care-need/hooks/useWeeklyCareNeed'
 import { useClients } from '@/features/clients/hooks/useClients'
 import { useWorkers } from '@/features/workers/hooks/useWorkers'
-import { Kicker, DateInput, TimeInput } from '@/shared/components/ui'
+import { DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
 
 function ordinal(n: number): string {
@@ -74,15 +76,13 @@ function validate<T>(shape: z.ZodType<T>, value: T) {
 function FieldError({ error }: { error: unknown }) {
   if (!error) return null
   return (
-    <p className="mt-1 font-mono text-[10px] text-orange">{error as string}</p>
+    <p role="alert" className="mt-1 text-[13px] text-orange">{error as string}</p>
   )
 }
 
-const labelClass =
-  'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
-const inputClass =
-  'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
-const selectClass = `${inputClass} appearance-none`
+const labelClass = 'vd-label'
+const inputClass = 'vd-input'
+const selectClass = inputClass
 
 export function CreateShiftDrawer({
   initialDate,
@@ -109,6 +109,10 @@ export function CreateShiftDrawer({
     totalHours?: number
   } | null>(null)
   const [approvalRequested, setApprovalRequested] = useState(false)
+  const feedbackRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (serverError || pendingOverride || approvalRequested) feedbackRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [serverError, pendingOverride, approvalRequested])
   const [approvalNote, setApprovalNote] = useState('')
   const overrideRef = useRef(false)
 
@@ -172,6 +176,7 @@ export function CreateShiftDrawer({
       const startISO = `${value.date}T${value.start_time}:00`
       const endISO = `${safeEndDate}T${value.end_time}:00`
       try {
+        requireVisitConnection()
         await shiftsApi.createShift({
           worker_id: value.worker_id,
           client_id: value.client_id,
@@ -277,7 +282,7 @@ export function CreateShiftDrawer({
           })
         } else {
           setServerError(
-            err instanceof Error ? err.message : 'Something went wrong',
+            visitWriteError(err),
           )
         }
       }
@@ -292,6 +297,14 @@ export function CreateShiftDrawer({
   const watchEnd = useStore(form.store, (s) => s.values.end_time)
   const watchWorker = useStore(form.store, (s) => s.values.worker_id)
   const watchClient = useStore(form.store, (s) => s.values.client_id)
+  const isSubmitting = useStore(form.store, s => s.isSubmitting)
+  const formDirty = useStore(form.store, s => s.isDirty)
+  const busy = isSubmitting || requestOvertime.isPending
+  const dirty = formDirty || !!location || isRecurring || !!recurrenceEndDate || frequency !== 'weekly' || daysOfWeek.length > 0 || endDate !== defaultDate
+  function requestClose() {
+    if (busy) return
+    if (approvalRequested || !dirty || window.confirm('Discard this unsaved visit?')) onClose()
+  }
   const sameDayBlock =
     !!watchDate && !!watchStart && !!watchEnd && watchStart < watchEnd
   const matchDay = sameDayBlock
@@ -379,29 +392,18 @@ export function CreateShiftDrawer({
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
-
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[420px] flex-col bg-paper border-l border-ink">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>New Shift</Kicker>
-          <button
-            onClick={onClose}
-            className="font-mono text-[18px] text-ink-soft hover:text-ink leading-none"
-          >
-            ×
-          </button>
-        </div>
-
+    <VisitDrawer title="New shift" subtitle="Choose who is providing care, then set the visit time." onClose={requestClose} busy={busy}>
         {/* Form body */}
         <form
-          className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5"
+          className="vd-body"
           onSubmit={(e) => {
             e.preventDefault()
             form.handleSubmit()
           }}
         >
+          <fieldset disabled={busy} className="vd-form-fields">
+          <VisitFormSection title="People & location">
+          <div className="vd-grid">
           {/* Worker */}
           <form.Field
             name="worker_id"
@@ -413,6 +415,7 @@ export function CreateShiftDrawer({
               <div>
                 <label className={labelClass}>Worker</label>
                 <select
+                  autoFocus aria-label="Worker"
                   className={selectClass}
                   value={field.state.value}
                   onChange={(e) => {
@@ -438,7 +441,7 @@ export function CreateShiftDrawer({
                 <FieldError error={field.state.meta.errors[0]} />
                 {field.state.value && sameDayBlock && hasAvailabilitySet && (
                   <p
-                    className={`mt-1 font-mono text-[10px] ${selectedAvailable ? 'text-mint-dark' : 'text-orange'}`}
+                    className={`mt-2 text-[13px] ${selectedAvailable ? 'text-mint-dark' : 'text-orange'}`}
                   >
                     {selectedAvailable
                       ? '✓ Within their stated availability'
@@ -497,10 +500,12 @@ export function CreateShiftDrawer({
             )}
           </form.Field>
 
+          </div>
           {/* Location */}
           <div>
             <label className={labelClass}>Location</label>
             <input
+              aria-label="Location"
               className={inputClass}
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -508,8 +513,10 @@ export function CreateShiftDrawer({
             />
           </div>
 
+          </VisitFormSection>
+          <VisitFormSection title="Date & time" description="Times are shown in the agency’s timezone. An overnight visit ends on the following date.">
           {/* Date row — end date appears beside start date for overnight shifts */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="vd-grid">
             <form.Field
               name="date"
               validators={{
@@ -522,6 +529,7 @@ export function CreateShiftDrawer({
                     {endDate !== field.state.value ? 'Start Date' : 'Date'}
                   </label>
                   <DateInput
+                    aria-label="Visit date"
                     value={field.state.value}
                     onChange={(v) => {
                       field.handleChange(v)
@@ -539,7 +547,7 @@ export function CreateShiftDrawer({
                       )
                     }}
                     onBlur={field.handleBlur}
-                    className="w-full"
+                    className="vd-picker"
                   />
                   <FieldError error={field.state.meta.errors[0]} />
                 </div>
@@ -550,6 +558,7 @@ export function CreateShiftDrawer({
               <div>
                 <label className={labelClass}>End Date</label>
                 <DateInput
+                  aria-label="End date"
                   value={endDate}
                   min={form.state.values.date}
                   onChange={(v) => {
@@ -563,7 +572,7 @@ export function CreateShiftDrawer({
                       form.state.values.client_id,
                     )
                   }}
-                  className="w-full"
+                  className="vd-picker"
                 />
                 {endDate === form.state.values.date && (
                   <p className="mt-1 font-mono text-[9px] text-ink-soft">
@@ -575,7 +584,7 @@ export function CreateShiftDrawer({
           </div>
 
           {/* Start / End time */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="vd-grid">
             <form.Field
               name="start_time"
               validators={{
@@ -587,8 +596,9 @@ export function CreateShiftDrawer({
                 <div>
                   <label className={labelClass}>Start Time</label>
                   <TimeInput
+                    aria-label="Start time"
                     value={field.state.value}
-                    className="w-full"
+                    className="vd-picker"
                     onChange={(newStart) => {
                       field.handleChange(newStart)
                       const endTime = form.state.values.end_time
@@ -635,8 +645,9 @@ export function CreateShiftDrawer({
                 <div>
                   <label className={labelClass}>End Time</label>
                   <TimeInput
+                    aria-label="End time"
                     value={field.state.value}
-                    className="w-full"
+                    className="vd-picker"
                     onChange={(newEnd) => {
                       field.handleChange(newEnd)
                       const startTime = form.state.values.start_time
@@ -677,7 +688,7 @@ export function CreateShiftDrawer({
           {/* Care-need match — relates to the day + time above */}
           {hasPlan && sameDayBlock && (
             <p
-              className={`-mt-2 font-mono text-[10px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}
+              className={`text-[13px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}
             >
               {matchedPlanEntry
                 ? "✓ This shift matches the client's weekly care need."
@@ -685,28 +696,15 @@ export function CreateShiftDrawer({
             </p>
           )}
 
-          {/* Notes */}
-          <form.Field name="notes">
-            {(field) => (
-              <div>
-                <label className={labelClass}>Notes</label>
-                <textarea
-                  className={`${inputClass} resize-none`}
-                  rows={2}
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-            )}
-          </form.Field>
-
+          </VisitFormSection>
+          <VisitFormSection title="Repeat settings" description={isRecurring ? "Create a repeating schedule from this start date." : "Create one visit. Turn on repeat to schedule more visits."}>
           {/* Recurrence */}
-          <div className="border-t border-dashed border-line-soft pt-5">
+          <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <button
                 type="button"
                 role="switch"
+                aria-label="Repeat this shift"
                 aria-checked={isRecurring}
                 onClick={() => setIsRecurring((v) => !v)}
                 className={`relative inline-flex h-5 w-9 items-center border transition-colors ${
@@ -735,6 +733,7 @@ export function CreateShiftDrawer({
                         key={f}
                         type="button"
                         onClick={() => setFrequency(f)}
+                        aria-pressed={frequency === f}
                         className={`px-4 py-2 font-mono text-[10px] tracking-[0.05em] uppercase border transition-colors ${
                           frequency === f
                             ? 'bg-ink text-cream border-ink'
@@ -751,12 +750,13 @@ export function CreateShiftDrawer({
                 {frequency === 'weekly' && (
                   <div>
                     <p className={labelClass}>Days</p>
-                    <div className="flex gap-1.5 mt-1">
+                    <div className="vd-days">
                       {ORDERED_DAYS.map((day) => (
                         <button
                           key={day}
                           type="button"
                           onClick={() => toggleDay(day)}
+                          aria-pressed={daysOfWeek.includes(day)}
                           className={`h-8 w-9 font-mono text-[9px] tracking-[0.05em] uppercase border transition-colors ${
                             daysOfWeek.includes(day)
                               ? 'bg-ink text-cream border-ink'
@@ -777,9 +777,10 @@ export function CreateShiftDrawer({
                     <span className="normal-case text-muted">(optional)</span>
                   </label>
                   <DateInput
+                    aria-label="Recurrence ends"
                     value={recurrenceEndDate}
                     onChange={setRecurrenceEndDate}
-                    className="w-full"
+                    className="vd-picker"
                   />
                   <p className="mt-1 font-mono text-[9px] text-muted">
                     Leave blank to repeat indefinitely.
@@ -789,21 +790,43 @@ export function CreateShiftDrawer({
             )}
           </div>
 
+          </VisitFormSection>
+          <VisitFormSection title="Visit notes" description="Add instructions or context for this visit.">
+          {/* Notes */}
+          <form.Field name="notes">
+            {(field) => (
+              <div>
+                <label className={labelClass}>Notes</label>
+                <textarea
+                  aria-label="Notes"
+                  className={`${inputClass} resize-none`}
+                  rows={2}
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            )}
+          </form.Field>
+
+          </VisitFormSection>
+
+          <div ref={feedbackRef} className="space-y-4">
           {serverError && (
-            <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">
+            <p role="alert" className="vd-error">
               {serverError}
             </p>
           )}
 
           {approvalRequested && (
             <p className="font-mono text-[10px] text-ink border border-mint bg-cream-2 px-3 py-2">
-              Manager notified — they will review and approve the shift.
+              Request sent — the visit will be scheduled only if a manager or owner approves it.
             </p>
           )}
 
           {pendingOverride && (
             <div className="border border-orange bg-cream-2 px-4 py-3 flex flex-col gap-3">
-              <p className="font-mono text-[10px] text-ink leading-relaxed">
+              <p className="text-[13px] text-ink leading-relaxed">
                 {pendingOverride.message}
               </p>
               {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' && (
@@ -825,8 +848,9 @@ export function CreateShiftDrawer({
                 {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' ? (
                   <button
                     type="button"
+                    disabled={busy}
                     onClick={handleRequestApproval}
-                    className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                    className="vd-btn vd-btn-primary"
                   >
                     Notify Manager
                   </button>
@@ -834,7 +858,7 @@ export function CreateShiftDrawer({
                   <button
                     type="button"
                     onClick={handleApproveOverride}
-                    className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                    className="vd-btn vd-btn-primary"
                   >
                     {pendingOverride.code === 'WORKER_WOULD_ENTER_OVERTIME'
                       ? 'Approve overtime'
@@ -844,21 +868,23 @@ export function CreateShiftDrawer({
                 <button
                   type="button"
                   onClick={() => setPendingOverride(null)}
-                  className="border border-ink px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                  className="vd-btn"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           )}
+          </div>
+          </fieldset>
         </form>
 
         {/* Footer */}
-        <div className="border-t border-ink px-6 py-4 flex justify-end gap-3">
+        <div className="vd-footer">
           <button
             type="button"
-            onClick={onClose}
-            className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+            onClick={requestClose} disabled={busy}
+            className="vd-btn"
           >
             Cancel
           </button>
@@ -867,8 +893,8 @@ export function CreateShiftDrawer({
               <button
                 type="button"
                 onClick={() => form.handleSubmit()}
-                disabled={isSubmitting}
-                className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
+                disabled={busy}
+                className="vd-btn vd-btn-primary"
               >
                 {isSubmitting
                   ? 'Saving…'
@@ -879,7 +905,6 @@ export function CreateShiftDrawer({
             )}
           </form.Subscribe>
         </div>
-      </div>
-    </>
+    </VisitDrawer>
   )
 }

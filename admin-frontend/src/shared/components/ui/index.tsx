@@ -343,11 +343,12 @@ interface DateInputProps {
   max?: string
   placeholder?: string
   className?: string
+  'aria-label'?: string
 }
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Select date', className }: DateInputProps) {
+export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Select date', className, 'aria-label': ariaLabel }: DateInputProps) {
   const [open, setOpen]               = useState(false)
   const [view, setView]               = useState<'days' | 'months' | 'years'>('days')
   const [viewDate, setViewDate]       = useState<Date>(() =>
@@ -451,6 +452,7 @@ export function DateInput({ value, onChange, onBlur, min, max, placeholder = 'Se
   return (
     <div ref={ref} className={cn('relative', className)}>
       <button
+        aria-label={ariaLabel}
         type="button"
         onClick={() => setOpen(v => !v)}
         className="bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink w-full text-left flex items-center justify-between gap-2"
@@ -602,6 +604,7 @@ interface TimeInputProps {
   min?: string
   max?: string
   className?: string
+  'aria-label'?: string
 }
 
 function parseTime(value: string): { hour: number; minute: number; period: 'AM' | 'PM' } {
@@ -626,7 +629,7 @@ function toDisplayTime(value: string): string {
 export { YearSelector } from './YearSelector'
 export { PeriodToggle } from './PeriodToggle'
 
-export function TimeInput({ value, onChange, onBlur, min, max, className }: TimeInputProps) {
+export function TimeInput({ value, onChange, onBlur, min, max, className, 'aria-label': ariaLabel }: TimeInputProps) {
   const [open, setOpen] = useState(false)
   const ref        = useRef<HTMLDivElement>(null)
   const hourRef    = useRef<HTMLDivElement>(null)
@@ -672,6 +675,7 @@ export function TimeInput({ value, onChange, onBlur, min, max, className }: Time
   return (
     <div ref={ref} className={cn('relative', className)}>
       <button
+        aria-label={ariaLabel}
         type="button"
         onClick={() => setOpen(v => !v)}
         className="bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink w-full text-left flex items-center justify-between gap-2"

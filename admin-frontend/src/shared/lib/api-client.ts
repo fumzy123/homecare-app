@@ -60,6 +60,6 @@ apiClient.interceptors.response.use(
 
     const errorData = error.response?.data?.error
     const message = errorData?.message || error.response?.data?.message || error.message
-    return Promise.reject(new ApiError(message, errorData?.code, errorData?.details))
+    return Promise.reject(new ApiError(message, errorData?.code ?? error.code, errorData?.details))
   },
 )

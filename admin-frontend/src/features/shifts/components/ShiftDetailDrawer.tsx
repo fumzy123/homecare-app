@@ -1,5 +1,6 @@
+import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { getStatusToken, STATUS_TOKENS, ADMIN_SELECTABLE_STATUSES } from '@/shared/lib/shiftStatus'
 import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
@@ -7,16 +8,17 @@ import { useQueryClient } from '@tanstack/react-query'
 import { shiftsApi, type ShiftOccurrence, type NoteEntry, type RecurrenceFrequency, type DayOfWeek, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
 import { useShiftDetailWorkers, useShiftDetailClients, useShiftDetailWrite, useShiftDetailNote, useSaveShiftDetailNote } from '../hooks/useShiftDetail'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
-import { Avatar, Kicker, DateInput, TimeInput } from '@/shared/components/ui'
+import { Avatar, DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
+import { visitWriteError, isVisitConnectionError } from '../lib/visitWrite'
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
 
 // ─── Shared form styles ───────────────────────────────────────────────────────
 
-const labelClass = 'block font-mono text-[9px] tracking-[0.1em] uppercase text-ink-soft mb-1'
-const inputClass = 'w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
+const labelClass = 'vd-label'
+const inputClass = 'vd-input'
 
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd']
@@ -88,6 +90,10 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     totalHours?: number
   } | null>(null)
   const [approvalRequested, setApprovalRequested] = useState(false)
+  const feedbackRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (editError || pendingOverride || approvalRequested) feedbackRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [editError, pendingOverride, approvalRequested])
   const requestedScope = useRef<RecurringScope>('all')
   const overrideRef                           = useRef(false)
   const pendingOverrideFnRef                  = useRef<(() => void) | null>(null)
@@ -135,7 +141,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
           message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over their ${first.max_hours}h/week cap. Schedule anyway?`,
         })
       } else {
-        setEditError(err instanceof Error ? err.message : 'Something went wrong')
+        setEditError(visitWriteError(err))
       }
       setShowSaveModal(false)
     },
@@ -154,6 +160,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   function handleSave() {
+    if (saveMutation.isPending) return
     setEditError(null)
     if (shift.is_recurring) {
       setShowSaveModal(true)
@@ -192,6 +199,8 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   function executeSave(scope: RecurringScope) {
+    if (saveMutation.isPending) return
+    setEditError(null)
     requestedScope.current = scope
     const override = overrideRef.current
     overrideRef.current = false
@@ -252,6 +261,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   function handleDiscard() {
+    if (saveMutation.isPending) return
     setWorkerId(shift.worker.id); setClientId(shift.client.id)
     setDate(format(start, 'yyyy-MM-dd')); setStartTime(format(start, 'HH:mm')); setEndTime(format(end, 'HH:mm'))
     setLocation(shift.location ?? ''); setNotes(shift.notes ?? '')
@@ -262,81 +272,82 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     setEditError(null); setPendingOverride(null); setIsEditing(false)
   }
 
+  const busy = saveMutation.isPending || deleteMutation.isPending || requestOvertime.isPending
+  const dirty = workerId !== shift.worker.id || clientId !== shift.client.id || date !== format(start, 'yyyy-MM-dd') || endDate !== format(end, 'yyyy-MM-dd') || startTime !== format(start, 'HH:mm') || endTime !== format(end, 'HH:mm') || location !== (shift.location ?? '') || notes !== (shift.notes ?? '') || completionStatus !== shift.completion_status || recurrenceChanged() || recurrenceEndDate !== (shift.recurrence_end_date ?? '')
+  function requestClose() {
+    if (busy) return
+    if (!isEditing || !dirty || window.confirm('Discard your unsaved visit changes?')) onClose()
+  }
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-ink/20" onClick={onClose} />
-
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[400px] flex-col bg-paper border-l border-ink">
-
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink">
-          <Kicker>{isEditing ? 'Edit Shift' : 'Shift Details'}</Kicker>
-          <div className="flex items-center gap-2">
-            {!isEditing && !hideEdit && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="font-mono text-[10px] tracking-[0.05em] uppercase text-ink-soft hover:text-ink transition-colors"
-              >
-                Edit
-              </button>
-            )}
-            <button onClick={onClose} className="font-mono text-[16px] text-ink-soft hover:text-ink leading-none">×</button>
-          </div>
-        </div>
-
+      <VisitDrawer title={isEditing ? 'Edit shift' : 'Visit details'}
+        subtitle={`${shift.client.first_name} ${shift.client.last_name} · ${format(start, 'EEE, MMM d, yyyy')}`}
+        onClose={requestClose} busy={busy}
+        action={!isEditing && !hideEdit ? <button className="vd-btn" disabled={busy} onClick={() => setIsEditing(true)}>Edit</button> : undefined}>
         {/* ── Body ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-6">
+        <div className={`vd-body ${isEditing ? "" : "vd-read"}`}>
 
           {isEditing ? (
             /* ── Edit mode ── */
-            <>
+            <fieldset disabled={busy} className="vd-form-fields">
               {shift.is_recurring && (
-                <p className="font-mono text-[10px] text-ink-soft border border-ink px-3 py-2 tracking-wide">
-                  ↻ Changes apply to this shift, following, or all — you'll choose on save.
+                <p className="vd-notice">
+                  This visit is part of a recurring schedule. On save, choose this visit only, this and following visits, or the whole series.
                 </p>
               )}
 
+              <VisitFormSection title="People & location" description={shift.is_recurring ? "Worker, client and location changes apply to a series, not a single visit." : undefined}>
+              <div className="vd-grid">
               <div>
                 <label className={labelClass}>Worker</label>
-                <select className={inputClass} value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
+                <select autoFocus aria-label="Worker" className={inputClass} value={workerId} onChange={(e) => setWorkerId(e.target.value)}>
                   {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
                 </select>
               </div>
 
               <div>
                 <label className={labelClass}>Client</label>
-                <select className={inputClass} value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                <select aria-label="Client" className={inputClass} value={clientId} onChange={(e) => setClientId(e.target.value)}>
                   {clients.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                 </select>
               </div>
 
+              </div>
+              <div>
+                <label className={labelClass}>Location</label>
+                <input aria-label="Location" className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address" />
+              </div>
+
+              </VisitFormSection>
+              <VisitFormSection title="Date & time" description="Times are shown in the agency’s timezone.">
               {/* Date row — end date appears for overnight shifts */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="vd-grid">
                 <div>
                   <label className={labelClass}>{endDate !== date ? 'Start Date' : 'Date'}</label>
-                  <DateInput value={date}
+                  <DateInput aria-label="Visit date" value={date}
                     onChange={(v) => {
                       if (endDate === nextDay(date)) setEndDate(nextDay(v))
                       else if (endDate === date) setEndDate(v)
                       setDate(v)
-                    }} className="w-full" />
+                    }} className="vd-picker" />
                 </div>
                 {endDate !== date && (
                   <div>
                     <label className={labelClass}>End Date</label>
-                    <DateInput value={endDate} min={date} onChange={setEndDate} className="w-full" />
+                    <DateInput aria-label="End date" value={endDate} min={date} onChange={setEndDate} className="vd-picker" />
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="vd-grid">
                 <div>
                   <label className={labelClass}>Start Time</label>
-                  <TimeInput value={startTime} onChange={setStartTime} className="w-full" />
+                  <TimeInput aria-label="Start time" value={startTime} onChange={setStartTime} className="vd-picker" />
                 </div>
                 <div>
                   <label className={labelClass}>End Time</label>
-                  <TimeInput value={endTime} className="w-full"
+                  <TimeInput aria-label="End time" value={endTime} className="vd-picker"
                     onChange={(newEnd) => {
                       setEndTime(newEnd)
                       if (newEnd && startTime && newEnd <= startTime && endDate === date)
@@ -347,13 +358,10 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                 </div>
               </div>
 
-              <div>
-                <label className={labelClass}>Location</label>
-                <input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Address" />
-              </div>
 
+              </VisitFormSection>
               {shift.is_recurring && (
-                <>
+                <VisitFormSection title="Repeat settings" description="Repeat settings apply to this and following visits or the whole series. They do not change when saving this visit only.">
                   <div>
                     <label className={labelClass}>Repeat frequency</label>
                     <select
@@ -372,12 +380,13 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                   {recurrenceFreq === 'weekly' && (
                     <div>
                       <label className={labelClass}>Repeat on</label>
-                      <div className="flex gap-1.5 flex-wrap">
+                      <div className="vd-days">
                         {ORDERED_DAYS.map((day) => {
                           const active = recurrenceDays.includes(day)
                           return (
                             <button
                               key={day}
+                              aria-pressed={active}
                               type="button"
                               onClick={() => setRecurrenceDays(
                                 active
@@ -398,21 +407,22 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
                   <div>
                     <label className={labelClass}>Recurrence ends</label>
-                    <DateInput value={recurrenceEndDate} onChange={setRecurrenceEndDate} className="w-full" />
+                    <DateInput aria-label="Recurrence ends" value={recurrenceEndDate} onChange={setRecurrenceEndDate} className="vd-picker" />
                     <p className="mt-1 font-mono text-[9px] text-ink-soft">Leave blank for no end date.</p>
                   </div>
-                </>
+                </VisitFormSection>
               )}
 
+              <VisitFormSection title="Visit notes & status">
               <div>
                 <label className={labelClass}>Notes</label>
-                <textarea className={`${inputClass} resize-none`} rows={3} value={notes}
+                <textarea aria-label="Notes" className={`${inputClass} resize-none`} rows={3} value={notes}
                   onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
               </div>
 
               <div>
                 <label className={labelClass}>Status</label>
-                <select className={inputClass} value={completionStatus} onChange={(e) => setCompletionStatus(e.target.value)}>
+                <select aria-label="Status" className={inputClass} value={completionStatus} onChange={(e) => setCompletionStatus(e.target.value)}>
                   {ADMIN_SELECTABLE_STATUSES.map((val) => (
                     <option key={val} value={val}>{STATUS_TOKENS[val].label}</option>
                   ))}
@@ -422,8 +432,11 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                 )}
               </div>
 
+              </VisitFormSection>
+
+              <div ref={feedbackRef} className="space-y-4">
               {editError && (
-                <p className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{editError}</p>
+                <p role="alert" className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{editError}</p>
               )}
 
               {approvalRequested && (
@@ -434,7 +447,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
               {pendingOverride && (
                 <div className="border border-orange bg-cream-2 px-4 py-3 flex flex-col gap-3">
-                  <p className="font-mono text-[10px] text-ink leading-relaxed">{pendingOverride.message}</p>
+                  <p className="text-[13px] text-ink leading-relaxed">{pendingOverride.message}</p>
                   <div className="flex gap-2">
                     {pendingOverride.code === 'OVERTIME_APPROVAL_REQUIRED' ? (
                       <button
@@ -478,7 +491,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                             setEditError('Failed to send approval request. Please try again.')
                           }
                         }}
-                        className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                        className="vd-btn vd-btn-primary"
                       >
                         Notify Manager
                       </button>
@@ -490,7 +503,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                           setPendingOverride(null)
                           fn?.()
                         }}
-                        className="bg-ink text-cream px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 transition-opacity"
+                        className="vd-btn vd-btn-primary"
                       >
                         {pendingOverride.code === 'WORKER_WOULD_ENTER_OVERTIME' ? 'Approve overtime' : 'Schedule anyway'}
                       </button>
@@ -498,14 +511,15 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                     <button
                       type="button"
                       onClick={() => setPendingOverride(null)}
-                      className="border border-ink px-4 py-1.5 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                      className="vd-btn"
                     >
                       Cancel
                     </button>
                   </div>
                 </div>
               )}
-            </>
+              </div>
+            </fieldset>
 
           ) : (
             /* ── View mode ── */
@@ -602,12 +616,14 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                 {!showCancelFlow ? (
                   <button
                     onClick={() => { setShowCancelFlow(true); setCancelReason(''); setCancelScope('this') }}
-                    className="w-full border border-orange text-orange py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:bg-orange hover:text-white transition-colors"
+                    className="vd-btn vd-btn-danger w-full"
                   >
                     Cancel Shift
                   </button>
                 ) : (
-                  <div className="flex flex-col gap-4">
+                  <fieldset disabled={busy} className="vd-form-fields">
+                    <h3 className="font-serif text-[24px]">Cancel visit</h3>
+                    <p className="vd-help">Choose which visits to cancel and record why.</p>
                     <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">
                       Cancellation reason
                     </p>
@@ -620,12 +636,12 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                           { value: 'following', label: 'This and all following'     },
                           { value: 'all',       label: 'All occurrences'            },
                         ] as const).map(({ value, label }) => (
-                          <label key={value} className="flex items-center gap-2.5 cursor-pointer">
+                          <label key={value} className="flex items-center gap-2.5 cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4">
                             <span className={`w-3.5 h-3.5 border border-ink flex items-center justify-center shrink-0 ${cancelScope === value ? 'bg-ink' : ''}`}>
                               {cancelScope === value && <span className="w-1.5 h-1.5 bg-cream block" />}
                             </span>
                             <span className="font-mono text-[10px] text-ink">{label}</span>
-                            <input type="radio" className="sr-only" value={value} checked={cancelScope === value} onChange={() => setCancelScope(value)} />
+                            <input type="radio" name="cancel-scope" className="sr-only" value={value} checked={cancelScope === value} onChange={() => setCancelScope(value)} />
                           </label>
                         ))}
                       </div>
@@ -634,12 +650,12 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                     {/* Reason list */}
                     <div className="flex flex-col gap-1.5">
                       {CANCELLATION_REASONS.map(({ value, label }) => (
-                        <label key={value} className="flex items-center gap-2.5 cursor-pointer">
+                        <label key={value} className="flex items-center gap-2.5 cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4">
                           <span className={`w-3.5 h-3.5 border border-ink flex items-center justify-center shrink-0 ${cancelReason === value ? 'bg-ink' : ''}`}>
                             {cancelReason === value && <span className="w-1.5 h-1.5 bg-cream block" />}
                           </span>
                           <span className="font-mono text-[10px] text-ink">{label}</span>
-                          <input type="radio" className="sr-only" value={value} checked={cancelReason === value} onChange={() => setCancelReason(value)} />
+                          <input type="radio" name="cancel-reason" className="sr-only" value={value} checked={cancelReason === value} onChange={() => setCancelReason(value)} />
                         </label>
                       ))}
                     </div>
@@ -656,26 +672,26 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
                     {deleteMutation.isError && (
                       <p className="font-mono text-[10px] text-orange">
-                        {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Something went wrong'}
+                        {visitWriteError(deleteMutation.error)}
                       </p>
                     )}
 
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowCancelFlow(false)}
-                        className="flex-1 border border-ink py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors"
+                        className="vd-btn flex-1"
                       >
                         Back
                       </button>
                       <button
                         onClick={confirmCancel}
                         disabled={!cancelReason || (cancelReason === 'other' && !cancelReasonOther.trim()) || deleteMutation.isPending}
-                        className="flex-1 bg-orange text-white py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity"
+                        className="vd-btn vd-btn-danger flex-1"
                       >
                         {deleteMutation.isPending ? 'Cancelling…' : 'Confirm Cancel'}
                       </button>
                     </div>
-                  </div>
+                  </fieldset>
                 )}
               </div>
             </>
@@ -684,22 +700,24 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
         {/* ── Edit footer ── */}
         {isEditing && (
-          <div className="border-t border-ink px-6 py-4 flex justify-end gap-3">
-            <button onClick={handleDiscard}
-              className="border border-ink px-4 py-2 font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft hover:text-ink transition-colors">
+          <div className="vd-footer">
+            <button onClick={handleDiscard} disabled={busy}
+              className="vd-btn">
               Discard
             </button>
-            <button onClick={handleSave} disabled={saveMutation.isPending}
-              className="bg-ink text-cream px-5 py-2 font-mono text-[10px] tracking-[0.08em] uppercase hover:opacity-80 disabled:opacity-40 transition-opacity">
-              {saveMutation.isPending ? 'Saving…' : 'Save Changes'}
+            <button onClick={handleSave} disabled={busy}
+              className="vd-btn vd-btn-primary">
+              {saveMutation.isPending ? 'Saving…' : isVisitConnectionError(saveMutation.error) ? 'Retry save' : 'Save Changes'}
             </button>
           </div>
         )}
-      </div>
+      </VisitDrawer>
 
       {showSaveModal && (
         <RecurringActionModal
           mode="edit"
+          busy={busy}
+          occurrenceLabel={format(start, 'EEEE, MMM d, yyyy')}
           recurrenceRuleChanged={recurrenceChanged()}
           onConfirm={executeSave}
           onCancel={() => setShowSaveModal(false)}
