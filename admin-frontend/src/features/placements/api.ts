@@ -9,6 +9,11 @@ export interface InterestEligibility {
   within_hours: boolean
   all_clear: boolean
   reasons: string[]
+  check_details?: {
+    availability: string[]
+    conflicts: string[]
+    hours: string[]
+  }
 }
 
 export interface InterestWorkerSummary {

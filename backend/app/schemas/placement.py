@@ -28,6 +28,12 @@ class PlacementFillSchema(BaseModel):
     employment_id: UUID   # the worker being selected
 
 
+class EligibilityCheckDetails(BaseModel):
+    availability: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+    hours: list[str] = Field(default_factory=list)
+
+
 class InterestEligibility(BaseModel):
     """Whether this worker can actually be assigned the placement's care need —
     computed fresh on read. Fill is gated on `all_clear`."""
@@ -36,6 +42,7 @@ class InterestEligibility(BaseModel):
     within_hours:    bool
     all_clear:       bool
     reasons:         list[str]   # human-readable blockers (empty when all_clear)
+    check_details: EligibilityCheckDetails = Field(default_factory=EligibilityCheckDetails)
 
 
 class InterestWorkerSummary(BaseModel):

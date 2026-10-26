@@ -139,13 +139,13 @@ def test_real_eligibility_gates_block_assignment(setup, gate):
         else service._parse_snapshot(placement.care_slot_snapshot)
     )
     service.checker.find_conflicts.return_value = (
-        [dict(client_name="Other client", date="2090-01-02")]
+        [dict(client_name="Other client", date="2090-01-02", start="2090-01-02T09:30:00", end="2090-01-02T12:00:00")]
         if gate == "conflict"
         else []
     )
     service.checker.find_hours_violations.return_value = (
-        [dict(total_hours=42, week_start="2090-01-02")] if gate == "overtime" else [],
-        [dict(total_hours=22, max_hours=20, week_start="2090-01-02")]
+        [dict(total_hours=42, current_hours=40, proposed_hours=2, overtime_threshold=40, week_start="2090-01-01", week_end="2090-01-07")] if gate == "overtime" else [],
+        [dict(total_hours=22, current_hours=20, proposed_hours=2, max_hours=20, week_start="2090-01-01", week_end="2090-01-07")]
         if gate == "cap"
         else [],
     )
@@ -158,4 +158,35 @@ def test_real_eligibility_gates_block_assignment(setup, gate):
     )
     assert not eligibility.all_clear
     assert eligibility.reasons
+    details = eligibility.check_details
+    if gate == "availability":
+        assert "No worker availability is recorded" in details.availability[0]
+        assert "requested 09:00–11:00" in details.availability[1]
+        assert not details.conflicts and not details.hours
+    elif gate == "conflict":
+        assert "Other client on 2090-01-02, 09:30–12:00" in details.conflicts[0]
+        assert not details.availability and not details.hours
+    else:
+        assert "by 2h" in details.hours[0]
+        assert "2090-01-01–2090-01-07" in details.hours[0]
+        assert ("overtime threshold of 40h" if gate == "overtime" else "maximum weekly hours of 20h") in details.hours[0]
+        assert not details.availability and not details.conflicts
     service.shift_repo.add.assert_not_called()
+
+
+def test_availability_failure_compares_requested_slot_with_recorded_windows(setup):
+    service, placement, worker, _ = setup
+    del service._eligibility_for
+    slots = service._parse_snapshot(placement.care_slot_snapshot)
+    service.availability_repo.list_for_person.return_value = [
+        NS(day_of_week=WeekDay.MO, start_time=time(13), end_time=time(17)),
+        NS(day_of_week=WeekDay.TU, start_time=time(9), end_time=time(17)),
+    ]
+    service.checker.find_conflicts.return_value = []
+    service.checker.find_hours_violations.return_value = ([], [])
+    result = service._eligibility_for(worker, slots, None, placement.start_date, placement.start_date)
+    assert result.check_details.availability == [
+        "Mon: requested 09:00–11:00. Worker availability: 13:00–17:00."
+    ]
+    assert not result.all_clear
+    assert result.no_conflicts and result.within_hours

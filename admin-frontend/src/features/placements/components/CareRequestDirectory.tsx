@@ -95,7 +95,7 @@ export function CareRequestDirectory() {
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.id}>
+              <tr key={p.id} className="cr-request-row">
                 <td>
                   <span className="cr-client-name">
                     {p.client_first_name} {p.client_last_name}
@@ -127,7 +127,7 @@ export function CareRequestDirectory() {
                 </td>
                 <td>
                   <Link
-                    className="cr-link"
+                    className="cr-link cr-request-link"
                     to="/dashboard/placements/$placementId"
                     params={{ placementId: p.id }}
                     aria-label={`View ${p.client_first_name} ${p.client_last_name}`}

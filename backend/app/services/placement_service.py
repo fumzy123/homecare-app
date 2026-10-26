@@ -39,6 +39,7 @@ from app.schemas.placement import (
     WorkerPlacementResponse,
     InterestWorkerSummary,
     InterestEligibility,
+    EligibilityCheckDetails,
 )
 
 # Labels used to render the care-need snapshot text frozen onto a placement.
@@ -550,12 +551,45 @@ class PlacementService:
                 f"Would exceed their {v['max_hours']}h/week cap ({v['total_hours']}h the week of {v['week_start']})"
             )
 
+        details = EligibilityCheckDetails()
+        if not availability_ok:
+            if not avail:
+                details.availability.append("No worker availability is recorded. Add availability to the worker's profile before approving.")
+            for slot in match.uncovered:
+                windows = sorted(
+                    (a for a in avail if a.day_of_week == slot.day_of_week),
+                    key=lambda a: a.start_time,
+                )
+                recorded = ", ".join(f"{a.start_time:%H:%M}–{a.end_time:%H:%M}" for a in windows) or "none recorded for this day"
+                details.availability.append(
+                    f"{_WEEKDAY_LABELS[slot.day_of_week]}: requested {slot.start_time:%H:%M}–{slot.end_time:%H:%M}. Worker availability: {recorded}."
+                )
+        if conflicts:
+            c = min(conflicts, key=lambda c: (c['date'], c['start']))
+            details.conflicts.append(
+                f"First conflicting visit: {c['client_name']} on {c['date']}, "
+                f"{datetime.fromisoformat(c['start']):%H:%M}–{datetime.fromisoformat(c['end']):%H:%M}. "
+                "This overlaps the selected care."
+            )
+        for violations, limit_key, label in (
+            (cap, 'max_hours', "worker's maximum weekly hours"),
+            (overtime, 'overtime_threshold', 'overtime threshold'),
+        ):
+            if violations:
+                v = min(violations, key=lambda v: v['week_start'])
+                details.hours.append(
+                    f"Week {v['week_start']}–{v['week_end']}: "
+                    f"{v['current_hours']:g}h already scheduled + {v['proposed_hours']:g}h selected = {v['total_hours']:g}h. "
+                    f"This exceeds the {label} of {v[limit_key]:g}h by {v['total_hours'] - v[limit_key]:g}h."
+                )
+
         return InterestEligibility(
             availability_ok=availability_ok,
             no_conflicts=no_conflicts,
             within_hours=within_hours,
             all_clear=availability_ok and no_conflicts and within_hours,
             reasons=reasons,
+            check_details=details,
         )
 
     # ── Fill-time schedule generation ──────────────────────────────────────────

@@ -225,6 +225,7 @@ async function run() {
                 within_hours: true,
                 all_clear: !blocked,
                 reasons: blocked ? ['Already scheduled at this time.'] : [],
+                check_details: { availability: [], conflicts: blocked ? ['First conflicting visit: Other client on 2026-10-28, 09:30–12:00. This overlaps the selected care.'] : [], hours: [] },
               },
             },
           ],
@@ -307,7 +308,16 @@ async function run() {
       .fill('nobody')
     await page.getByText('No matching requests.', { exact: true }).waitFor()
     await page.getByRole('textbox', { name: 'Search care requests' }).fill('')
-    await page.getByRole('link', { name: 'View Robert Ellis' }).click()
+    const requestLink = page.getByRole('link', { name: 'View Robert Ellis' })
+    await requestLink.focus()
+    assert.equal(await requestLink.evaluate(el => el === document.activeElement), true)
+    const row = requestLink.locator('xpath=ancestor::tr')
+    assert.equal(await row.getByRole('link').count(), 1)
+    const clientCell = await row.locator('td').first().boundingBox()
+    assert(clientCell)
+    // Hit the client-name area, outside the visible View link.
+    await page.mouse.click(clientCell.x + 20, clientCell.y + clientCell.height / 2)
+
     await page.getByText('Care request / Revision 4', { exact: true }).waitFor()
     assert.equal(
       await page.getByRole('button', { name: 'Client overview' }).count(),
@@ -414,10 +424,20 @@ async function run() {
       .getByRole('button', { name: 'Review approval', exact: true })
       .click()
     await page
-      .getByText('Already scheduled at this time.', { exact: true })
+      .getByText('First conflicting visit: Other client on 2026-10-28, 09:30–12:00. This overlaps the selected care.', { exact: true })
       .waitFor()
     assert.equal(await confirm().isDisabled(), true)
     assert.equal(await page.getByRole('heading', { name: 'The previous schedule ends.', exact: true }).count(), 0)
+    const failedCheck = page.locator('.cr-check-failed')
+    assert.equal(await failedCheck.count(), 1)
+    await failedCheck.getByText('Visit conflicts', { exact: false }).waitFor()
+    await failedCheck.getByText('Needs attention', { exact: true }).waitFor()
+    assert.equal(await page.locator('.cr-check-status').filter({ hasText: 'Passed' }).count(), 2)
+    await shot('care-request-failed-check')
+    await page.setViewportSize({ width: 390, height: 844 })
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+    await shot('care-request-failed-check-mobile')
+    await page.setViewportSize({ width: 1440, height: 1100 })
     await page
       .getByRole('button', { name: 'Back to coverage', exact: true })
       .click()
