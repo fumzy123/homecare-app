@@ -352,6 +352,19 @@ security, recovery and operating checks. These plans do not constitute productio
 configuration changes or release sign-off. Historical staging evidence remains in
 the dated October 15 reports.
 
+### Offline visit saving (2026-10-23)
+
+Visit edit/cancellation mutations run without TanStack Query offline queuing or
+automatic retries. A connectivity guard fails before sending while offline; the
+edit draft stays open with an explicit Retry save action. Reconnecting alone does
+not submit it. Active saves disable repeat submission, scope changes and discard.
+Network/timeout errors preserve transport codes and explain an uncertain outcome;
+they do not promise the server made no change. New-visit creation uses the same
+connectivity guard. Validation: `tests/shift-save-recovery.test.jsx` and the isolated
+`tests/scheduling-feedback.browser.cjs` (dummy Vite auth/API on port 5198) cover
+offline recovery, failure/retry and single-occurrence scope. This does not add
+persistent offline storage or change unrelated application mutations.
+
 ### Scaling prep (do before running >1 backend process/replica)
 The APScheduler instance lives **in-process** (see `app/main.py` `lifespan`). With
 more than one web worker/replica, each process starts its own scheduler and every
@@ -497,9 +510,9 @@ See `backend/FUNDING_RETIREMENT.md` for verification and rollout status.
 `AttentionService` → `AttentionRepository`, with pure care-stage projection in
 `domain/attention.py`. It combines the latest Weekly Care Need's posting, interest,
 and uncovered-slot stages into one stable case per version, plus dropped visit
-occurrences, expiring credentials, uploaded credentials awaiting verification,
-and active clients without weekly visits. Specific coverage
-cases suppress duplicate weekly-gap prompts. Dates use the agency's billing timezone;
+occurrences, expiring credentials and uploaded credentials awaiting verification.
+Generic empty-week reminders were removed on October 23, 2026.
+Dates use the agency's billing timezone;
 recurring visit targets retain their original occurrence date even when rescheduled.
 
 `features/attention/` owns the shared frontend hook, typed destinations and controlled
@@ -512,8 +525,12 @@ resolve it. No action table, migration, or manual completion endpoint is introdu
 
 Current windows remain 30 days for credential expiry
 and 7 days back / 60 ahead for dropped visits. Missing/expired-record compliance rules,
-onboarding, overtime requests and billing notices are not new tower checks; existing
-notifications and workflows remain available. Empty categories are omitted and a
+onboarding is not a new tower check. Overtime requests and billing notices use their
+existing workflows. Unread overtime decisions (October 23, 2026) are projected from
+retained Activity events for the original requester only. Both outcomes include the
+requested visit, decision reason (or an explicit absence) and View request. Opening
+successfully marks the event read; it remains in Activity history. These updates do
+not count as unresolved approvals and require no migration. Empty categories are omitted and a
 failed feed is never displayed as all clear.
 
 Validation: backend attention tests cover progression, deduplication, effective dates
@@ -527,6 +544,36 @@ installation if it is not installed locally; `BROWSER_CHANNEL` defaults to `msed
 ---
 
 ## MVP Scope — Home Care Agency Admin
+
+### Visit drawers (2026-10-23)
+
+New/Edit shift and visit management share the controlled Layer 2 `VisitDrawer`
+and `VisitFormSection` in `features/shifts/components/VisitDrawerUI.tsx`. The
+620px native dialog provides modal focus containment, Escape/close handling and
+explicit focus restoration for nested recurring-scope review. Headers and action
+footers stay visible while grouped form sections scroll. Domain drawers retain
+form state, busy/dirty close guards, scheduling checks and existing API operations.
+Date/time primitives accept optional accessible labels for their picker buttons.
+Recurring scope labels explain single, following and whole-series changes; worker,
+client, location and repeat settings remain series-only in this existing API.
+Validation: `tests/visit-drawers.browser.cjs`, `tests/shift-save-recovery.test.jsx`
+and `tests/scheduling-feedback.browser.cjs` use fictional fixtures to verify draft
+retention, scope/focus behavior, error recovery, recurrence and responsive layouts.
+
+### Team & invitations (2026-10-23)
+
+Settings defaults to **Staff members**, listing joined managers, supervisors,
+financial officers and nurses with name, email, role and active/inactive status.
+Owners remain in their own section. **View profile** expands recorded phone,
+employment type and hire date without navigating into worker scheduling screens.
+**Pending invitations** includes expired invitations with resend/revoke controls;
+worker invitations remain on Workers. `features/settings/hooks/useTeamDirectory`
+uses existing organization-scoped member/invitation APIs, refreshing on focus,
+reconnection and every minute while mounted. No backend or migration change is
+required. Loading/error/retry states are explicit and refresh preserves tab choice.
+Tests: `tests/team-directory.test.jsx` and `tests/team-directory.browser.cjs` in
+admin-frontend (isolated fictional API/auth on port 5198).
+
 
 ### Client workspace (2026-10-01)
 
