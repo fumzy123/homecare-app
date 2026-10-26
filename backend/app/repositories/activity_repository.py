@@ -190,6 +190,30 @@ class ActivityRepository:
             query = query.filter(OvertimeRequest.requested_by == member.id)
         return query.all()
 
+    def unread_overtime_decisions(self, member):
+        """Retained decision events addressed to the request's original requester."""
+        return (
+            self.db.query(ActivityEvent, OvertimeRequest, Employment)
+            .join(Notification, Notification.situation_key == ActivityEvent.situation_key)
+            .join(OvertimeRequest, OvertimeRequest.notification_id == Notification.id)
+            .join(Employment, Employment.id == OvertimeRequest.worker_id)
+            .options(joinedload(Employment.person))
+            .outerjoin(ActivityRead, and_(ActivityRead.event_id == ActivityEvent.id, ActivityRead.member_id == member.id))
+            .filter(
+                ActivityEvent.org_id == member.org_id,
+                Notification.org_id == member.org_id,
+                OvertimeRequest.org_id == member.org_id,
+                Employment.org_id == member.org_id,
+                OvertimeRequest.requested_by == member.id,
+                OvertimeRequest.status.in_(["approved", "rejected"]),
+                ActivityEvent.title == "Overtime " + OvertimeRequest.status,
+                ActivityEvent.actor_id != member.id,
+                ActivityRead.read_at.is_(None),
+            )
+            .order_by(ActivityEvent.created_at.desc(), ActivityEvent.id.desc())
+            .all()
+        )
+
     def overtime(self, org_id, notification_id, lock=False):
         query = self.db.query(OvertimeRequest).filter(
             OvertimeRequest.org_id == org_id,

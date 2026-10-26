@@ -52,10 +52,5 @@ export function attentionDestination(item: AttentionItem) {
           occurrence: t.occurrence_date ?? undefined,
         },
       };
-    case "weekly_schedule":
-      return {
-        to: "/dashboard/shifts" as const,
-        search: { client: t.record_id, date: t.occurrence_date ?? undefined },
-      };
   }
 }

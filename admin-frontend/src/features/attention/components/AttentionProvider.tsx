@@ -125,7 +125,7 @@ export function AttentionProvider({
       value.onSelect({
         id: target.record_id,
         category: "schedule",
-        stage: "review_schedule",
+        stage: "view_update",
         urgency: "review",
         subject: "",
         detail: "",
@@ -146,7 +146,12 @@ export function AttentionProvider({
     onSelect: (item) => {
       if (item.target.kind === "overtime") {
         overtime.mutate(item.target.record_id, {
-          onSuccess: () => setOpen(false),
+          onSuccess: () => {
+            if (item.event_ids?.length) {
+              read.mutate(item.event_ids.map(id => ({ id: `event:${id}`, unread: true }) as import('../types').ActivityEntry));
+            }
+            setOpen(false);
+          },
         });
         return;
       }

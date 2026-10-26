@@ -15,7 +15,6 @@ export type AttentionStage =
   | "review_dropped_visit"
   | "renew_credential"
   | "verify_credential"
-  | "review_schedule"
   | "review_overtime"
   | "await_approval"
   | "review_billing"
@@ -30,6 +29,7 @@ export interface AttentionItem {
   due_on: string | null;
   action_required?: boolean;
   notification_ids?: string[];
+  event_ids?: string[];
   unread_count?: number;
   covered_slots?: number | null;
   total_slots?: number | null;
@@ -45,7 +45,6 @@ export interface AttentionItem {
       | "care_need"
       | "credential"
       | "visit"
-      | "weekly_schedule"
       | "worker"
       | "billing"
       | "overtime"
@@ -78,7 +77,6 @@ export const actionLabels: Record<AttentionStage, string> = {
   review_dropped_visit: "Review visit outcome",
   renew_credential: "Review document",
   verify_credential: "Verify document",
-  review_schedule: "Review weekly schedule",
 };
 
 export type AttentionTarget = AttentionItem["target"];

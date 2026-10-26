@@ -216,7 +216,7 @@ export function AttentionList({
                                 className="tower-primary"
                                 onClick={() => onSelect(item)}
                               >
-                                {actionLabels[item.stage]}
+                                {item.target.kind === 'overtime' && item.action_required === false ? 'View request' : actionLabels[item.stage]}
                                 <ArrowUpRight size={14} />
                               </button>
                               <button

@@ -21,6 +21,7 @@ def service(monkeypatch):
     service.activity_repo = MagicMock()
     service.activity_repo.unread_by_situation.return_value = {}
     service.activity_repo.pending_overtime.return_value = []
+    service.activity_repo.unread_overtime_decisions.return_value = []
     service.activity_repo.unread_notices.return_value = []
     service.activity_repo.unresolved_payments.return_value = []
     service.org_repo = MagicMock()
@@ -42,7 +43,7 @@ def shift(c, day, status=ShiftCompletionStatus.scheduled, moved=None):
               modifications=[NS(id=uuid4(), original_date=day, new_start_time=moved, new_end_time=None, completion_status=status, notes=None)])
 
 
-def test_specific_coverage_suppresses_weekly_gap_and_partial_remains(service):
+def test_specific_coverage_remains_for_clients_without_visits(service):
     c = client()
     need = NS(id=uuid4(), client_id=c.id, imported=False, ends_on=None, effective_from=date(2026, 10, 1),
               scheduled_from=None, care_slots=[NS(id=uuid4())])
@@ -54,12 +55,14 @@ def test_specific_coverage_suppresses_weekly_gap_and_partial_remains(service):
     assert result.org_id == service.org_id
 
 
-@pytest.mark.parametrize('status,gap', [(ShiftCompletionStatus.cancelled, True), (ShiftCompletionStatus.scheduled, False), (ShiftCompletionStatus.completed, False), (ShiftCompletionStatus.no_show, False)])
-def test_weekly_gap_uses_effective_schedule_status(service, status, gap):
+@pytest.mark.parametrize('status', [None, ShiftCompletionStatus.cancelled, ShiftCompletionStatus.scheduled, ShiftCompletionStatus.completed, ShiftCompletionStatus.no_show])
+def test_clients_without_weekly_visits_do_not_generate_reminders(service, status):
     c = client()
     service.attention_repo.clients.return_value = [c]
-    service.attention_repo.shifts.return_value = [shift(c, date(2026, 10, 1), status)]
-    assert bool(service.list_items().items) is gap
+    service.attention_repo.shifts.return_value = [] if status is None else [shift(c, date(2026, 10, 1), status)]
+    result = service.list_items()
+    assert result.items == []
+    assert result.unread_count == 0
 
 
 def test_dropped_visit_keeps_original_occurrence_identity_and_effective_date(service):
@@ -69,7 +72,7 @@ def test_dropped_visit_keeps_original_occurrence_identity_and_effective_date(ser
     service.attention_repo.clients.return_value = [c]
     service.attention_repo.shifts.return_value = [s]
     items = service.list_items().items
-    assert len(items) == 1  # No second warning for the same weekly gap.
+    assert len(items) == 1  # The dropped-visit action is still required.
     assert items[0].target.occurrence_date == original
     assert items[0].due_on == date(2026, 10, 1)
     assert items[0].id == f'visit:{s.id}:{original}'
@@ -132,3 +135,22 @@ def test_workers_share_one_situation_and_progress_to_complete(service):
     service.activity_repo.unread_notices.return_value = []
     service.attention_repo.assignments.return_value = [(placement.id,s.id) for s in slots]
     assert not service.list_items().items
+
+
+@pytest.mark.parametrize('status,reason', [('approved', None), ('rejected', 'Use the existing visit instead.')])
+def test_requester_gets_one_unread_overtime_decision_with_request_link(service, status, reason):
+    event = NS(id=uuid4(), situation_key=f'notice:{uuid4()}')
+    request = NS(notification_id=uuid4(), status=status, decision_note=reason,
+                 details={'client_name': 'Overtime Test Client', 'start_time': '2026-10-31T15:00:00', 'end_time': '2026-10-31T17:00:00'})
+    worker = NS(person=NS(first_name='Avery', last_name='Demo'))
+    service.member.role = OrgMemberRole.supervisor
+    service.activity_repo.unread_overtime_decisions.return_value = [(event, request, worker), (event, request, worker)]
+    item, = service.list_items().items
+    assert item.subject == f'Overtime {status} · Avery Demo'
+    assert 'Overtime Test Client' in item.detail and '15:00–17:00' in item.detail
+    assert (reason or 'No decision reason was provided.') in item.detail
+    assert item.action_required is False and item.stage == 'view_update'
+    assert item.unread_count == 1 and item.event_ids == [event.id]
+    assert item.target.kind == 'overtime' and item.target.record_id == request.notification_id
+    service.activity_repo.unread_overtime_decisions.return_value = []
+    assert service.list_items().items == []

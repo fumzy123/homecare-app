@@ -21,7 +21,6 @@ function action(n, category, stage, kind, record, detail, extra = {}) {
 const items = [
   action(`care:${needId}`, 'coverage', 'review_interest', 'placement', placementId, '1 interested worker · 1 open Care Slot', { urgency: 'urgent', due_on: '2026-10-01' }),
   action('credential:1', 'credentials', 'verify_credential', 'credential', workerId, 'First Aid / CPR', { target: { kind: 'credential', record_id: workerId, document_type: 'first_aid_cpr' } }),
-  action('gap:1', 'schedule', 'review_schedule', 'weekly_schedule', clientId, 'Active client · No visits this week', { target: { kind: 'weekly_schedule', record_id: clientId, occurrence_date: '2026-09-27' } }),
 ]
 
 async function run() {
@@ -115,11 +114,9 @@ async function run() {
     await page.keyboard.press('Escape')
     assert.equal(await bubble().evaluate(el => el === document.activeElement), true)
     await bubble().click()
-    await panel().getByRole('button', { name: /No visits this week/ }).click()
-    await panel().getByRole('button', { name: 'Review weekly schedule' }).click()
-    await page.waitForURL(`**/shifts?client=${clientId}&date=2026-09-27`)
-    await page.getByRole('combobox', { name: 'Filter by client' }).waitFor()
-    assert.equal(await page.getByRole('combobox', { name: 'Filter by client' }).inputValue(), clientId)
+    assert.equal(await panel().getByText('Active client · No visits this week').count(), 0)
+    assert.equal(await panel().getByRole('button', { name: 'Review weekly schedule' }).count(), 0)
+    await panel().getByRole('button', { name: 'Minimize Action Tower', exact: true }).click()
     await page.setViewportSize({ width: 390, height: 844 })
     await bubble().click()
     const bounds = await panel().boundingBox()

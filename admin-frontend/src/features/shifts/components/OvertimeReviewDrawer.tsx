@@ -173,7 +173,7 @@ export function OvertimeReviewDrawer() {
             </p>
           )}
 
-          {notification.decision_note && <p className="text-sm text-ink-soft">{notification.decision_note}</p>}
+          {notification.resolved_at && <p className="text-sm text-ink-soft">{notification.decision_note ? `Decision reason: ${notification.decision_note}` : 'No decision reason was provided.'}</p>}
 
           {/* Worker */}
           <div>

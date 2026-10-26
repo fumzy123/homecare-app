@@ -65,7 +65,6 @@ class AttentionService:
                 urgency='urgent' if due and due <= today else 'upcoming' if due and due <= today + timedelta(days=7) else 'review',
                 subject=f'{first} {last}', detail=credential.document_type.value.replace('_', ' ').capitalize(), due_on=due,
                 target=AttentionTarget(kind='credential', record_id=worker_id, detail_id=credential.id, document_type=credential.document_type.value)))
-        scheduled, dropped_clients = set(), set()
         start, end = today - timedelta(days=7), today + timedelta(days=60)
         for shift in self.attention_repo.shifts(self.org_id, start, end):
             modifications = {m.original_date: m for m in shift.modifications}
@@ -81,24 +80,11 @@ class AttentionService:
                 status = effective.completion_status.value
                 if not start <= actual_day <= end and status != 'dropped':
                     continue
-                if week_start <= actual_day <= week_end and status in {'scheduled', 'in_progress', 'completed', 'no_show'}:
-                    scheduled.add(shift.client_id)
                 if status == 'dropped':
-                    if week_start <= actual_day <= week_end:
-                        dropped_clients.add(shift.client_id)
                     items.append(AttentionItem(id=f'visit:{shift.id}:{day}', category='schedule', stage='review_dropped_visit' if actual_day < today else 'replace_worker',
                         urgency='urgent' if actual_day <= today else 'upcoming', subject=f'{shift.client.first_name} {shift.client.last_name}',
                         detail='Dropped visit · Outcome needs review' if actual_day < today else 'Dropped visit · Replacement needed', due_on=actual_day,
                         target=AttentionTarget(kind='visit', record_id=shift.id, occurrence_date=day)))
-        # A weekly gap is a separate review question, not evidence of missed care.
-        # Suppress it when a specific coverage case already explains that week's gap.
-        coverage_needs = {i.target.detail_id for i in items if i.category == 'coverage' and i.due_on and i.due_on <= week_end}
-        coverage_clients = {n.client_id for n in needs if n.id in coverage_needs}
-        for client_id, client in clients.items():
-            if client_id not in scheduled and client_id not in coverage_clients and client_id not in dropped_clients:
-                items.append(AttentionItem(id=f'gap:{client_id}:{week_start}', category='schedule', stage='review_schedule', urgency='review',
-                    subject=f'{client.first_name} {client.last_name}', detail='Active client · No visits this week',
-                    target=AttentionTarget(kind='weekly_schedule', record_id=client_id, occurrence_date=week_start)))
         unread = self.activity_repo.unread_by_situation(self.member)
         fresh_interest = self.activity_repo.unread_notices(self.member)
         fresh_workers = {(n.situation_key, n.about_worker_id) for n, _ in fresh_interest}
@@ -115,6 +101,30 @@ class AttentionService:
                 subject='Overtime approval', detail=str(request.details.get('client_name') or 'Requested visit'),
                 target=AttentionTarget(kind='overtime', record_id=request.notification_id), unread_count=unread.get(key, 0)))
         existing_keys = {i.id for i in items}
+        for event, request, worker in self.activity_repo.unread_overtime_decisions(self.member):
+            key = event.situation_key
+            if key in existing_keys:
+                continue
+            p = request.details
+            visit = 'Requested visit details unavailable'
+            if p.get('start_time') and p.get('end_time'):
+                start_time = datetime.fromisoformat(p['start_time'])
+                end_time = datetime.fromisoformat(p['end_time'])
+                if start_time.tzinfo:
+                    start_time = start_time.astimezone(tz)
+                if end_time.tzinfo:
+                    end_time = end_time.astimezone(tz)
+                end_label = end_time.strftime('%H:%M') if start_time.date() == end_time.date() else end_time.strftime('%b %d, %Y %H:%M')
+                visit = f"Requested visit: {start_time:%b %d, %Y %H:%M}–{end_label}"
+            reason = f"Reason: {request.decision_note}" if request.decision_note else 'No decision reason was provided.'
+            items.append(AttentionItem(
+                id=key, category='schedule', stage='view_update', urgency='review', action_required=False,
+                subject=f"Overtime {request.status} · {worker.person.first_name} {worker.person.last_name}",
+                detail=f"{p.get('client_name') or 'Requested client'} · {visit}. {reason}",
+                target=AttentionTarget(kind='overtime', record_id=request.notification_id),
+                event_ids=[event.id], notification_ids=[request.notification_id], unread_count=1,
+            ))
+            existing_keys.add(key)
         informational = {NotificationType.profile_updated, NotificationType.billing_trial_reminder,
             NotificationType.billing_annual_reminder, NotificationType.founding_conversion_notice}
         for notice, _ in sorted(fresh_interest, key=lambda row: row[0].created_at, reverse=True):
