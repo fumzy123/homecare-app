@@ -273,6 +273,18 @@ npm run start:staging -- --tunnel --go
 
 ---
 
+## Address autocomplete (2026-10-26)
+
+Client intake/profile Street address uses `AddressAutocomplete` (Layer 3) and
+`useAddressSuggestions`: three characters, 350 ms debounce, cancel stale browser
+requests, five-minute memory cache, editable Canadian address fields and manual
+fallback. The backend-only `GEOAPIFY_API_KEY` enables authenticated
+`POST /api/addresses/autocomplete` via AddressService. No database changes.
+Provider attempts have process-wide rolling limits (4/second, 30/user/minute,
+2,500/day by default); these reset on restart and must become shared persistent
+counters before using multiple backend processes. UI attribution is required.
+See `backend/ADDRESS_AUTOCOMPLETE.md` for configuration, limitations and tests.
+
 ## Phone inputs (2026-10-21)
 
 Admin client intake/editing, worker editing and account settings share the Layer 2

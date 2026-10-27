@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import type { Client } from '../api'
@@ -14,10 +14,12 @@ export function CreateClientDrawer({
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [created, setCreated] = useState<Client | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const keepEditingRef = useRef<HTMLButtonElement>(null)
   const close = () => {
     if (busy) return
-    if (created || !dirty || window.confirm('Discard your unsaved client?'))
-      onClose()
+    if (created || !dirty) onClose()
+    else setConfirmDiscard(true)
   }
   return (
     <ClientDialog
@@ -59,6 +61,18 @@ export function CreateClientDrawer({
             onSuccess()
           }}
         />
+      )}
+      {confirmDiscard && (
+        <ClientDialog title="Discard changes?" compact initialFocusRef={keepEditingRef} onClose={() => setConfirmDiscard(false)}>
+          <div className="cw-stack">
+            <p>Your new client hasn’t been saved. Discarding will remove the details you’ve entered.</p>
+            <div className="cw-row flex-wrap justify-end">
+              <button ref={keepEditingRef} type="button" className="cw-btn cw-btn-primary"
+                onClick={() => setConfirmDiscard(false)}>Keep editing</button>
+              <button type="button" className="cw-btn" onClick={onClose}>Discard changes</button>
+            </div>
+          </div>
+        </ClientDialog>
       )}
     </ClientDialog>
   )

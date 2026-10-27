@@ -12,6 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.core.config import settings
+from app.core.address_privacy import scrub_address_lookup
 from app.core.security import get_current_user
 from app.core.limiter import limiter
 from app.core.exceptions import AppError, app_error_handler, validation_error_handler, unhandled_error_handler
@@ -46,7 +47,7 @@ from app.api.api import router as api_router
 def _scrub_pii(event, _hint):
     if "request" in event:
         event["request"].pop("data", None)
-    return event
+    return scrub_address_lookup(event)
 
 
 if settings.backend_sentry_dsn:
@@ -60,6 +61,7 @@ if settings.backend_sentry_dsn:
         traces_sample_rate=0.2,
         send_default_pii=False,
         before_send=_scrub_pii,
+        before_send_transaction=_scrub_pii,
     )
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react'
 import { X } from 'lucide-react'
 import '../client-workspace.css'
 
@@ -79,20 +79,27 @@ export function ClientDialog({
   onClose,
   wide = false,
   compact = false,
+  initialFocusRef,
 }: {
   title: string
   children: ReactNode
   onClose: () => void
   wide?: boolean
   compact?: boolean
+  initialFocusRef?: RefObject<HTMLElement | null>
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   useEffect(() => {
     const dialog = ref.current!
+    const previousFocus = document.activeElement
     dialog.showModal()
-    return () => dialog.close()
-  }, [])
+    initialFocusRef?.current?.focus()
+    return () => {
+      dialog.close()
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus()
+    }
+  }, [initialFocusRef])
   return (
     <dialog
       ref={ref}
@@ -100,6 +107,7 @@ export function ClientDialog({
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
+        event.stopPropagation()
         onClose()
       }}
     >

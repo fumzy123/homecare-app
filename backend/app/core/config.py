@@ -1,5 +1,6 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 # Resolve the backend directory (3 levels up from this file: core → app → backend)
 base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,6 +18,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_sentry_dsn: str = ""
     app_env: str = "development"
+    geoapify_api_key: str = Field(default="", repr=False)
+    address_lookup_daily_limit: int = Field(default=2500, ge=0, le=3000)
     push_delivery_enabled: bool = False
     push_allowed_app_ids: list[str] = []
     expo_push_access_token: str = ""

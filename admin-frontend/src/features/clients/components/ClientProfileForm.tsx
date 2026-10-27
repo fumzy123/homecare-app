@@ -13,6 +13,7 @@ import { ClientDangerZone } from './ClientDangerZone'
 import { HelpTooltip } from '@/shared/components/HelpTooltip'
 import { errorMessage } from '../lib/care'
 import { formatPostalCode } from '../lib/address'
+import { AddressAutocomplete } from './AddressAutocomplete'
 
 const required = z.string().trim().min(1, 'Required')
 const schema = z.object({
@@ -153,7 +154,9 @@ export function ClientProfileForm({
       }
     },
   })
-  const dirty = useStore(form.store, (s) => s.isDirty)
+  const dirty = useStore(form.store, (s) => Object.entries(s.values).some(
+    ([key, value]) => value !== form.options.defaultValues?.[key as keyof typeof s.values],
+  ))
   useUnsavedChanges(dirty && !save.isPending && !save.isSuccess)
   useEffect(() => {
     onDirtyChange?.(dirty)
@@ -273,6 +276,16 @@ export function ClientProfileForm({
                       onChange={field.handleChange} onBlur={field.handleBlur}
                       required={name === 'emergency_contact_phone'} inputClassName="cw-input"
                       labelClassName="text-xs" />
+                  )
+                  if (name === 'street') return (
+                    <AddressAutocomplete value={field.state.value}
+                      onChange={field.handleChange} onBlur={field.handleBlur}
+                      onSelect={(address) => {
+                        field.handleChange(address.street)
+                        form.setFieldValue('city', address.city)
+                        form.setFieldValue('province', address.province)
+                        form.setFieldValue('postal_code', formatPostalCode(address.postal_code))
+                      }} />
                   )
                   if (name === 'status') return (
                     <div className="cw-field">
