@@ -333,6 +333,33 @@ form submission, retaining one owner membership and a 14-day trial.
 
 Frontend catches this and displays the localized times to the admin.
 
+### Workers schedule view (2026-10-26)
+
+Schedule now offers Calendar / Workers with shared dates and worker/client filters.
+Calendar keeps Week/Month and the left time axis; simultaneous events use side-by-side
+layout, wrapped labels and horizontally scrollable space. Workers displays Sunday–Saturday
+columns, sticky worker names, weekly hours for the shown client filter, stacked status
+cards and native horizontal scrolling. The worker column uses warm cream shading;
+the bottom helper strip and Earlier/Later buttons have been removed. Cancelled/dropped visits remain visible but do
+not contribute hours. Overnight cards appear on each affected day without double-counting
+hours. Both views open the existing visit details/editing workflow.
+
+The Layer 3 `ShiftCalendar` coordinates named hooks; `WorkersSchedule` and
+`ScheduleToolbar` are controlled Layer 2 components. The calendar hook opts into
+`GET /api/shifts?calendar_window=true` for effective interval overlap (including visits
+moved across weeks and overnight carry-in). Original occurrence dates remain response
+identities. Default API queries and attention deep links retain original-date semantics.
+The backend uses ShiftService → ShiftRepository with pure calendar projection in
+`domain/scheduling.py`; tenant, worker/client, status and series cutoffs remain enforced.
+No migration is needed; deploy the API with the updated frontend.
+
+Validation: `tests/services/test_calendar_window.py`, existing scheduling domain/service
+regressions, `tests/worker-schedule.test.jsx`, `tests/shift-save-recovery.test.jsx` and
+`tests/workers-schedule.browser.cjs`. The browser suite uses fictional intercepted data
+and dummy Vite auth/API configuration at `http://127.0.0.1:5201` (`SCHEDULE_TEST_URL`);
+set `PLAYWRIGHT_MODULE` for a shared installation and optionally `SCHEDULE_SCREENSHOT_DIR`.
+Hosted rollout and agency acceptance remain pending.
+
 ### Remaining scheduling release work (updated 2026-10-16)
 - Overtime limits and owner override are implemented. The 2026-10-15 staging
   agency walkthrough rejected a 42-hour week without override and accepted an
@@ -458,6 +485,21 @@ read-only for assignment; save a new version to use slot approvals. The retired 
 archive. There is no single assigned-worker field in the live client model.
 
 ### Assignment management (2026-10-09)
+
+Client **Assigned workers** (October 27, 2026) follows the selected revision in
+`WeeklyCareNeedEditor`. Controlled `RevisionAssignments` cards group by immutable
+Care Slot IDs, show current/upcoming worker periods and approved revision transitions,
+and retain expandable history with reasons and explicit scheduled-change labels.
+Coverage is counted once per slot on the displayed agency-local date (approved future
+start, today, or a historical revision's end); assignment stop dates are exclusive.
+Proposals, imported schedules without slot links and revisions replaced before starting
+do not invent coverage. Manage assignment still groups selectable slots by worker and
+care request and uses the existing review/token/end flow and server `can_end` guard.
+The worker profile keeps its existing assignment list. No API or migration changes.
+Validation: `tests/assigned-workers.test.jsx`, `tests/assigned-workers.browser.cjs`,
+existing assignment, client setup and navigation browser checks. The browser fixtures
+use dummy configuration and `ASSIGNMENT_TEST_URL` (default port 5199), with optional
+`PLAYWRIGHT_MODULE` and `ASSIGNMENT_SCREENSHOT_DIR`. Hosted acceptance remains pending.
 
 Worker Overview and client Weekly care need compose the same Layer 3
 `features/assignments/components/AssignmentsPanel`. Controlled cards and the
@@ -586,6 +628,27 @@ required. Loading/error/retry states are explicit and refresh preserves tab choi
 Tests: `tests/team-directory.test.jsx` and `tests/team-directory.browser.cjs` in
 admin-frontend (isolated fictional API/auth on port 5198).
 
+
+### Compact client directory (2026-10-26)
+
+The directory shows weekly hours and slot count, with compact coverage labels
+(`N/N covered`, `N slots open`, `Unassigned`). City retains the street beneath it;
+age appears before Location. Each highlighted-on-hover row opens the client profile
+through one keyboard-accessible link, without an underlined name or arrow column.
+Upcoming approved care says `Scheduled from`; proposals say
+`Requested from`. Current care stays primary, followed by the next approved plan
+when there is no current care, then the latest proposal. A newer proposal shows
+`Revision pending`; an approved future change shows its date without replacing
+the current summary. No care shows `Not set up` / `No care slots yet`.
+
+`ClientResponse.directory_care` is an organization-scoped read projection using
+the agency's local date and batched care versions/assignments. Coverage checks
+assignment periods for each slot's next required occurrence, not individual visit
+cancellations or worker interest. Imported coverage is explicitly unknown. No
+migration is needed. Tests: backend `tests/services/test_client_directory.py`,
+frontend `tests/client-directory.test.jsx` and `tests/client-directory.browser.cjs`.
+The browser test uses isolated dummy API/auth configuration on port 5196 and accepts
+`CLIENT_DIRECTORY_SCREENSHOT_DIR` and `PLAYWRIGHT_MODULE`. Hosted rollout is pending.
 
 ### Client workspace (2026-10-01)
 
