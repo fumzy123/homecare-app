@@ -32,6 +32,7 @@ from app.domain.scheduling import (
     DEFAULT_RECURRENCE_HORIZON_DAYS,
     SchedulingChecker,
     build_rrule_string,
+    calendar_occurrence_dates,
     expand_occurrences,
     expand_rule_to_time_blocks,
     hours_by_week,
@@ -423,14 +424,19 @@ class ShiftService:
         worker_id: str | None = None,
         client_id: str | None = None,
         completion_statuses: list[str] | None = None,
+        calendar_window: bool = False,
     ) -> list[ShiftOccurrenceResponse]:
         try:
-            shifts = self.shift_repo.get_shifts_in_range(self.org_id, to_date, worker_id, client_id)
+            shifts = self.shift_repo.get_shifts_in_range(
+                self.org_id, to_date, worker_id, client_id,
+                **({'include_rescheduled': True} if calendar_window else {}),
+            )
 
             results = []
             for shift in shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
-                occurrences = expand_occurrences(shift, from_date, to_date)
+                occurrences = (calendar_occurrence_dates(shift, from_date, to_date) if calendar_window
+                               else expand_occurrences(shift, from_date, to_date))
 
                 for occurrence_date in occurrences:
                     mod = mod_map.get(occurrence_date)

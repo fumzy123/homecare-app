@@ -5,8 +5,8 @@ import { shiftsApi } from '@/features/shifts/api'
 
 export function useCalendarShifts(from: string, to: string, workerId?: string, clientId?: string) {
   return useQuery({
-    queryKey: ['shifts', 'calendar', from, to, workerId, clientId],
-    queryFn: () => shiftsApi.listShifts(from, to, workerId || undefined, clientId || undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped']),
+    queryKey: ['shifts', 'calendar', from, to, workerId, clientId, 'effective-window'],
+    queryFn: () => shiftsApi.listShifts(from, to, workerId || undefined, clientId || undefined, ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'dropped'], true),
   })
 }
 

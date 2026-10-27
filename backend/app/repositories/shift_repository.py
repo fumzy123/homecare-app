@@ -1,5 +1,6 @@
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from app.models.organization import Organization
 from app.models.shift import Shift
 from app.models.shift_modification import ShiftModification
@@ -127,6 +128,7 @@ class ShiftRepository:
         to_date: date,
         worker_id=None,
         client_id=None,
+        include_rescheduled: bool = False,
     ) -> list[Shift]:
         """Fetch all active, non-deleted shifts that start on or before to_date.
 
@@ -141,6 +143,8 @@ class ShiftRepository:
                 before midnight of this date are returned.
             worker_id: If provided, only shifts assigned to this worker.
             client_id: If provided, only shifts for this client.
+            include_rescheduled: Also include later masters with overrides moved
+                before the upper bound; calendar projection filters exact overlaps.
 
         Returns:
             List of Shift ORM instances with worker, client, and
@@ -157,9 +161,15 @@ class ShiftRepository:
                 Shift.org_id == org_id,
                 Shift.status == ShiftStatus.active,
                 Shift.deleted_at == None,  # noqa: E711
-                Shift.start_time <= datetime.combine(to_date, time.max, tzinfo=timezone.utc),
             )
         )
+        upper = datetime.combine(to_date, time.max)
+        starts_in_range = Shift.start_time <= upper
+        if include_rescheduled:
+            starts_in_range = or_(starts_in_range, Shift.modifications.any(
+                ShiftModification.new_start_time <= upper,
+            ))
+        query = query.filter(starts_in_range)
         if worker_id:
             query = query.filter(Shift.worker_id == worker_id)
         if client_id:

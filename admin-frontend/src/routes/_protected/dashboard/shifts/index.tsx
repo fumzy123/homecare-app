@@ -1,6 +1,5 @@
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
-import { format, parseISO } from 'date-fns'
 import { calendarDate, recordId } from '@/features/attention/search'
 import { Kicker, Btn } from '@/shared/components/ui'
 import { ShiftCalendar } from '@/features/shifts/components/ShiftCalendar'
@@ -27,8 +26,8 @@ function ShiftsPage() {
         <div>
           <Kicker leader className="mb-4">04 / Schedule</Kicker>
           <h1 className="font-serif text-[52px] max-md:text-[36px] leading-[0.98] font-medium tracking-[-0.02em]">
-            {format(date ? parseISO(date) : new Date(), 'MMMM yyyy')}{' '}
-            <span className="font-serif italic text-muted">— schedule</span>
+            Care,{' '}
+            <span className="font-serif italic text-muted">scheduled.</span>
           </h1>
         </div>
         <Btn variant="ghost" onClick={() => setShowNewShift(true)} className="max-sm:w-full max-sm:justify-center">

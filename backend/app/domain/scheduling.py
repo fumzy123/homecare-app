@@ -192,6 +192,24 @@ def shift_has_occurrence_on(shift: Shift, target_date: date, *, include_truncate
     return len(matches) > 0
 
 
+def calendar_occurrence_dates(shift: Shift, from_date: date, to_date: date) -> list[date]:
+    """Original identities whose effective intervals overlap a calendar window.
+
+    Include overnight carry-in and overrides moved from outside the window, but
+    never resurrect an occurrence removed by an assignment/series cutoff.
+    """
+    window_start = datetime.combine(from_date, time.min)
+    window_end = datetime.combine(to_date + timedelta(days=1), time.min)
+    duration = max(shift.end_time - shift.start_time, timedelta())
+    lookback = timedelta(days=duration.days + 1)
+    candidates = set(expand_occurrences(shift, from_date - lookback, to_date))
+    modifications = {m.original_date: m for m in shift.modifications}
+    candidates.update(day for day in modifications if shift_has_occurrence_on(shift, day))
+    return [day for day in sorted(candidates)
+            if (effective := resolve_effective_occurrence(shift, day, modifications.get(day))).start_time < window_end
+            and effective.end_time > window_start]
+
+
 def timeblock_for_occurrence(
     shift: Shift, target_date: date, shift_mod_map: dict,
 ) -> tuple[datetime, datetime] | None:

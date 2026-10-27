@@ -103,10 +103,11 @@ async def get_shifts(
     worker_id: str | None = Query(default=None),
     client_id: str | None = Query(default=None),
     completion_statuses: str | None = Query(default=None, description="Comma-separated statuses to include, e.g. completed,no_show,cancelled"),
+    calendar_window: bool = Query(default=False, description="Include visits overlapping the range by effective time, preserving original occurrence dates"),
     shift_service: ShiftService = Depends(get_shift_service),
 ):
     parsed_statuses = [s.strip() for s in completion_statuses.split(",")] if completion_statuses else None
-    return await shift_service.get_shifts(from_date, to_date, worker_id, client_id, parsed_statuses)
+    return await shift_service.get_shifts(from_date, to_date, worker_id, client_id, parsed_statuses, calendar_window=calendar_window)
 
 
 # ─────────────────────────────────────────

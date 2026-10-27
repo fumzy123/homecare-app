@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, useCallback, useMemo } from 'react'
-import { Calendar, dateFnsLocalizer, Navigate, type View, type ToolbarProps } from 'react-big-calendar'
-import { format, parse, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getDay, addDays } from 'date-fns'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar'
+import { format, parse, parseISO, startOfWeek, startOfMonth, endOfMonth, getDay, addDays, addMonths } from 'date-fns'
 import { WEEK_STARTS_ON } from '@/shared/lib/date'
 import { enUS } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
@@ -11,6 +11,10 @@ import { useWorkers } from '@/features/workers/hooks/useWorkers'
 import { useClients } from '@/features/clients/hooks/useClients'
 import { CreateShiftDrawer, type PendingShiftInfo } from '@/features/shifts/components/CreateShiftDrawer'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
+import { WorkersSchedule } from './WorkersSchedule'
+import { ScheduleToolbar } from './ScheduleToolbar'
+import { buildWorkerRows, calendarWeekWidth, visitTimeLabel } from '../lib/workerSchedule'
+import '../schedule.css'
 import { STATUS_TOKENS, getStatusToken } from '@/shared/lib/shiftStatus'
 
 // ─── Localizer ────────────────────────────────────────────────────────────────
@@ -51,46 +55,14 @@ function MonthHeader({ label }: { label: string }) {
   return <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft px-2 py-2">{label}</p>
 }
 
-function CustomToolbar({ date, view, onNavigate, onView }: ToolbarProps<CalendarEvent, object>) {
-  const ws  = startOfWeek(date, { weekStartsOn: WEEK_STARTS_ON })
-  const we  = endOfWeek(date,   { weekStartsOn: WEEK_STARTS_ON })
-  let label: string
-  if (view === 'week') {
-    if (format(ws, 'MMMM yyyy') === format(we, 'MMMM yyyy')) {
-      label = `${format(ws, 'MMMM d')} – ${format(we, 'd, yyyy')}`
-    } else if (format(ws, 'yyyy') === format(we, 'yyyy')) {
-      label = `${format(ws, 'MMMM d')} – ${format(we, 'MMMM d, yyyy')}`
-    } else {
-      label = `${format(ws, 'MMMM d, yyyy')} – ${format(we, 'MMMM d, yyyy')}`
-    }
-  } else {
-    label = format(date, 'MMMM yyyy')
-  }
-
-  const navBtn = 'w-8 h-8 rounded-full border border-ink/40 flex items-center justify-center font-mono text-[13px] text-ink hover:bg-cream-2 hover:border-ink transition-colors'
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b border-ink bg-paper max-md:flex-wrap">
-      <div className="flex items-center gap-3 flex-1">
-        <button onClick={() => onNavigate(Navigate.PREVIOUS)} className={navBtn}>←</button>
-        <span className="font-serif text-[20px] leading-none tracking-[-0.01em]">{label}</span>
-        <button onClick={() => onNavigate(Navigate.NEXT)} className={navBtn}>→</button>
-      </div>
-      <button onClick={() => onNavigate(Navigate.TODAY)}
-        className="px-4 py-1.5 rounded-full border border-ink/40 hover:border-ink font-mono text-[10px] tracking-[0.05em] uppercase text-ink hover:bg-cream-2 transition-colors">
-        Today
-      </button>
-      <div className="w-px h-5 bg-ink/20 mx-1" />
-      {(['week', 'month'] as View[]).map((v) => (
-        <button key={v} onClick={() => onView(v)}
-          className={`px-3.5 py-1.5 rounded-full font-mono text-[10px] tracking-[0.05em] uppercase transition-colors border ${
-            view === v ? 'bg-ink text-cream border-ink' : 'border-ink/40 text-ink hover:border-ink hover:bg-cream-2'
-          }`}>
-          {v}
-        </button>
-      ))}
-    </div>
-  )
+function CalendarVisit({ event }: { event: CalendarEvent }) {
+  if (event.resource.shift_id === '__phantom__') return <span>{event.title}</span>
+  const { client, worker } = event.resource
+  return <>
+    <span className="schedule-visit-time">{visitTimeLabel(event.resource)}</span>
+    <span className="schedule-visit-client">{client.first_name} {client.last_name}</span>
+    <span className="schedule-visit-worker">{worker.first_name} {worker.last_name}</span>
+  </>
 }
 
 // ─── Overtime computation ─────────────────────────────────────────────────────
@@ -144,7 +116,10 @@ interface ShiftCalendarProps {
 export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClose, initialWorkerId, initialClientId, initialDate, targetShiftId, targetOccurrence }: ShiftCalendarProps) {
   const queryClient = useQueryClient()
   const [currentDate, setCurrentDate]     = useState(() => initialDate ? parseISO(initialDate) : new Date())
-  const [view, setView]                   = useState<View>('week')
+  const [view, setView]                   = useState<'week' | 'month'>('week')
+  const [scheduleView, setScheduleView] = useState<'calendar' | 'workers'>('calendar')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const activeView = scheduleView === 'workers' ? 'week' : view
   const [showDrawer, setShowDrawer]       = useState(false)
   const [pendingShift, setPendingShift]   = useState<PendingShiftInfo | null>(null)
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
@@ -162,19 +137,26 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
     setPrevShowNewShift(false)
   }
 
-  const { from, to } = rangeForView(currentDate, view)
+  const { from, to } = rangeForView(currentDate, activeView)
 
-  const { data: occurrences = [], isLoading } = useCalendarShifts(from, to, filterWorkerId, filterClientId)
-  const { data: workers = [] } = useWorkers()
+  const { data: occurrences = [], isLoading, isError, refetch } = useCalendarShifts(from, to, filterWorkerId, filterClientId)
+  const { data: workers = [], isLoading: workersLoading, isError: workersError, refetch: refetchWorkers } = useWorkers()
   const { data: clients = [] } = useClients()
   const targetQuery = useTargetVisit(targetDismissed ? undefined : targetShiftId, targetOccurrence)
   const target = !targetDismissed ? targetQuery.data : undefined
   const displayedShift = selectedShift ?? target
 
   const overtimeMap = useMemo(
-    () => view === 'week' ? computeOvertimeMap(occurrences) : new Map<string, number>(),
-    [occurrences, view],
+    () => activeView === 'week' ? computeOvertimeMap(occurrences) : new Map<string, number>(),
+    [occurrences, activeView],
   )
+
+  const workerRows = useMemo(() => buildWorkerRows(
+    workers.filter(worker => !filterWorkerId || worker.id === filterWorkerId), occurrences, from,
+  ), [workers, filterWorkerId, occurrences, from])
+  const weekWidth = useMemo(() => calendarWeekWidth(occurrences, from), [occurrences, from])
+  const loading = isLoading || (scheduleView === 'workers' && workersLoading)
+  const failed = isError || (scheduleView === 'workers' && workersError)
 
   const baseEvents   = toCalendarEvents(occurrences)
   const phantomEvent = showDrawer && pendingShift
@@ -194,18 +176,27 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
     setPendingShift(null)
   }, [])
 
-  const handleRangeChange = useCallback((range: Date[] | { start: Date; end: Date }) => {
-    const anchor = Array.isArray(range) ? range[0] : range.start
-    setCurrentDate(anchor)
-  }, [])
+  const navigate = (direction: 'previous' | 'next' | 'today') => {
+    setCurrentDate(date => direction === 'today' ? new Date()
+      : activeView === 'month' ? addMonths(date, direction === 'next' ? 1 : -1)
+      : addDays(date, direction === 'next' ? 7 : -7))
+    scrollRef.current?.scrollTo({ left: 0 })
+  }
 
   const inputClass = 'bg-paper border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink'
 
   return (
     <>
       {targetShiftId && !targetDismissed && !targetQuery.isPending && !target && <p role="status" className="mx-10 mb-4 border border-line-soft p-3 text-sm">{targetQuery.isError ? 'Could not load this visit. Refresh to try again.' : 'This visit is no longer available. Review the schedule for its current status.'}</p>}
-      {/* Filters */}
+      {/* Shared view selection and filters */}
       <div className="px-10 max-md:px-4 mb-4 flex flex-wrap items-center gap-3">
+        <div role="group" aria-label="Schedule view" className="flex border border-ink">
+          {(['calendar', 'workers'] as const).map(mode => <button type="button" key={mode}
+            aria-pressed={scheduleView === mode} onClick={() => { setScheduleView(mode); scrollRef.current?.scrollTo({ left: 0 }) }}
+            className={`px-4 py-2 font-mono text-[11px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${scheduleView === mode ? 'bg-ink text-cream' : 'bg-paper hover:bg-cream-2'}`}>
+            {mode === 'calendar' ? 'Calendar' : 'Workers'}
+          </button>)}
+        </div>
         <select aria-label="Filter by worker" value={filterWorkerId} onChange={(e) => setFilterWorkerId(e.target.value)} className={inputClass + ' max-sm:flex-1 min-w-[120px]'}>
           <option value="">All workers</option>
           {workers.map((w) => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
@@ -227,7 +218,7 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
             </span>
           )
         })}
-        {view === 'week' && (
+        {scheduleView === 'calendar' && view === 'week' && (
           <span className="flex items-center gap-2">
             <span style={{ width: 14, height: 14, background: `linear-gradient(to bottom, #FFE2D4 50%, ${OT_COLOR} 50%)`, border: '1px solid #111111', display: 'inline-block', flexShrink: 0 }} />
             Overtime
@@ -236,29 +227,39 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
       </div>
 
       {/* Calendar */}
-      <div className="relative min-h-0 flex-1 px-10 max-md:px-4 pb-10">
-        <div className="relative h-full border border-ink overflow-hidden bg-paper">
-          {isLoading && (
+      <div className="relative min-h-[500px] flex-1 px-10 max-md:px-4 pb-10">
+        <div className="relative h-full border border-ink overflow-hidden bg-paper flex flex-col">
+          <ScheduleToolbar date={currentDate} view={activeView} workersView={scheduleView === 'workers'} onNavigate={navigate} onView={setView} />
+          {failed && <div role="alert" className="p-4 border-b border-ink text-sm">
+            Could not load the schedule. <button type="button" className="underline" onClick={() => { void refetch(); void refetchWorkers() }}>Retry</button>
+          </div>}
+          {loading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-cream/80">
               <p className="font-mono text-[11px] text-muted tracking-wide">LOADING SHIFTS…</p>
             </div>
           )}
+          {!failed && <div ref={scrollRef} className="schedule-scroll" role="region" tabIndex={0}
+            aria-label={scheduleView === 'workers' ? 'Worker schedule, scroll horizontally through the week' : 'Calendar, scroll horizontally through the week'}
+            aria-busy={loading}>
+          {scheduleView === 'workers' ? (!loading && <WorkersSchedule rows={workerRows} from={from} clientFiltered={!!filterClientId} onSelect={visit => handleSelectEvent({ resource: visit })} />) : <div className="schedule-calendar" style={{ minWidth: view === 'week' ? weekWidth : 700 }}>
           <Calendar
             localizer={localizer}
             events={events}
             showMultiDayTimes={true}
             view={view}
-            onView={setView}
+            onView={next => setView(next === 'month' ? 'month' : 'week')}
             date={currentDate}
             onNavigate={setCurrentDate}
             views={['week', 'month']}
-            onRangeChange={handleRangeChange}
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
             selectable
+            toolbar={false}
+            dayLayoutAlgorithm="no-overlap"
+            tooltipAccessor={event => event.resource.shift_id === '__phantom__' ? event.title : `${visitTimeLabel(event.resource)} · ${event.resource.client.first_name} ${event.resource.client.last_name} · ${event.resource.worker.first_name} ${event.resource.worker.last_name} · ${getStatusToken(event.resource.completion_status).label}`}
             scrollToTime={new Date(1970, 1, 1, 7, 0, 0)}
             style={{ height: '100%' }}
-            components={{ toolbar: CustomToolbar, week: { header: WeekHeader }, month: { header: MonthHeader } }}
+            components={{ event: CalendarVisit, week: { header: WeekHeader }, month: { header: MonthHeader } }}
             eventPropGetter={(event) => {
               if (event.resource?.shift_id === '__phantom__') {
                 return { style: { background: 'transparent', border: '2px dashed #8A8378', borderRadius: 0, fontSize: 11, padding: '2px 6px', color: '#8A8378', fontFamily: "'JetBrains Mono', monospace" } }
@@ -289,6 +290,8 @@ export function ShiftCalendar({ showNewShiftDrawer = false, onNewShiftDrawerClos
               style: { backgroundColor: format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? '#FFE2D4' : undefined },
             })}
           />
+          </div>}
+          </div>}
         </div>
       </div>
 

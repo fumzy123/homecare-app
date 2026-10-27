@@ -229,6 +229,7 @@ export const shiftsApi = {
     workerId?: string,
     clientId?: string,
     completionStatuses?: string[],
+    calendarWindow = false,
   ): Promise<ShiftOccurrence[]> => {
     const { data } = await apiClient.get('/api/shifts', {
       params: {
@@ -237,6 +238,7 @@ export const shiftsApi = {
         ...(workerId ? { worker_id: workerId } : {}),
         ...(clientId ? { client_id: clientId } : {}),
         ...(completionStatuses ? { completion_statuses: completionStatuses.join(',') } : {}),
+        ...(calendarWindow ? { calendar_window: true } : {}),
       },
     })
     return data
