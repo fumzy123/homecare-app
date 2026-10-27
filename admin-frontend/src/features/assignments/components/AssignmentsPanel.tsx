@@ -6,10 +6,14 @@ import { useAssignments, useEndAssignments } from '../hooks/useAssignments'
 import type { Assignment, EndReview } from '../api'
 import { AssignmentList } from './AssignmentList'
 import { EndAssignmentDialog } from './EndAssignmentDialog'
+import { RevisionAssignments } from './RevisionAssignments'
+import type { WeeklyCareNeed } from '@/features/weekly-care-need/api'
 import '@/features/clients/client-workspace.css'
 
 // Layer 3: shared coordinator, used by both profile entry points.
-export function AssignmentsPanel({ workerId, clientId }: { workerId?: string; clientId?: string }) {
+export function AssignmentsPanel({ workerId, clientId, revision, revisions = [] }: {
+  workerId?: string; clientId?: string; revision?: WeeklyCareNeed; revisions?: WeeklyCareNeed[]
+}) {
   const query = useAssignments({ worker_id: workerId, client_id: clientId })
   const { review, end } = useEndAssignments()
   const [managing, setManaging] = useState<Assignment[] | null>(null)
@@ -41,16 +45,17 @@ export function AssignmentsPanel({ workerId, clientId }: { workerId?: string; cl
   }
   const rows = query.data?.assignments || []
   const visible = rows.filter(a => history || a.status !== 'ended')
-  return <section className="client-workspace p-6" aria-label="Assignments">
+  return <section className="client-workspace p-6" aria-label={revision ? 'Assigned workers' : 'Assignments'}>
     <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
-      <div><h2 className="text-xl font-semibold">Assignments</h2><p className="text-sm text-ink-soft mt-1">Approved recurring care slots and their history.</p></div>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={history} onChange={e => setHistory(e.target.checked)} />Show ended assignments</label>
+      <div><h2 className="text-xl font-semibold">{revision ? 'Assigned workers' : 'Assignments'}</h2><p className="text-sm text-ink-soft mt-1">Approved recurring care slots and their history.</p></div>
+      {!revision && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={history} onChange={e => setHistory(e.target.checked)} />Show ended assignments</label>}
     </div>
     {replacementId && <div role="status" className="border border-line rounded-lg p-4 mb-4">
-      Selected assignments ended. Past care records are preserved.{' '}
+      Selected assignments stop from {stopsFrom}. Past care records are preserved.{' '}
       <Link className="underline" to="/dashboard/placements/$placementId" params={{ placementId: replacementId }}>Find replacement coverage</Link>
     </div>}
     {query.isPending ? <p role="status">Loading assignments…</p> : query.isError ? <p role="alert">Could not load assignments. <button className="underline" onClick={() => void query.refetch()}>Retry</button></p>
+      : revision ? <RevisionAssignments revision={revision} revisions={revisions} rows={rows} today={query.data!.today} onManage={manage} />
       : visible.length ? <AssignmentList rows={visible} workerView={Boolean(workerId)} onManage={manage} />
       : <p className="text-sm text-ink-soft">No {history ? '' : 'current '}care-slot assignments. Individually scheduled visits and imported schedules remain in visit history.</p>}
     {managing && <EndAssignmentDialog rows={managing} selected={selected} stopsFrom={stopsFrom} reason={reason} minDate={minDate}

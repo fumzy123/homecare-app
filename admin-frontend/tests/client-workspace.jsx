@@ -205,6 +205,8 @@ apiClient.defaults.adapter = async (config) => {
   const url = config.url,
     method = config.method,
     body = config.data ? JSON.parse(config.data) : {}
+  if (url === '/api/assignments')
+    return response(config, { today: stamp.slice(0, 10), assignments: [] })
   if (url === '/api/organization')
     return response(config, {
       id: 'fixture-org',

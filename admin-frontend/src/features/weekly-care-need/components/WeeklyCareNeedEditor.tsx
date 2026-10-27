@@ -26,6 +26,7 @@ import {
 } from '../hooks/useWeeklyCareNeed'
 import type { CareSlotInput } from '../api'
 import { WeeklyCareBoard, type DraftCareSlot } from './WeeklyCareBoard'
+import { AssignmentsPanel } from '@/features/assignments/components/AssignmentsPanel'
 
 export function WeeklyCareNeedEditor({
   clientId,
@@ -323,6 +324,7 @@ export function WeeklyCareNeedEditor({
           )
         )}
       </section>
+      {selected && <AssignmentsPanel key={selected.id} clientId={clientId} revision={selected} revisions={needs.data || []} />}
       <section className="cw-history">
         <div className="cw-between mb-5">
           <h3>Weekly care need history</h3>

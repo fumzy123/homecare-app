@@ -28,6 +28,7 @@ jobs:
       SUPABASE_URL: http://127.0.0.1:5198
       SUPABASE_SECRET_KEY: test-secret-key
       CARE_REQUEST_TEST_URL: http://127.0.0.1:5198
+      ASSIGNMENT_TEST_URL: http://127.0.0.1:5198
       BROWSER_CHANNEL: chromium
       VITE_BACKEND_API_URL: http://127.0.0.1:5198
       VITE_SUPABASE_URL: http://127.0.0.1:5198
@@ -77,6 +78,9 @@ jobs:
         run: |
           node --experimental-strip-types --test tests/care-requests.test.mjs
           node --experimental-strip-types --test tests/phone.test.mjs
+          npm run test:components -- tests/assigned-workers.test.jsx
+          node tests/assigned-workers.browser.cjs
+          node tests/assignments.browser.cjs
           node tests/care-requests.browser.cjs
           node tests/client-setup.browser.cjs
       - name: Browser to API to PostgreSQL, both admin entry points

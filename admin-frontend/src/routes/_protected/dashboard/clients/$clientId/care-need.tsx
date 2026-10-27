@@ -1,7 +1,6 @@
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import { WeeklyCareNeedEditor } from '@/features/weekly-care-need/components/WeeklyCareNeedEditor'
 import { recordId } from '@/features/attention/search'
-import { AssignmentsPanel } from '@/features/assignments/components/AssignmentsPanel'
 
 export const Route = createFileRoute('/_protected/dashboard/clients/$clientId/care-need')({
   validateSearch: (s: Record<string, unknown>): { need?: string } => ({
@@ -17,7 +16,6 @@ function CareNeed() {
   return (
     <>
       <WeeklyCareNeedEditor key={`${clientId}:${need}:${navigation}`} clientId={clientId} attentionNeedId={need} />
-      <AssignmentsPanel clientId={clientId} />
     </>
   )
 }

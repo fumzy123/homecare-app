@@ -1,0 +1,23 @@
+.assigned-workers { color: var(--color-ink); }
+.assigned-workers .aw-context { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.assigned-workers .aw-caption { color:var(--color-ink-soft); font-size:13px; margin:8px 0; }
+.assigned-workers .aw-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:14px; margin:20px 0; }
+.assigned-workers .aw-slot { border:1px solid var(--color-line-soft); padding:20px; background:var(--color-paper); min-width:0; overflow-wrap:anywhere; }
+.assigned-workers .aw-covered { background:var(--color-mint-soft); }
+.assigned-workers .aw-slot h3 { font:400 26px/1.2 var(--font-serif); margin:0 0 10px; }
+.assigned-workers .aw-time { font:13px/1.5 var(--font-mono); margin-bottom:20px; }
+.assigned-workers .aw-worker + .aw-worker { border-top:1px solid var(--color-line-soft); padding-top:12px; margin-top:16px; }
+.assigned-workers .aw-worker strong { display:block; font-weight:600; }
+.assigned-workers .aw-manage { margin-top:8px; white-space:normal; }
+.assigned-workers .aw-unassigned { font-weight:600; }
+.assigned-workers .aw-unassigned small { display:block; font-weight:400; margin-top:4px; }
+.assigned-workers .aw-changes { background:var(--color-orange-soft); padding:14px 18px; font-size:13px; }
+.assigned-workers .aw-changes p + p { margin-top:12px; }
+.assigned-workers .aw-transition { margin:20px 0; color:var(--color-ink-soft); font-size:14px; }
+.assigned-workers .aw-history { margin-top:24px; border-top:1px solid var(--color-line-soft); padding-top:18px; }
+.assigned-workers .aw-history summary { cursor:pointer; padding:6px 0; font-weight:600; }
+.assigned-workers .aw-history summary:focus-visible { outline:2px solid var(--color-ink); outline-offset:4px; }
+.assigned-workers .aw-history ol { list-style:none; padding:0; margin-top:20px; }
+.assigned-workers .aw-history li { border-left:2px solid var(--color-line-soft); padding:0 0 20px 16px; margin-left:4px; overflow-wrap:anywhere; }
+.assigned-workers .aw-history li p { font-size:13px; margin-top:5px; }
+@media(max-width:540px) { .assigned-workers .aw-slot { padding:16px; } }
