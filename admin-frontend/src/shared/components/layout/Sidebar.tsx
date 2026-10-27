@@ -9,12 +9,12 @@ import { Avatar } from '@/shared/components/ui'
 
 const NAV = [
   { to: '/dashboard',            icon: LayoutGrid,     label: 'Dashboard'  },
-  { to: '/dashboard/activity', icon: CheckCheck, label: 'Activity' },
-  { to: '/dashboard/workers',    icon: UsersRound,     label: 'Workers'    },
   { to: '/dashboard/clients',    icon: HeartHandshake, label: 'Clients'    },
+  { to: '/dashboard/workers',    icon: UsersRound,     label: 'Workers'    },
   { to: '/dashboard/shifts',     icon: CalendarDays,   label: 'Schedule'   },
   { to: '/dashboard/placements', icon: ClipboardList,  label: 'Care requests' },
   { to: '/dashboard/timesheet',  icon: Clock3,         label: 'Timesheets' },
+  { to: '/dashboard/activity',   icon: CheckCheck,     label: 'My Activity' },
 ]
 
 interface SidebarProps {
