@@ -1,5 +1,5 @@
 from app.domain.workforce import Workforce
-from app.domain.client_care import current_care_by_client
+from app.domain.client_care import current_care_by_client, directory_care_by_client
 from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -31,19 +31,21 @@ class ClientService:
     def _attach_one(self, client: Client | None) -> Client | None:
         if client is None:
             return None
-        client.care_team = Workforce(self.db, self.org_id).care_teams().get(client.id, [])
-        client.current_care_need = current_care_by_client(
-            self.care_need_repo.versions(client.id), date.today()
-        ).get(client.id)
-        return client
+        return self._attach_many([client])[0]
 
     def _attach_many(self, clients: list[Client]) -> list[Client]:
-        today = date.today()
-        teams = Workforce(self.db, self.org_id).care_teams()
-        current_needs = current_care_by_client(self.care_need_repo.list_for_org(self.org_id), today)
+        workforce = Workforce(self.db, self.org_id)
+        today = workforce.now.date()
+        teams = workforce.care_teams()
+        needs = self.care_need_repo.list_for_org(self.org_id)
+        current_needs = current_care_by_client(needs, today)
+        directory_care = directory_care_by_client(
+            needs, self.care_need_repo.assignments_for_org(self.org_id), today,
+        )
         for c in clients:
             c.care_team = teams.get(c.id, [])
             c.current_care_need = current_needs.get(c.id)
+            c.directory_care = directory_care.get(c.id)
         return clients
 
     # ─────────────────────────────────────────

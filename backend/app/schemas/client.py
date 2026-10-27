@@ -1,5 +1,5 @@
 from pydantic import BaseModel, model_validator
-from typing import Optional
+from typing import Literal, Optional
 from datetime import date, datetime
 from uuid import UUID
 from app.core.enums import ClientStatus
@@ -91,6 +91,16 @@ class ClientUpdateSchema(BaseModel):
     notes: Optional[str] = None
 
 
+class DirectoryCareSummary(BaseModel):
+    weekly_hours: float
+    slot_count: int
+    covered_slot_count: int | None
+    state: Literal['current', 'scheduled', 'requested']
+    starts_on: date | None
+    revision_pending: bool
+    scheduled_change_on: date | None
+
+
 class ClientResponse(BaseModel):
     id: UUID
 
@@ -112,6 +122,7 @@ class ClientResponse(BaseModel):
     org_id: UUID
     care_team: list[CareTeamMember] = []
     current_care_need: WeeklyCareNeedResponse | None = None
+    directory_care: DirectoryCareSummary | None = None
 
     # Medical
     medical_conditions: Optional[str]

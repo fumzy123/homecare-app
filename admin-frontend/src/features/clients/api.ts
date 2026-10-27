@@ -10,6 +10,16 @@ export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
   discharged: 'Discharged',
 }
 
+export interface DirectoryCareSummary {
+  weekly_hours: number
+  slot_count: number
+  covered_slot_count: number | null
+  state: 'current' | 'scheduled' | 'requested'
+  starts_on: string | null
+  revision_pending: boolean
+  scheduled_change_on: string | null
+}
+
 export interface Client {
   id: string
   first_name: string
@@ -30,6 +40,7 @@ export interface Client {
     coverage: string[]
   }[]
   current_care_need?: WeeklyCareNeed | null
+  directory_care?: DirectoryCareSummary | null
   medical_conditions: string | null
   allergies: string | null
   medications: string | null

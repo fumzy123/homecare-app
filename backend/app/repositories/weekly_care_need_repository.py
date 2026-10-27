@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, selectinload
-from app.models.weekly_care_need import WeeklyCareNeed
+from app.models.weekly_care_need import WeeklyCareNeed, CareSlot
+from app.models.placement import CareSlotAssignment
 
 
 class WeeklyCareNeedRepository:
@@ -46,3 +47,12 @@ class WeeklyCareNeedRepository:
     def add(self, need):
         self.db.add(need)
         self.db.flush()
+
+    def assignments_for_org(self, org_id):
+        return (
+            self.db.query(CareSlotAssignment)
+            .join(CareSlot, CareSlot.id == CareSlotAssignment.care_slot_id)
+            .join(WeeklyCareNeed, WeeklyCareNeed.id == CareSlot.weekly_care_need_id)
+            .filter(WeeklyCareNeed.org_id == org_id)
+            .all()
+        )

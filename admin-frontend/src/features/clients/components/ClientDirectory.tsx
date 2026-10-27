@@ -1,19 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Plus, Search, ArrowRight } from 'lucide-react'
-import { differenceInYears, parseISO } from 'date-fns'
+import { Plus, Search } from 'lucide-react'
+import { differenceInYears, format, parseISO } from 'date-fns'
 import { Avatar, StatusDot } from '@/shared/components/ui'
-import { usePlacements } from '@/features/placements/hooks/usePlacements'
 import { fmtHours } from '@/features/weekly-care-need/utils'
 import { useClients } from '../hooks/useClients'
 import { CreateClientDrawer } from './CreateClientDrawer'
 import { ClientEmpty, ClientLoading, ClientBadge } from './ClientWorkspaceUI'
-import { weeklyHours } from '../lib/care'
 import '../client-workspace.css'
 
 export function ClientDirectory() {
   const query = useClients()
-  const placements = usePlacements()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [creating, setCreating] = useState(false)
@@ -93,11 +90,11 @@ export function ClientDirectory() {
               <tr>
                 {[
                   'Client',
+                  'Age',
                   'Location',
-                  'Weekly care need',
+                  'Weekly care',
                   'Coverage',
                   'Status',
-                  '',
                 ].map((h, i) => (
                   <th key={i}>{h}</th>
                 ))}
@@ -105,14 +102,12 @@ export function ClientDirectory() {
             </thead>
             <tbody>
               {filtered.map((c, i) => {
-                const need = c.current_care_need
-                const placement =
-                  need &&
-                  placements.data?.find(
-                    (p) => p.weekly_care_need_id === need.id,
-                  )
+                const care = c.directory_care
+                const openSlots = care && care.covered_slot_count !== null
+                  ? care.slot_count - care.covered_slot_count
+                  : null
                 return (
-                  <tr key={c.id}>
+                  <tr key={c.id} className="cw-client-row">
                     <td>
                       <div className="cw-person">
                         <Avatar
@@ -121,71 +116,63 @@ export function ClientDirectory() {
                         />
                         <div>
                           <Link
-                            className="cw-link"
+                            className="cw-client-row-link"
                             to="/dashboard/clients/$clientId"
                             params={{ clientId: c.id }}
                           >
                             {c.first_name} {c.last_name}
                           </Link>
-                          <small>
-                            {differenceInYears(
-                              new Date(),
-                              parseISO(c.date_of_birth),
-                            )}{' '}
-                            years
-                          </small>
                         </div>
                       </div>
                     </td>
+                    <td>{c.date_of_birth ? differenceInYears(new Date(), parseISO(c.date_of_birth)) : '—'}</td>
                     <td>
                       {c.city}
                       <small>{c.street}</small>
                     </td>
                     <td>
-                      {need ? (
+                      {care ? (
                         <>
-                          {fmtHours(weeklyHours(need.care_slots))}h / week
-                          <small>{need.care_slots.length} care slots</small>
+                          <span className="whitespace-nowrap">
+                            <strong>{fmtHours(care.weekly_hours)} hrs</strong>
+                            <span className="cw-muted"> · {care.slot_count} {care.slot_count === 1 ? 'slot' : 'slots'}</span>
+                          </span>
+                          {care.starts_on && (
+                            <small>
+                              {care.state === 'scheduled' ? 'Scheduled from' : 'Requested from'}{' '}
+                              {format(parseISO(care.starts_on), 'MMM d')}
+                            </small>
+                          )}
+                          {care.scheduled_change_on && (
+                            <small>Change scheduled {format(parseISO(care.scheduled_change_on), 'MMM d')}</small>
+                          )}
+                          {care.revision_pending && <small>Revision pending</small>}
                         </>
                       ) : (
-                        <span className="cw-muted">Not active yet</span>
+                        <span className="cw-muted">{care === null ? 'Not set up' : 'Unavailable'}</span>
                       )}
                     </td>
                     <td>
-                      {placements.isError ? (
+                      {care === undefined ? (
                         <span className="cw-muted">Unavailable</span>
-                      ) : placements.isPending ? (
-                        '…'
-                      ) : placement ? (
-                        <ClientBadge
-                          tone={
-                            placement.covered_count ===
-                            placement.care_slots.length
-                              ? 'mint'
-                              : 'peach'
-                          }
-                        >
-                          {placement.covered_count} /{' '}
-                          {placement.care_slots.length} covered
-                        </ClientBadge>
+                      ) : !care || care.slot_count === 0 ? (
+                        <span className="cw-muted">No care slots yet</span>
+                      ) : openSlots === null ? (
+                        <span className="cw-muted">Imported schedule</span>
                       ) : (
-                        <span className="cw-muted">
-                          {need?.imported ? 'Imported schedule' : '—'}
-                        </span>
+                        <ClientBadge
+                          tone={openSlots === 0 ? 'mint' : 'peach'}
+                        >
+                          {openSlots === 0
+                            ? `${care.slot_count}/${care.slot_count} covered`
+                            : care.covered_slot_count === 0
+                              ? 'Unassigned'
+                              : `${openSlots} ${openSlots === 1 ? 'slot' : 'slots'} open`}
+                        </ClientBadge>
                       )}
                     </td>
                     <td>
                       <StatusDot status={c.status} />
-                    </td>
-                    <td>
-                      <Link
-                        aria-label={`Open ${c.first_name} ${c.last_name}`}
-                        className="cw-icon"
-                        to="/dashboard/clients/$clientId"
-                        params={{ clientId: c.id }}
-                      >
-                        <ArrowRight size={16} />
-                      </Link>
                     </td>
                   </tr>
                 )

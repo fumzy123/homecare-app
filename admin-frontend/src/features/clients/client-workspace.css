@@ -369,6 +369,31 @@
 .cw-table .cw-link {
   font-size: 13px;
 }
+.cw-client-row {
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.cw-client-row:hover,
+.cw-client-row:focus-within {
+  background: var(--color-cream-2);
+}
+.cw-client-row-link {
+  color: inherit;
+  text-decoration: none;
+}
+.cw-client-row-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.cw-client-row-link:focus-visible {
+  outline: none;
+}
+.cw-client-row-link:focus-visible::after {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+}
 .cw-summary {
   display: flex;
   align-items: center;
