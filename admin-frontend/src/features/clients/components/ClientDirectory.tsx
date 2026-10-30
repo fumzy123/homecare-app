@@ -31,7 +31,7 @@ export function ClientDirectory() {
         <div>
           <p className="cw-label mb-4">03 / Client workspace</p>
           <h1>
-            Clients & <em className="text-muted">care needs.</em>
+            Clients & <em className="text-muted">weekly care requests.</em>
           </h1>
         </div>
         <button

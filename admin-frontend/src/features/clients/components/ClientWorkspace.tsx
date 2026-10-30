@@ -12,7 +12,7 @@ import '../client-workspace.css'
 const tabs = [
   ['Overview', '/dashboard/clients/$clientId'],
   ['Visits & metrics', '/dashboard/clients/$clientId/visits'],
-  ['Weekly care need', '/dashboard/clients/$clientId/care-need'],
+  ['Weekly care request', '/dashboard/clients/$clientId/care-need'],
   ['Progress notes', '/dashboard/clients/$clientId/notes'],
 ] as const
 

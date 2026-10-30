@@ -7,7 +7,7 @@ from app.core.enums import PlacementStatus
 
 class PlacementCreateSchema(BaseModel):
     weekly_care_need_id: UUID
-    # The address and weekly care need shown on a placement are snapshotted from
+    # The address and weekly care request shown on a placement are snapshotted from
     # the client at post time (see PlacementService.create_placement) — the admin
     # chooses the client, when care starts, and optional requirements.
     client_id:    UUID

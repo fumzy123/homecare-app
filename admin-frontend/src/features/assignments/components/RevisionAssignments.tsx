@@ -55,7 +55,7 @@ export function RevisionAssignments({ revision, revisions, rows, today, onManage
       <strong>{day} · {assignmentDate(row.starts_on)}</strong><br />
       {previous ? `${previous.worker_name} → ${row.worker_name}. Previous coverage ends ${assignmentDate(assignmentEnd(previous, revision)!)}.` : `${row.worker_name} starts coverage.`} Same care slot and hours.
     </p>)}</div>}
-    {view.successor && <p className="aw-transition">This revision {view.historical ? 'ended' : 'ends'} {assignmentDate(revision.ends_on!)}. Approved revision {view.successor.version} {view.successor.scheduled_from! > today ? 'starts' : 'started'} {assignmentDate(view.successor.scheduled_from!)}. Select it in Weekly care need history to see its workers.</p>}
+    {view.successor && <p className="aw-transition">This revision {view.historical ? 'ended' : 'ends'} {assignmentDate(revision.ends_on!)}. Approved revision {view.successor.version} {view.successor.scheduled_from! > today ? 'starts' : 'started'} {assignmentDate(view.successor.scheduled_from!)}. Choose it in Viewing revision above to see its workers.</p>}
     <details className="aw-history">
       <summary>Assignment history for this revision <span>({view.assignments.length})</span></summary>
       {view.assignments.length ? <ol>{[...view.assignments].reverse().map(row => {

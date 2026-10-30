@@ -85,19 +85,19 @@ class ShiftService:
             if stop and (start.date() >= stop or (recurring and (end_date is None or end_date >= stop))):
                 raise AppError(409, 'ASSIGNMENT_ENDED', 'This assignment ends before that visit; approve new coverage in Care requests')
             if recurring and end_date and (shift.recurrence_end_date is None or end_date < shift.recurrence_end_date):
-                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care need to end recurring care slots')
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care request to end recurring care slots')
         need_id = getattr(shift, 'weekly_care_need_id', None)
         if not need_id:
             return
         need = self.care_need_repo.get(need_id, self.org_id)
         if not need:
-            raise AppError(409, 'CARE_NEED_NOT_FOUND', 'The source Weekly Care Need could not be found')
+            raise AppError(409, 'CARE_NEED_NOT_FOUND', 'The source Weekly care request could not be found')
         if client_id and str(client_id) != str(need.client_id):
             raise AppError(409, 'CARE_NEED_CLIENT_MISMATCH', 'Create a separate shift for a different client')
         if need.scheduled_from and start.date() < need.scheduled_from:
-            raise AppError(409, 'CARE_NEED_NOT_STARTED', 'This shift cannot start before its approved Weekly Care Need')
+            raise AppError(409, 'CARE_NEED_NOT_STARTED', 'This shift cannot start before its approved Weekly care request')
         if need.ends_on and (start.date() > need.ends_on or (recurring and (end_date is None or end_date > need.ends_on))):
-            raise AppError(409, 'CARE_NEED_ENDED', 'This Weekly Care Need has ended; schedule against the replacement version')
+            raise AppError(409, 'CARE_NEED_ENDED', 'This Weekly care request has ended; schedule against the replacement version')
 
     def _validate_shift_participants(self, client_id, worker_id):
         """Resolve shift participants within the authenticated organization.
@@ -644,7 +644,7 @@ class ShiftService:
             self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
             if getattr(shift, 'assignment_id', None):
-                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care need to end recurring care slots and preserve their history')
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care request to end recurring care slots and preserve their history')
             self.evidence_service.preserve(shift)
 
             self._worker_notifications().schedule('shift_cancelled', shift.worker_id, shift.id)
@@ -796,7 +796,7 @@ class ShiftService:
             self.shift_repo.lock_shift(shift_id, self.org_id)
             shift = self._get_active_shift(shift_id)
             if getattr(shift, 'assignment_id', None):
-                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care need to end recurring care slots and request replacement coverage')
+                raise AppError(409, 'MANAGE_ASSIGNMENT_REQUIRED', 'Use Manage assignment on the worker profile or client Weekly care request to end recurring care slots and request replacement coverage')
             self.evidence_service.preserve(shift)
             occurrence_date = payload.occurrence_date
             self._worker_notifications().schedule('shift_cancelled', shift.worker_id, shift.id, occurrence_date)

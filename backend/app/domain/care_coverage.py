@@ -27,11 +27,11 @@ def end_previous_coverage(shifts, starts_on):
             if actual_start >= boundary:
                 mod.completion_status = ShiftCompletionStatus.cancelled
                 mod.cancelled_at = datetime.now(timezone.utc)
-                mod.cancellation_reason = "Replaced by a new Weekly Care Need"
+                mod.cancellation_reason = "Replaced by a new Weekly care request"
         if shift.is_recurring:
             end = starts_on - timedelta(days=1)
             if shift.recurrence_end_date is None or shift.recurrence_end_date > end:
                 shift.recurrence_end_date = end
         elif shift.start_time >= boundary:
             shift.status = ShiftStatus.cancelled
-            shift.cancellation_reason = "Replaced by a new Weekly Care Need"
+            shift.cancellation_reason = "Replaced by a new Weekly care request"

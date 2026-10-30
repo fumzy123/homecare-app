@@ -69,7 +69,7 @@ export function WeeklyCareBoard({ slots, onChange, disabled = false }: {
       <p className="cw-muted mb-4" id="care-board-help">
         Add a slot to any day. Click a slot to edit, or drag it to another day.
       </p>
-      <div className="cw-week-scroll" role="region" aria-label="Editable weekly care need" tabIndex={0}>
+      <div className="cw-week-scroll" role="region" aria-label="Editable weekly care request" tabIndex={0}>
         <div className="cw-week care-board-week" aria-describedby="care-board-help">
           {WEEKDAYS.map(day => {
             const daySlots = slots.filter(slot => slot.day_of_week === day.key)

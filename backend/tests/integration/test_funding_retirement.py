@@ -41,22 +41,27 @@ def test_cleanup_removes_funding_without_extending_visits_or_losing_notes():
             with Session(bind=connection, join_transaction_mode='create_savepoint') as db:
                 org = Organization(name='Fictional retirement test', owner_id=uuid4())
                 person = Person(first_name='Sample', last_name='Worker', email=f'{uuid4()}@example.invalid')
-                db.add_all([org, person]); db.flush()
+                db.add_all([org, person])
+                db.flush()
                 worker = Employment(org_id=org.id, person_id=person.id, role='home_support_worker')
                 client = Client(org_id=org.id, first_name='Sample', last_name='Client', date_of_birth=date(1940, 1, 1),
                     street='1 Example', city='Example', province='NL', postal_code='A1A1A1',
                     emergency_contact_name='Family', emergency_contact_phone='555', emergency_contact_relationship='Family',
                     special_instructions='Keep care instructions', notes='Keep agency notes')
-                db.add_all([worker, client]); db.flush()
+                db.add_all([worker, client])
+                db.flush()
                 shift = Shift(org_id=org.id, client_id=client.id, worker_id=worker.id, created_by=worker.id,
                     start_time=datetime(2026, 10, 1, 9), end_time=datetime(2026, 10, 1, 11),
                     is_recurring=True, recurrence_rule='FREQ=WEEKLY;BYDAY=TH', recurrence_end_date=date(2026, 11, 1), notes='Keep shift notes')
-                db.add(shift); db.flush()
+                db.add(shift)
+                db.flush()
                 note = ProgressNote(shift_id=shift.id, occurrence_date=date(2026, 10, 1), entries=[{'time': '11:00', 'content': 'Keep progress note'}])
                 event = ActivityEvent(org_id=org.id, actor_id=worker.id, situation_key='authorization:sample', category='authorizations', title='Retired funding event')
                 retained = ActivityEvent(org_id=org.id, actor_id=worker.id, situation_key='visit:sample', category='documentation', title='Keep visit event')
-                db.add_all([note, event, retained]); db.flush()
-                db.add(ActivityRead(event_id=event.id, member_id=worker.id)); db.flush()
+                db.add_all([note, event, retained])
+                db.flush()
+                db.add(ActivityRead(event_id=event.id, member_id=worker.id))
+                db.flush()
                 auth = uuid4()
                 db.execute(text("INSERT INTO authorizations VALUES (:id, :client, 'bi_weekly')"), {'id': auth, 'client': client.id})
                 db.execute(text('INSERT INTO authorization_services VALUES (:id, :auth)'), {'id': uuid4(), 'auth': auth})
@@ -65,7 +70,8 @@ def test_cleanup_removes_funding_without_extending_visits_or_losing_notes():
                 before = (shift.start_time, shift.end_time, shift.recurrence_end_date, shift.recurrence_rule, shift.notes)
                 module_path = Path(__file__).parents[2] / 'alembic/versions/c8a1a667710e_retire_client_funding_authorizations.py'
                 spec = importlib.util.spec_from_file_location('retire_funding', module_path)
-                migration = importlib.util.module_from_spec(spec); spec.loader.exec_module(migration)
+                migration = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(migration)
                 with Operations.context(MigrationContext.configure(connection)):
                     migration.upgrade()
                 db.expire_all()

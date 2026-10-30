@@ -139,7 +139,7 @@ class ClientResponse(BaseModel):
     status: ClientStatus
     notes: Optional[str]
 
-    # Derived from weekly care needs (not stored on the client)
+    # Derived from weekly care requests (not stored on the client)
 
     # Metadata
     created_at: Optional[datetime]

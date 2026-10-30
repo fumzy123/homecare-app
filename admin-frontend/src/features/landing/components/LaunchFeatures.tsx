@@ -26,7 +26,7 @@ export function LaunchFeatures() {
               <li>Shift Scheduling</li>
               <li>
                 Client profile management{' '}
-                <span>(Authorizations, Weekly Care Need, Progress Notes)</span>
+                <span>(Authorizations, Weekly care request, Progress Notes)</span>
               </li>
               <li>
                 Worker profile management{' '}

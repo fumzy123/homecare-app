@@ -22,7 +22,7 @@ export function PlacementDetail({ placementId }: { placementId: string }) {
   const busy = express.isPending || withdraw.isPending;
   function toggle(id: string) { setSelected(prev => prev.includes(id) ? prev.filter(value => value !== id) : [...prev, id]); }
   return <ScrollView className="flex-1 bg-cream" contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-    <Text className="font-mono text-xs uppercase text-muted">Weekly Care Need</Text>
+    <Text className="font-mono text-xs uppercase text-muted">Weekly care request</Text>
     <Text accessibilityRole="header" className="mt-3 font-serif text-3xl text-ink">{p.client_first_name} {p.client_last_name}</Text>
     <Text className="mt-3 text-sm text-ink">{p.masked_location}</Text>
     <Text className="mt-2 font-mono text-xs text-ink-soft">Starts {p.scheduled_from ?? p.start_date} · {p.status === 'filled' ? 'Fully covered' : p.status}</Text>

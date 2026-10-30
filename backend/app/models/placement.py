@@ -22,7 +22,7 @@ class Placement(Base):
     # When the placement's care begins — advertised to workers and the base for
     # shift generation on fill. Nullable for placements posted before this field.
     start_date        = Column(Date, nullable=True)
-    # Structured weekly care need frozen at post time — the schedule that gets
+    # Structured weekly care request frozen at post time — the schedule that gets
     # generated on fill. List of {day_of_week, start_time, end_time}.
     care_slot_snapshot = Column(JSONB, nullable=True)
     status            = Column(Enum(PlacementStatus), nullable=False, default=PlacementStatus.open)

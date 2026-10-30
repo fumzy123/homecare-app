@@ -176,10 +176,10 @@ export function PostPlacementDrawer({
             </label>
             {clientId &&
               (loading ? (
-                <p role="status">Loading saved care need…</p>
+                <p role="status">Loading saved weekly care request…</p>
               ) : failed ? (
                 <p role="alert">
-                  Could not load the client’s care need.{' '}
+                  Could not load the client’s weekly care request.{' '}
                   <button
                     className="cr-link"
                     onClick={() => {
@@ -193,7 +193,7 @@ export function PostPlacementDrawer({
               ) : latest && slots.length ? (
                 <section className="cr-posting">
                   <div className="cr-between">
-                    <h3>Weekly care need</h3>
+                    <h3>Weekly care request</h3>
                     <span className="cr-badge">Revision {latest.version}</span>
                   </div>
                   <p className="cr-muted mt-3">{address}</p>
@@ -212,13 +212,13 @@ export function PostPlacementDrawer({
                 </section>
               ) : (
                 <p>
-                  Save a Weekly Care Need before posting.{' '}
+                  Save a weekly care request before posting.{' '}
                   <Link
                     className="cr-link"
                     to="/dashboard/clients/$clientId/care-need"
                     params={{ clientId }}
                   >
-                    Open weekly care need
+                    Open weekly care request
                   </Link>
                 </p>
               ))}
@@ -244,7 +244,7 @@ export function PostPlacementDrawer({
             </label>
             {latest?.imported && (
               <p>
-                Save a new Weekly Care Need revision before posting replacement
+                Save a new weekly care request revision before posting replacement
                 coverage.
               </p>
             )}

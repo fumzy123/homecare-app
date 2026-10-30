@@ -93,7 +93,7 @@ class WeeklyCareNeedService:
                     )
             from app.repositories.activity_repository import ActivityRepository
             ActivityRepository(self.db).record(self.org_id, self.member.id, f'care:{need.id}', 'coverage',
-                f'Saved care need revision {need.version}', f'{client.first_name} {client.last_name}',
+                f'Saved weekly care request revision {need.version}', f'{client.first_name} {client.last_name}',
                 {'kind': 'care_need', 'record_id': str(client_id), 'detail_id': str(need.id)})
             self.db.commit()
             return need

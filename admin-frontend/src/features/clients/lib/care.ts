@@ -42,7 +42,7 @@ export function careState(
 export function validateSlots(slots: CareSlotInput[]) {
   if (!slots.length) return 'Add a care slot and select at least one day.'
   if (slots.length > 100)
-    return 'A weekly care need can contain up to 100 care slots.'
+    return 'A weekly care request can contain up to 100 care slots.'
   for (const [i, slot] of slots.entries()) {
     if (!slot.start_time || !slot.end_time || slot.end_time <= slot.start_time)
       return 'Each care slot needs an end time after its start time.'

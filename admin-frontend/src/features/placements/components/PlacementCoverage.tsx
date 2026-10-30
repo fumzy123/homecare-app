@@ -209,7 +209,7 @@ export function PlacementCoverage({
                       returnDraft.remember({ selected, startsOn: effectiveDate, tab })
                   }}
                 >
-                  Open weekly care need <ArrowRight size={16} />
+                  Open weekly care request <ArrowRight size={16} />
                 </Link>
               )}
               {p.status === 'open' && (
@@ -246,7 +246,7 @@ export function PlacementCoverage({
                 to="/dashboard/clients/$clientId/care-need"
                 params={{ clientId: p.client_id }}
               >
-                Post the client’s Weekly Care Need
+                Post the client’s weekly care request
               </Link>{' '}
               to use individual approvals.
             </p>

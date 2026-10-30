@@ -6,7 +6,7 @@ from app.core.security import require_admin
 from app.services.weekly_care_need_service import WeeklyCareNeedService
 from app.schemas.weekly_care_need import WeeklyCareNeedCreate, WeeklyCareNeedResponse
 
-router = APIRouter(tags=["Weekly Care Need"])
+router = APIRouter(tags=["Weekly care request"])
 
 
 def get_weekly_care_need_service(

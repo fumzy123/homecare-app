@@ -509,11 +509,10 @@ button.cw-slot:hover {
   gap: 12px;
   flex-wrap: wrap;
 }
-.cw-history {
-  margin-top: 32px;
-}
-.cw-history h3 {
-  margin-bottom: 20px;
+.cw-revision-picker {
+  width: min(100%, 360px);
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
 }
 .cw-notes-filters {
   display: flex;

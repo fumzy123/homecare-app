@@ -107,9 +107,33 @@ export function WeeklyCareNeedEditor({
     )
   return (
     <div>
-      <header className="mb-7">
-        <p className="cw-label mb-2">Recurring care</p>
-        <h2>Weekly care need</h2>
+      <header className="cw-between mb-7">
+        <div>
+          <p className="cw-label mb-2">Recurring care</p>
+          <h2>Weekly care request</h2>
+        </div>
+        {selected && (
+          <label className="cw-field cw-revision-picker">
+            Viewing revision
+            <select
+              className="cw-input"
+              value={selected.id}
+              disabled={editing || posting || save.isPending}
+              onChange={(event) => setSelectedId(event.target.value)}
+            >
+              {needs.data?.map((need) => (
+                <option key={need.id} value={need.id}>
+                  Revision {need.version} · {careState(
+                    need,
+                    today,
+                    placements.data?.some((p) => p.weekly_care_need_id === need.id),
+                    need.id === latest?.id,
+                  )}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </header>
       {attentionNeedId &&
         !needs.data?.some((n) => n.id === attentionNeedId) && (
@@ -118,7 +142,7 @@ export function WeeklyCareNeedEditor({
             latest record.
           </p>
         )}
-      <section className="cw-panel" aria-label="Weekly care need workspace">
+      <section className="cw-panel" aria-label="Weekly care request workspace">
         <header className="cw-panel-heading">
           <div className="cw-row">
             <h3>
@@ -126,7 +150,7 @@ export function WeeklyCareNeedEditor({
                 ? 'New revision'
                 : selected
                   ? `Revision ${selected.version}`
-                  : 'Weekly care need'}
+                  : 'Weekly care request'}
             </h3>
             {!editing && selected && (
               <ClientBadge
@@ -145,7 +169,7 @@ export function WeeklyCareNeedEditor({
           {!editing && (
             <button className="cw-btn" onClick={createRevision}>
               <Plus size={15} />
-              {selected ? 'Create new revision' : 'Create weekly care need'}
+              {selected ? 'Create new revision' : 'Create weekly care request'}
             </button>
           )}
         </header>
@@ -185,10 +209,17 @@ export function WeeklyCareNeedEditor({
                     ? 'Scheduled from'
                     : 'Proposed start'}
                 </dt>
-                <dd>{format(parseISO(checkDate), 'MMM d, yyyy')}</dd>
+                <dd>
+                  {format(parseISO(checkDate), 'MMM d, yyyy')}
+                  {selected.ends_on && (
+                    <p className="cw-muted mt-1">
+                      Ends {format(parseISO(selected.ends_on), 'MMM d, yyyy')}
+                    </p>
+                  )}
+                </dd>
               </div>
               <div>
-                <dt className="cw-label">Weekly care need</dt>
+                <dt className="cw-label">Weekly care request</dt>
                 <dd>
                   {fmtHours(weeklyHours(slots))} hours ·{' '}
                   <span className="cw-muted">{slots.length} care slots</span>
@@ -202,6 +233,9 @@ export function WeeklyCareNeedEditor({
                     : selected.scheduled_from
                       ? 'Coverage approved'
                       : 'Not scheduled'}
+                </dd>
+                <dd className="cw-muted mt-1">
+                  Saved {format(parseISO(selected.created_at), 'MMM d, yyyy')}
                 </dd>
               </div>
             </dl>
@@ -325,88 +359,6 @@ export function WeeklyCareNeedEditor({
         )}
       </section>
       {selected && <AssignmentsPanel key={selected.id} clientId={clientId} revision={selected} revisions={needs.data || []} />}
-      <section className="cw-history">
-        <div className="cw-between mb-5">
-          <h3>Weekly care need history</h3>
-          <span className="cw-muted">{needs.data?.length || 0} revisions</span>
-        </div>
-        {needs.data?.length ? (
-          <div className="cw-table-scroll">
-            <table className="cw-table">
-              <thead>
-                <tr>
-                  {['Revision', 'Starts', 'Weekly care', 'Status', ''].map(
-                    (h, i) => (
-                      <th key={i}>{h}</th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {needs.data.map((need) => (
-                  <tr key={need.id}>
-                    <td>
-                      Revision {need.version}
-                      <small>
-                        Saved {format(parseISO(need.created_at), 'MMM d, yyyy')}
-                      </small>
-                    </td>
-                    <td>
-                      {format(
-                        parseISO(need.scheduled_from || need.effective_from),
-                        'MMM d, yyyy',
-                      )}
-                      {need.ends_on && (
-                        <small>
-                          Ends {format(parseISO(need.ends_on), 'MMM d, yyyy')}
-                        </small>
-                      )}
-                    </td>
-                    <td>
-                      {fmtHours(weeklyHours(need.care_slots))}h ·{' '}
-                      {need.care_slots.length} slots
-                    </td>
-                    <td>
-                      <ClientBadge>
-                        {careState(
-                          need,
-                          today,
-                          placements.data?.some(
-                            (p) => p.weekly_care_need_id === need.id,
-                          ),
-                          need.id === latest?.id,
-                        )}
-                      </ClientBadge>
-                    </td>
-                    <td>
-                      <button
-                        className="cw-link"
-                        aria-label={`View revision ${need.version}`}
-                        disabled={editing}
-                        onClick={() => {
-                          setSelectedId(need.id)
-                          document
-                            .querySelector(
-                              '[aria-label="Weekly care need workspace"]',
-                            )
-                            ?.scrollIntoView({
-                              block: 'start',
-                              behavior: 'smooth',
-                            })
-                        }}
-                      >
-                        View <ArrowRight size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="cw-muted">Saved revisions will appear here.</p>
-        )}
-      </section>
       {posting && client.data && (
         <PostPlacementDrawer
           clients={[client.data]}

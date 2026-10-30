@@ -22,7 +22,7 @@ def coverage_item(need, client, placement, covered, today, endings=None):
     due = min(dates)
     overdue = due <= today
     if not placement or placement.status.value == 'closed':
-        stage, detail = 'post_placement', 'Weekly Care Need ready to post'
+        stage, detail = 'post_placement', 'Weekly care request ready to post'
     elif pending:
         stage, detail = 'review_interest', f'{pending} interested workers · {len(remaining)} open Care Slots'
     elif overdue or covered:

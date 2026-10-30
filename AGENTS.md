@@ -418,9 +418,9 @@ lookback window, skip already-finalized rows) — see `app/jobs/shift_completion
 
 ---
 
-## The Care Chain — Weekly Care Need → Scheduled Care
+## The Care Chain — Weekly Care Request → Scheduled Care
 
-A **Weekly Care Need** is the client's recurring demand;
+A **Weekly Care Request** is the client's recurring demand;
 a **Care Slot** is one weekday and time interval within a version of that need.
 Worker availability is capacity, and approved shifts are scheduled delivery.
 
@@ -440,7 +440,7 @@ Use these names throughout the stack:
 | Concept | Model / frontend | Table | API |
 |---|---|---|---|
 | Versioned weekly demand | `WeeklyCareNeed` | `weekly_care_needs` | `/clients/{id}/care-need` |
-| Individual recurring requirement | `CareSlot` | `care_slots` | Nested in the Weekly Care Need |
+| Individual recurring requirement | `CareSlot` | `care_slots` | Nested in the Weekly Care Request |
 | Approved slot coverage | `CareSlotAssignment` | `care_slot_assignments` | `/placements/{id}/approve` |
 | Worker availability | `WorkerAvailabilityEntry` | `worker_availability_entries` | `/org-members/{id}/availability` |
 | Scheduled visit series | `Shift` | `shifts` | `/shifts` |
@@ -649,6 +649,27 @@ migration is needed. Tests: backend `tests/services/test_client_directory.py`,
 frontend `tests/client-directory.test.jsx` and `tests/client-directory.browser.cjs`.
 The browser test uses isolated dummy API/auth configuration on port 5196 and accepts
 `CLIENT_DIRECTORY_SCREENSHOT_DIR` and `PLAYWRIGHT_MODULE`. Hosted rollout is pending.
+
+### Weekly care request terminology and revision picker (2026-10-27)
+
+The user-facing name is **Weekly care request** (formerly Weekly care need).
+Admin screens, public previews, worker request details and new backend messages
+use this terminology. `CareSlot` remains the name for one recurring weekday/time
+interval. Existing model, database, API, route and query-key identifiers retain
+`WeeklyCareNeed` / `care-need` for compatibility; no migration is required.
+
+The client tab's **Viewing revision** dropdown replaces the separate revision
+history table. It lists every saved revision with its existing status, preserves
+explicit revision deep links and the latest-revision default, and updates the
+care board, posting actions and assigned workers together. It is disabled during
+editing/saving or posting. The selected revision still shows its saved/start/end
+dates, and assignment history remains expandable. The Care requests sidebar and
+posting/approval navigation are unchanged; the proposed Coverage consolidation
+has not been implemented.
+
+Validation: `tests/assigned-workers.browser.cjs`, `tests/care-requests.browser.cjs`
+and `tests/client-setup.browser.cjs` cover selection, deep links, draft protection,
+save/post handoffs and responsive layout using isolated fictional records.
 
 ### Client workspace (2026-10-01)
 

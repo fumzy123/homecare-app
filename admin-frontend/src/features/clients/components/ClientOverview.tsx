@@ -70,7 +70,7 @@ export function ClientOverview({ clientId }: { clientId: string }) {
     ...(needs.data || []).map((n) => ({
       id: n.id,
       date: n.created_at,
-      title: `Weekly care need revision ${n.version} saved`,
+      title: `Weekly care request revision ${n.version} saved`,
     })),
     {
       id: 'profile',
@@ -93,7 +93,7 @@ export function ClientOverview({ clientId }: { clientId: string }) {
               <div className="cw-attention-item">
                 <FileText size={19} />
                 <div>
-                  <p>A proposed care need is ready to review</p>
+                  <p>A proposed weekly care request is ready to review</p>
                   <p className="cw-muted mt-1">
                     Revision {proposed.version} · Proposed{' '}
                     {format(parseISO(proposed.effective_from), 'MMM d')}
@@ -137,14 +137,14 @@ export function ClientOverview({ clientId }: { clientId: string }) {
           </ClientPanel>
         )}
         <ClientPanel
-          title="Weekly care need"
+          title="Weekly care request"
           action={
             <Link
               className="cw-link"
               to="/dashboard/clients/$clientId/care-need"
               params={{ clientId }}
             >
-              Care need <ArrowRight size={15} />
+              View request <ArrowRight size={15} />
             </Link>
           }
         >
@@ -225,7 +225,7 @@ export function ClientOverview({ clientId }: { clientId: string }) {
                   )}
                 </>
               ) : (
-                <p className="cw-muted">No current weekly care need.</p>
+                <p className="cw-muted">No current weekly care request.</p>
               )}
             </div>
           )}

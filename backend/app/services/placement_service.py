@@ -102,22 +102,22 @@ class PlacementService:
     def _create_placement(
         self, payload: PlacementCreateSchema
     ) -> PlacementDetailResponse:
-        # The address and weekly care need are snapshotted from the client now,
+        # The address and weekly care request are snapshotted from the client now,
         # so the opportunity a worker sees stays exactly what was advertised even
         # if the client's plan or address later changes.
         OrganizationRepository(self.db).lock_by_id(self.org_id)
         need = self.care_need_repo.get(payload.weekly_care_need_id, self.org_id)
         if not need or need.client_id != payload.client_id:
-            raise AppError(404, "NOT_FOUND", "Weekly Care Need not found")
+            raise AppError(404, "NOT_FOUND", "Weekly care request not found")
         if self.care_need_repo.latest(payload.client_id).id != need.id:
             raise AppError(
-                409, "SUPERSEDED_CARE_NEED", "Post the latest Weekly Care Need"
+                409, "SUPERSEDED_CARE_NEED", "Post the latest Weekly care request"
             )
         if need.imported:
             raise AppError(
                 409,
                 "IMPORTED_CARE_NEED",
-                "Save a new Weekly Care Need version before posting; existing coverage is preserved until approval",
+                "Save a new Weekly care request version before posting; existing coverage is preserved until approval",
             )
         existing = self.placement_repo.for_care_need(need.id)
         if existing:
@@ -209,10 +209,10 @@ class PlacementService:
         }
 
     def _format_care_need(self, entries) -> str:
-        """Render the client's weekly care need as a frozen text block, e.g.
+        """Render the client's weekly care request as a frozen text block, e.g.
         "Mon · 9am–7pm"."""
         if not entries:
-            return "No weekly care need has been set for this client yet."
+            return "No weekly care request has been set for this client yet."
         ordered = sorted(
             entries,
             key=lambda e: (_WEEKDAY_ORDER.get(e.day_of_week, 99), e.start_time),
@@ -289,7 +289,7 @@ class PlacementService:
             raise AppError(
                 400,
                 "NO_CARE_NEED",
-                "This placement has no weekly care need to schedule",
+                "This placement has no weekly care request to schedule",
             )
         for index, entry in enumerate(entries):
             if entry.end_time <= entry.start_time or any(
@@ -301,7 +301,7 @@ class PlacementService:
                 raise AppError(
                     409,
                     "INVALID_CARE_NEED",
-                    "The saved care need contains invalid or overlapping times; close and repost it with a corrected plan",
+                    "The saved weekly care request contains invalid or overlapping times; close and repost it with a corrected plan",
                 )
         today = date.today()
         start = self._effective_start(placement, today)
@@ -393,7 +393,7 @@ class PlacementService:
                 raise AppError(
                     409,
                     "LEGACY_PLACEMENT",
-                    "Ask the agency to repost this Weekly Care Need",
+                    "Ask the agency to repost this Weekly care request",
                 )
             need = placement.weekly_care_need
             if need.ends_on or (
@@ -403,7 +403,7 @@ class PlacementService:
                 raise AppError(
                     409,
                     "SUPERSEDED_CARE_NEED",
-                    "This Weekly Care Need has been replaced",
+                    "This Weekly care request has been replaced",
                 )
             selected = {str(slot) for slot in care_slot_ids}
             available = {
@@ -535,7 +535,7 @@ class PlacementService:
                     _WEEKDAY_LABELS[e.day_of_week] for e in match.uncovered
                 )
                 reasons.append(
-                    f"Availability is set but doesn't cover the care need ({days})"
+                    f"Availability is set but doesn't cover the weekly care request ({days})"
                 )
         if not no_conflicts:
             c = conflicts[0]
@@ -743,14 +743,14 @@ class PlacementService:
             raise AppError(
                 409,
                 "LEGACY_PLACEMENT",
-                "Repost the Weekly Care Need to approve individual Care Slots",
+                "Repost the Weekly care request to approve individual Care Slots",
             )
         if need.ends_on or (
             not need.activated_at
             and self.care_need_repo.latest(need.client_id).id != need.id
         ):
             raise AppError(
-                409, "SUPERSEDED_CARE_NEED", "Review the latest Weekly Care Need"
+                409, "SUPERSEDED_CARE_NEED", "Review the latest Weekly care request"
             )
         now = datetime.now(
             ZoneInfo(org.billing_timezone or "America/St_Johns")

@@ -691,8 +691,8 @@ export function CreateShiftDrawer({
               className={`text-[13px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}
             >
               {matchedPlanEntry
-                ? "✓ This shift matches the client's weekly care need."
-                : "⚠ This shift you are about to create falls outside the client's weekly care need — you can still schedule it if you want."}
+                ? "✓ This shift matches the client's weekly care request."
+                : "⚠ This shift you are about to create falls outside the client's weekly care request — you can still schedule it if you want."}
             </p>
           )}
 

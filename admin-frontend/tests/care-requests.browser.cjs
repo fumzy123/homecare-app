@@ -345,18 +345,21 @@ async function run() {
     // The explicit revision round trip retains draft coverage, targets the posted
     // revision even when a newer one exists, and never silently saves/approves.
     await page.getByLabel('Coverage starts', { exact: true }).fill('2026-11-02')
-    await page.getByRole('link', { name: 'Open weekly care need', exact: true }).click()
+    await page.getByRole('link', { name: 'Open weekly care request', exact: true }).click()
     await page.getByRole('heading', { name: 'Revision 4', exact: true }).waitFor()
     assert.match(page.url(), /need=00000000-0000-4000-8000-000000000004/)
     await page.getByRole('link', { name: 'View posted care request', exact: true }).waitFor()
     await page.getByRole('button', { name: 'Create new revision', exact: true }).click()
+    assert.equal(await page.getByRole('combobox', { name: 'Viewing revision', exact: true }).isDisabled(), true, 'Cannot switch revisions while editing')
     page.once('dialog', (dialog) => dialog.dismiss())
     await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('link', { name: 'Clients', exact: true }).click()
     await page.getByRole('heading', { name: 'New revision', exact: true }).waitFor()
     await page.getByRole('button', { name: 'Cancel', exact: true }).click()
-    await page.getByRole('button', { name: 'View revision 5', exact: true }).click()
+    const revision = page.getByRole('combobox', { name: 'Viewing revision', exact: true })
+    assert.equal(await revision.isEnabled(), true)
+    await revision.selectOption(id(41))
     await page.getByRole('heading', { name: 'Revision 5', exact: true }).waitFor()
-    await page.getByRole('button', { name: 'View revision 4', exact: true }).click()
+    await revision.selectOption(needId)
     await page.getByRole('link', { name: 'View posted care request', exact: true }).click()
     await select().first().waitFor()
     assert.equal(await select().first().inputValue(), id(70))
@@ -533,7 +536,7 @@ async function run() {
     await page
       .getByRole('combobox', { name: 'Client', exact: true })
       .selectOption(clientId)
-    await page.getByRole('link', { name: 'Open weekly care need' }).waitFor()
+    await page.getByRole('link', { name: 'Open weekly care request' }).waitFor()
     assert.equal(
       await page
         .getByRole('button', { name: 'Review posting', exact: true })

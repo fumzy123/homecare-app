@@ -1,7 +1,7 @@
 # Client workspace checks
 
 The app routes are under `/dashboard/clients`; the client index is Overview.
-Funding is retired. Client intake continues directly to Weekly care need.
+Funding is retired. Client intake continues directly to Weekly care request.
 
 Run `node --experimental-strip-types --test tests/client-care.test.mjs` for the
 care/visit calculations, and the normal TypeScript, ESLint and production build.
