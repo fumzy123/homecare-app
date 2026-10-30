@@ -518,9 +518,17 @@ async function run() {
       name: 'Review care request',
       exact: true,
     })
+    // Clicking starts an asynchronous mutation. Wait for its response before
+    // inspecting the intercepted payload or navigating away (especially in CI).
+    const posted = page.waitForResponse(response =>
+      new URL(response.url()).pathname === '/api/placements'
+      && response.request().method() === 'POST',
+    )
     await dialog
       .getByRole('button', { name: 'Post care request', exact: true })
       .click()
+    assert.equal((await posted).ok(), true)
+    await dialog.waitFor({ state: 'hidden' })
     assert.equal(posts.length, 1)
     assert.equal(posts[0].weekly_care_need_id, id(41))
     assert.match(
