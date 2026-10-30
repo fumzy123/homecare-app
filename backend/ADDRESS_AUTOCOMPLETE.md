@@ -27,6 +27,18 @@ environment configuration. Hosted staging/production need their own backend
 environment variables and preferably separate provider keys. No frontend key,
 dependency, database migration or third-party widget is needed.
 
+### Hosted deployment verification
+
+Railway staging waits for GitHub checks before deploying and watches `/backend/**`.
+A failed check can leave the previous backend serving traffic even when Vercel has
+published the newer frontend. Inspect Railway's actual deployment status and commit;
+a GitHub status reported as successful does not prove a skipped deployment went live.
+After fixing a blocked release, ensure the latest staging commit is deployed, then
+check that `/openapi.json` includes `POST /api/addresses/autocomplete`. An anonymous
+request should be rejected by authentication, not return a missing-route 404.
+Finally, test suggestions while signed in; presence of the route alone does not
+verify the provider key or field population.
+
 - An absent key, timeout, provider failure, quota limit or empty result leaves
   manual address entry usable and never blocks client saving.
 - The service has an eight-second HTTP timeout and ten-second total lookup limit.
