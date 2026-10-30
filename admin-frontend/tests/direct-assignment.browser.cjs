@@ -146,7 +146,14 @@ async function run() {
       'Phone arrangement must be confirmed',
     )
     await arranged().check()
-    await page.getByText(/already scheduled \+/).waitFor()
+    const checks = page.getByRole('region', { name: /^Scheduling checks for/ })
+    await checks.getByText('Checks passed', { exact: true }).waitFor()
+    await checks.getByText(/within their maximum of 40 hours per week/).waitFor()
+    await checks.getByText('View first-week hours', { exact: true }).click()
+    await checks.getByText('Already scheduled across clients', { exact: true }).waitFor()
+    await checks.getByText('Added by this approval', { exact: true }).waitFor()
+    await checks.getByText('Total after approval', { exact: true }).waitFor()
+    assert.match(await checks.locator('.cr-hours-totals').innerText(), /\+ 4h/)
     assert.equal(await approve().isEnabled(), true)
     await approve().click()
     await page
