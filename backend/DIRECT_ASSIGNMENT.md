@@ -8,13 +8,13 @@ Open **Client → Weekly care need → Review coverage**, or an open **Care requ
 
 The review shows the selected workers, availability, conflicts, hours checks, hours for the first affected week, previous coverage that ends and uncovered slots. For workers without interest, confirm **I have arranged this coverage with the directly selected workers**. Acknowledge any gaps, then **Approve and schedule**. Coverage refreshes in the same workspace. Existing worker-interest selection remains available.
 
-This requires an existing open request linked to a saved care revision. Posting requirements and the legacy whole-request endpoint are unchanged. Recorded availability and scheduling limits still apply to phone arrangements.
+This requires an existing open request linked to a saved care revision. Posting requirements and the legacy whole-request endpoint are unchanged. For directly arranged selections, completely missing worker availability is a warning: the admin may confirm recurring coverage following the selected weekly care slots. Recorded availability that does not cover those slots still blocks approval, as do visit conflicts and hours violations. Worker-interest selections retain the availability requirement. A worker with mixed direct/interest selections must satisfy recorded availability for the selected coverage.
 
 ## API and history
 
 The existing `/api/placements/{id}/approval-review` and `/approve` routes accept `assignment_source` on each selection: `worker_interest` (default, retaining the interest check) or `admin_arranged`. Approval with any direct selections additionally requires `confirm_admin_arranged: true`. The reviewed-state token includes each selection's source.
 
-No interest is fabricated. `CareSlotAssignment.assignment_source` retains provenance alongside existing `approved_by` and `approved_at`. Coverage and assignment-history responses expose the source; both UIs label it **Arranged by admin**. The confirmation attests that the admin arranged coverage; it is not evidence of a worker's in-app response.
+No interest is fabricated. `CareSlotAssignment.assignment_source` retains provenance alongside existing `approved_by` and `approved_at`. Coverage and assignment-history responses expose the source; approved coverage and current/historical assignments label it **Admin approved**. Assignment details include the approving staff name and approval time. The confirmation attests that the admin arranged coverage; it is not evidence of a worker's in-app response.
 
 Both paths retain the same agency/role guards, organization-first locks, active-worker checks, selected-slot availability, conflict and hours checks, replacement-date rules, duplicate prevention and fresh validation on confirmation. Revision activation, old-schedule cutoff, shifts, notifications and activity remain in the existing approval transaction.
 
@@ -60,3 +60,24 @@ node tests/care-requests.browser.cjs
 ```
 
 The real browser integration harness binds only to loopback, overrides identity in the test app, and rolls back its database transaction. It is never mounted in the production application.
+
+## Missing availability exception — November 1, 2026
+
+Review responses retain `availability_ok: false` and expose
+`availability_requires_admin_confirmation: true` only when no availability rows exist
+and every selected slot for that worker has `admin_arranged` provenance. `all_clear`
+means scheduling eligibility allows approval subject to the existing confirmation
+and uncovered-slot acknowledgments; it does not assert that availability was recorded.
+The UI presents an amber warning, rather than a passed availability check.
+
+Approval rechecks this condition in the existing transaction. Newly recorded
+incompatible availability blocks a previously reviewed request. Missing availability
+never bypasses overlapping-visit checks, weekly limits, worker/agency eligibility,
+review tokens or duplicate protection. The ordinary interest eligibility endpoint
+retains its existing behavior. No general worker availability is created or changed.
+The existing recurring generation, version transitions and end rules apply.
+
+Existing assignment source, approver and timestamp columns provide the audit record;
+no migration is required. Deploy frontend and API together. Validation includes
+service tests, PostgreSQL approval/rollback tests, UI confirmation and approval-history
+tests, and browser-to-API workflows for both entry points plus missing availability.

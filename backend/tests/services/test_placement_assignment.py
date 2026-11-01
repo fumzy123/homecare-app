@@ -190,3 +190,38 @@ def test_availability_failure_compares_requested_slot_with_recorded_windows(setu
     ]
     assert not result.all_clear
     assert result.no_conflicts and result.within_hours
+
+@pytest.mark.parametrize("allow_missing", [False, True])
+def test_missing_availability_exception_is_explicit_and_keeps_check_honest(setup, allow_missing):
+    service, placement, worker, _ = setup
+    del service._eligibility_for
+    service.availability_repo.list_for_person.return_value = []
+    service.checker.find_conflicts.return_value = []
+    service.checker.find_hours_violations.return_value = ([], [])
+    result = service._eligibility_for(worker, service._parse_snapshot(placement.care_slot_snapshot),
+        None, placement.start_date, placement.start_date, allow_missing_availability=allow_missing)
+    assert not result.availability_ok
+    assert result.availability_requires_admin_confirmation is allow_missing
+    assert result.all_clear is allow_missing
+    assert bool(result.reasons) is not allow_missing
+    service.availability_repo.list_for_person.assert_called_once_with(worker.person_id)
+
+
+@pytest.mark.parametrize("gate", ["recorded_availability", "conflict", "overtime", "cap"])
+def test_admin_exception_never_bypasses_other_checks(setup, gate):
+    service, placement, worker, _ = setup
+    del service._eligibility_for
+    service.availability_repo.list_for_person.return_value = (
+        [NS(day_of_week=WeekDay.MO, start_time=time(13), end_time=time(17))]
+        if gate == "recorded_availability" else [])
+    service.checker.find_conflicts.return_value = ([dict(client_name="Other", date="2090-01-02",
+        start="2090-01-02T09:00:00", end="2090-01-02T11:00:00")] if gate == "conflict" else [])
+    violation = dict(total_hours=42, current_hours=40, proposed_hours=2, overtime_threshold=40,
+                     max_hours=40, week_start="2090-01-01", week_end="2090-01-07")
+    service.checker.find_hours_violations.return_value = (
+        [violation] if gate == "overtime" else [], [violation] if gate == "cap" else [])
+    result = service._eligibility_for(worker, service._parse_snapshot(placement.care_slot_snapshot),
+        None, placement.start_date, placement.start_date, allow_missing_availability=True)
+    assert not result.all_clear
+    assert result.reasons
+    assert result.availability_requires_admin_confirmation is (gate != "recorded_availability")

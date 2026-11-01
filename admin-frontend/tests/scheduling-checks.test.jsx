@@ -81,3 +81,53 @@ test('a legacy single failure still appears with the failed check', async () => 
     expect(container.querySelector('.cr-check-failed').textContent).toContain(messages.conflicts)
   }, true)
 })
+
+
+test('missing availability warns and requires direct-arrangement and gap confirmations', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  const originalScroll = HTMLElement.prototype.scrollIntoView
+  HTMLElement.prototype.scrollIntoView = () => {}
+  let approvals = 0
+  function Harness() {
+    const [confirmed, setConfirmed] = React.useState(false)
+    const [gaps, setGaps] = React.useState(false)
+    return <CareRequestReview
+      request={{ client_first_name: 'Test', client_last_name: 'Client', care_slots: [] }}
+      preview={{ starts_on: '2026-11-02', ends_previous_schedule: false, old_shifts: [],
+        uncovered_slots: [{ id: 'open', day_of_week: 'WE', start_time: '09:00', end_time: '11:00' }], all_clear: true,
+        workers: [{ worker_id: 'worker', worker_name: 'Sam Demo', eligibility: {
+          availability_ok: false, availability_requires_admin_confirmation: true,
+          no_conflicts: true, within_hours: true, all_clear: true, reasons: [],
+          check_details: { availability: ['No availability is recorded. Confirm the directly arranged recurring coverage.'], conflicts: [], hours: [] },
+        } }] }}
+      selections={[{care_slot_id: 'monday', employment_id: 'worker', assignment_source: 'admin_arranged'}]}
+      busy={false} acceptGaps={gaps} stale={false} error="" confirmArranged={confirmed}
+      onConfirmArranged={setConfirmed} onAcceptGaps={setGaps} onBack={() => {}} onApprove={() => { approvals++ }}
+    />
+  }
+  try {
+    await act(async () => root.render(<Harness />))
+    expect(container.querySelectorAll('.cr-check-failed')).toHaveLength(0)
+    expect(container.querySelector('.cr-check-warning').textContent).toContain('Admin confirmation required')
+    expect(container.textContent).toContain('Ready for admin confirmation')
+    expect(container.textContent).toContain('weekly care request')
+    const approve = [...container.querySelectorAll('button')].find(b => b.textContent.includes('Approve and schedule'))
+    const boxes = container.querySelectorAll('input[type="checkbox"]')
+    expect(approve.disabled).toBe(true)
+    await act(async () => boxes[0].click())
+    expect(approve.disabled).toBe(true)
+    await act(async () => boxes[1].click())
+    expect(approve.disabled).toBe(false)
+    await act(async () => approve.click())
+    expect(approvals).toBe(1)
+    await act(async () => boxes[0].click())
+    expect(approve.disabled).toBe(true)
+  } finally {
+    await act(async () => root.unmount())
+    container.remove()
+    HTMLElement.prototype.scrollIntoView = originalScroll
+  }
+})

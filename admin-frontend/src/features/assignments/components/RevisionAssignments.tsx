@@ -1,3 +1,4 @@
+import { AssignmentApproval } from './AssignmentApproval'
 import type { WeeklyCareNeed } from '@/features/weekly-care-need/api'
 import { slotHours } from '@/features/clients/lib/care'
 import { fmtHours } from '@/features/weekly-care-need/utils'
@@ -45,6 +46,7 @@ export function RevisionAssignments({ revision, revisions, rows, today, onManage
           <p className="aw-caption">{row.starts_on > view.asOf ? `Scheduled from ${assignmentDate(row.starts_on)}` : view.historical ? 'Past coverage' : view.asOf > today ? 'Approved coverage' : 'Current worker'}</p>
           <strong>{row.worker_name}</strong>
           <p className="aw-caption">{period(row)}</p>
+          <AssignmentApproval assignment={row} />
           {row.can_end && <button className="cw-btn aw-manage" aria-label={`Manage assignment for ${row.worker_name} · ${slotLabel(row)}`}
             onClick={() => onManage(view.assignments.filter(other => other.worker_id === row.worker_id && other.placement_id === row.placement_id && other.can_end))}>Manage assignment</button>}
         </div>)}
@@ -67,7 +69,7 @@ export function RevisionAssignments({ revision, revisions, rows, today, onManage
           <p>{period(row)}</p>
           {row.stops_from && !neverStarted && <p>{row.stops_from > today ? 'Scheduled to stop' : 'Visits stopped'} from {assignmentDate(row.stops_from)}.</p>}
           {row.end_reason && <p>Reason: {row.end_reason}</p>}
-          {row.assignment_source === 'admin_arranged' && <p>Coverage arranged by admin</p>}
+          <AssignmentApproval assignment={row} />
         </li>
       })}</ol> : <p className="aw-caption">No approved assignment history for this revision.</p>}
     </details>

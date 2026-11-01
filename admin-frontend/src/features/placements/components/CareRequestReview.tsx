@@ -122,7 +122,7 @@ export function CareRequestReview({
             disabled={busy}
             onChange={(e) => onConfirmArranged(e.target.checked)}
           />
-          I have arranged this coverage with the directly selected workers. This
+          I have arranged this recurring coverage with the directly selected workers, following the selected slots in the client’s weekly care request. This
           records my confirmation, not an expression of worker interest.
         </label>
       )}

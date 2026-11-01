@@ -77,5 +77,6 @@ class CareSlotAssignment(Base):
     end_reason = Column(Text, nullable=True)
     approved_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     employment = relationship('Employment', foreign_keys=[employment_id])
+    approver = relationship('Employment', foreign_keys=[approved_by])
     care_slot = relationship('CareSlot')
     placement = relationship('Placement')

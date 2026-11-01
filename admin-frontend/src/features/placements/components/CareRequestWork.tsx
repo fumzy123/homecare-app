@@ -111,7 +111,7 @@ export function CareRequestSlots({
                     <Check size={16} />
                     {slot.worker_name || 'Assigned worker'}
                     {slot.assignment_source === 'admin_arranged' && (
-                      <span className="cr-small"> · Arranged by admin</span>
+                      <span className="cr-small"> · Admin approved</span>
                     )}
                   </span>
                 ) : p.status === 'open' && p.weekly_care_need_id ? (

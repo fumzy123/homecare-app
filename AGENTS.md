@@ -1035,3 +1035,16 @@ Expo enhanced security is enabled, backend-only `EXPO_PUSH_ACCESS_TOKEN`.
 supports the ignored local config. No credentials have been provisioned by this
 code change. See `backend/WORKER_PUSH.md` for rollout, delivery guarantees and
 the remaining physical Android checks. No device/release sign-off is implied.
+
+## Admin-arranged coverage without availability (2026-11-01)
+
+Direct care-slot approval permits completely missing worker availability when all
+selected slots for that worker are `admin_arranged` and the admin confirms the recurring
+arrangement. Review keeps `availability_ok` false, adds
+`availability_requires_admin_confirmation`, and shows an amber warning. Existing
+recorded availability mismatches, conflicts, hours limits, interest-path requirements,
+review tokens and transaction safeguards remain. Approval rechecks the exception;
+general availability is never altered. Approved coverage shows **Admin approved**;
+current assignments and history include the approving staff name and timestamp.
+Existing provenance columns are reused, with no migration. See
+`backend/DIRECT_ASSIGNMENT.md` for tests and rollout details.

@@ -28,6 +28,8 @@ class AssignmentService:
 
     @staticmethod
     def _row(a, today):
+        approver = getattr(a, "approver", None)
+        approver_name = f"{approver.person.first_name} {approver.person.last_name}" if approver else None
         p, slot = a.placement, a.care_slot
         need = p.weekly_care_need
         stop = a.ends_before
@@ -40,6 +42,7 @@ class AssignmentService:
             starts_on=a.starts_on, stops_from=stop, revision_ends_on=natural_end, end_reason=a.end_reason,
             ended_at=a.ended_at, ended_by=str(a.ended_by) if a.ended_by else None,
             assignment_source=a.assignment_source, approved_by=str(a.approved_by), approved_at=a.approved_at,
+            approved_by_name=approver_name,
             status='ended' if ended else 'ending' if stop else 'scheduled' if a.starts_on > today else 'active',
             can_end=not stop and not natural_end)
 

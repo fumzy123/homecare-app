@@ -551,6 +551,8 @@ def test_direct_approval_keeps_all_guards_and_rolls_back(scenario, case):
         s.db.query(WorkerAvailabilityEntry).filter(
             WorkerAvailabilityEntry.person_id == s.members[1].person_id
         ).delete()
+        s.db.add(WorkerAvailabilityEntry(person_id=s.members[1].person_id,
+            day_of_week=WeekDay.TU, start_time=time(13), end_time=time(17)))
         s.db.commit()
     elif case == "hours":
         s.members[1].max_hours_per_week = 1
@@ -770,3 +772,70 @@ def test_replace_approved_future_revision_before_on_or_after_start(scenario, off
     old_ids = [s.old.id, s.need.id, replacement.id]
     for shift in s.db.query(Shift).filter(Shift.weekly_care_need_id.in_(old_ids)):
         assert not expand_occurrences(shift, earliest, earliest + timedelta(days=35))
+
+
+def test_direct_no_availability_approval_is_recurring_and_retains_admin_history(scenario):
+    s = scenario
+    payload = direct_payload(s)
+    s.db.query(WorkerAvailabilityEntry).filter_by(person_id=s.members[1].person_id).delete()
+    s.db.commit()
+    review = s.service.review_approval(s.placement.id, payload)
+    eligibility = review['workers'][0]['eligibility']
+    assert review['all_clear'] and eligibility['availability_requires_admin_confirmation']
+    assert not eligibility['availability_ok']
+    assert s.db.query(CareSlotAssignment).count() == 0
+    payload.review_token = review['review_token']
+    payload.confirm_admin_arranged = False
+    with pytest.raises(AppError) as error:
+        s.service.approve_coverage(s.placement.id, payload)
+    assert error.value.code == 'ADMIN_ARRANGEMENT_REQUIRED'
+    assert s.db.query(CareSlotAssignment).count() == 0
+    payload.confirm_admin_arranged = True
+    s.service.approve_coverage(s.placement.id, payload)
+    shifts = s.db.query(Shift).filter_by(weekly_care_need_id=s.need.id).all()
+    assert len(shifts) == 2
+    assert {shift.recurrence_rule for shift in shifts} == {'FREQ=WEEKLY;BYDAY=TU', 'FREQ=WEEKLY;BYDAY=TH'}
+    assert all(shift.is_recurring and shift.recurrence_end_date is None for shift in shifts)
+    assert s.db.query(WorkerAvailabilityEntry).filter_by(person_id=s.members[1].person_id).count() == 0
+    from app.services.assignment_service import AssignmentService
+    history = AssignmentService(s.db, s.service.current_user, s.service.org_id).list_assignments(client_id=s.client.id)
+    assert len(history['assignments']) == 2
+    assert all(a['assignment_source'] == 'admin_arranged' and a['approved_by_name'] == 'Admin Test'
+               and a['approved_by'] == str(s.members[0].id) and a['approved_at'] for a in history['assignments'])
+
+
+@pytest.mark.parametrize('mixed_same_worker', [False, True])
+def test_interest_without_availability_cannot_inherit_direct_exception(scenario, mixed_same_worker):
+    s = scenario
+    payload = s.payload
+    payload.confirm_admin_arranged = True
+    payload.selections[1].assignment_source = 'admin_arranged'
+    if mixed_same_worker:
+        payload.selections[1].employment_id = s.members[1].id
+    s.db.query(WorkerAvailabilityEntry).filter_by(person_id=s.members[1].person_id).delete()
+    s.db.commit()
+    review = s.service.review_approval(s.placement.id, payload)
+    assert not review['all_clear']
+    payload.review_token = review['review_token']
+    with pytest.raises(AppError) as error:
+        s.service.approve_coverage(s.placement.id, payload)
+    assert error.value.code == 'WORKER_NOT_ELIGIBLE'
+    assert s.db.query(CareSlotAssignment).count() == 0
+
+
+def test_missing_availability_exception_rechecks_newly_recorded_conflict(scenario):
+    s = scenario
+    payload = direct_payload(s)
+    s.db.query(WorkerAvailabilityEntry).filter_by(person_id=s.members[1].person_id).delete()
+    s.db.commit()
+    review = s.service.review_approval(s.placement.id, payload)
+    assert review['all_clear']
+    payload.review_token = review['review_token']
+    s.db.add(WorkerAvailabilityEntry(person_id=s.members[1].person_id,
+        day_of_week=WeekDay.TU, start_time=time(13), end_time=time(17)))
+    s.db.commit()
+    with pytest.raises(AppError) as error:
+        s.service.approve_coverage(s.placement.id, payload)
+    assert error.value.code == 'WORKER_NOT_ELIGIBLE'
+    assert s.db.query(CareSlotAssignment).count() == 0
+    assert all(shift.recurrence_end_date is None for shift in s.old_shifts)

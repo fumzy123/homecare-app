@@ -5,6 +5,7 @@ export type PlacementStatus = 'open' | 'filled' | 'closed'
 
 export interface InterestEligibility {
   availability_ok: boolean
+  availability_requires_admin_confirmation?: boolean
   no_conflicts: boolean
   within_hours: boolean
   all_clear: boolean

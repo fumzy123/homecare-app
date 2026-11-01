@@ -107,7 +107,7 @@ async function run() {
     const approve = () =>
       page.getByRole('button', { name: 'Approve and schedule', exact: true })
     const arranged = () =>
-      page.getByRole('checkbox', { name: /I have arranged this coverage/ })
+      page.getByRole('checkbox', { name: /I have arranged this recurring coverage/ })
     const gaps = () =>
       page.getByRole('checkbox', {
         name: /I understand these Care Slots remain uncovered/,
@@ -147,7 +147,11 @@ async function run() {
     )
     await arranged().check()
     const checks = page.getByRole('region', { name: /^Scheduling checks for/ })
-    await checks.getByText('Checks passed', { exact: true }).waitFor()
+    await checks.getByText(f.missing_availability ? 'Ready for admin confirmation' : 'Checks passed', { exact: true }).waitFor()
+    if (f.missing_availability) {
+      await checks.locator('.cr-check-warning').getByText('Admin confirmation required', { exact: true }).waitFor()
+      assert.equal(await checks.locator('.cr-check-failed').count(), 0)
+    }
     await checks.getByText(/within their maximum of 40 hours per week/).waitFor()
     await checks.getByText('View first-week hours', { exact: true }).click()
     await checks.getByText('Already scheduled across clients', { exact: true }).waitFor()
@@ -185,7 +189,7 @@ async function run() {
     await page.reload()
     await page.getByText('Coverage complete.', { exact: true }).waitFor()
     assert.equal(
-      await page.getByText('· Arranged by admin', { exact: true }).count(),
+      await page.getByText('· Admin approved', { exact: true }).count(),
       3,
     )
     assert.equal(await slots().count(), 0)

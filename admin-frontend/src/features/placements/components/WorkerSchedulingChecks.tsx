@@ -3,19 +3,20 @@ import type { ReactNode } from 'react'
 import type { ApprovalReview } from '../api'
 import { requestDate } from '../lib/careRequests'
 
-function CheckExplanation({ label, passed, reasons, children }: {
+function CheckExplanation({ label, passed, warning = false, reasons, children }: {
   label: string
   passed: boolean
+  warning?: boolean
   reasons: string[]
   children: ReactNode
 }) {
   return (
-    <div className={passed ? 'cr-check-result' : 'cr-check-result cr-check-failed'}>
+    <div className={warning ? 'cr-check-result cr-check-warning' : passed ? 'cr-check-result' : 'cr-check-result cr-check-failed'}>
       <dt>
         {label}
         <span className="cr-check-status">
           {passed ? <Check size={15} aria-hidden="true" /> : <TriangleAlert size={15} aria-hidden="true" />}
-          {passed ? 'Passed' : 'Needs attention'}
+          {warning ? 'Admin confirmation required' : passed ? 'Passed' : 'Needs attention'}
         </span>
       </dt>
       <dd>
@@ -32,9 +33,10 @@ export function WorkerSchedulingChecks({
 }: {
   worker: ApprovalReview['workers'][number]
 }) {
+  const availabilityWarning = !!w.eligibility.availability_requires_admin_confirmation
   const maximum = w.hours?.max_weekly_hours
   const hasMaximum = maximum != null && maximum > 0
-  const failedChecks = [!w.eligibility.availability_ok, !w.eligibility.no_conflicts, !w.eligibility.within_hours].filter(Boolean).length
+  const failedChecks = [(!w.eligibility.availability_ok && !availabilityWarning), !w.eligibility.no_conflicts, !w.eligibility.within_hours].filter(Boolean).length
   const details = w.eligibility.check_details
   // Older responses have only a combined list; attach it when exactly one check failed.
   const reasonsFor = (check: 'availability' | 'conflicts' | 'hours', passed: boolean) =>
@@ -56,13 +58,14 @@ export function WorkerSchedulingChecks({
           ) : (
             <TriangleAlert size={16} aria-hidden="true" />
           )}
-          {w.eligibility.all_clear ? 'Checks passed' : 'Needs review'}
+          {w.eligibility.all_clear ? availabilityWarning ? 'Ready for admin confirmation' : 'Checks passed' : 'Needs review'}
         </span>
       </div>
       <dl className="cr-check-explanations">
-        <CheckExplanation label="Worker availability" passed={w.eligibility.availability_ok} reasons={availabilityReasons}>
+        <CheckExplanation label="Worker availability" passed={w.eligibility.availability_ok} warning={availabilityWarning} reasons={availabilityReasons}>
             {w.eligibility.availability_ok
               ? `The selected care slots fit ${w.worker_name}’s recorded availability.`
+              : availabilityWarning ? !availabilityReasons.length && "No availability is recorded. Confirm the directly arranged recurring coverage to approve. General availability will stay unchanged."
               : !availabilityReasons.length && `The selected care slots are not fully covered by ${w.worker_name}’s recorded availability.`}
         </CheckExplanation>
         <CheckExplanation label="Visit conflicts" passed={w.eligibility.no_conflicts} reasons={conflictReasons}>

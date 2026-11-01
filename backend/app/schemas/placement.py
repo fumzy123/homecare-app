@@ -38,6 +38,7 @@ class InterestEligibility(BaseModel):
     """Whether this worker can actually be assigned the placement's care need —
     computed fresh on read. Fill is gated on `all_clear`."""
     availability_ok: bool
+    availability_requires_admin_confirmation: bool = False
     no_conflicts:    bool
     within_hours:    bool
     all_clear:       bool

@@ -78,7 +78,7 @@ jobs:
         run: |
           node --experimental-strip-types --test tests/care-requests.test.mjs
           node --experimental-strip-types --test tests/phone.test.mjs
-          npm run test:components -- tests/assigned-workers.test.jsx
+          npm run test:components -- tests/assigned-workers.test.jsx tests/scheduling-checks.test.jsx
           node tests/assigned-workers.browser.cjs
           node tests/assignments.browser.cjs
           node tests/care-requests.browser.cjs

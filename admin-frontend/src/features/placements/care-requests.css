@@ -630,3 +630,6 @@
     gap: 18px;
   }
 }
+
+.cr-check-explanations > .cr-check-warning { background: #fff8df; border-left: 3px solid #876312; padding: 16px; }
+.cr-check-warning > dt, .cr-check-warning .cr-check-status { color: #76550b; }

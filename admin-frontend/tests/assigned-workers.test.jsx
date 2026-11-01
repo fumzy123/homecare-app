@@ -82,3 +82,18 @@ test('cancelled-before-start coverage retains its dates but is not described as 
   expect(container.querySelector('.aw-changes').textContent).not.toContain('Jordan Demo →')
   expect(container.querySelector('details').textContent).toContain('Scheduled from Oct 26, 2026; ended Oct 25, 2026 before starting.')
 })
+
+test('direct approval identity and time appear in current coverage and retained history', async () => {
+  const rows = assignmentRows.map(row => row.id === 'alex' ? {
+    ...row, assignment_source: 'admin_arranged', approved_by_name: 'Agency Owner',
+    approved_at: '2026-11-01T12:30:00Z',
+  } : row)
+  await render(currentRevision, rows)
+  const current = container.querySelector('.aw-grid')
+  const history = container.querySelector('.aw-history')
+  for (const section of [current, history]) {
+    expect(section.textContent).toContain('Admin approved')
+    expect(section.textContent).toContain('Agency Owner')
+    expect(section.querySelector('time').getAttribute('datetime')).toBe('2026-11-01T12:30:00Z')
+  }
+})

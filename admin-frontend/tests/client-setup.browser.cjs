@@ -475,7 +475,7 @@ async function journey(browser, returnToDirectory = false) {
     .getByRole('button', { name: 'Review approval', exact: true })
     .click()
   await page
-    .getByRole('checkbox', { name: /I have arranged this coverage/ })
+    .getByRole('checkbox', { name: /I have arranged this recurring coverage/ })
     .check()
   await page
     .getByRole('checkbox', { name: /I understand these Care Slots/ })

@@ -16,6 +16,7 @@ class AssignmentRepository:
     def _details(query):
         return query.options(
             joinedload(CareSlotAssignment.employment).joinedload(Employment.person),
+            joinedload(CareSlotAssignment.approver).joinedload(Employment.person),
             joinedload(CareSlotAssignment.care_slot),
             joinedload(CareSlotAssignment.placement).joinedload(Placement.client),
             joinedload(CareSlotAssignment.placement).joinedload(Placement.weekly_care_need))

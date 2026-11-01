@@ -17,6 +17,9 @@ export interface Assignment {
   revision_ends_on: string | null
   end_reason: string | null
   assignment_source?: 'worker_interest' | 'admin_arranged'
+  approved_by?: string
+  approved_by_name?: string | null
+  approved_at?: string
   ended_at: string | null
   status: 'active' | 'scheduled' | 'ending' | 'ended'
   can_end: boolean

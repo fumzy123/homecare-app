@@ -504,9 +504,10 @@ class PlacementService:
         return max(p.start_date or today, today)
 
     def _eligibility_for(
-        self, employment, snapshot_entries, client, effective_start: date, today: date
+        self, employment, snapshot_entries, client, effective_start: date, today: date,
+        *, allow_missing_availability: bool = False,
     ) -> InterestEligibility:
-        """Run the same three gates for interested and office-selected workers."""
+        """Only explicitly direct selections may proceed without recorded availability."""
         avail = self.availability_repo.list_for_person(employment.person_id)
         match = availability_covers_care_need(avail, snapshot_entries)
 
@@ -523,11 +524,12 @@ class PlacementService:
         overtime, cap = self.checker.find_hours_violations(employment.id, blocks)
 
         availability_ok = match.covered
+        admin_confirmation = allow_missing_availability and not avail
         no_conflicts = not conflicts
         within_hours = not overtime and not cap
 
         reasons: list[str] = []
-        if not availability_ok:
+        if not availability_ok and not admin_confirmation:
             if not avail:
                 reasons.append("Worker's availability isn't set on their profile")
             else:
@@ -554,7 +556,11 @@ class PlacementService:
         details = EligibilityCheckDetails()
         if not availability_ok:
             if not avail:
-                details.availability.append("No worker availability is recorded. Add availability to the worker's profile before approving.")
+                details.availability.append(
+                    "No availability is recorded. Confirm the directly arranged recurring coverage to approve these care slots. The worker's general availability will remain unchanged."
+                    if admin_confirmation else
+                    "No worker availability is recorded. Add availability to the worker's profile before approving."
+                )
             for slot in match.uncovered:
                 windows = sorted(
                     (a for a in avail if a.day_of_week == slot.day_of_week),
@@ -585,9 +591,10 @@ class PlacementService:
 
         return InterestEligibility(
             availability_ok=availability_ok,
+            availability_requires_admin_confirmation=admin_confirmation,
             no_conflicts=no_conflicts,
             within_hours=within_hours,
-            all_clear=availability_ok and no_conflicts and within_hours,
+            all_clear=(availability_ok or admin_confirmation) and no_conflicts and within_hours,
             reasons=reasons,
             check_details=details,
         )
@@ -877,11 +884,19 @@ class PlacementService:
             token,
         )
 
-    def _validate_selected_coverage(self, client, need, by_worker, start, today):
+    def _validate_selected_coverage(self, client, need, by_worker, start, today, selections):
         results = []
         for worker_id, slots in by_worker.items():
             worker = self._assignment_worker(worker_id)
-            eligibility = self._eligibility_for(worker, slots, client, start, start)
+            # Every slot for this worker must be directly arranged. Interest on
+            # another selected slot must not inherit the availability exception.
+            sources = {s.care_slot_id: s.assignment_source for s in selections
+                       if s.employment_id == worker_id}
+            allow_missing = all(sources.get(slot.id) == "admin_arranged" for slot in slots)
+            eligibility = self._eligibility_for(
+                worker, slots, client, start, start,
+                allow_missing_availability=allow_missing,
+            )
             first_visit = min(self._first_occurrence_date([slot.day_of_week], start) for slot in slots)
             week_start, week_end = iso_week_range(first_visit)
             current_hours = sum(hours_by_week(
@@ -952,7 +967,7 @@ class PlacementService:
             end_previous_coverage(old, payload.starts_on)
             self.db.flush()
             workers = self._validate_selected_coverage(
-                client, need, by_worker, payload.starts_on, today
+                client, need, by_worker, payload.starts_on, today, payload.selections
             )
             return {
                 "review_token": token,
@@ -995,7 +1010,7 @@ class PlacementService:
                     'shift_updated', worker_id, occurrence_date=payload.starts_on)
             self.db.flush()
             checks = self._validate_selected_coverage(
-                client, need, by_worker, payload.starts_on, today
+                client, need, by_worker, payload.starts_on, today, payload.selections
             )
             if not all(w["eligibility"]["all_clear"] for w in checks):
                 raise AppError(

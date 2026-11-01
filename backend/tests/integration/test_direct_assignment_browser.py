@@ -24,18 +24,23 @@ from app.api.routes import placements, assignments
 from app.core.exceptions import AppError, app_error_handler
 from app.models.placement import CareSlotAssignment, PlacementInterest
 from app.models.shift import Shift
+from app.models.worker_availability import WorkerAvailabilityEntry
 from app.schemas.weekly_care_need import WeeklyCareNeedResponse
 from app.services.assignment_service import AssignmentService
 from app.core.enums import EmploymentStatus
 from tests.integration.test_care_coverage import scenario, direct_payload  # noqa: F401
 
 
-@pytest.mark.parametrize("entry", ["request", "client"])
-def test_direct_assignment_browser(scenario, tmp_path, entry):  # noqa: F811
+@pytest.mark.parametrize("entry,missing_availability", [("request", False), ("client", False), ("request", True)])
+def test_direct_assignment_browser(scenario, tmp_path, entry, missing_availability):  # noqa: F811
     if not os.getenv("CARE_REQUEST_TEST_URL"):
         pytest.skip("Requires local Vite and Playwright")
     s = scenario
     direct_payload(s)  # Remove all interest; no worker app participates.
+    if missing_availability:
+        s.db.query(WorkerAvailabilityEntry).filter(
+            WorkerAvailabilityEntry.person_id.in_([w.person_id for w in s.members[1:]])
+        ).delete(synchronize_session=False)
     s.members[3].max_hours_per_week = 1
     s.db.commit()
     app = FastAPI()
@@ -79,6 +84,7 @@ def test_direct_assignment_browser(scenario, tmp_path, entry):  # noqa: F811
 
     data = dict(
         entry=entry,
+        missing_availability=missing_availability,
         request_id=str(s.placement.id),
         client_id=str(s.client.id),
         org_id=str(s.service.org_id),

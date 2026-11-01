@@ -1,3 +1,4 @@
+import { AssignmentApproval } from './AssignmentApproval'
 import type { Assignment } from '../api'
 import { slotLabel } from '../lib/labels'
 
@@ -27,7 +28,7 @@ export function AssignmentList({ rows, workerView, onManage }: {
             <p className="text-sm text-ink-soft mt-1">From {a.starts_on}
               {a.stops_from ? ` · Visits stop from ${a.stops_from}` : a.revision_ends_on ? ` · Revision ends ${a.revision_ends_on}` : ' · Ongoing'}</p>
             {a.end_reason && <p className="text-sm text-ink-soft mt-1">Reason: {a.end_reason}</p>}
-            {a.assignment_source === 'admin_arranged' && <p className="text-sm text-ink-soft mt-1">Coverage arranged by admin</p>}
+            <AssignmentApproval assignment={a} />
           </li>)}
         </ul>
       </article>
