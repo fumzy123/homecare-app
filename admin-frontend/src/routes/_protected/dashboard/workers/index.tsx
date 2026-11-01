@@ -1,22 +1,19 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Trash2, RotateCcw } from 'lucide-react'
-import { type OrgMember } from '@/features/org-members/api'
 import { useInvitations, useRevokeInvitation, useResendInvitation } from '@/features/invitations/hooks/useInvitations'
 import { useWorkers } from '@/features/workers/hooks/useWorkers'
-import { WorkerSchedulingStatus } from '@/features/workers/components/WorkerSchedulingStatus'
+import { WorkerCard } from '@/features/workers/components/WorkerCard'
 import { InviteModal } from '@/features/invitations/components/InviteModal'
 import { ROLE_LABELS } from '@/features/invitations/constants'
-import { Avatar, Card, Kicker, StatusDot, Tag, Btn } from '@/shared/components/ui'
+import { Card, Kicker, Tag, Btn } from '@/shared/components/ui'
 
 export const Route = createFileRoute('/_protected/dashboard/workers/')({
   component: WorkersPage,
 })
 
 type Tab = 'workers' | 'invitations'
-
-const AVATAR_COLORS = ['c1','c2','c3','c4','c5','c6'] as const
 
 function WorkersPage() {
   const [tab, setTab] = useState<Tab>('workers')
@@ -92,9 +89,9 @@ function WorkersPage() {
               </div>
             )}
             {workers.length > 0 && (
-              <div className="grid grid-cols-4 max-xl:grid-cols-3 max-lg:grid-cols-2 max-md:grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3 min-[2000px]:grid-cols-4 gap-5">
                 {workers.map((worker, i) => (
-                  <WorkerRow key={worker.id} worker={worker} index={i} />
+                  <WorkerCard key={worker.id} worker={worker} index={i} />
                 ))}
               </div>
             )}
@@ -177,30 +174,5 @@ function WorkersPage() {
         />
       )}
     </div>
-  )
-}
-
-function WorkerRow({ worker, index }: { worker: OrgMember; index: number }) {
-  const color = AVATAR_COLORS[index % AVATAR_COLORS.length]
-  const initials = `${worker.first_name[0]}${worker.last_name[0]}`
-
-  return (
-    <Link
-      to="/dashboard/workers/$workerId"
-      params={{ workerId: worker.id } as never}
-      className="flex items-center gap-4 p-5 bg-paper border border-ink hover:bg-cream-2 transition-colors lift"
-    >
-      <Avatar initials={initials} color={color} size="lg" />
-      <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-medium leading-snug">
-          {worker.first_name} {worker.last_name}
-        </p>
-        <p className="font-mono text-[10px] text-ink-soft mt-0.5 truncate">{worker.email}</p>
-        <div className="mt-2">
-          <StatusDot status={worker.is_active ? 'active' : 'inactive'} />
-          <WorkerSchedulingStatus worker={worker} />
-        </div>
-      </div>
-    </Link>
   )
 }
