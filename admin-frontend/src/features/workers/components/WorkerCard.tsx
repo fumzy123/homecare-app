@@ -16,22 +16,21 @@ export function WorkerCard({ worker, index = 0 }: { worker: OrgMember; index?: n
   const color = (['c2', 'c3', 'c4', 'c5', 'c6'] as const)[index % 5]
   const availableDays = new Set(worker.availability.map(entry => entry.day_of_week))
   const availability = DAYS.filter(day => availableDays.has(day.key)).map(day => day.label).join(' · ')
-  const rowClass = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start gap-4 border-t border-line-soft py-4 text-[13px]'
+  const rowClass = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start gap-3 border-t border-line-soft py-3 text-[12px]'
 
   return (
     <Link
       to="/dashboard/workers/$workerId"
       params={{ workerId: worker.id }}
-      className="group flex min-w-0 flex-col border border-line-soft bg-cream p-6 text-ink transition-colors hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+      className="group flex w-full min-w-0 max-w-[380px] flex-col border border-line-soft bg-cream p-5 text-ink transition-colors hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
     >
-      <Avatar initials={initials} color={color} size="lg" className="size-16! border-ink! text-[20px]! font-normal!" />
-      <h2 className="mt-6 font-serif text-[32px] leading-[1.1] tracking-[-0.02em] [overflow-wrap:anywhere]">
+      <Avatar initials={initials} color={color} size="lg" className="size-12! border-ink! text-[16px]! font-normal!" />
+      <h2 className="mt-4 font-serif text-[26px] leading-[1.1] tracking-[-0.02em] [overflow-wrap:anywhere]">
         {worker.first_name} {worker.last_name}
       </h2>
-      <p className="mt-3 text-[13px] text-ink-soft">Home support worker</p>
       <p className="mt-2 text-[12px] text-ink-soft [overflow-wrap:anywhere]">{worker.email}</p>
 
-      <dl className="mt-8">
+      <dl className="mt-5">
         <div className={rowClass}>
           <dt>Availability</dt>
           <dd className="text-right">{availability || 'Not set'}</dd>

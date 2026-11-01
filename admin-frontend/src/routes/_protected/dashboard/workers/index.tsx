@@ -89,7 +89,7 @@ function WorkersPage() {
               </div>
             )}
             {workers.length > 0 && (
-              <div className="grid grid-cols-1 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3 min-[2000px]:grid-cols-4 gap-5">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-4">
                 {workers.map((worker, i) => (
                   <WorkerCard key={worker.id} worker={worker} index={i} />
                 ))}
