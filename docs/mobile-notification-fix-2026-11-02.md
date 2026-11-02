@@ -60,7 +60,8 @@ tests alone do not establish that the reported phone crash has been eliminated.
 - [Mobile CI](https://github.com/fumzy123/homecare-app/actions/runs/41489846320):
   Mobile Type Check (including notification regressions) and Expo Doctor passed.
 - [Staging APK build](https://expo.dev/accounts/fumzy123/projects/worker-mobile-app/builds/d8af3582-3711-4ec7-a080-fe35486d7aa2):
-  profile `preview`, Android version code **4**, submitted; completion pending.
+  profile `preview`, Android version code **4**, finished successfully. This APK
+  predates the sign-out follow-up below.
 - EAS uses the existing **HomeCare Staging** signing key and preview-only secret
   `GOOGLE_SERVICES_JSON` file variable. No Firebase credentials were changed.
   The CLI's warning about the ignored local Firebase file does not mean the remote
@@ -89,4 +90,13 @@ Tests cover confirmation/cancellation, revoke-before-auth ordering, failure/retr
 stalled token acquisition, timeout, and stale work after a same-user login. This
 does not establish what happened on the user's phone, remove the need for network
 access during revocation/auth logout, or bound every possible storage/auth wait.
-The version-code-4 candidate above predates this follow-up and needs replacement.
+The version-code-4 candidate above predates this follow-up and is superseded by:
+
+- Source `e6275db4b0e8c09e97ddcf978b4d7a78ccd71797`, pushed to `staging`.
+- All **83** mobile script tests and TypeScript passed locally.
+- [Mobile CI](https://github.com/fumzy123/homecare-app/actions/runs/41498894637)
+  passed, including the sign-out regression suite and Expo Doctor.
+- [Replacement staging build](https://expo.dev/accounts/fumzy123/projects/worker-mobile-app/builds/b5590138-4271-462b-adb4-4215cfae939b):
+  Android version code **5**, profile `preview`, submitted; completion pending.
+- Phone acceptance of confirmation, sign-out, and both notification destinations
+  remains pending for version code 5.
