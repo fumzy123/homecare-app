@@ -19,6 +19,9 @@
 .workers-schedule-empty { display: block; padding-top: 20px; color: var(--color-ink-soft); }
 .workers-schedule-no-results { padding: 32px !important; }
 .schedule-calendar { height: 100%; min-height: 440px; }
+/* Keep the leading edge solid across the inline status border treatments. */
+.schedule-calendar .rbc-event,
+.workers-schedule-visit { border-left: 3px solid var(--color-ink) !important; }
 .schedule-calendar .rbc-time-gutter { position: sticky; left: 0; z-index: 4; background: var(--color-paper); }
 .schedule-calendar .rbc-time-header > .rbc-label { position: sticky; left: 0; z-index: 5; background: var(--color-cream); }
 /* Keep timed visits anchored while inheriting the shared hover lift and shadow. */
