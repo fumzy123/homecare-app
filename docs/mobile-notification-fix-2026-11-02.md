@@ -53,3 +53,20 @@ Phone acceptance:
 
 Build completion and physical acceptance must be recorded separately; automated
 tests alone do not establish that the reported phone crash has been eliminated.
+
+## Staging release record
+
+- Source commit: `2c78f8311961c724fd1925c80fed5bd4b2bf5fce`, pushed to `staging`.
+- [Mobile CI](https://github.com/fumzy123/homecare-app/actions/runs/41489846320):
+  Mobile Type Check (including notification regressions) and Expo Doctor passed.
+- [Staging APK build](https://expo.dev/accounts/fumzy123/projects/worker-mobile-app/builds/d8af3582-3711-4ec7-a080-fe35486d7aa2):
+  profile `preview`, Android version code **4**, submitted; completion pending.
+- EAS uses the existing **HomeCare Staging** signing key and preview-only secret
+  `GOOGLE_SERVICES_JSON` file variable. No Firebase credentials were changed.
+  The CLI's warning about the ignored local Firebase file does not mean the remote
+  builder is missing its secret file variable.
+- The initial workspace upload was blocked by an unreadable `.pytest_cache`;
+  the submitted build uses a clean temporary clone of the source commit.
+  Build `433a19ba-7991-4130-bb6c-1eb395d0f21a` was canceled during the Firebase
+  configuration check and is superseded by the linked version-code-4 build.
+- Physical-phone acceptance remains pending.
