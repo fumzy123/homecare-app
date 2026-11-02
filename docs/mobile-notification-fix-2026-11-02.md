@@ -70,3 +70,23 @@ tests alone do not establish that the reported phone crash has been eliminated.
   Build `433a19ba-7991-4130-bb6c-1eb395d0f21a` was canceled during the Firebase
   configuration check and is superseded by the linked version-code-4 build.
 - Physical-phone acceptance remains pending.
+
+## Sign-out follow-up
+
+The user subsequently confirmed that the **Sign out?** modal appeared and sign-out
+completed. The modal is expected: Cancel does nothing, and only its Sign out action
+starts logout. A rendered Me-screen test verifies this sequence.
+
+A separate regression test reproduced a real delay path: a never-settling native/
+Expo token lookup blocked the serialized push queue, and logout waited behind it.
+Registration now stops awaiting that lookup when logout/account change invalidates
+its generation, and times out token lookup after 15 seconds otherwise. Late token
+responses and old queued work cannot register a device after logout, including when
+the same user signs in again. Backend writes remain serialized: an in-flight device
+registration is followed by revocation before logout succeeds.
+
+Tests cover confirmation/cancellation, revoke-before-auth ordering, failure/retry,
+stalled token acquisition, timeout, and stale work after a same-user login. This
+does not establish what happened on the user's phone, remove the need for network
+access during revocation/auth logout, or bound every possible storage/auth wait.
+The version-code-4 candidate above predates this follow-up and needs replacement.

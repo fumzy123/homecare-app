@@ -10,6 +10,26 @@ const KEY = 'push-installation-v1';
 type Installation = { id: string; secret: string; owner?: string };
 let queue: Promise<unknown> = Promise.resolve();
 let enabledUser: string | null = null;
+let registrationController = new AbortController();
+
+// Token acquisition can wait indefinitely on native/Expo networking. Only race
+// this read: registration/revocation writes must stay ordered in the queue.
+function waitForToken<T>(lookup: () => Promise<T>, signal: AbortSignal): Promise<T | null> {
+  if (signal.aborted) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); signal.removeEventListener('abort', cancel); };
+    const cancel = () => { cleanup(); resolve(null); };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Phone notification registration timed out. Please try again.'));
+    }, 15_000);
+    signal.addEventListener('abort', cancel, { once: true });
+    Promise.resolve().then(lookup).then(
+      value => { cleanup(); resolve(value); },
+      error => { cleanup(); reject(error); },
+    );
+  });
+}
 
 export function supportsPush() {
   return Platform.OS === 'android' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
@@ -40,21 +60,30 @@ async function revoke() {
   await SecureStore.setItemAsync(KEY, JSON.stringify(saved));
 }
 
-export function setPushUser(userId: string | null) { enabledUser = userId; }
+export function setPushUser(userId: string | null) {
+  if (enabledUser !== userId) {
+    registrationController.abort();
+    registrationController = new AbortController();
+  }
+  enabledUser = userId;
+}
 
 export function unregisterPush() {
-  enabledUser = null;
+  setPushUser(null);
   if (!supportsPush()) return Promise.resolve();
   return serial(revoke);
 }
 
 export function registerPush(userId: string, requestPermission = false, devicePushToken?: DevicePushToken) {
+  const signal = registrationController.signal;
   return serial(async () => {
+    if (!supportsPush()) return 'unsupported' as const;
+    if (signal.aborted || enabledUser !== userId) return 'off' as const;
     const notifications = await nativeNotifications();
     if (!notifications) return 'unsupported' as const;
     let saved = await readInstallation();
     if (saved?.owner && saved.owner !== userId) await revoke();
-    if (enabledUser !== userId) return 'off' as const;
+    if (signal.aborted || enabledUser !== userId) return 'off' as const;
     await notifications.setNotificationChannelAsync('default', {
       name: 'Work updates', importance: notifications.AndroidImportance.HIGH,
     });
@@ -71,17 +100,18 @@ export function registerPush(userId: string, requestPermission = false, devicePu
     if (!projectId || !appId) throw new Error('Push configuration is missing');
     // Android's native token getter emits a token event, even for an unchanged
     // token. Reuse listener-supplied tokens to avoid recursively registering.
-    const token = (await notifications.getExpoPushTokenAsync({ projectId, ...(devicePushToken ? { devicePushToken } : {}) })).data;
+    const token = await waitForToken(() => notifications.getExpoPushTokenAsync({ projectId, ...(devicePushToken ? { devicePushToken } : {}) }), signal);
+    if (!token || signal.aborted || enabledUser !== userId) return 'off' as const;
     const { data: { session } } = await supabase.auth.getSession();
-    if (enabledUser !== userId || session?.user.id !== userId) return 'off' as const;
+    if (signal.aborted || enabledUser !== userId || session?.user.id !== userId) return 'off' as const;
     if (!saved) {
       saved = { id: Crypto.randomUUID(), secret: Crypto.getRandomBytes(32).reduce((text, byte) => text + byte.toString(16).padStart(2, '0'), '') };
     }
     // Persist before the request: even a timed-out response may have saved remotely.
     saved.owner = userId;
     await SecureStore.setItemAsync(KEY, JSON.stringify(saved));
-    await savePushDevice(saved.id, saved.secret, token, appId);
-    if (enabledUser !== userId) { await revoke(); return 'off' as const; }
+    await savePushDevice(saved.id, saved.secret, token.data, appId);
+    if (signal.aborted || enabledUser !== userId) { await revoke(); return 'off' as const; }
     return 'registered' as const;
   });
 }

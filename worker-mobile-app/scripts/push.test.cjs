@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const ts = require('typescript');
 
-function setup({ go = false, granted = true, put, onNativeToken } = {}) {
-  let saved = null;
+function setup({ go = false, granted = true, put, onNativeToken, getToken, initialInstallation } = {}) {
+  let saved = initialInstallation ? JSON.stringify(initialInstallation) : null;
   const calls = [];
   const tokenOptions = [];
   const notifications = {
@@ -15,6 +15,7 @@ function setup({ go = false, granted = true, put, onNativeToken } = {}) {
       tokenOptions.push(options);
       // SDK 57 Android emits a token event whenever the native getter runs.
       if (!options.devicePushToken) onNativeToken?.({ type: 'android', data: 'native-test-token' });
+      if (getToken) return getToken();
       return { data: 'ExpoPushToken[test]' };
     },
   };
@@ -72,6 +73,67 @@ test('logout during an in-flight registration cannot leave delivery enabled', as
   assert.equal(await registering, 'off'); await logout;
   assert.equal(app.saved().owner, undefined);
   assert.deepEqual(app.calls.map(c => c[0]), ['register', 'revoke']);
+});
+
+test('logout interrupts a stalled token lookup, revokes delivery and ignores its late result', async () => {
+  let tokenStarted; let finishToken;
+  const started = new Promise(resolve => { tokenStarted = resolve; });
+  const app = setup({
+    initialInstallation: { id: 'device', secret: 'proof', owner: 'worker' },
+    getToken: () => { tokenStarted(); return new Promise(resolve => { finishToken = resolve; }); },
+  });
+  app.setPushUser('worker');
+  const registering = app.registerPush('worker');
+  await started;
+  const logout = app.unregisterPush();
+  let timer;
+  const outcome = await Promise.race([
+    logout.then(() => 'signed-out'),
+    new Promise(resolve => { timer = setTimeout(() => resolve('stuck'), 100); }),
+  ]);
+  clearTimeout(timer);
+  // Always release the fixture, including on the pre-fix implementation.
+  finishToken({ data: 'ExpoPushToken[late]' });
+  await registering; await logout;
+  assert.equal(outcome, 'signed-out');
+  assert.equal(app.saved().owner, undefined);
+  assert.deepEqual(app.calls.map(call => call[0]), ['revoke']);
+});
+
+test('a token lookup times out, releases the queue and cannot register later', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let tokenStarted; let finishToken;
+  const started = new Promise(resolve => { tokenStarted = resolve; });
+  const app = setup({ getToken: () => { tokenStarted(); return new Promise(resolve => { finishToken = resolve; }); } });
+  app.setPushUser('worker');
+  const registering = app.registerPush('worker');
+  const rejected = assert.rejects(registering, /registration timed out/);
+  await started;
+  t.mock.timers.tick(15_000);
+  await rejected;
+  await app.unregisterPush();
+  finishToken({ data: 'ExpoPushToken[late]' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(app.calls, []);
+});
+
+test('queued work from an earlier login cannot revive after the same account signs in again', async () => {
+  let tokenStarted; let finishToken;
+  const started = new Promise(resolve => { tokenStarted = resolve; });
+  const app = setup({ getToken: () => { tokenStarted(); return new Promise(resolve => { finishToken = resolve; }); } });
+  app.setPushUser('worker');
+  const first = app.registerPush('worker');
+  await started;
+  const queued = app.registerPush('worker');
+  const logout = app.unregisterPush();
+  app.setPushUser('worker');
+  assert.equal(await first, 'off');
+  assert.equal(await queued, 'off');
+  await logout;
+  finishToken({ data: 'ExpoPushToken[late]' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(app.tokenOptions.length, 1);
+  assert.deepEqual(app.calls, []);
 });
 
 test('timed-out registration retains cleanup proof for a later logout', async () => {

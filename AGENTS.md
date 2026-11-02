@@ -1063,3 +1063,17 @@ checks, and runs in Mobile CI. Preview builds increment Android version codes.
 All 76 mobile script tests and typecheck passed locally. A new standalone preview
 APK must be installed; EAS Update is not configured. Physical-phone retesting of
 the two reported notices remains required. See `docs/mobile-notification-fix-2026-11-02.md`.
+
+### Sign-out follow-up (2026-11-02)
+
+The Me screen's native **Sign out?** confirmation is intentional. A regression test
+reproduced logout waiting behind a stalled Expo/native push-token request. Push
+registration now cancels that read when the active push user changes or signs out,
+and applies a 15-second token-lookup timeout. Queued work is tied to the original
+registration generation; late tokens cannot revive it even after the same user
+signs in again. Backend registration/revocation writes remain serialized, and logout
+still requires successful device revocation before ending the local auth session.
+Network/storage/auth failures may still require retry; this is not offline logout.
+`npm run test:push` includes token cancellation/timeout, late-result and confirmation,
+logout ordering and failure/retry regressions. Physical-device confirmation remains
+required; the earlier version-code-4 APK does not include this follow-up.
