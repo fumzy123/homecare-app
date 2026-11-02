@@ -1048,3 +1048,18 @@ general availability is never altered. Approved coverage shows **Admin approved*
 current assignments and history include the approving staff name and timestamp.
 Existing provenance columns are reused, with no migration. See
 `backend/DIRECT_ASSIGNMENT.md` for tests and rollout details.
+
+## Mobile notification compatibility and return navigation (2026-11-02)
+
+The October 15/16 staging APK predates service-type retirement and the inbox stack
+navigation change. Its placement detail calls `service_type.replaceAll()` even though
+the current API omits that field; the old component reproduces a render TypeError
+with a current care-slot fixture. Current source renders **Care visit**. Approval
+notifications open `/notifications/schedule` on the root stack, preserving the inbox
+for Back; care-request destinations now carry notification source and show the
+correct Back label. Both screens recover to the inbox if no history exists.
+`npm run test:inbox` includes rendered screen regressions and Expo stack GO_BACK
+checks, and runs in Mobile CI. Preview builds increment Android version codes.
+All 76 mobile script tests and typecheck passed locally. A new standalone preview
+APK must be installed; EAS Update is not configured. Physical-phone retesting of
+the two reported notices remains required. See `docs/mobile-notification-fix-2026-11-02.md`.

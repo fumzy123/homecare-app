@@ -19,6 +19,7 @@
     },
     "preview": {
       "environment": "preview",
+      "autoIncrement": true,
       "distribution": "internal",
       "env": {
         "APP_ENV": "staging",

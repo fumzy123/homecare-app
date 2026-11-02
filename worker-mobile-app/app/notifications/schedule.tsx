@@ -8,7 +8,7 @@ import { ScheduleView } from '@/features/shifts/components/ScheduleView';
 export default function NotificationScheduleScreen() {
   return <SafeAreaView className="flex-1 bg-cream">
     <View className="flex-row items-center border-b border-cream-2 bg-paper px-5 py-3">
-      <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back to notifications" className="mr-3 rounded-full p-2">
+      <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/notifications')} accessibilityRole="button" accessibilityLabel="Back to notifications" className="mr-3 rounded-full p-2">
         <Ionicons name="arrow-back" size={22} color="#111111" />
       </Pressable>
       <Text className="font-mono text-xs uppercase tracking-widest text-muted">Notifications · Schedule</Text>

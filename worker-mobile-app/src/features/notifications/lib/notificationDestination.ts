@@ -20,7 +20,7 @@ export function notificationDestination(n: WorkerNotification) {
   if (['placement_created', 'placement_closed', 'placement_coverage_updated'].includes(n.type)) {
     const id = n.payload.placement_id;
     if (typeof id === 'string' && uuid.test(id)) {
-      return { pathname: '/placements/[id]' as const, params: { id } };
+      return { pathname: '/placements/[id]' as const, params: { id, source: 'notifications' } };
     }
   }
   return null;

@@ -40,6 +40,9 @@ jobs:
       - name: Push registration lifecycle tests
         run: npm run test:push
 
+      - name: Notification inbox and destination screen regressions
+        run: npm run test:inbox
+
   expo-doctor:
     name: Mobile Expo Doctor
     runs-on: ubuntu-latest
