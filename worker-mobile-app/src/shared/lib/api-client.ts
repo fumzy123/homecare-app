@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
+import { createAuthFetch } from './auth-fetch';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_API_URL ?? 'http://localhost:8000';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -15,6 +16,7 @@ const ExpoSecureStoreAdapter = {
 };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  global: { fetch: createAuthFetch() },
   auth: {
     storage: ExpoSecureStoreAdapter,
     autoRefreshToken: true,

@@ -40,6 +40,9 @@ jobs:
       - name: Push registration lifecycle tests
         run: npm run test:push
 
+      - name: Sign-in submission and timeout recovery tests
+        run: npm run test:sign-in
+
       - name: Notification inbox and destination screen regressions
         run: npm run test:inbox
 

@@ -5,18 +5,20 @@ import { Btn } from '@/shared/components/ui';
 import { useSignIn } from '../hooks/useAuth';
 import { openWebsitePage } from '@/shared/lib/website-links';
 
-const emailSchema = z.string().email('Enter a valid email address');
+const emailSchema = z.string().trim().email('Enter a valid email address');
 const passwordSchema = z.string().min(1, 'Password is required');
 
 export function LoginForm() {
-  const { mutate: signIn, isPending, error } = useSignIn();
+  const { mutateAsync: signIn, isPending, error } = useSignIn();
 
   const form = useForm({
     defaultValues: { email: '', password: '' },
     onSubmit: async ({ value }) => {
-      signIn(
-        { email: value.email.trim(), password: value.password },
-      );
+      try {
+        await signIn({ email: value.email.trim(), password: value.password });
+      } catch {
+        // The mutation exposes the error below; retain the form for retry.
+      }
     },
   });
 
@@ -26,7 +28,7 @@ export function LoginForm() {
     <View>
       {errorMessage ? (
         <View className="mb-4 rounded-xl border border-rose bg-paper px-4 py-3">
-          <Text className="font-sans text-sm text-ink">{errorMessage}</Text>
+          <Text accessibilityRole="alert" className="font-sans text-sm text-ink">{errorMessage}</Text>
         </View>
       ) : null}
 
@@ -47,12 +49,17 @@ export function LoginForm() {
             <TextInput
               className="rounded-xl border border-cream-2 bg-paper px-4 py-3 font-sans text-base text-ink"
               value={field.state.value}
-              onChangeText={field.handleChange}
+              onChangeText={(value) => {
+                field.handleChange(value);
+                if (field.state.meta.isBlurred || form.state.submissionAttempts > 0) void field.validate('blur');
+              }}
               onBlur={field.handleBlur}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="email"
+              editable={!isPending}
+              accessibilityLabel="Email"
               placeholder="you@agency.com"
               placeholderTextColor="#8A8378"
             />
@@ -82,10 +89,15 @@ export function LoginForm() {
             <TextInput
               className="rounded-xl border border-cream-2 bg-paper px-4 py-3 font-sans text-base text-ink"
               value={field.state.value}
-              onChangeText={field.handleChange}
+              onChangeText={(value) => {
+                field.handleChange(value);
+                if (field.state.meta.isBlurred || form.state.submissionAttempts > 0) void field.validate('blur');
+              }}
               onBlur={field.handleBlur}
               secureTextEntry
               autoComplete="password"
+              editable={!isPending}
+              accessibilityLabel="Password"
               placeholder="••••••••"
               placeholderTextColor="#8A8378"
             />

@@ -7,6 +7,8 @@ export function useSignIn() {
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       signIn(email, password),
+    retry: false,
+    networkMode: 'always',
     onSuccess: (session) => {
       setSession(session);
     },

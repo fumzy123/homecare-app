@@ -1077,3 +1077,17 @@ Network/storage/auth failures may still require retry; this is not offline logou
 `npm run test:push` includes token cancellation/timeout, late-result and confirmation,
 logout ordering and failure/retry regressions. Physical-device confirmation remains
 required; the earlier version-code-4 APK does not include this follow-up.
+
+### Sign-in retry recovery (2026-11-03)
+
+Login revalidates previously blurred/submitted fields while correcting them, so
+stale blur errors cannot block another submit. Emails are trimmed before validation;
+passwords remain exact. The form awaits the sign-in mutation; pending credentials
+are not editable, and failures retain the draft. Password exchange uses a 20-second
+deadline covering response headers and body, with native cancellation and rejection
+before Supabase can store late results. Refresh-token and other auth requests keep
+their existing behavior. This does not impose a deadline on secure storage or every
+auth lifecycle operation. Sign-in mutations do not automatically retry or queue for
+reconnection. `npm run test:sign-in` runs in Mobile CI. All 95 mobile script tests and
+typecheck passed; the precise phone incident is unconfirmed and device retest remains
+required. See `docs/mobile-sign-in-fix-2026-11-03.md`.
