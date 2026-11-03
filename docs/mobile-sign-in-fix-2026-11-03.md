@@ -34,4 +34,15 @@ provider errors, late responses and non-password pass-through. It runs in Mobile
 Tests mock native UI/transport; phone keyboard, autofill, sign-out → sign-in, and
 slow-network acceptance remain required on the new APK.
 
-Build submission and CI evidence will be recorded after publishing the source commit.
+## Staging release
+
+- Source commit `b748ad589b3a8860fe3754b3514e9596d5869cbf` is pushed to `staging`.
+- [Mobile CI](https://github.com/fumzy123/homecare-app/actions/runs/41652864264)
+  passed both the Type Check/test job and Expo Doctor.
+- [Android staging build](https://expo.dev/accounts/fumzy123/projects/worker-mobile-app/builds/a71fd07f-b64e-4d4f-aed8-c7ced3b42f58)
+  was submitted with profile `preview`, version code **6**, from that source commit.
+  Build completion and physical-phone acceptance are pending.
+- Existing staging service settings, signing key and Firebase file variable are
+  reused. This APK includes the previous notification and sign-out fixes.
+- Install version code 6 after it finishes. Check an initial sign-in with the
+  keyboard open, corrected validation errors, and sign-out followed by sign-in.
