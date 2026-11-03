@@ -61,7 +61,7 @@ function CalendarVisit({ event }: { event: CalendarEvent }) {
   return <>
     <span className="schedule-visit-time">{visitTimeLabel(event.resource)}</span>
     <span className="schedule-visit-client">{client.first_name} {client.last_name}</span>
-    <span className="schedule-visit-worker">{worker.first_name} {worker.last_name}</span>
+    <span className="schedule-visit-worker">{event.resource.completion_status === 'dropped' ? 'Needs replacement' : `${worker.first_name} ${worker.last_name}`}</span>
   </>
 }
 

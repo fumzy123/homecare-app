@@ -35,7 +35,7 @@ export function WorkersSchedule({ rows, from, clientFiltered, onSelect }: {
                 onClick={() => onSelect(visit)}>
                 <span className="workers-schedule-time">{time}</span>
                 <span className="workers-schedule-client">{name}</span>
-                <small>{status.label}</small>
+                <small>{visit.completion_status === 'dropped' ? 'Needs replacement' : status.label}</small>
               </button>
             }) : <span className="workers-schedule-empty" aria-label="No visits">—</span>}
           </td>)}

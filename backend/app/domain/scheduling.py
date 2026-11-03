@@ -216,7 +216,7 @@ def timeblock_for_occurrence(
     """Return the (start, end) time block for an occurrence on target_date, or None if cancelled."""
     mod = shift_mod_map.get(target_date)
 
-    if mod and mod.completion_status == ShiftCompletionStatus.cancelled:
+    if mod and mod.completion_status in (ShiftCompletionStatus.cancelled, ShiftCompletionStatus.dropped):
         return None
 
     if mod and mod.new_start_time and mod.new_end_time:
@@ -296,7 +296,12 @@ class SchedulingChecker:
         if exclude_shift_id:
             existing_shifts = [s for s in existing_shifts if str(s.id) != str(exclude_shift_id)]
 
-        conflicts = []
+        from app.repositories.leave_repository import LeaveRepository
+        from app.domain.leave import leave_overlaps
+        leaves = LeaveRepository(self.db).worker_leaves(worker_id, self.org_id)
+        conflicts = [dict(date=day.isoformat(), start=start.isoformat(), end=end.isoformat(),
+            client_name='Recorded worker leave', shift_id=None)
+            for day, start, end in proposed_time_blocks for leave in leaves if leave_overlaps(start, end, leave)]
         for existing_shift in existing_shifts:
             shift_mod_map = {m.original_date: m for m in existing_shift.modifications}
 

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone, time
 import uuid
 from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
@@ -209,6 +209,8 @@ class ShiftService:
         return ShiftOccurrenceResponse(
             shift_id=shift.id,
             modification_id=mod.id if mod else None,
+            dropped_reason=getattr(mod, "dropped_reason", None),
+            replacement_shift_id=getattr(mod, "replacement_shift_id", None),
             date=occurrence_date,
             start_time=effective.start_time,
             end_time=effective.end_time,
@@ -691,6 +693,7 @@ class ShiftService:
                 )
 
             existing = self.modification_repo.get_by_shift_and_date(shift_id, payload.original_date)
+            self._guard_leave_occurrence(master, existing, payload)
             before = modification_snapshot(existing)
 
             if existing:
@@ -746,6 +749,7 @@ class ShiftService:
             master = self._get_active_shift(shift_id)
             evidence = self.evidence_service.preserve(master)
             mod = self.modification_repo.get_modification_by_shift_and_date_required(shift_id, original_date)
+            self._guard_leave_occurrence(master, mod, payload)
             before = modification_snapshot(mod)
 
             if payload.new_start_time or payload.new_end_time:
@@ -964,3 +968,73 @@ class ShiftService:
         except Exception as e:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
+
+
+    async def replace_dropped_visit(self, shift_id, day, payload):
+        from app.repositories.leave_repository import LeaveRepository
+        from app.repositories.worker_availability_repository import WorkerAvailabilityRepository
+        from app.core.enums import WeekDay
+        try:
+            OrganizationRepository(self.db).lock_by_id(self.org_id)
+            master = self.shift_repo.lock_shift(shift_id, self.org_id)
+            mod = self.modification_repo.get_modification_by_shift_and_date_required(shift_id, day)
+            if mod.completion_status != ShiftCompletionStatus.dropped or mod.replacement_shift_id:
+                raise AppError(409, 'VISIT_ALREADY_RESOLVED', 'This visit no longer needs replacement. Refresh the schedule.')
+            if not shift_has_occurrence_on(master, day):
+                raise AppError(409, 'VISIT_ENDED', 'This occurrence is no longer part of the care schedule.')
+            effective = resolve_effective_occurrence(master, day, mod)
+            from zoneinfo import ZoneInfo
+            org = OrganizationRepository(self.db).get_by_id(self.org_id)
+            now = datetime.now(ZoneInfo(org.billing_timezone or 'America/St_Johns')).replace(tzinfo=None)
+            if effective.start_time < now or LeaveRepository(self.db).documented_occurrences([master.id]).intersection({(master.id, day)}):
+                raise AppError(409, 'VISIT_HISTORY_PROTECTED', 'Elapsed or documented visits must retain their history.')
+            if not payload.confirm_arranged:
+                raise AppError(422, 'COVERAGE_CONFIRMATION_REQUIRED', 'Confirm that you arranged this visit with the replacement worker.')
+            worker = self.employment_repo.get_active_by_id_and_org(payload.worker_id, self.org_id)
+            from app.core.enums import OrgMemberRole, EmploymentStatus
+            if worker.role != OrgMemberRole.home_support_worker or worker.employment_status != EmploymentStatus.active:
+                raise AppError(409, 'WORKER_INACTIVE', 'Choose an active home support worker.')
+            availability = WorkerAvailabilityRepository(self.db).list_for_person(worker.person_id)
+            cursor = effective.start_time
+            while availability and cursor < effective.end_time:
+                boundary = min(datetime.combine(cursor.date() + timedelta(days=1), time.min), effective.end_time)
+                weekday = list(WeekDay)[cursor.weekday()]
+                windows = sorted((a for a in availability if a.day_of_week == weekday), key=lambda a: a.start_time)
+                covered_until = cursor
+                for window in windows:
+                    start = datetime.combine(cursor.date(), window.start_time)
+                    end = datetime.combine(cursor.date(), window.end_time)
+                    if start <= covered_until < end:
+                        covered_until = end
+                if covered_until < boundary:
+                    raise AppError(409, 'WORKER_UNAVAILABLE', 'The replacement visit falls outside recorded worker availability.')
+                cursor = boundary
+            replacement = await self.create_shift(ShiftCreateSchema(worker_id=payload.worker_id, client_id=master.client_id,
+                start_time=effective.start_time, end_time=effective.end_time, location=effective.location,
+                notes=effective.instructions), commit=False)
+            replacement.weekly_care_need_id = master.weekly_care_need_id
+            replacement.care_slot_id = master.care_slot_id
+            mod.replacement_shift_id = replacement.id
+            mod.completion_status = ShiftCompletionStatus.cancelled
+            mod.cancelled_at = datetime.now(timezone.utc)
+            mod.cancellation_reason = 'Replacement coverage arranged; original worker retained in history.'
+            from app.repositories.activity_repository import ActivityRepository
+            ActivityRepository(self.db).record(self.org_id, self.current_employment_id, f'visit:{master.id}:{day}', 'schedule',
+                'Arranged replacement coverage', str(day), {'kind': 'visit', 'record_id': str(replacement.id), 'occurrence_date': effective.start_time.date().isoformat()})
+            self.db.commit()
+            return {'replacement_shift_id': str(replacement.id)}
+        except Exception:
+            self.db.rollback()
+            raise
+
+
+    def _guard_leave_occurrence(self, master, mod, payload):
+        if mod is None:
+            return
+        if mod.replacement_shift_id:
+            raise AppError(409, 'VISIT_REPLACED', 'Edit the replacement visit. The original visit is retained as history.')
+        if mod.dropped_reason and payload.completion_status in (ShiftCompletionStatus.scheduled, ShiftCompletionStatus.in_progress):
+            effective = resolve_effective_occurrence(master, mod.original_date, mod)
+            self._enforce_scheduling_rules(worker_id=master.worker_id,
+                proposed_time_blocks=[(mod.original_date, payload.new_start_time or effective.start_time, payload.new_end_time or effective.end_time)],
+                exclude_shift_id=master.id)

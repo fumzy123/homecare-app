@@ -26,9 +26,18 @@ export interface LeaveRecordCreatePayload {
   start_date: string
   end_date: string
   notes?: string
+  review_token?: string
+}
+
+export interface LeaveReview {
+  review_token: string
+  protected_count: number
+  visits: { shift_id: string; occurrence_date: string; client: string; start_time: string; end_time: string }[]
 }
 
 export const leaveApi = {
+  review: (workerId: string, payload: LeaveRecordCreatePayload): Promise<LeaveReview> =>
+    apiClient.post(`/api/org-members/${workerId}/leave/review`, payload).then(r => r.data),
   list: (workerId: string, year: number): Promise<LeaveRecord[]> =>
     apiClient.get(`/api/org-members/${workerId}/leave`, { params: { year } }).then((r) => r.data),
 

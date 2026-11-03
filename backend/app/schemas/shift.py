@@ -198,7 +198,14 @@ class ClientSummary(BaseModel):
 
 
 # Returned by GET /shifts — one item per expanded occurrence
+class ShiftReplacementSchema(BaseModel):
+    worker_id: UUID
+    confirm_arranged: bool = False
+
+
 class ShiftOccurrenceResponse(BaseModel):
+    dropped_reason: str | None = None
+    replacement_shift_id: UUID | None = None
     shift_id:                UUID
     modification_id:         UUID | None
     date:                    date

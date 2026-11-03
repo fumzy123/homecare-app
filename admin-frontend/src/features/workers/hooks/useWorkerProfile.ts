@@ -65,7 +65,7 @@ export function useWorkerLeave(workerId: string, year: number) {
 }
 export function useWorkerLeaveMutations(workerId: string) {
   const qc = useQueryClient()
-  const refresh = () => qc.invalidateQueries({ queryKey: ['leave', workerId] })
+  const refresh = () => Promise.all(['leave', 'shifts', 'attention-items', 'activity', 'workers'].map(key => qc.invalidateQueries({ queryKey: [key] })))
   const create = useMutation({
     mutationFn: (payload: LeaveRecordCreatePayload) =>
       leaveApi.create(workerId, payload),
@@ -107,4 +107,8 @@ export function useDeleteWorker(workerId: string) {
     retry: false,
     networkMode: 'always',
   })
+}
+
+export function useReviewWorkerLeave(workerId: string) {
+  return useMutation({ mutationFn: (payload: LeaveRecordCreatePayload) => leaveApi.review(workerId, payload), retry: false, networkMode: 'always' })
 }

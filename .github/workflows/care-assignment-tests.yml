@@ -24,6 +24,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/care_assignment_test
+      LEAVE_TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/care_assignment_test
       CARE_TEST_DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/care_assignment_test
       SUPABASE_URL: http://127.0.0.1:5198
       SUPABASE_SECRET_KEY: test-secret-key
@@ -62,7 +63,7 @@ jobs:
         run: python -c "import os, app.models; from sqlalchemy import create_engine; app.models.Base.metadata.create_all(create_engine(os.environ['CARE_TEST_DATABASE_URL']))"
       - name: Backend safeguards and migration
         working-directory: backend
-        run: python -m pytest tests/services/test_placement_assignment.py tests/services/test_assignment_management.py tests/integration/test_care_coverage.py tests/integration/test_funding_retirement.py tests/services/test_funding_retired.py tests/services/test_service_type_retirement.py tests/integration/test_service_type_retirement.py -q
+        run: python -m pytest tests/services/test_leave_service.py tests/integration/test_leave_migration.py tests/services/test_placement_assignment.py tests/services/test_assignment_management.py tests/integration/test_care_coverage.py tests/integration/test_funding_retirement.py tests/services/test_funding_retired.py tests/services/test_service_type_retirement.py tests/integration/test_service_type_retirement.py -q
       - name: Start test frontend
         working-directory: admin-frontend
         run: |
@@ -78,7 +79,7 @@ jobs:
         run: |
           node --experimental-strip-types --test tests/care-requests.test.mjs
           node --experimental-strip-types --test tests/phone.test.mjs
-          npm run test:components -- tests/assigned-workers.test.jsx tests/scheduling-checks.test.jsx
+          npm run test:components -- tests/assigned-workers.test.jsx tests/scheduling-checks.test.jsx tests/leave-coverage.test.jsx
           node tests/assigned-workers.browser.cjs
           node tests/assignments.browser.cjs
           node tests/care-requests.browser.cjs

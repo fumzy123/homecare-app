@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useReviewWorkerLeave } from '../hooks/useWorkerProfile'
+import type { LeaveReview } from '@/features/leave/api'
 import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 import {
   LEAVE_TYPE_LABELS,
@@ -8,11 +10,13 @@ import {
 import { WorkerDialog } from './WorkerProfileUI'
 
 export function RecordLeaveModal({
+  workerId,
   onClose,
   onSubmit,
   isPending,
   error,
 }: {
+  workerId: string
   onClose: () => void
   onSubmit: (payload: LeaveRecordCreatePayload) => void
   isPending: boolean
@@ -22,32 +26,34 @@ export function RecordLeaveModal({
     [start, setStart] = useState(''),
     [end, setEnd] = useState(''),
     [notes, setNotes] = useState('')
+  const reviewMutation = useReviewWorkerLeave(workerId)
+  const [review, setReview] = useState<(LeaveReview & { key: string }) | null>(null)
+  const key = JSON.stringify([type, start, end, notes])
+  const reviewed = review?.key === key ? review : null
+  const busy = isPending || reviewMutation.isPending
   const dirty = !!(start || end || notes || type !== 'sick')
   useUnsavedChanges(dirty || isPending)
   const close = () => {
-    if (!isPending && (!dirty || window.confirm('Discard this leave record?')))
+    if (!busy && (!dirty || window.confirm('Discard this leave record?')))
       onClose()
   }
   return (
     <WorkerDialog
       title="Record leave"
       subtitle="Time away"
-      busy={isPending}
+      busy={busy}
       onClose={close}
     >
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (!isPending && start && end >= start)
-            onSubmit({
-              leave_type: type,
-              start_date: start,
-              end_date: end,
-              notes: notes.trim() || undefined,
-            })
+          if (busy || !start || end < start) return
+          const payload = { leave_type: type, start_date: start, end_date: end, notes: notes.trim() || undefined }
+          if (reviewed) onSubmit({ ...payload, review_token: reviewed.review_token })
+          else reviewMutation.mutate(payload, { onSuccess: data => setReview({ ...data, key }) })
         }}
       >
-        <fieldset disabled={isPending}>
+        <fieldset disabled={busy}>
           <div className="wp-form-grid">
             <label className="wp-field wp-full">
               Leave type
@@ -95,9 +101,18 @@ export function RecordLeaveModal({
             </label>
           </div>
           <p className="wp-notice">
-            Recording leave does not cancel or reassign visits. Review the
-            worker’s schedule to arrange coverage.
+            Recording leave marks affected future visits as dropped and alerts the agency to arrange cover.
+            Recurring assignments remain unchanged. Removing leave does not automatically restore visits or undo replacements.
           </p>
+          {reviewed && <section className="wp-notice" aria-label="Affected visits">
+            <strong>{reviewed.visits.length} visits need replacement coverage</strong>
+            <ul>{reviewed.visits.map(v => <li key={`${v.shift_id}:${v.occurrence_date}`}>
+              {v.client} · {v.start_time.slice(0, 10)} · {v.start_time.slice(11, 16)}–{v.end_time.slice(11, 16)}
+            </li>)}</ul>
+            {reviewed.protected_count > 0 && <p>{reviewed.protected_count} elapsed, ongoing or documented visits will retain their history.</p>}
+          </section>}
+          {reviewMutation.isError && <p role="alert" className="wp-error">Could not review affected visits. Try again.</p>}
+          {reviewed && <button type="button" className="wp-btn" onClick={() => setReview(null)}>Review again</button>}
           {error && (
             <p role="alert" className="wp-error">
               {error}
@@ -110,9 +125,9 @@ export function RecordLeaveModal({
             <button
               className="wp-btn wp-primary"
               type="submit"
-              disabled={!start || !end || end < start}
+              disabled={busy || !start || !end || end < start}
             >
-              {isPending ? 'Saving…' : 'Save record'}
+              {busy ? 'Please wait…' : reviewed ? `Record leave${reviewed.visits.length ? ` and mark ${reviewed.visits.length} visits needing cover` : ''}` : 'Review affected visits'}
             </button>
           </div>
         </fieldset>

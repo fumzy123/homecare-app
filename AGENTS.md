@@ -1120,3 +1120,14 @@ auth lifecycle operation. Sign-in mutations do not automatically retry or queue 
 reconnection. `npm run test:sign-in` runs in Mobile CI. All 95 mobile script tests and
 typecheck passed; the precise phone incident is unconfirmed and device retest remains
 required. See `docs/mobile-sign-in-fix-2026-11-03.md`.
+
+
+## Leave coverage (2026-11-03)
+
+Leave recording previews affected occurrences and confirms a reviewed token under the
+agency lock. Eligible future visits become dropped; elapsed/ongoing/documented visits
+are preserved. Action Tower surfaces gaps and the visit drawer offers occurrence-only
+replacement with scheduling safeguards. Original workers and leave reasons remain in
+history; resolved originals become cancelled with a link to the one-off replacement.
+Removing leave does not restore dropped visits or undo cover. Existing records are not
+backfilled. Apply migration `ab731eed0142` before the API. See `backend/LEAVE_COVERAGE.md`.

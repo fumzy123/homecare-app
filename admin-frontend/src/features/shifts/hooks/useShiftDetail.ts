@@ -38,6 +38,7 @@ export function useShiftDetailWrite(options: {
     },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["shifts"] });
+      void client.invalidateQueries({ queryKey: ["attention-items"] });
       options.onSuccess();
     },
     onError: options.onError,

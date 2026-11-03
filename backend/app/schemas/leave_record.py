@@ -10,6 +10,7 @@ class LeaveRecordCreateSchema(BaseModel):
     start_date: date
     end_date: date
     notes: Optional[str] = None
+    review_token: str | None = None
 
     @model_validator(mode="after")
     def end_not_before_start(self):

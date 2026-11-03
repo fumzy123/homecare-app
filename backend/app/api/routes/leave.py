@@ -43,3 +43,8 @@ def delete_leave_record(
     leave_service: LeaveService = Depends(get_leave_service),
 ):
     leave_service.delete_leave_record(worker_id, leave_id)
+
+
+@router.post("/{worker_id}/leave/review")
+def review_leave(worker_id: str, payload: LeaveRecordCreateSchema, leave_service: LeaveService = Depends(get_leave_service)):
+    return leave_service.review_leave(worker_id, payload)

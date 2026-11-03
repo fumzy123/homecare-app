@@ -29,6 +29,8 @@ export interface ShiftClient {
 }
 
 export interface ShiftOccurrence {
+  dropped_reason?: string | null
+  replacement_shift_id?: string | null
   shift_id: string
   modification_id: string | null
   date: string
@@ -189,6 +191,8 @@ export interface OvertimeRejectRequest {
 }
 
 export const shiftsApi = {
+  replaceDroppedVisit: (id: string, date: string, worker_id: string): Promise<void> =>
+    apiClient.post(`/api/shifts/${id}/occurrences/${date}/replacement`, { worker_id, confirm_arranged: true }).then(() => undefined),
   getShiftStats: async (
     fromDate: string,
     toDate: string,

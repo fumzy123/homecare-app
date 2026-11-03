@@ -104,7 +104,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
               onClick={() => {
                 if (
                   window.confirm(
-                    `Remove the leave record for ${dateLabel(record.start_date)}–${dateLabel(record.end_date)}?`,
+                    `Remove the leave record for ${dateLabel(record.start_date)}–${dateLabel(record.end_date)}? Unresolved visits will still need cover, and replacements will be retained. Review the schedule afterwards.`,
                   )
                 )
                   mutations.remove.mutate(record.id)
@@ -279,6 +279,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
       </div>
       {recording && (
         <RecordLeaveModal
+          workerId={worker.id}
           isPending={mutations.create.isPending}
           error={
             mutations.create.isError

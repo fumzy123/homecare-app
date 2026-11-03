@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.security import require_admin
 from app.schemas.shift import (
+    ShiftReplacementSchema,
     ShiftCancelFromSchema,
     ShiftCancelSchema,
     ShiftEditFromSchema,
@@ -192,3 +193,11 @@ async def edit_from_date(
     shift_service: ShiftService = Depends(get_shift_service),
 ):
     return await shift_service.edit_from_date(shift_id, payload)
+
+
+
+
+@router.post("/{shift_id}/occurrences/{day}/replacement")
+async def replace_dropped_visit(shift_id: UUID, day: date, payload: ShiftReplacementSchema,
+                                shift_service: ShiftService = Depends(get_shift_service)):
+    return await shift_service.replace_dropped_visit(shift_id, day, payload)

@@ -83,7 +83,7 @@ class AttentionService:
                 if status == 'dropped':
                     items.append(AttentionItem(id=f'visit:{shift.id}:{day}', category='schedule', stage='review_dropped_visit' if actual_day < today else 'replace_worker',
                         urgency='urgent' if actual_day <= today else 'upcoming', subject=f'{shift.client.first_name} {shift.client.last_name}',
-                        detail='Dropped visit · Outcome needs review' if actual_day < today else 'Dropped visit · Replacement needed', due_on=actual_day,
+                        detail=('Dropped visit · Outcome needs review' if actual_day < today else 'Needs replacement') + (' · Worker on leave' if getattr(modifications.get(day), 'dropped_reason', None) else ''), due_on=actual_day,
                         target=AttentionTarget(kind='visit', record_id=shift.id, occurrence_date=day)))
         unread = self.activity_repo.unread_by_situation(self.member)
         fresh_interest = self.activity_repo.unread_notices(self.member)

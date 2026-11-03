@@ -99,3 +99,10 @@ class LeaveRepository:
             record: The LeaveRecord ORM instance to delete.
         """
         self.db.delete(record)
+
+    def worker_leaves(self, worker_id, org_id):
+        return self.db.query(LeaveRecord).filter(LeaveRecord.worker_id == worker_id, LeaveRecord.org_id == org_id).all()
+
+    def documented_occurrences(self, shift_ids):
+        from app.models.progress_note import ProgressNote
+        return set(self.db.query(ProgressNote.shift_id, ProgressNote.occurrence_date).filter(ProgressNote.shift_id.in_(shift_ids)).all())

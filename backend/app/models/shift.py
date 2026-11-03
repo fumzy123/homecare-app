@@ -54,4 +54,4 @@ class Shift(Base):
     worker = relationship("Employment", foreign_keys=[worker_id])
     client = relationship("Client", foreign_keys=[client_id])
     creator = relationship("Employment", foreign_keys=[created_by])
-    modifications = relationship("ShiftModification", back_populates="shift")
+    modifications = relationship("ShiftModification", foreign_keys="ShiftModification.shift_id", back_populates="shift")

@@ -1,3 +1,4 @@
+import { ArrangeVisitCover } from './ArrangeVisitCover'
 import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useEffect, useState, useRef } from 'react'
@@ -524,6 +525,8 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
           ) : (
             /* ── View mode ── */
             <>
+              {shift.completion_status === 'dropped' && <ArrangeVisitCover shift={shift} onDone={onClose} />}
+              {shift.replacement_shift_id && <p>Replacement coverage arranged. This original visit is retained for history.</p>}
               {/* Date / time / status block */}
               <div className="border border-ink px-4 py-4" style={{ borderLeftWidth: 3, borderLeftColor: statusCfg.bg }}>
                 <div className="flex items-start justify-between gap-3">
@@ -570,7 +573,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
               {/* Worker */}
               <div>
-                <p className={labelClass}>Worker</p>
+                <p className={labelClass}>{shift.completion_status === 'dropped' ? 'Original worker · Needs replacement' : 'Worker'}</p>
                 <div className="flex items-center gap-3 mt-1">
                   <Avatar
                     initials={`${shift.worker.first_name[0]}${shift.worker.last_name[0]}`}

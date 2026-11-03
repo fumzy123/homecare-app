@@ -19,15 +19,22 @@ from app.services.leave_service import LeaveService
 
 @pytest.fixture
 def agency():
-    engine = create_engine('sqlite://')
+    import os
+    from sqlalchemy.engine import make_url
+    url = os.getenv('LEAVE_TEST_DATABASE_URL', 'sqlite://')
+    assert url == 'sqlite://' or make_url(url).database.endswith('_test')
+    engine = create_engine(url)
 
     @event.listens_for(engine, 'connect')
     def enable_foreign_keys(connection, _):
-        connection.execute('PRAGMA foreign_keys=ON')
+        if url == 'sqlite://':
+            connection.execute('PRAGMA foreign_keys=ON')
 
-    for model in (Organization, Person, Employment, LeaveRecord):
-        model.__table__.create(engine)
-    with Session(engine) as db:
+    from app.models.base import Base
+    Base.metadata.create_all(engine)
+    connection = engine.connect() if url != 'sqlite://' else None
+    transaction = connection.begin() if connection else None
+    with Session(bind=connection if connection is not None else engine, join_transaction_mode='create_savepoint') as db:
         auth_id = uuid4()
         org = Organization(name='Test agency', owner_id=auth_id)
         person = Person(first_name='Test', last_name='Admin', email='admin@example.test', supabase_user_id=auth_id)
@@ -39,6 +46,9 @@ def agency():
         db.add_all([member, employee])
         db.commit()
         yield db, SimpleNamespace(id=auth_id), member, employee
+    if transaction:
+        transaction.rollback()
+        connection.close()
     engine.dispose()
 
 
@@ -78,3 +88,138 @@ def test_leave_rejects_missing_membership(agency):
     db, _, _, _ = agency
     with pytest.raises(AppError):
         LeaveService(db, SimpleNamespace(id=uuid4()))
+
+
+@pytest.fixture
+def visits(agency, monkeypatch):
+    from datetime import datetime, timedelta
+    from app.models.client import Client
+    from app.models.shift import Shift
+    from app.services.worker_notification_service import WorkerNotificationService
+    db, user, member, worker = agency
+    monkeypatch.setattr(WorkerNotificationService, 'schedule', lambda *a, **k: None)
+    client = Client(org_id=member.org_id, first_name='Test', last_name='Client', date_of_birth=date(1940, 1, 1),
+        street='1 Test', city='Test', province='NL', postal_code='A1A1A1',
+        emergency_contact_name='Test', emergency_contact_phone='555', emergency_contact_relationship='Family')
+    db.add(client)
+    db.flush()
+    day = date.today() + timedelta(days=30)
+    start = datetime.combine(day, datetime.min.time()).replace(hour=10)
+    shift = Shift(org_id=member.org_id, worker_id=worker.id, client_id=client.id, created_by=member.id,
+        start_time=start, end_time=start + timedelta(hours=2), is_recurring=True, recurrence_rule='FREQ=DAILY')
+    db.add(shift)
+    db.commit()
+    request = LeaveRecordCreateSchema(leave_type='vacation', start_date=day, end_date=day)
+    return db, user, member, worker, shift, request
+
+
+def test_preview_confirmation_drops_only_affected_visit_and_removal_preserves_gap(visits):
+    from datetime import timedelta
+    from app.domain.scheduling import resolve_effective_occurrence, timeblock_for_occurrence
+    db, user, member, worker, shift, request = visits
+    service = LeaveService(db, user)
+    review = service.review_leave(worker.id, request)
+    assert len(review['visits']) == 1
+    assert shift.modifications == []
+    with pytest.raises(AppError):
+        service.create_leave_record(worker.id, request)
+    request.review_token = review['review_token']
+    record = service.create_leave_record(worker.id, request)
+    db.expire_all()
+    mod = shift.modifications[0]
+    assert mod.completion_status.value == 'dropped'
+    assert 'Worker on leave' in mod.dropped_reason
+    from app.services.attention_service import AttentionService
+    alerts = AttentionService(db, user).list_items().items
+    assert any(i.stage == 'replace_worker' and i.target.record_id == shift.id for i in alerts)
+    assert timeblock_for_occurrence(shift, request.start_date, {mod.original_date: mod}) is None
+    assert resolve_effective_occurrence(shift, request.start_date + timedelta(days=1), None).completion_status.value == 'scheduled'
+    service.delete_leave_record(worker.id, record.id)
+    assert mod.completion_status.value == 'dropped'
+
+
+def test_stale_review_and_documented_visit_protection(visits):
+    from datetime import timedelta
+    from app.models.progress_note import ProgressNote
+    db, user, _, worker, shift, request = visits
+    service = LeaveService(db, user)
+    request.review_token = service.review_leave(worker.id, request)['review_token']
+    shift.start_time += timedelta(minutes=30)
+    db.commit()
+    with pytest.raises(AppError):
+        service.create_leave_record(worker.id, request)
+    db.add(ProgressNote(shift_id=shift.id, occurrence_date=request.start_date, entries=[{'content': 'Retain me'}]))
+    db.commit()
+    review = service.review_leave(worker.id, request)
+    assert review['visits'] == []
+    assert review['protected_count'] == 1
+    request.review_token = review['review_token']
+    service.create_leave_record(worker.id, request)
+    assert shift.modifications == []
+
+
+def test_cover_preserves_original_recurring_worker_and_blocks_double_approval(visits, monkeypatch):
+    import asyncio
+    from app.services.shift_service import ShiftService
+    from app.services.billing_cutoff_service import BillingCutoffService
+    from app.schemas.shift import ShiftReplacementSchema
+    from app.models.shift import Shift
+    db, user, member, worker, shift, request = visits
+    monkeypatch.setattr(BillingCutoffService, 'seal_due', lambda *a, **k: None)
+    person = Person(first_name='Cover', last_name='Worker', email='cover@example.test')
+    db.add(person)
+    db.flush()
+    cover = Employment(person_id=person.id, org_id=member.org_id, role=OrgMemberRole.home_support_worker, max_hours_per_week=40)
+    db.add(cover)
+    db.commit()
+    service = LeaveService(db, user)
+    request.review_token = service.review_leave(worker.id, request)['review_token']
+    service.create_leave_record(worker.id, request)
+    args = ShiftReplacementSchema(worker_id=cover.id, confirm_arranged=True)
+    result = asyncio.run(ShiftService(db, user).replace_dropped_visit(shift.id, request.start_date, args))
+    db.expire_all()
+    mod = shift.modifications[0]
+    assert str(mod.replacement_shift_id) == result['replacement_shift_id']
+    replacement = db.get(Shift, mod.replacement_shift_id)
+    assert replacement.worker_id == cover.id
+    assert not replacement.is_recurring
+    assert shift.worker_id == worker.id and shift.is_recurring
+    assert mod.completion_status.value == 'cancelled'
+    with pytest.raises(AppError):
+        asyncio.run(ShiftService(db, user).replace_dropped_visit(shift.id, request.start_date, args))
+    assert db.query(Shift).count() == 2
+
+
+def test_leave_blocks_scheduling_and_replacement_with_absent_worker(visits, monkeypatch):
+    import asyncio
+    from app.domain.scheduling import SchedulingChecker
+    from app.services.shift_service import ShiftService
+    from app.services.billing_cutoff_service import BillingCutoffService
+    from app.schemas.shift import ShiftReplacementSchema
+    db, user, _, worker, shift, request = visits
+    monkeypatch.setattr(BillingCutoffService, 'seal_due', lambda *a, **k: None)
+    service = LeaveService(db, user)
+    request.review_token = service.review_leave(worker.id, request)['review_token']
+    service.create_leave_record(worker.id, request)
+    assert SchedulingChecker(db, worker.org_id).find_conflicts(worker.id, [(request.start_date, shift.start_time, shift.end_time)])
+    with pytest.raises(AppError):
+        asyncio.run(ShiftService(db, user).replace_dropped_visit(shift.id, request.start_date,
+            ShiftReplacementSchema(worker_id=worker.id, confirm_arranged=True)))
+    db.expire_all()
+    assert shift.modifications[0].completion_status.value == 'dropped'
+
+
+def test_overnight_and_moved_visits_use_effective_interval(visits):
+    from datetime import timedelta
+    from app.models.shift_modification import ShiftModification
+    db, user, _, worker, shift, request = visits
+    shift.is_recurring = False
+    shift.start_time = shift.start_time.replace(hour=23) - timedelta(days=1)
+    shift.end_time = shift.start_time + timedelta(hours=3)
+    db.commit()
+    service = LeaveService(db, user)
+    assert len(service.review_leave(worker.id, request)['visits']) == 1
+    db.add(ShiftModification(shift_id=shift.id, original_date=shift.start_time.date(),
+        new_start_time=shift.start_time - timedelta(days=3), new_end_time=shift.end_time - timedelta(days=3)))
+    db.commit()
+    assert service.review_leave(worker.id, request)['visits'] == []

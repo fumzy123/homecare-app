@@ -29,6 +29,8 @@ class ShiftModification(Base):
         default=ShiftCompletionStatus.scheduled
     )
 
+    dropped_reason = Column(Text, nullable=True)
+    replacement_shift_id = Column(UUID(as_uuid=True), ForeignKey("shifts.id"), nullable=True)
     notes = Column(Text, nullable=True)
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
     cancellation_reason = Column(Text, nullable=True)
@@ -43,4 +45,4 @@ class ShiftModification(Base):
     )
 
     # Relationships
-    shift = relationship("Shift", back_populates="modifications")
+    shift = relationship("Shift", back_populates="modifications", foreign_keys=[shift_id])
