@@ -88,7 +88,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <Link key={to} to={to} onClick={onClose} className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <div className={`flex items-center gap-2.5 px-3 py-2.5 font-mono text-[11px] tracking-[0.03em] transition-colors border border-transparent ${
               isActive(to)
-                ? 'bg-ink text-cream border-ink'
+                ? 'bg-ink text-mint border-ink'
                 : 'text-ink-soft hover:text-ink hover:bg-cream-2'
             }`}>
               <Icon size={16} strokeWidth={1.75} aria-hidden="true" className="shrink-0" />
