@@ -75,7 +75,7 @@ export const actionLabels: Record<AttentionStage, string> = {
   cover_slots: "Resolve coverage",
   replace_worker: "Find replacement",
   review_dropped_visit: "Review visit outcome",
-  renew_credential: "Review document",
+  renew_credential: "Review renewal",
   verify_credential: "Verify document",
 };
 

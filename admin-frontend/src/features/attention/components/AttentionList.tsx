@@ -147,11 +147,15 @@ export function AttentionList({
                               <span className="tower-state">
                                 {item.action_required === false
                                   ? "Update"
-                                  : item.urgency === "waiting"
-                                    ? "Waiting"
-                                    : item.urgency === "urgent"
-                                      ? "Needs attention"
-                                      : "Next step"}
+                                  : item.stage === "renew_credential"
+                                    ? "Document expiry · Renewal needed"
+                                    : item.stage === "verify_credential"
+                                      ? "Document awaiting verification"
+                                      : item.urgency === "waiting"
+                                        ? "Waiting"
+                                        : item.urgency === "urgent"
+                                          ? "Needs attention"
+                                          : "Next step"}
                               </span>
                               {(item.unread_count ?? 0) > 0 && (
                                 <span className="tower-new">
@@ -163,9 +167,11 @@ export function AttentionList({
                             <p className="tower-detail">{item.detail}</p>
                             {item.due_on && (
                               <p className="tower-date">
+                                {item.target.kind === "credential" && "Expiry date: "}
                                 {new Intl.DateTimeFormat("en-CA", {
                                   month: "short",
                                   day: "numeric",
+                                  ...(item.target.kind === "credential" ? { year: "numeric" as const } : {}),
                                 }).format(new Date(item.due_on + "T12:00:00"))}
                               </p>
                             )}
