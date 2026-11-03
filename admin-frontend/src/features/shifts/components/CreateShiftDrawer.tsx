@@ -61,6 +61,7 @@ export interface PendingShiftInfo {
 
 interface CreateShiftDrawerProps {
   preselectedClientId?: string
+  preselectedWorkerId?: string
   initialDate?: Date | null
   initialEndDate?: Date | null
   onFormChange?: (info: PendingShiftInfo) => void
@@ -88,6 +89,7 @@ export function CreateShiftDrawer({
   initialDate,
   initialEndDate,
   preselectedClientId,
+  preselectedWorkerId,
   onFormChange,
   onClose,
   onSuccess,
@@ -150,7 +152,7 @@ export function CreateShiftDrawer({
 
   const form = useForm({
     defaultValues: {
-      worker_id: '',
+      worker_id: preselectedWorkerId ?? '',
       client_id: preselectedClientId ?? '',
 
       date: defaultDate,

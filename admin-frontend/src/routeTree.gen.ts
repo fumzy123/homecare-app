@@ -45,9 +45,12 @@ import { Route as ProtectedDashboardPlacementsPlacementIdRouteImport } from './r
 import { Route as ProtectedDashboardClientsClientIdRouteImport } from './routes/_protected/dashboard/clients/$clientId'
 import { Route as ProtectedDashboardWorkersWorkerIdIndexRouteImport } from './routes/_protected/dashboard/workers/$workerId/index'
 import { Route as ProtectedDashboardClientsClientIdIndexRouteImport } from './routes/_protected/dashboard/clients/$clientId/index'
+import { Route as ProtectedDashboardWorkersWorkerIdScheduleRouteImport } from './routes/_protected/dashboard/workers/$workerId/schedule'
 import { Route as ProtectedDashboardWorkersWorkerIdLeaveRouteImport } from './routes/_protected/dashboard/workers/$workerId/leave'
 import { Route as ProtectedDashboardWorkersWorkerIdEditRouteImport } from './routes/_protected/dashboard/workers/$workerId/edit'
+import { Route as ProtectedDashboardWorkersWorkerIdDocumentsRouteImport } from './routes/_protected/dashboard/workers/$workerId/documents'
 import { Route as ProtectedDashboardWorkersWorkerIdAttendanceRouteImport } from './routes/_protected/dashboard/workers/$workerId/attendance'
+import { Route as ProtectedDashboardWorkersWorkerIdAssignmentsRouteImport } from './routes/_protected/dashboard/workers/$workerId/assignments'
 import { Route as ProtectedDashboardClientsClientIdVisitsRouteImport } from './routes/_protected/dashboard/clients/$clientId/visits'
 import { Route as ProtectedDashboardClientsClientIdNotesRouteImport } from './routes/_protected/dashboard/clients/$clientId/notes'
 import { Route as ProtectedDashboardClientsClientIdEditRouteImport } from './routes/_protected/dashboard/clients/$clientId/edit'
@@ -245,6 +248,12 @@ const ProtectedDashboardClientsClientIdIndexRoute =
     path: '/',
     getParentRoute: () => ProtectedDashboardClientsClientIdRoute,
   } as any)
+const ProtectedDashboardWorkersWorkerIdScheduleRoute =
+  ProtectedDashboardWorkersWorkerIdScheduleRouteImport.update({
+    id: '/schedule',
+    path: '/schedule',
+    getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
+  } as any)
 const ProtectedDashboardWorkersWorkerIdLeaveRoute =
   ProtectedDashboardWorkersWorkerIdLeaveRouteImport.update({
     id: '/leave',
@@ -257,10 +266,22 @@ const ProtectedDashboardWorkersWorkerIdEditRoute =
     path: '/edit',
     getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
   } as any)
+const ProtectedDashboardWorkersWorkerIdDocumentsRoute =
+  ProtectedDashboardWorkersWorkerIdDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
+  } as any)
 const ProtectedDashboardWorkersWorkerIdAttendanceRoute =
   ProtectedDashboardWorkersWorkerIdAttendanceRouteImport.update({
     id: '/attendance',
     path: '/attendance',
+    getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
+  } as any)
+const ProtectedDashboardWorkersWorkerIdAssignmentsRoute =
+  ProtectedDashboardWorkersWorkerIdAssignmentsRouteImport.update({
+    id: '/assignments',
+    path: '/assignments',
     getParentRoute: () => ProtectedDashboardWorkersWorkerIdRoute,
   } as any)
 const ProtectedDashboardClientsClientIdVisitsRoute =
@@ -326,9 +347,12 @@ export interface FileRoutesByFullPath {
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
   '/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
+  '/dashboard/workers/$workerId/assignments': typeof ProtectedDashboardWorkersWorkerIdAssignmentsRoute
   '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
+  '/dashboard/workers/$workerId/documents': typeof ProtectedDashboardWorkersWorkerIdDocumentsRoute
   '/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
   '/dashboard/workers/$workerId/leave': typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
+  '/dashboard/workers/$workerId/schedule': typeof ProtectedDashboardWorkersWorkerIdScheduleRoute
   '/dashboard/clients/$clientId/': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/dashboard/workers/$workerId/': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
@@ -367,9 +391,12 @@ export interface FileRoutesByTo {
   '/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
   '/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
+  '/dashboard/workers/$workerId/assignments': typeof ProtectedDashboardWorkersWorkerIdAssignmentsRoute
   '/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
+  '/dashboard/workers/$workerId/documents': typeof ProtectedDashboardWorkersWorkerIdDocumentsRoute
   '/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
   '/dashboard/workers/$workerId/leave': typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
+  '/dashboard/workers/$workerId/schedule': typeof ProtectedDashboardWorkersWorkerIdScheduleRoute
   '/dashboard/clients/$clientId': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/dashboard/workers/$workerId': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
@@ -413,9 +440,12 @@ export interface FileRoutesById {
   '/_protected/dashboard/clients/$clientId/edit': typeof ProtectedDashboardClientsClientIdEditRoute
   '/_protected/dashboard/clients/$clientId/notes': typeof ProtectedDashboardClientsClientIdNotesRoute
   '/_protected/dashboard/clients/$clientId/visits': typeof ProtectedDashboardClientsClientIdVisitsRoute
+  '/_protected/dashboard/workers/$workerId/assignments': typeof ProtectedDashboardWorkersWorkerIdAssignmentsRoute
   '/_protected/dashboard/workers/$workerId/attendance': typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
+  '/_protected/dashboard/workers/$workerId/documents': typeof ProtectedDashboardWorkersWorkerIdDocumentsRoute
   '/_protected/dashboard/workers/$workerId/edit': typeof ProtectedDashboardWorkersWorkerIdEditRoute
   '/_protected/dashboard/workers/$workerId/leave': typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
+  '/_protected/dashboard/workers/$workerId/schedule': typeof ProtectedDashboardWorkersWorkerIdScheduleRoute
   '/_protected/dashboard/clients/$clientId/': typeof ProtectedDashboardClientsClientIdIndexRoute
   '/_protected/dashboard/workers/$workerId/': typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
@@ -459,9 +489,12 @@ export interface FileRouteTypes {
     | '/dashboard/clients/$clientId/edit'
     | '/dashboard/clients/$clientId/notes'
     | '/dashboard/clients/$clientId/visits'
+    | '/dashboard/workers/$workerId/assignments'
     | '/dashboard/workers/$workerId/attendance'
+    | '/dashboard/workers/$workerId/documents'
     | '/dashboard/workers/$workerId/edit'
     | '/dashboard/workers/$workerId/leave'
+    | '/dashboard/workers/$workerId/schedule'
     | '/dashboard/clients/$clientId/'
     | '/dashboard/workers/$workerId/'
   fileRoutesByTo: FileRoutesByTo
@@ -500,9 +533,12 @@ export interface FileRouteTypes {
     | '/dashboard/clients/$clientId/edit'
     | '/dashboard/clients/$clientId/notes'
     | '/dashboard/clients/$clientId/visits'
+    | '/dashboard/workers/$workerId/assignments'
     | '/dashboard/workers/$workerId/attendance'
+    | '/dashboard/workers/$workerId/documents'
     | '/dashboard/workers/$workerId/edit'
     | '/dashboard/workers/$workerId/leave'
+    | '/dashboard/workers/$workerId/schedule'
     | '/dashboard/clients/$clientId'
     | '/dashboard/workers/$workerId'
   id:
@@ -545,9 +581,12 @@ export interface FileRouteTypes {
     | '/_protected/dashboard/clients/$clientId/edit'
     | '/_protected/dashboard/clients/$clientId/notes'
     | '/_protected/dashboard/clients/$clientId/visits'
+    | '/_protected/dashboard/workers/$workerId/assignments'
     | '/_protected/dashboard/workers/$workerId/attendance'
+    | '/_protected/dashboard/workers/$workerId/documents'
     | '/_protected/dashboard/workers/$workerId/edit'
     | '/_protected/dashboard/workers/$workerId/leave'
+    | '/_protected/dashboard/workers/$workerId/schedule'
     | '/_protected/dashboard/clients/$clientId/'
     | '/_protected/dashboard/workers/$workerId/'
   fileRoutesById: FileRoutesById
@@ -825,6 +864,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardClientsClientIdIndexRouteImport
       parentRoute: typeof ProtectedDashboardClientsClientIdRoute
     }
+    '/_protected/dashboard/workers/$workerId/schedule': {
+      id: '/_protected/dashboard/workers/$workerId/schedule'
+      path: '/schedule'
+      fullPath: '/dashboard/workers/$workerId/schedule'
+      preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdScheduleRouteImport
+      parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
+    }
     '/_protected/dashboard/workers/$workerId/leave': {
       id: '/_protected/dashboard/workers/$workerId/leave'
       path: '/leave'
@@ -839,11 +885,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdEditRouteImport
       parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
     }
+    '/_protected/dashboard/workers/$workerId/documents': {
+      id: '/_protected/dashboard/workers/$workerId/documents'
+      path: '/documents'
+      fullPath: '/dashboard/workers/$workerId/documents'
+      preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdDocumentsRouteImport
+      parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
+    }
     '/_protected/dashboard/workers/$workerId/attendance': {
       id: '/_protected/dashboard/workers/$workerId/attendance'
       path: '/attendance'
       fullPath: '/dashboard/workers/$workerId/attendance'
       preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdAttendanceRouteImport
+      parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
+    }
+    '/_protected/dashboard/workers/$workerId/assignments': {
+      id: '/_protected/dashboard/workers/$workerId/assignments'
+      path: '/assignments'
+      fullPath: '/dashboard/workers/$workerId/assignments'
+      preLoaderRoute: typeof ProtectedDashboardWorkersWorkerIdAssignmentsRouteImport
       parentRoute: typeof ProtectedDashboardWorkersWorkerIdRoute
     }
     '/_protected/dashboard/clients/$clientId/visits': {
@@ -926,20 +986,29 @@ const ProtectedDashboardClientsClientIdRouteWithChildren =
   )
 
 interface ProtectedDashboardWorkersWorkerIdRouteChildren {
+  ProtectedDashboardWorkersWorkerIdAssignmentsRoute: typeof ProtectedDashboardWorkersWorkerIdAssignmentsRoute
   ProtectedDashboardWorkersWorkerIdAttendanceRoute: typeof ProtectedDashboardWorkersWorkerIdAttendanceRoute
+  ProtectedDashboardWorkersWorkerIdDocumentsRoute: typeof ProtectedDashboardWorkersWorkerIdDocumentsRoute
   ProtectedDashboardWorkersWorkerIdEditRoute: typeof ProtectedDashboardWorkersWorkerIdEditRoute
   ProtectedDashboardWorkersWorkerIdLeaveRoute: typeof ProtectedDashboardWorkersWorkerIdLeaveRoute
+  ProtectedDashboardWorkersWorkerIdScheduleRoute: typeof ProtectedDashboardWorkersWorkerIdScheduleRoute
   ProtectedDashboardWorkersWorkerIdIndexRoute: typeof ProtectedDashboardWorkersWorkerIdIndexRoute
 }
 
 const ProtectedDashboardWorkersWorkerIdRouteChildren: ProtectedDashboardWorkersWorkerIdRouteChildren =
   {
+    ProtectedDashboardWorkersWorkerIdAssignmentsRoute:
+      ProtectedDashboardWorkersWorkerIdAssignmentsRoute,
     ProtectedDashboardWorkersWorkerIdAttendanceRoute:
       ProtectedDashboardWorkersWorkerIdAttendanceRoute,
+    ProtectedDashboardWorkersWorkerIdDocumentsRoute:
+      ProtectedDashboardWorkersWorkerIdDocumentsRoute,
     ProtectedDashboardWorkersWorkerIdEditRoute:
       ProtectedDashboardWorkersWorkerIdEditRoute,
     ProtectedDashboardWorkersWorkerIdLeaveRoute:
       ProtectedDashboardWorkersWorkerIdLeaveRoute,
+    ProtectedDashboardWorkersWorkerIdScheduleRoute:
+      ProtectedDashboardWorkersWorkerIdScheduleRoute,
     ProtectedDashboardWorkersWorkerIdIndexRoute:
       ProtectedDashboardWorkersWorkerIdIndexRoute,
   }

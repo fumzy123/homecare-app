@@ -11,10 +11,19 @@ export function useWorkerCredentials(workerId: string) {
 export function useVerifyCredential(workerId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ documentType, expiryDate }: { documentType: string; expiryDate: string }) =>
-      orgMembersApi.verifyCredential(workerId, documentType, expiryDate),
+    mutationFn: ({
+      documentType,
+      expiryDate,
+    }: {
+      documentType: string
+      expiryDate: string
+    }) => orgMembersApi.verifyCredential(workerId, documentType, expiryDate),
+    retry: false,
+    networkMode: 'always',
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['worker-credentials', workerId] })
+      queryClient.invalidateQueries({
+        queryKey: ['worker-credentials', workerId],
+      })
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
       queryClient.invalidateQueries({ queryKey: ['expiring-credentials'] })
     },
@@ -24,10 +33,19 @@ export function useVerifyCredential(workerId: string) {
 export function useUploadCredential(workerId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ documentType, file }: { documentType: string; file: File }) =>
-      orgMembersApi.uploadCredentialDocument(workerId, documentType, file),
+    mutationFn: ({
+      documentType,
+      file,
+    }: {
+      documentType: string
+      file: File
+    }) => orgMembersApi.uploadCredentialDocument(workerId, documentType, file),
+    retry: false,
+    networkMode: 'always',
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['worker-credentials', workerId] })
+      queryClient.invalidateQueries({
+        queryKey: ['worker-credentials', workerId],
+      })
       queryClient.invalidateQueries({ queryKey: ['expiring-credentials'] })
     },
   })

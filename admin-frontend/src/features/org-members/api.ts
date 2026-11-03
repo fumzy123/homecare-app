@@ -56,12 +56,12 @@ export interface OrgMemberUpdatePayload {
   last_name?: string
   phone_number?: string | null
   gender?: string
-  date_of_birth?: string
-  hire_date?: string
+  date_of_birth?: string | null
+  hire_date?: string | null
   is_active?: boolean
-  employment_type?: EmploymentType
-  has_vehicle?: boolean
-  max_hours_per_week?: number
+  employment_type?: EmploymentType | null
+  has_vehicle?: boolean | null
+  max_hours_per_week?: number | null
   street?: string
   city?: string
   province?: string

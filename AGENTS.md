@@ -325,6 +325,35 @@ form submission, retaining one owner membership and a 14-day trial.
 
 ---
 
+## Worker profile workspace (2026-11-03)
+
+Worker profiles use the approved cream/paper, orange, mint and lavender design.
+The Overview prioritizes the agency-local week, scheduled hours against the worker's
+limit, upcoming visits, document attention, planning details and clients in that week.
+Schedule, Assignments, Documents and Attendance & leave have dedicated routes; contact
+and employment details open focused dialogs. Profile editing remains a separate page.
+The existing shift drawers, assignment review/token flow and document APIs are reused.
+The Schedule visit action preselects the worker. Attendance retains monthly and yearly
+reporting, with yearly rows opening the selected month. Leave is labelled recorded,
+not approved: recording leave does not cancel or reassign scheduled visits.
+
+Named hooks in `features/workers/hooks/` own queries and mutations. Calendar-window
+queries include moved and overnight visits; weekly hours exclude cancelled/dropped
+visits and clip to the displayed days. Attendance outcomes use effective start dates
+so an overnight carry-in is not counted in two months. Dates follow the agency's
+billing timezone. Failed saves retain drafts; background refresh failures preserve
+open document/profile editors. Legacy `/leave` links redirect to Attendance & leave,
+and `/edit?document=...` redirects to Documents. Action Tower credential links use
+the new document route. No backend or migration change is required.
+
+Validation: `npm run build`, scoped ESLint, `tests/worker-profile.test.jsx` and existing
+scheduling/assignment regressions, plus `tests/worker-profile.browser.cjs` covering
+real routes with fictional intercepted data, save failures/retry, assignment review,
+legacy links, read failures, and desktop/narrow layouts. Browser defaults to
+`WORKER_PROFILE_TEST_URL=http://127.0.0.1:5211` with dummy Vite auth/API configuration;
+set `PLAYWRIGHT_MODULE` for a shared installation and optionally
+`WORKER_PROFILE_SCREENSHOT_DIR`. Hosted deployment and agency acceptance remain pending.
+
 ## Scheduling — Current State (branch: feat/scheduling-improvements)
 
 ### Double-booking prevention (done — 2026-05-22)
@@ -501,7 +530,7 @@ existing assignment, client setup and navigation browser checks. The browser fix
 use dummy configuration and `ASSIGNMENT_TEST_URL` (default port 5199), with optional
 `PLAYWRIGHT_MODULE` and `ASSIGNMENT_SCREENSHOT_DIR`. Hosted acceptance remains pending.
 
-Worker Overview and client Weekly care need compose the same Layer 3
+Worker Assignments and client Weekly care need compose the same Layer 3
 `features/assignments/components/AssignmentsPanel`. Controlled cards and the
 review dialog are Layer 2; API queries/mutations live in named feature hooks.
 Admins select recurring Care Slots and **Stop visits from** an agency-local date,

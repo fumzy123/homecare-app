@@ -39,7 +39,7 @@ export function attentionDestination(item: AttentionItem) {
       };
     case "credential":
       return {
-        to: "/dashboard/workers/$workerId/edit" as const,
+        to: "/dashboard/workers/$workerId/documents" as const,
         params: { workerId: t.record_id },
         search: { document: t.document_type ?? undefined },
       };

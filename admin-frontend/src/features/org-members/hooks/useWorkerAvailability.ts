@@ -13,6 +13,8 @@ export function useSaveWorkerAvailability(memberId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (entries: AvailabilityEntryInput[]) => orgMembersApi.putAvailability(memberId, entries),
+    retry: false,
+    networkMode: 'always',
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['worker-availability', memberId] })
       qc.invalidateQueries({ queryKey: ['worker', memberId] })

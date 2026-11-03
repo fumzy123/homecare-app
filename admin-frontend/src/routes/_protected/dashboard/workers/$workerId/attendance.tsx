@@ -1,15 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { WorkerAttendanceReport } from '@/features/workers/components/WorkerAttendanceReport'
+import { WorkerAttendance } from '@/features/workers/components/WorkerAttendance'
 
-export const Route = createFileRoute('/_protected/dashboard/workers/$workerId/attendance')({
-  component: WorkerAttendance,
+export const Route = createFileRoute(
+  '/_protected/dashboard/workers/$workerId/attendance',
+)({
+  validateSearch: (search: Record<string, unknown>): { section?: 'leave' } => ({
+    section: search.section === 'leave' ? 'leave' : undefined,
+  }),
+  component: AttendancePage,
 })
-
-function WorkerAttendance() {
-  const { workerId } = Route.useParams()
-  return (
-    <div className="p-10">
-      <WorkerAttendanceReport workerId={workerId} />
-    </div>
-  )
+function AttendancePage() {
+  const { section } = Route.useSearch()
+  return <WorkerAttendance section={section} />
 }
