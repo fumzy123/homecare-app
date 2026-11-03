@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 from supabase_auth.types import User as SupabaseUser
 from app.models.leave_record import LeaveRecord
 from app.schemas.leave_record import LeaveRecordCreateSchema
-from app.services.org_service import OrgService
+from app.core.exceptions import AppError
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.leave_repository import LeaveRepository
 
 
@@ -12,7 +13,11 @@ class LeaveService:
         self.db = db
         self.current_user = current_user
         self.leave_repo = LeaveRepository(db)
-        self.org_id = OrgService.get_user_org_id(current_user, db)
+        self.org_repo = OrganizationRepository(db)
+        self.member = self.org_repo.get_active_employment_for_user(current_user.id)
+        if not self.member:
+            raise AppError(404, "NOT_FOUND", "Member record not found")
+        self.org_id = self.member.org_id
 
     def list_leave_records(self, worker_id: str, year: int) -> list[LeaveRecord]:
         self.leave_repo.get_worker(worker_id, self.org_id)
@@ -32,7 +37,7 @@ class LeaveService:
             start_date=payload.start_date,
             end_date=payload.end_date,
             notes=payload.notes,
-            recorded_by=self.current_user.id,
+            recorded_by=self.member.id,
         )
         self.leave_repo.add(record)
         self.db.commit()
