@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { ClientDialog } from '@/features/clients/components/ClientWorkspaceUI'
 import { slotLabel } from '../lib/labels'
 import type { Assignment, EndReview } from '../api'
@@ -27,7 +28,7 @@ export function EndAssignmentDialog({ rows, selected, stopsFrom, reason, minDate
         </label>)}
       </fieldset>
       <label className="cw-field mb-4">Stop visits from
-        <input className="cw-input" type="date" min={minDate} value={stopsFrom} disabled={busy} onChange={e => onDate(e.target.value)} />
+        <input className="cw-input" type="date" max={MAX_INPUT_DATE} min={minDate} value={stopsFrom} disabled={busy} onChange={e => onDate(e.target.value)} />
         <span className="text-sm text-ink-soft">No visits from this date onward. Dates use the agency’s timezone.</span>
       </label>
       <label className="cw-field mb-4">Reason for the assignment history

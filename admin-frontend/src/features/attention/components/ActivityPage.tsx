@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useState } from "react";
 import { ActivityFeed } from "./ActivityFeed";
 import { useActivity } from "../hooks/useActivity";
@@ -41,7 +42,7 @@ export function ActivityPage() {
           </label>
           <input
             id="activity-day"
-            type="date"
+            type="date" max={MAX_INPUT_DATE}
             value={selectedDay ?? ""}
             onChange={(e) => setDay(e.target.value || null)}
           />

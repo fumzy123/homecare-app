@@ -135,6 +135,7 @@ async function run() {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1100 },
       timezoneId: 'Australia/Sydney',
+      locale: 'en-CA',
     })
     const page = await context.newPage(),
       errors = [],
@@ -243,6 +244,8 @@ async function run() {
           c,
         ]
         data = c
+      } else if (p === `/api/org-members/${worker.id}/leave/review`) {
+        data = { visits: [], protected_count: 0, review_token: 'leave-review' }
       } else if (p === `/api/org-members/${worker.id}/leave`) {
         if (method === 'POST') {
           if (leaveFails) return fail('Leave save unavailable. Try again.')
@@ -321,7 +324,13 @@ async function run() {
       .getByRole('link', { name: 'Review document', exact: true })
       .click()
     let dialog = page.getByRole('dialog')
-    await dialog.getByLabel('Expiry date').fill('2028-10-28')
+    const expiryInput = dialog.getByLabel('Expiry date')
+    await expiryInput.fill('')
+    await expiryInput.focus()
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.type('20281028')
+    assert.equal(await expiryInput.inputValue(), '2028-10-28')
     await dialog
       .getByRole('button', { name: 'Verify document', exact: true })
       .click()
@@ -384,19 +393,28 @@ async function run() {
       '2026-11',
     )
     await profile.getByRole('button', { name: 'Record leave' }).click()
-    await dialog.getByLabel('First day').fill('2026-11-23')
-    await dialog.getByLabel('Last day').fill('2026-11-24')
-    await dialog.getByRole('button', { name: 'Save record' }).click()
+    for (const [label, digits, expected] of [['First day', '20261123', '2026-11-23'], ['Last day', '20261124', '2026-11-24']]) {
+      const input = dialog.getByLabel(label)
+      await input.focus()
+      await page.keyboard.press('ArrowLeft')
+      await page.keyboard.press('ArrowLeft')
+      await page.keyboard.type(digits)
+      assert.equal(await input.inputValue(), expected, `${label}: typing must advance after four year digits`)
+    }
+    await dialog.getByRole('button', { name: 'Review affected visits', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Record leave', exact: true }).click()
     await dialog.getByRole('alert').waitFor()
     assert.equal(await dialog.getByLabel('Last day').inputValue(), '2026-11-24')
     leaveFails = false
-    await dialog.getByRole('button', { name: 'Save record' }).click()
+    await dialog.getByRole('button', { name: 'Record leave', exact: true }).click()
     await dialog.waitFor({ state: 'hidden' })
     await profile
       .getByText('Nov 23, 2026–Nov 24, 2026', { exact: true })
       .waitFor()
     await profile.getByRole('button', { name: 'Profile & employment' }).click()
     await dialog.getByRole('link', { name: 'Edit profile' }).click()
+    assert.equal(await profile.getByLabel('Hire date', { exact: true }).getAttribute('max'), '9999-12-31')
+    assert.equal(await profile.getByLabel('Date of birth', { exact: true }).getAttribute('max'), '9999-12-31')
     await profile.getByLabel('First name', { exact: true }).fill('Sara')
     await profile.getByLabel('Phone number', { exact: true }).fill('')
     await profile.getByRole('button', { name: 'Save changes' }).click()

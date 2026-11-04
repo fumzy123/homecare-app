@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useState } from 'react'
 import { useAgencyDate } from '@/features/placements/hooks/useAgencyDate'
 import { format, parseISO } from 'date-fns'
@@ -180,7 +181,7 @@ export function WeeklyCareNeedEditor({
                 Revision starts
                 <input
                   className="cw-input"
-                  type="date"
+                  type="date" max={MAX_INPUT_DATE}
                   min={today}
                   value={date}
                   disabled={save.isPending}

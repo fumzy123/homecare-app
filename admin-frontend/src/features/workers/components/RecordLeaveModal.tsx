@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useState } from 'react'
 import { useReviewWorkerLeave } from '../hooks/useWorkerProfile'
 import type { LeaveReview } from '@/features/leave/api'
@@ -73,7 +74,7 @@ export function RecordLeaveModal({
               First day
               <input
                 className="wp-input"
-                type="date"
+                type="date" max={MAX_INPUT_DATE}
                 required
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
@@ -83,7 +84,7 @@ export function RecordLeaveModal({
               Last day
               <input
                 className="wp-input"
-                type="date"
+                type="date" max={MAX_INPUT_DATE}
                 required
                 min={start}
                 value={end}

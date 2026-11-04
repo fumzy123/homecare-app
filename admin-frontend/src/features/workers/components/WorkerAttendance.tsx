@@ -1,3 +1,4 @@
+import { MAX_INPUT_MONTH } from '@/shared/lib/date'
 import { useState } from 'react'
 import { format, endOfMonth, parseISO } from 'date-fns'
 import { Plus } from 'lucide-react'
@@ -151,7 +152,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
               Visit period
               <input
                 className="wp-input"
-                type="month"
+                type="month" max={MAX_INPUT_MONTH}
                 value={month}
                 onChange={(e) => {
                   if (/^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value))

@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
@@ -350,7 +351,7 @@ export function PlacementCoverage({
                         <label className="cr-field">
                           Coverage starts
                           <input
-                            type="date"
+                            type="date" max={MAX_INPUT_DATE}
                             min={earliestDate}
                             value={effectiveDate}
                             disabled={busy}

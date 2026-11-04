@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useRef, useState } from 'react'
 import { ArrowUpRight, FileCheck2, FileText, Upload } from 'lucide-react'
 import {
@@ -141,7 +142,7 @@ function DocumentEditor({
           Expiry date
           <input
             className="wp-input"
-            type="date"
+            type="date" max={MAX_INPUT_DATE}
             required
             disabled={busy || !credential?.file_url}
             value={expiry}

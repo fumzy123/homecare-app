@@ -1,3 +1,4 @@
+import { MAX_INPUT_MONTH } from '@/shared/lib/date'
 import { useState } from 'react'
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns'
 import { Search, ChevronDown } from 'lucide-react'
@@ -53,7 +54,7 @@ export function ClientNotes({ clientId }: { clientId: string }) {
         <label className="cw-field">
           Month
           <input
-            type="month"
+            type="month" max={MAX_INPUT_MONTH}
             className="cw-input"
             value={month}
             onChange={(e) => {

@@ -1,3 +1,4 @@
+import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useState } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -123,6 +124,7 @@ function ProfileForm({ worker }: { worker: OrgMember }) {
           <input
             className="wp-input"
             type={type}
+            max={type === 'date' ? MAX_INPUT_DATE : undefined}
             required={required}
             min={type === 'number' ? 0 : undefined}
             step={type === 'number' ? 1 : undefined}
