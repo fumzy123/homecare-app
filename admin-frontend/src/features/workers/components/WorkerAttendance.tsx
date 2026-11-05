@@ -1,3 +1,4 @@
+import { AttendanceSummary } from './AttendanceSummary'
 import { MAX_INPUT_MONTH } from '@/shared/lib/date'
 import { useState } from 'react'
 import { format, endOfMonth, parseISO } from 'date-fns'
@@ -189,35 +190,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
           retry={() => void visits.refetch()}
         />
       ) : (
-        <>
-          <div className="wp-statline">
-            {[
-              ['Completed visits', stats.completed],
-              ['Missed visits', stats.missed],
-              ['Dropped / unable to attend', stats.dropped],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="wp-muted">{label}</p>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-          <p className="wp-muted">Recorded leave: {stats.leaveAbsences} · Other drops (initiator unspecified): {stats.otherDrops}. Replacement cover assigned: {stats.replacementAssigned} · Completed: {stats.replacementCompleted}. Covering a visit does not remove the original absence from these counts.</p>
-          <p className="wp-muted" style={{ margin: '-10px 0 24px' }}>
-            {stats.cancelled} cancelled visits · Scheduled and ongoing visits
-            are not attendance outcomes.
-            {stats.completed + stats.missed > 0 && (
-              <>
-                {' '}
-                Attendance rate:{' '}
-                {Math.round(
-                  (100 * stats.completed) / (stats.completed + stats.missed),
-                )}
-                % of completed and missed visits.
-              </>
-            )}
-          </p>
-        </>
+        <AttendanceSummary stats={stats} />
       )}
       <div className="wp-stack">
         {section !== 'leave' && leavePanel}

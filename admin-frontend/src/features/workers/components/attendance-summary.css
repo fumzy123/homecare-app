@@ -1,0 +1,12 @@
+.attendance-summary { align-items: start; }
+.attendance-drop-count { display: inline-flex; align-items: center; gap: 12px; }
+.attendance-info { display: inline-block; position: relative; font: 14px/1.5 sans-serif; font-weight: normal; vertical-align: middle; }
+.attendance-info summary { cursor: pointer; list-style: none; padding: 4px; }
+.attendance-info summary::-webkit-details-marker { display: none; }
+.attendance-info summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.attendance-info .attendance-info-content { display: none; position: absolute; z-index: 10; top: 100%; left: 0; width: 230px; padding: 12px; color: #171714; background: #f8f5ec; border: 1px solid #aca99f; box-shadow: 0 4px 12px #0001; }
+.attendance-info:hover .attendance-info-content, .attendance-info[open] .attendance-info-content { display: grid; gap: 4px; }
+.attendance-summary > div:last-child .attendance-info-content { left: auto; right: 0; }
+.attendance-ring { width: 112px; height: 112px; position: relative; margin-top: 8px; }
+.attendance-ring svg { width: 100%; height: 100%; }
+.attendance-ring > span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 25px; font-family: inherit; }
