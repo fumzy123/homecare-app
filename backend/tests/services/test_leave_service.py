@@ -236,3 +236,49 @@ def test_overnight_and_moved_visits_use_effective_interval(visits):
         new_start_time=shift.start_time - timedelta(days=3), new_end_time=shift.end_time - timedelta(days=3)))
     db.commit()
     assert service.review_leave(worker.id, request)['visits'] == []
+
+
+def test_replacement_availability_includes_all_agency_workers_and_deduplicates(visits):
+    from app.services.shift_service import ShiftService
+    db, user, member, worker, shift, request = visits
+    another_person = Person(first_name='Another', last_name='Worker', email='another@example.test')
+    db.add(another_person)
+    db.flush()
+    another = Employment(org_id=member.org_id, person_id=another_person.id, role=OrgMemberRole.home_support_worker)
+    other_org = Organization(name='Other', owner_id=uuid4())
+    db.add_all([another, other_org]); db.flush()
+    for worker_id, org_id in [(worker.id, member.org_id), (another.id, member.org_id), (another.id, member.org_id), (member.id, other_org.id)]:
+        db.add(LeaveRecord(worker_id=worker_id, org_id=org_id, recorded_by=member.id, leave_type='vacation', start_date=request.start_date, end_date=request.end_date))
+    db.commit()
+    result = ShiftService(db, user).replacement_availability(shift.id, request.start_date)
+    assert set(result.on_leave_worker_ids) == {worker.id, another.id}
+    assert len(result.on_leave_worker_ids) == 2
+    with pytest.raises(AppError):
+        ShiftService(db, user).replacement_availability(uuid4(), request.start_date)
+    shift.org_id = other_org.id
+    db.commit()
+    with pytest.raises(AppError):
+        ShiftService(db, user).replacement_availability(shift.id, request.start_date)
+
+
+def test_replacement_availability_uses_moved_interval_and_midnight_boundary(visits):
+    from datetime import datetime, timedelta
+    from app.models.shift_modification import ShiftModification
+    from app.services.shift_service import ShiftService
+    db, user, member, worker, shift, request = visits
+    # A cross-year leave covers Jan 1, even though it starts in December.
+    db.add(LeaveRecord(worker_id=worker.id, org_id=member.org_id, recorded_by=member.id,
+                       leave_type='vacation', start_date=date(2027, 12, 31), end_date=date(2028, 1, 1)))
+    mod = ShiftModification(shift_id=shift.id, original_date=request.start_date,
+                            new_start_time=datetime(2027, 12, 30, 22), new_end_time=datetime(2027, 12, 31),
+                            completion_status='dropped')
+    db.add(mod); db.commit(); db.expire_all()
+    service = ShiftService(db, user)
+    assert service.replacement_availability(shift.id, request.start_date).on_leave_worker_ids == []
+    mod.new_end_time += timedelta(minutes=1)
+    db.commit()
+    assert service.replacement_availability(shift.id, request.start_date).on_leave_worker_ids == [worker.id]
+    mod.new_start_time = datetime(2028, 1, 1, 10)
+    mod.new_end_time = datetime(2028, 1, 1, 12)
+    db.commit()
+    assert service.replacement_availability(shift.id, request.start_date).on_leave_worker_ids == [worker.id]

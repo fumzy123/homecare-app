@@ -6,6 +6,7 @@ from app.db.session import get_db
 from app.core.security import require_admin
 from app.schemas.shift import (
     ShiftReplacementSchema,
+    ReplacementAvailabilityResponse,
     ShiftCancelFromSchema,
     ShiftCancelSchema,
     ShiftEditFromSchema,
@@ -201,3 +202,9 @@ async def edit_from_date(
 async def replace_dropped_visit(shift_id: UUID, day: date, payload: ShiftReplacementSchema,
                                 shift_service: ShiftService = Depends(get_shift_service)):
     return await shift_service.replace_dropped_visit(shift_id, day, payload)
+
+
+@router.get("/{shift_id}/occurrences/{day}/replacement-availability", response_model=ReplacementAvailabilityResponse)
+def replacement_availability(shift_id: UUID, day: date,
+                             shift_service: ShiftService = Depends(get_shift_service)):
+    return shift_service.replacement_availability(shift_id, day)

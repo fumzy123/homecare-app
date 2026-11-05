@@ -100,6 +100,14 @@ class LeaveRepository:
         """
         self.db.delete(record)
 
+    def leaves_in_date_range(self, org_id, start_date, end_date):
+        """One agency-scoped query for candidate leave overlaps across all workers."""
+        return self.db.query(LeaveRecord).filter(
+            LeaveRecord.org_id == org_id,
+            LeaveRecord.start_date <= end_date,
+            LeaveRecord.end_date >= start_date,
+        ).all()
+
     def worker_leaves(self, worker_id, org_id):
         return self.db.query(LeaveRecord).filter(LeaveRecord.worker_id == worker_id, LeaveRecord.org_id == org_id).all()
 

@@ -198,6 +198,10 @@ class ClientSummary(BaseModel):
 
 
 # Returned by GET /shifts — one item per expanded occurrence
+class ReplacementAvailabilityResponse(BaseModel):
+    on_leave_worker_ids: list[UUID]
+
+
 class ShiftReplacementSchema(BaseModel):
     worker_id: UUID
     confirm_arranged: bool = False

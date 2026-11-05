@@ -6,7 +6,7 @@ import { CANCELLATION_REASONS } from '@/shared/lib/cancellationReasons'
 import { format, differenceInMinutes } from 'date-fns'
 import { useQueryClient } from '@tanstack/react-query'
 import { shiftsApi, type ShiftOccurrence, type NoteEntry, type RecurrenceFrequency, type DayOfWeek, ORDERED_DAYS, DAY_LABELS } from '@/features/shifts/api'
-import { useShiftDetailWorkers, useShiftDetailClients, useShiftDetailWrite, useShiftDetailNote, useSaveShiftDetailNote } from '../hooks/useShiftDetail'
+import { useReplacementAvailability, useShiftDetailWorkers, useShiftDetailClients, useShiftDetailWrite, useShiftDetailNote, useSaveShiftDetailNote } from '../hooks/useShiftDetail'
 import { RecurringActionModal, type RecurringScope } from '@/features/shifts/components/RecurringActionModal'
 import { Avatar, DateInput, TimeInput } from '@/shared/components/ui'
 import { ApiError } from '@/shared/lib/api-client'
@@ -103,6 +103,10 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   const pendingOverrideFnRef                  = useRef<(() => void) | null>(null)
   const [saved, setSaved]                     = useState(false)
 
+  const replacementAvailability = useReplacementAvailability(shift.shift_id, shift.date, isEditing && needsReplacement)
+  const onLeaveIds = replacementAvailability.data?.on_leave_worker_ids ?? []
+  const leaveCheckReady = replacementAvailability.isSuccess && !replacementAvailability.isFetching
+  const replacementAllowed = leaveCheckReady && !!replacementWorkerId && !onLeaveIds.includes(replacementWorkerId)
   const { data: workers = [] } = useShiftDetailWorkers(isEditing)
   const { data: clients = [] } = useShiftDetailClients(isEditing)
 
@@ -170,7 +174,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     if (saveMutation.isPending) return
     setEditError(null)
     if (needsReplacement) {
-      if (!replacementWorkerId || !replacementConfirmed) return
+      if (!replacementAllowed || !replacementConfirmed) return
       saveMutation.mutate(() => shiftsApi.replaceDroppedVisit(shift.shift_id, shift.date, replacementWorkerId))
       return
     }
@@ -309,11 +313,17 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                   <p className="vd-notice">{format(start, 'EEE, MMM d, yyyy')} · {format(start, 'HH:mm')}–{format(end, 'HH:mm')}{format(start, 'yyyy-MM-dd') !== format(end, 'yyyy-MM-dd') ? ` (ends ${format(end, 'MMM d')})` : ''}</p>
                   <p className="vd-help">{shift.location}</p>
                   <label className={labelClass} htmlFor="replacement-worker">Replacement worker</label>
-                  <select autoFocus id="replacement-worker" className={inputClass} value={replacementWorkerId}
+                  <select disabled={!leaveCheckReady} autoFocus id="replacement-worker" className={inputClass} value={replacementWorkerId}
                     onChange={e => { setReplacementWorkerId(e.target.value); setReplacementConfirmed(false); setEditError(null) }}>
                     <option value="">Choose replacement worker</option>
-                    {workers.map(w => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
+                    {workers.map(w => <option key={w.id} value={w.id} disabled={onLeaveIds.includes(w.id)}>{w.first_name} {w.last_name}{onLeaveIds.includes(w.id) ? ' — On leave' : ''}</option>)}
                   </select>
+                  {replacementAvailability.isFetching && <p role="status" className="vd-help">Checking leave for this visit…</p>}
+                  {replacementAvailability.isError && <div role="alert">
+                    <p>Could not check worker leave. Try again before choosing replacement cover.</p>
+                    <button type="button" className="vd-btn" onClick={() => void replacementAvailability.refetch()}>Retry leave check</button>
+                  </div>}
+                  {onLeaveIds.includes(replacementWorkerId) && <p role="alert">The selected worker is on leave for this visit. Choose another worker.</p>}
                   <label className="flex items-start gap-3">
                     <input type="checkbox" checked={replacementConfirmed} onChange={e => setReplacementConfirmed(e.target.checked)} />
                     <span>I have arranged this visit with the selected worker.</span>
@@ -743,7 +753,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
               className="vd-btn">
               Discard
             </button>
-            <button onClick={handleSave} disabled={busy || (needsReplacement && (!replacementWorkerId || !replacementConfirmed))}
+            <button onClick={handleSave} disabled={busy || (needsReplacement && (!replacementAllowed || !replacementConfirmed))}
               className="vd-btn vd-btn-primary">
               {saveMutation.isPending ? 'Saving…' : isVisitConnectionError(saveMutation.error) ? 'Retry save' : 'Save Changes'}
             </button>

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { ShiftDetailDrawer } from '../src/features/shifts/components/ShiftDetailDrawer'
 import { ApiError } from '../src/shared/lib/api-client'
 
-const api = vi.hoisted(() => ({ replaceDroppedVisit: vi.fn(), updateModification: vi.fn(), createModification: vi.fn(), close: vi.fn() }))
+const api = vi.hoisted(() => ({ replacementAvailability: vi.fn(), replaceDroppedVisit: vi.fn(), updateModification: vi.fn(), createModification: vi.fn(), close: vi.fn() }))
 vi.mock('../src/shared/lib/api-client', () => ({
   ApiError: class extends Error { constructor(message, code) { super(message); this.code = code } },
 }))
@@ -32,6 +32,7 @@ beforeEach(async () => {
   HTMLDialogElement.prototype.showModal = function () { this.open = true }
   HTMLDialogElement.prototype.close = function () { this.open = false }
   vi.clearAllMocks()
+  api.replacementAvailability.mockResolvedValue({ on_leave_worker_ids: [] })
   api.updateModification.mockResolvedValue(undefined)
   onlineManager.setOnline(true)
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -139,4 +140,45 @@ test('replacement eligibility failures preserve the editor without offering an u
   await click('Discard'); await click('Edit')
   expect(container.querySelector('#replacement-worker').value).toBe('')
   expect(button('Save Changes').disabled).toBe(true)
+})
+
+test('workers on leave are labelled and disabled, including workers other than the original', async () => {
+  api.replacementAvailability.mockResolvedValue({ on_leave_worker_ids: ['cover'] })
+  await openReplacement()
+  const option = container.querySelector('option[value="cover"]')
+  expect(option.disabled).toBe(true)
+  expect(option.textContent).toContain('Blue Oak — On leave')
+  expect(container.querySelector('option[value="other"]').disabled).toBe(false)
+  // Programmatic/stale selection also cannot bypass the save guard.
+  await chooseCover()
+  await act(async () => container.querySelector('input[type=checkbox]').click())
+  expect(button('Save Changes').disabled).toBe(true)
+  expect(api.replaceDroppedVisit).not.toHaveBeenCalled()
+  await chooseCover('other')
+  await act(async () => container.querySelector('input[type=checkbox]').click())
+  await click('Save Changes')
+  expect(api.replaceDroppedVisit).toHaveBeenCalledExactlyOnceWith('test-shift', '2026-10-28', 'other')
+})
+test('failed leave check disables selection and supports explicit retry', async () => {
+  api.replacementAvailability.mockRejectedValueOnce(new Error('Network Error'))
+  await openReplacement()
+  expect(container.querySelector('#replacement-worker').disabled).toBe(true)
+  expect(container.textContent).toContain('Could not check worker leave')
+  await click('Retry leave check')
+  expect(container.querySelector('#replacement-worker').disabled).toBe(false)
+  expect(api.replacementAvailability).toHaveBeenCalledWith('test-shift', '2026-10-28')
+})
+test('pending leave checks and newly recorded leave prevent saving a selected worker', async () => {
+  let finish
+  api.replacementAvailability.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+  await openReplacement()
+  expect(container.querySelector('#replacement-worker').disabled).toBe(true)
+  await act(async () => finish({ on_leave_worker_ids: [] })); await settle()
+  await chooseCover()
+  await act(async () => container.querySelector('input[type=checkbox]').click())
+  expect(button('Save Changes').disabled).toBe(false)
+  api.replacementAvailability.mockResolvedValue({ on_leave_worker_ids: ['cover'] })
+  await act(async () => qc.invalidateQueries({ queryKey: ['shifts', 'replacement-availability'] })); await settle()
+  expect(button('Save Changes').disabled).toBe(true)
+  expect(container.textContent).toContain('The selected worker is on leave')
 })

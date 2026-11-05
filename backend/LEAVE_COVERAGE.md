@@ -25,3 +25,12 @@ cancelled/dropped cover; completion is counted separately. Periods use effective
 start dates, and duplicate occurrences count once. These are descriptive counts, not
 a reliability score. Existing records do not prove worker-initiated drops and must not
 be labeled as such. Leave removal does not delete occurrence provenance.
+
+
+Replacement editing checks agency-scoped leave against the effective occurrence via
+GET /shifts/{id}/occurrences/{date}/replacement-availability. All overlapping workers
+remain visible as disabled “On leave” options. Loading/failure blocks selection and
+saving; failure offers an explicit retry. One repository query retrieves candidate
+leave records and the shared domain interval rule handles moved/overnight visits,
+midnight boundaries and cross-year leave. The save transaction still rechecks leave.
+No migration is required.

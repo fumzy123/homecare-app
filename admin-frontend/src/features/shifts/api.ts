@@ -198,6 +198,8 @@ export interface OvertimeRejectRequest {
 }
 
 export const shiftsApi = {
+  replacementAvailability: (id: string, date: string): Promise<{ on_leave_worker_ids: string[] }> =>
+    apiClient.get(`/api/shifts/${id}/occurrences/${date}/replacement-availability`).then(response => response.data),
   replaceDroppedVisit: (id: string, date: string, worker_id: string): Promise<void> =>
     apiClient.post(`/api/shifts/${id}/occurrences/${date}/replacement`, { worker_id, confirm_arranged: true }).then(() => undefined),
   getShiftStats: async (

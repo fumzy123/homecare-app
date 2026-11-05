@@ -63,3 +63,14 @@ export function useSaveShiftDetailNote(shiftId: string, date: string) {
     },
   });
 }
+
+
+export function useReplacementAvailability(shiftId: string, date: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['shifts', 'replacement-availability', shiftId, date],
+    queryFn: () => shiftsApi.replacementAvailability(shiftId, date),
+    enabled,
+    retry: false,
+    staleTime: 0,
+  });
+}

@@ -54,6 +54,7 @@ async function run() {
           && (!url.searchParams.get('worker_id') || v.worker.id === url.searchParams.get('worker_id'))
           && (!url.searchParams.get('client_id') || v.client.id === url.searchParams.get('client_id')))
       }
+      else if (p.endsWith('/replacement-availability')) data = { on_leave_worker_ids: [workers[0].id, workers[1].id] }
       else if (p.includes('/notes')) data = { entries: [] }
       else if (p === '/api/notifications') data = { notifications: [], unread_count: 0 }
       else { unexpected.push(p); data = [] }
@@ -86,6 +87,19 @@ async function run() {
     assert.equal(await alex.locator('td').nth(1).getByRole('button').count(), 2, 'Overlapping visits remain individually selectable')
     assert.match(await table.locator('tbody').innerText(), /Morgan Demo\s+0h scheduled/)
     assert.equal(await table.getByRole('button', { name: /22:00.*02:00/ }).count(), 2, 'Overnight visit appears on both days')
+    await table.getByRole('button', { name: /Alex Demo, Wednesday October 28/ }).click()
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
+    const replacementSelect = page.getByLabel('Replacement worker', { exact: true })
+    await page.waitForFunction(() => !document.querySelector('#replacement-worker').disabled)
+    assert.equal(await replacementSelect.locator(`option[value="${workers[0].id}"]`).isDisabled(), true)
+    assert.equal(await replacementSelect.locator(`option[value="${workers[1].id}"]`).isDisabled(), true)
+    assert.match(await replacementSelect.locator(`option[value="${workers[0].id}"]`).innerText(), /On leave/)
+    assert.equal(await replacementSelect.locator(`option[value="${workers[2].id}"]`).isDisabled(), false)
+    await replacementSelect.selectOption(workers[2].id)
+    await page.getByRole('checkbox').check()
+    assert.equal(await page.getByRole('button', { name: 'Save Changes', exact: true }).isEnabled(), true)
+    await page.getByRole('button', { name: 'Discard', exact: true }).click()
+    await page.keyboard.press('Escape')
     const moved = table.getByRole('button', { name: /Jordan Demo, Friday October 30, 15:00/ })
     await moved.focus(); await page.keyboard.press('Enter')
     await page.getByText('Visit details', { exact: true }).waitFor()

@@ -23,6 +23,7 @@ from app.schemas.shift import (
     WorkerShiftDetailResponse,
 )
 from app.repositories.shift_repository import ShiftRepository, ShiftModificationRepository
+from app.repositories.leave_repository import LeaveRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.employment_repository import EmploymentRepository
 from app.repositories.client_repository import ClientRepository
@@ -49,6 +50,7 @@ class ShiftService:
         self.db = db
         self.current_user = current_user
         self.shift_repo = ShiftRepository(db)
+        self.leave_repo = LeaveRepository(db)
         self.modification_repo = ShiftModificationRepository(db)
         self.employment_repo = EmploymentRepository(db)
         self.client_repo = ClientRepository(db)
@@ -980,6 +982,21 @@ class ShiftService:
             self.db.rollback()
             raise AppError(status_code=400, code="BAD_REQUEST", message=str(e))
 
+
+    def replacement_availability(self, shift_id, day):
+        from app.domain.leave import leave_overlaps
+        from app.schemas.shift import ReplacementAvailabilityResponse
+
+        master = self._get_active_shift(shift_id)
+        if not shift_has_occurrence_on(master, day):
+            raise AppError(404, 'NOT_FOUND', 'Shift occurrence not found')
+        mod = next((m for m in master.modifications if m.original_date == day), None)
+        effective = resolve_effective_occurrence(master, day, mod)
+        leaves = self.leave_repo.leaves_in_date_range(
+            self.org_id, effective.start_time.date(), effective.end_time.date())
+        worker_ids = {leave.worker_id for leave in leaves
+                      if leave_overlaps(effective.start_time, effective.end_time, leave)}
+        return ReplacementAvailabilityResponse(on_leave_worker_ids=sorted(worker_ids, key=str))
 
     async def replace_dropped_visit(self, shift_id, day, payload):
         from app.repositories.leave_repository import LeaveRepository
