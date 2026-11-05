@@ -185,6 +185,19 @@ def test_cover_preserves_original_recurring_worker_and_blocks_double_approval(vi
     assert not replacement.is_recurring
     assert shift.worker_id == worker.id and shift.is_recurring
     assert mod.completion_status.value == 'cancelled'
+    from app.repositories.shift_repository import ShiftRepository
+    repo = ShiftRepository(db)
+    assert repo.replacement_origins(uuid4(), [replacement.id]) == {}
+    origins = repo.replacement_origins(member.org_id, [replacement.id])
+    response = ShiftService._build_occurrence_response(replacement, replacement.start_time.date(), None, origins[replacement.id])
+    assert response.replacement_for.worker.id == worker.id
+    assert response.replacement_for.reason == 'On leave'
+    original = ShiftService._build_occurrence_response(shift, request.start_date, mod)
+    assert original.absence_kind == 'recorded_leave'
+    # Read projection works when filtering to the replacement worker only.
+    listed = asyncio.run(ShiftService(db, user).get_shifts(request.start_date, request.end_date, worker_id=cover.id))
+    assert len(listed) == 1 and listed[0].replacement_for.worker.id == worker.id
+
     with pytest.raises(AppError):
         asyncio.run(ShiftService(db, user).replace_dropped_visit(shift.id, request.start_date, args))
     assert db.query(Shift).count() == 2

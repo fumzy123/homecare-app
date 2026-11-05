@@ -1,3 +1,4 @@
+import { toCalendarEvents } from '../src/features/shifts/api'
 import { describe, expect, test } from 'vitest'
 import { buildWorkerRows, calendarWeekWidth, visitTimeLabel } from '../src/features/shifts/lib/workerSchedule'
 
@@ -45,4 +46,14 @@ describe('worker schedule projection', () => {
     expect(calendarWeekWidth([a, b], '2026-10-25')).toBe(calendarWeekWidth([a], '2026-10-25'))
     expect(calendarWeekWidth([a, b, c], '2026-10-25')).toBeGreaterThan(calendarWeekWidth([a, b], '2026-10-25'))
   })
+})
+
+test('resolved originals stay out of both schedule views while genuine cancellations remain visible', () => {
+  const original = visit('original', '2026-12-14T10:00:00', '2026-12-14T12:00:00', 'cancelled', { replacement_shift_id: 'cover' })
+  const cover = visit('cover', original.start_time, original.end_time)
+  const cancelled = visit('cancelled', original.start_time, original.end_time, 'cancelled')
+  expect(toCalendarEvents([original, cover, cancelled]).map(e => e.resource.shift_id)).toEqual(['cover', 'cancelled'])
+  const [row] = buildWorkerRows([worker], [original, cover, cancelled], '2026-12-13')
+  expect(row.days[1].map(v => v.shift_id)).toEqual(['cover', 'cancelled'])
+  expect(row.hours).toBe(2)
 })

@@ -62,7 +62,7 @@ def test_service_calendar_opt_in_preserves_original_lookup_and_status_filters():
     svc = ShiftService.__new__(ShiftService)
     svc.shift_repo, svc.org_id = MagicMock(), uuid4()
     svc.shift_repo.get_shifts_in_range.return_value = [value]
-    svc._build_occurrence_response = lambda s, day, mod: SimpleNamespace(
+    svc._build_occurrence_response = lambda s, day, mod, origin=None: SimpleNamespace(
         date=day, start_time=resolve_effective_occurrence(s, day, mod).start_time)
     result = asyncio.run(svc.get_shifts(date(2026, 10, 25), date(2026, 10, 31), 'worker', 'client', ['cancelled'], calendar_window=True))
     assert [r.date for r in result] == [date(2026, 10, 19)]

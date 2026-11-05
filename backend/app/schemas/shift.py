@@ -203,7 +203,16 @@ class ShiftReplacementSchema(BaseModel):
     confirm_arranged: bool = False
 
 
+class ReplacementOrigin(BaseModel):
+    shift_id: UUID
+    occurrence_date: date
+    worker: WorkerSummary
+    reason: str
+
+
 class ShiftOccurrenceResponse(BaseModel):
+    replacement_for: ReplacementOrigin | None = None
+    absence_kind: Literal['recorded_leave', 'unspecified_drop'] | None = None
     dropped_reason: str | None = None
     replacement_shift_id: UUID | None = None
     shift_id:                UUID

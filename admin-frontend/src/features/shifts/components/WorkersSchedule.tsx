@@ -34,6 +34,7 @@ export function WorkersSchedule({ rows, from, clientFiltered, onSelect }: {
                 aria-label={`${worker.first_name} ${worker.last_name}, ${format(days[day], 'EEEE MMMM d')}, ${time}, ${name}, ${status.label}`}
                 onClick={() => onSelect(visit)}>
                 <span className="workers-schedule-time">{time}</span>
+                {visit.replacement_for && <small>Replacement cover</small>}
                 <span className="workers-schedule-client">{name}</span>
                 <small>{visit.completion_status === 'dropped' ? 'Needs replacement' : status.label}</small>
               </button>

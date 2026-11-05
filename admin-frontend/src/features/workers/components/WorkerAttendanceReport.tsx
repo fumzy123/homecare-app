@@ -19,7 +19,7 @@ export function WorkerAttendanceReport({
             <th>Month</th>
             <th>Completed</th>
             <th>Missed</th>
-            <th>Dropped</th>
+            <th>Dropped / absent</th><th>Leave</th><th>Other drops</th><th>Cover assigned</th><th>Cover completed</th>
             <th>Cancelled</th>
             <th>Attendance</th>
           </tr>
@@ -43,7 +43,7 @@ export function WorkerAttendanceReport({
                 </td>
                 <td>{stats.completed}</td>
                 <td>{stats.missed}</td>
-                <td>{stats.dropped}</td>
+                <td>{stats.dropped}</td><td>{stats.leaveAbsences}</td><td>{stats.otherDrops}</td><td>{stats.replacementAssigned}</td><td>{stats.replacementCompleted}</td>
                 <td>{stats.cancelled}</td>
                 <td>
                   {countable

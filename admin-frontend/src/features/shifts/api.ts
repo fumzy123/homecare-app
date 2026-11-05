@@ -31,6 +31,13 @@ export interface ShiftClient {
 export interface ShiftOccurrence {
   dropped_reason?: string | null
   replacement_shift_id?: string | null
+  absence_kind?: 'recorded_leave' | 'unspecified_drop' | null
+  replacement_for?: {
+    shift_id: string
+    occurrence_date: string
+    worker: { id: string; first_name: string; last_name: string; email: string }
+    reason: string
+  } | null
   shift_id: string
   modification_id: string | null
   date: string
@@ -141,7 +148,7 @@ export interface CalendarEvent {
 }
 
 export function toCalendarEvents(occurrences: ShiftOccurrence[]): CalendarEvent[] {
-  return occurrences.map((o) => ({
+  return occurrences.filter(o => !o.replacement_shift_id).map((o) => ({
     title: `${o.worker.first_name} · ${o.client.first_name} ${o.client.last_name}`,
     start: new Date(o.start_time),
     end: new Date(o.end_time),

@@ -194,7 +194,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
             {[
               ['Completed visits', stats.completed],
               ['Missed visits', stats.missed],
-              ['Dropped visits', stats.dropped],
+              ['Dropped / unable to attend', stats.dropped],
             ].map(([label, value]) => (
               <div key={label}>
                 <p className="wp-muted">{label}</p>
@@ -202,6 +202,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
               </div>
             ))}
           </div>
+          <p className="wp-muted">Recorded leave: {stats.leaveAbsences} · Other drops (initiator unspecified): {stats.otherDrops}. Replacement cover assigned: {stats.replacementAssigned} · Completed: {stats.replacementCompleted}. Covering a visit does not remove the original absence from these counts.</p>
           <p className="wp-muted" style={{ margin: '-10px 0 24px' }}>
             {stats.cancelled} cancelled visits · Scheduled and ongoing visits
             are not attendance outcomes.
@@ -267,7 +268,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
                           {v.client.first_name} {v.client.last_name}
                         </button>
                       </td>
-                      <td>{statusLabels[v.completion_status]}</td>
+                      <td>{v.replacement_shift_id ? 'Replaced — original absence retained' : statusLabels[v.completion_status]}</td>
                     </tr>
                   ))}
                 </tbody>

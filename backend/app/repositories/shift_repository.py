@@ -13,6 +13,15 @@ class ShiftRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def replacement_origins(self, org_id, replacement_ids):
+        """Batch-load retained original occurrences, scoped to the requesting agency."""
+        if not replacement_ids:
+            return {}
+        rows = (self.db.query(ShiftModification).join(Shift, Shift.id == ShiftModification.shift_id)
+                .options(joinedload(ShiftModification.shift).joinedload(Shift.worker).joinedload(Employment.person))
+                .filter(Shift.org_id == org_id, ShiftModification.replacement_shift_id.in_(replacement_ids)).all())
+        return {row.replacement_shift_id: row for row in rows}
+
     def completion_org_ids(self):
         return [row[0] for row in self.db.query(Shift.org_id).filter(
             Shift.status == ShiftStatus.active, Shift.deleted_at.is_(None),

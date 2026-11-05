@@ -60,6 +60,7 @@ function CalendarVisit({ event }: { event: CalendarEvent }) {
   const { client, worker } = event.resource
   return <>
     <span className="schedule-visit-time">{visitTimeLabel(event.resource)}</span>
+    {event.resource.replacement_for && <span className="schedule-visit-worker">Replacement cover</span>}
     <span className="schedule-visit-client">{client.first_name} {client.last_name}</span>
     <span className="schedule-visit-worker">{event.resource.completion_status === 'dropped' ? 'Needs replacement' : `${worker.first_name} ${worker.last_name}`}</span>
   </>

@@ -10,6 +10,7 @@ from app.core.enums import ShiftCompletionStatus, ShiftStatus, OVERTIME_APPROVER
 from app.core.exceptions import AppError
 from app.schemas.shift import (
     ClientSummary,
+    ReplacementOrigin,
     ShiftCancelFromSchema,
     ShiftCancelSchema,
     ShiftEditFromSchema,
@@ -189,7 +190,7 @@ class ShiftService:
             )
 
     @staticmethod
-    def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None) -> ShiftOccurrenceResponse:
+    def _build_occurrence_response(shift: Shift, occurrence_date: date, mod: ShiftModification | None, origin: ShiftModification | None = None) -> ShiftOccurrenceResponse:
         """Merge master shift data with an optional modification for one occurrence."""
         effective = resolve_effective_occurrence(shift, occurrence_date, mod)
 
@@ -209,6 +210,15 @@ class ShiftService:
         return ShiftOccurrenceResponse(
             shift_id=shift.id,
             modification_id=mod.id if mod else None,
+            absence_kind=('recorded_leave' if effective.completion_status in (ShiftCompletionStatus.dropped, ShiftCompletionStatus.cancelled) and getattr(mod, 'dropped_reason', None) and mod.dropped_reason.startswith('Worker on leave')
+                          else 'unspecified_drop' if effective.completion_status == ShiftCompletionStatus.dropped or getattr(mod, 'replacement_shift_id', None)
+                          else None),
+            replacement_for=ReplacementOrigin(
+                shift_id=origin.shift_id, occurrence_date=origin.original_date,
+                worker=WorkerSummary(id=origin.shift.worker.id, first_name=origin.shift.worker.person.first_name,
+                                     last_name=origin.shift.worker.person.last_name, email=origin.shift.worker.person.email),
+                reason='On leave' if (origin.dropped_reason or '').startswith('Worker on leave') else 'Dropped visit',
+            ) if origin else None,
             dropped_reason=getattr(mod, "dropped_reason", None),
             replacement_shift_id=getattr(mod, "replacement_shift_id", None),
             date=occurrence_date,
@@ -434,6 +444,7 @@ class ShiftService:
                 **({'include_rescheduled': True} if calendar_window else {}),
             )
 
+            origins = self.shift_repo.replacement_origins(self.org_id, [s.id for s in shifts])
             results = []
             for shift in shifts:
                 mod_map = {m.original_date: m for m in shift.modifications}
@@ -452,7 +463,7 @@ class ShiftService:
                             continue
 
                     results.append(
-                        self._build_occurrence_response(shift, occurrence_date, mod)
+                        self._build_occurrence_response(shift, occurrence_date, mod, origins.get(shift.id))
                     )
 
             results.sort(key=lambda o: o.start_time)

@@ -20,6 +20,9 @@ const visits = [
   visit(28, workers[0], clients[0], '2026-10-31T15:00:00', '2026-10-31T17:00:00', 'scheduled', '2026-11-02'),
 ]
 
+visits[0].replacement_for = { shift_id: id(29), occurrence_date: '2026-10-26', worker: workers[3], reason: 'On leave' }
+visits.push({ ...visit(29, workers[3], clients[0], '2026-10-26T09:00:00', '2026-10-26T14:00:00', 'cancelled'), replacement_shift_id: id(20), absence_kind: 'recorded_leave' })
+
 async function run() {
   const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'msedge', headless: true })
   try {
@@ -68,6 +71,12 @@ async function run() {
       assert.ok(a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top || b.bottom <= a.top, 'Calendar visits do not obscure one another')
     }
     if (process.env.SCHEDULE_SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCHEDULE_SCREENSHOT_DIR}/calendar.png`, fullPage: true })
+    const replacement = page.locator('.rbc-event').filter({ hasText: 'Replacement cover' })
+    assert.equal(await replacement.count(), 1)
+    await replacement.click()
+    await page.getByText('Replacement cover · Replaces Morgan Demo', { exact: true }).click()
+    await page.getByText('On leave · Original occurrence: 2026-10-26', { exact: true }).waitFor()
+    await page.keyboard.press('Escape')
     const toggle = name => page.getByRole('group', { name: 'Schedule view', exact: true }).getByRole('button', { name, exact: true })
     await toggle('Workers').click()
     const table = page.getByRole('table', { name: 'Weekly worker schedule' })

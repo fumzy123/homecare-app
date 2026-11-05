@@ -556,6 +556,11 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
             /* ── View mode ── */
             <>
               {needsReplacement && <p className="vd-notice">Needs replacement · {shift.dropped_reason?.startsWith('Worker on leave') ? `${shift.worker.first_name} ${shift.worker.last_name} is on leave.` : 'This visit was dropped.'} Use Edit to arrange cover.</p>}
+              {shift.replacement_for && <details className="vd-notice">
+                <summary>Replacement cover · Replaces {shift.replacement_for.worker.first_name} {shift.replacement_for.worker.last_name}</summary>
+                <p>{shift.replacement_for.reason} · Original occurrence: {shift.replacement_for.occurrence_date}</p>
+                <p>The original worker’s absence is retained in attendance history.</p>
+              </details>}
               {shift.replacement_shift_id && <p>Replacement coverage arranged. This original visit is retained for history.</p>}
               {/* Date / time / status block */}
               <div className="border border-ink px-4 py-4" style={{ borderLeftWidth: 3, borderLeftColor: statusCfg.bg }}>

@@ -19,6 +19,7 @@ export function buildWorkerRows(workers: ScheduleWorker[], visits: ShiftOccurren
   }]))
   const seen = new Set<string>()
   for (const visit of [...visits].sort((a, b) => a.start_time.localeCompare(b.start_time))) {
+    if (visit.replacement_shift_id) continue
     const key = `${visit.shift_id}:${visit.date}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -57,6 +58,7 @@ export function calendarWeekWidth(visits: ShiftOccurrence[], from: string) {
     const a = start + day * dayMs, b = a + dayMs
     const points: [number, number][] = []
     for (const visit of visits) {
+      if (visit.replacement_shift_id) continue
       const s = Math.max(a, wallTime(visit.start_time)), e = Math.min(b, wallTime(visit.end_time))
       if (e > s) points.push([s, 1], [e, -1])
     }

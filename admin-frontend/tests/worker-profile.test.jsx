@@ -98,7 +98,7 @@ describe('worker profile projections', () => {
     ].map((status, i) =>
       visit(String(i), '2026-11-02T09:00:00', '2026-11-02T10:00:00', status),
     )
-    expect(attendanceStats([...values, values[0]])).toEqual({
+    expect(attendanceStats([...values, values[0]])).toMatchObject({
       completed: 1,
       missed: 1,
       dropped: 1,
@@ -127,4 +127,13 @@ describe('worker profile projections', () => {
     expect(rows).toEqual([moved])
     expect(attendanceStats(rows).completed).toBe(1)
   })
+})
+
+test('replacement resolution retains original absences and distinguishes cover assigned from completed', () => {
+  const original = visit('original', '2026-12-14T10:00:00', '2026-12-14T12:00:00', 'cancelled', { replacement_shift_id: 'cover', absence_kind: 'recorded_leave' })
+  const covered = visit('cover', '2026-12-14T10:00:00', '2026-12-14T12:00:00', 'scheduled', { replacement_for: { shift_id: 'original' } })
+  expect(attendanceStats([original, original])).toMatchObject({ dropped: 1, leaveAbsences: 1, otherDrops: 0, cancelled: 0 })
+  expect(attendanceStats([covered])).toMatchObject({ replacementAssigned: 1, replacementCompleted: 0, dropped: 0 })
+  expect(attendanceStats([{ ...covered, completion_status: 'completed' }])).toMatchObject({ replacementAssigned: 1, replacementCompleted: 1 })
+  expect(attendanceStats([{ ...original, absence_kind: 'unspecified_drop' }])).toMatchObject({ dropped: 1, otherDrops: 1, leaveAbsences: 0 })
 })

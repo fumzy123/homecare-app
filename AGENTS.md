@@ -1131,3 +1131,13 @@ replacement with scheduling safeguards. Original workers and leave reasons remai
 history; resolved originals become cancelled with a link to the one-off replacement.
 Removing leave does not restore dropped visits or undo cover. Existing records are not
 backfilled. Apply migration `ab731eed0142` before the API. See `backend/LEAVE_COVERAGE.md`.
+
+
+### Replacement display and attendance provenance (2026-11-05)
+
+Calendar and worker schedules hide resolved originals linked by replacement_shift_id;
+ordinary cancellations remain visible. Replacement cards carry a label and expandable
+original-worker history. Attendance retains the original absence after replacement,
+separating recorded leave, unspecified drops, no-shows, replacement assignments and
+completed cover by effective visit date. Existing occurrence links supply provenance;
+no migration or inferred worker-initiated drop attribution. See backend/LEAVE_COVERAGE.md.

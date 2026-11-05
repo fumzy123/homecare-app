@@ -70,7 +70,7 @@ export function uniqueVisits(visits: ShiftOccurrence[]) {
 
 export function workerWeek(visits: ShiftOccurrence[], from: string) {
   const until = shiftDate(from, 7)
-  const rows = uniqueVisits(visits).filter(
+  const rows = uniqueVisits(visits).filter(v => !v.replacement_shift_id).filter(
     (v) =>
       v.start_time < `${until}T00:00:00` && v.end_time > `${from}T00:00:00`,
   )
@@ -191,7 +191,11 @@ export function attendanceStats(visits: ShiftOccurrence[]) {
   return {
     completed: rows.filter((v) => v.completion_status === 'completed').length,
     missed: rows.filter((v) => v.completion_status === 'no_show').length,
-    dropped: rows.filter((v) => v.completion_status === 'dropped').length,
-    cancelled: rows.filter((v) => v.completion_status === 'cancelled').length,
+    dropped: rows.filter((v) => v.completion_status === 'dropped' || v.replacement_shift_id || v.absence_kind).length,
+    leaveAbsences: rows.filter(v => v.absence_kind === 'recorded_leave').length,
+    otherDrops: rows.filter(v => v.absence_kind === 'unspecified_drop' || (!v.absence_kind && (v.completion_status === 'dropped' || v.replacement_shift_id))).length,
+    replacementAssigned: rows.filter(v => v.replacement_for).length,
+    replacementCompleted: rows.filter(v => v.replacement_for && v.completion_status === 'completed').length,
+    cancelled: rows.filter((v) => v.completion_status === 'cancelled' && !v.replacement_shift_id && !v.absence_kind).length,
   }
 }
