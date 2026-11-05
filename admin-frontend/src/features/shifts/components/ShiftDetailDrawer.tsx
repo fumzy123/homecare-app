@@ -1,4 +1,3 @@
-import { ArrangeVisitCover } from './ArrangeVisitCover'
 import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useEffect, useState, useRef } from 'react'
@@ -68,6 +67,10 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   const end   = new Date(shift.end_time)
   const statusCfg = getStatusToken(shift.completion_status)
 
+  const needsReplacement = shift.completion_status === 'dropped' && !shift.replacement_shift_id
+  const [replacementWorkerId, setReplacementWorkerId] = useState('')
+  const [replacementConfirmed, setReplacementConfirmed] = useState(false)
+
   // Edit state
   const [workerId, setWorkerId]               = useState(shift.worker.id)
   const [clientId, setClientId]               = useState(shift.client.id)
@@ -105,13 +108,16 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
   const saveMutation = useShiftDetailWrite({
     onSuccess: () => {
+      if (needsReplacement) { onClose(); return }
       setSaved(true)
       setIsEditing(false)
       setShowSaveModal(false)
       setTimeout(() => setSaved(false), 2500)
     },
     onError: (err) => {
-      if (err instanceof ApiError && err.code === 'WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK' && Array.isArray(err.details) && err.details.length > 0) {
+      if (needsReplacement) {
+        setEditError(visitWriteError(err))
+      } else if (err instanceof ApiError && err.code === 'WORKER_ALREADY_SCHEDULED_AT_THIS_TIME_BLOCK' && Array.isArray(err.details) && err.details.length > 0) {
         const first = err.details[0] as { date: string; start: string; end: string; client_name: string }
         const s = new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         const e = new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -163,6 +169,11 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   function handleSave() {
     if (saveMutation.isPending) return
     setEditError(null)
+    if (needsReplacement) {
+      if (!replacementWorkerId || !replacementConfirmed) return
+      saveMutation.mutate(() => shiftsApi.replaceDroppedVisit(shift.shift_id, shift.date, replacementWorkerId))
+      return
+    }
     if (shift.is_recurring) {
       setShowSaveModal(true)
     } else {
@@ -263,6 +274,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
   function handleDiscard() {
     if (saveMutation.isPending) return
+    setReplacementWorkerId(''); setReplacementConfirmed(false)
     setWorkerId(shift.worker.id); setClientId(shift.client.id)
     setDate(format(start, 'yyyy-MM-dd')); setStartTime(format(start, 'HH:mm')); setEndTime(format(end, 'HH:mm'))
     setLocation(shift.location ?? ''); setNotes(shift.notes ?? '')
@@ -274,7 +286,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   }
 
   const busy = saveMutation.isPending || deleteMutation.isPending || requestOvertime.isPending
-  const dirty = workerId !== shift.worker.id || clientId !== shift.client.id || date !== format(start, 'yyyy-MM-dd') || endDate !== format(end, 'yyyy-MM-dd') || startTime !== format(start, 'HH:mm') || endTime !== format(end, 'HH:mm') || location !== (shift.location ?? '') || notes !== (shift.notes ?? '') || completionStatus !== shift.completion_status || recurrenceChanged() || recurrenceEndDate !== (shift.recurrence_end_date ?? '')
+  const dirty = !!replacementWorkerId || replacementConfirmed || workerId !== shift.worker.id || clientId !== shift.client.id || date !== format(start, 'yyyy-MM-dd') || endDate !== format(end, 'yyyy-MM-dd') || startTime !== format(start, 'HH:mm') || endTime !== format(end, 'HH:mm') || location !== (shift.location ?? '') || notes !== (shift.notes ?? '') || completionStatus !== shift.completion_status || recurrenceChanged() || recurrenceEndDate !== (shift.recurrence_end_date ?? '')
   function requestClose() {
     if (busy) return
     if (!isEditing || !dirty || window.confirm('Discard your unsaved visit changes?')) onClose()
@@ -285,13 +297,29 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
       <VisitDrawer title={isEditing ? 'Edit shift' : 'Visit details'}
         subtitle={`${shift.client.first_name} ${shift.client.last_name} · ${format(start, 'EEE, MMM d, yyyy')}`}
         onClose={requestClose} busy={busy}
-        action={!isEditing && !hideEdit ? <button className="vd-btn" disabled={busy} onClick={() => setIsEditing(true)}>Edit</button> : undefined}>
+        action={!isEditing && !hideEdit && !shift.replacement_shift_id ? <button className="vd-btn" disabled={busy} onClick={() => setIsEditing(true)}>Edit</button> : undefined}>
         {/* ── Body ── */}
         <div className={`vd-body ${isEditing ? "" : "vd-read"}`}>
 
           {isEditing ? (
             /* ── Edit mode ── */
             <fieldset disabled={busy} className="vd-form-fields">
+              {needsReplacement ? (
+                <VisitFormSection title="Replacement coverage" description="This visit only. The recurring assignment stays unchanged.">
+                  <p className="vd-notice">{format(start, 'EEE, MMM d, yyyy')} · {format(start, 'HH:mm')}–{format(end, 'HH:mm')}{format(start, 'yyyy-MM-dd') !== format(end, 'yyyy-MM-dd') ? ` (ends ${format(end, 'MMM d')})` : ''}</p>
+                  <p className="vd-help">{shift.location}</p>
+                  <label className={labelClass} htmlFor="replacement-worker">Replacement worker</label>
+                  <select autoFocus id="replacement-worker" className={inputClass} value={replacementWorkerId}
+                    onChange={e => { setReplacementWorkerId(e.target.value); setReplacementConfirmed(false); setEditError(null) }}>
+                    <option value="">Choose replacement worker</option>
+                    {workers.map(w => <option key={w.id} value={w.id}>{w.first_name} {w.last_name}</option>)}
+                  </select>
+                  <label className="flex items-start gap-3">
+                    <input type="checkbox" checked={replacementConfirmed} onChange={e => setReplacementConfirmed(e.target.checked)} />
+                    <span>I have arranged this visit with the selected worker.</span>
+                  </label>
+                </VisitFormSection>
+              ) : (<>
               {shift.is_recurring && (
                 <p className="vd-notice">
                   This visit is part of a recurring schedule. On save, choose this visit only, this and following visits, or the whole series.
@@ -435,6 +463,8 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
               </VisitFormSection>
 
+              </>)}
+
               <div ref={feedbackRef} className="space-y-4">
               {editError && (
                 <p role="alert" className="font-mono text-[10px] text-orange border border-orange px-3 py-2">{editError}</p>
@@ -525,7 +555,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
           ) : (
             /* ── View mode ── */
             <>
-              {shift.completion_status === 'dropped' && <ArrangeVisitCover shift={shift} onDone={onClose} />}
+              {needsReplacement && <p className="vd-notice">Needs replacement · {shift.dropped_reason?.startsWith('Worker on leave') ? `${shift.worker.first_name} ${shift.worker.last_name} is on leave.` : 'This visit was dropped.'} Use Edit to arrange cover.</p>}
               {shift.replacement_shift_id && <p>Replacement coverage arranged. This original visit is retained for history.</p>}
               {/* Date / time / status block */}
               <div className="border border-ink px-4 py-4" style={{ borderLeftWidth: 3, borderLeftColor: statusCfg.bg }}>
@@ -708,7 +738,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
               className="vd-btn">
               Discard
             </button>
-            <button onClick={handleSave} disabled={busy}
+            <button onClick={handleSave} disabled={busy || (needsReplacement && (!replacementWorkerId || !replacementConfirmed))}
               className="vd-btn vd-btn-primary">
               {saveMutation.isPending ? 'Saving…' : isVisitConnectionError(saveMutation.error) ? 'Retry save' : 'Save Changes'}
             </button>
