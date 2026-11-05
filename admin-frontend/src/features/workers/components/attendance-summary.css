@@ -10,3 +10,12 @@
 .attendance-ring { width: 112px; height: 112px; position: relative; margin-top: 8px; }
 .attendance-ring svg { width: 100%; height: 100%; }
 .attendance-ring > span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 25px; font-family: inherit; }
+
+.wp-statline.attendance-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 24px; }
+@media (max-width: 1000px) {
+  .wp-statline.attendance-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wp-statline.attendance-summary > div:nth-child(odd) { padding-left: 0; }
+  .wp-statline.attendance-summary > div:nth-child(even) { border-right: 0; }
+  .wp-statline.attendance-summary > div:last-child { grid-column: 1 / -1; }
+  .attendance-summary > div:last-child .attendance-info-content { left: 0; right: auto; }
+}

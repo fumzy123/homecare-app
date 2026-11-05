@@ -18,8 +18,11 @@ export function WorkerAttendanceReport({
         <thead>
           <tr>
             <th>Month</th>
+            <th>Completed</th>
+            <th>Missed</th>
             <th>Dropped shifts</th>
             <th>Replacement cover completed</th>
+            <th>Cancelled</th>
             <th>Attendance</th>
           </tr>
         </thead>
@@ -40,8 +43,11 @@ export function WorkerAttendanceReport({
                     {dateLabel(`${month}-01`, 'MMMM')}
                   </button>
                 </td>
+                <td>{stats.completed}</td>
+                <td>{stats.missed}</td>
                 <td><DroppedShiftCount stats={stats} /></td>
                 <td>{stats.replacementCompleted}</td>
+                <td>{stats.cancelled}</td>
                 <td>
                   {countable
                     ? `${Math.round((100 * stats.completed) / countable)}%`

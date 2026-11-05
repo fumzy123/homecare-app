@@ -23,6 +23,8 @@ export function AttendanceSummary({ stats }: { stats: ReturnType<typeof attendan
   const total = stats.completed + stats.missed
   const percent = total ? Math.round(100 * stats.completed / total) : null
   return <div className="wp-statline attendance-summary">
+    <div><p className="wp-muted">Completed visits</p><strong>{stats.completed}</strong></div>
+    <div><p className="wp-muted">Missed visits</p><strong>{stats.missed}</strong></div>
     <div><p className="wp-muted">Dropped shifts</p><strong><DroppedShiftCount stats={stats} /></strong></div>
     <div><p className="wp-muted">Replacement cover completed</p><strong>{stats.replacementCompleted}</strong></div>
     <div>
