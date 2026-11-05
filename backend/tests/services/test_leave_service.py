@@ -246,7 +246,8 @@ def test_replacement_availability_includes_all_agency_workers_and_deduplicates(v
     db.flush()
     another = Employment(org_id=member.org_id, person_id=another_person.id, role=OrgMemberRole.home_support_worker)
     other_org = Organization(name='Other', owner_id=uuid4())
-    db.add_all([another, other_org]); db.flush()
+    db.add_all([another, other_org])
+    db.flush()
     for worker_id, org_id in [(worker.id, member.org_id), (another.id, member.org_id), (another.id, member.org_id), (member.id, other_org.id)]:
         db.add(LeaveRecord(worker_id=worker_id, org_id=org_id, recorded_by=member.id, leave_type='vacation', start_date=request.start_date, end_date=request.end_date))
     db.commit()
@@ -272,7 +273,9 @@ def test_replacement_availability_uses_moved_interval_and_midnight_boundary(visi
     mod = ShiftModification(shift_id=shift.id, original_date=request.start_date,
                             new_start_time=datetime(2027, 12, 30, 22), new_end_time=datetime(2027, 12, 31),
                             completion_status='dropped')
-    db.add(mod); db.commit(); db.expire_all()
+    db.add(mod)
+    db.commit()
+    db.expire_all()
     service = ShiftService(db, user)
     assert service.replacement_availability(shift.id, request.start_date).on_leave_worker_ids == []
     mod.new_end_time += timedelta(minutes=1)
