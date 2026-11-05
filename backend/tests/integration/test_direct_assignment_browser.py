@@ -7,6 +7,7 @@ Coverage and history use real routes/services; roster and care-need fixture read
 come from the same isolated database.
 """
 
+from datetime import date, timedelta
 import json
 import os
 from pathlib import Path
@@ -29,6 +30,21 @@ from app.schemas.weekly_care_need import WeeklyCareNeedResponse
 from app.services.assignment_service import AssignmentService
 from app.core.enums import EmploymentStatus
 from tests.integration.test_care_coverage import scenario, direct_payload  # noqa: F401
+
+
+def first_week_added_hours(starts_on):
+    # The browser selects Tuesday and Thursday, two hours each. A partial
+    # first ISO week must not include an occurrence before the effective date.
+    occurrences = [starts_on + timedelta(days=(weekday - starts_on.weekday()) % 7)
+                   for weekday in (1, 3)]
+    first = min(occurrences)
+    week_end = first + timedelta(days=6 - first.weekday())
+    return 2 * sum(day <= week_end for day in occurrences)
+
+
+@pytest.mark.parametrize('offset,expected', [(0, 4), (1, 4), (2, 2), (3, 2), (4, 4), (5, 4), (6, 4)])
+def test_first_week_added_hours(offset, expected):
+    assert first_week_added_hours(date(2026, 11, 2) + timedelta(days=offset)) == expected
 
 
 @pytest.mark.parametrize("entry,missing_availability", [("request", False), ("client", False), ("request", True)])
@@ -91,6 +107,7 @@ def test_direct_assignment_browser(scenario, tmp_path, entry, missing_availabili
         user_id=str(s.service.current_user.id),
         workers=[str(w.id) for w in s.members[1:]],
         starts_on=str(s.start),
+        first_week_added_hours=first_week_added_hours(s.start),
     )
     data["client"] = jsonable_encoder(
         {c.name: getattr(s.client, c.name) for c in s.client.__table__.columns}

@@ -157,7 +157,7 @@ async function run() {
     await checks.getByText('Already scheduled across clients', { exact: true }).waitFor()
     await checks.getByText('Added by this approval', { exact: true }).waitFor()
     await checks.getByText('Total after approval', { exact: true }).waitFor()
-    assert.match(await checks.locator('.cr-hours-totals').innerText(), /\+ 4h/)
+    assert.ok((await checks.locator('.cr-hours-totals').innerText()).includes(`+ ${f.first_week_added_hours}h`), 'First-week added hours respect the effective start date')
     assert.equal(await approve().isEnabled(), true)
     await approve().click()
     await page
