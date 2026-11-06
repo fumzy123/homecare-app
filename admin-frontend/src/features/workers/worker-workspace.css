@@ -909,3 +909,8 @@
     padding: 12px 8px;
   }
 }
+
+.wp-leave-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.wp-leave-year { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.wp-leave-year .wp-input { width: 100px; min-height: 42px; padding: 8px 12px; }
+.wp-leave-record { min-height: 42px; white-space: nowrap; }

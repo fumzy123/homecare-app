@@ -1,5 +1,5 @@
 import { AttendanceSummary } from './AttendanceSummary'
-import { MAX_INPUT_MONTH } from '@/shared/lib/date'
+import { formatDateRange, MAX_INPUT_MONTH } from '@/shared/lib/date'
 import { useState } from 'react'
 import { format, endOfMonth, parseISO } from 'date-fns'
 import { Plus } from 'lucide-react'
@@ -52,8 +52,8 @@ export function WorkerAttendance({ section }: { section?: string }) {
     <WorkerPanel
       title="Leave records"
       action={
-        <div className="wp-row">
-          <label className="wp-field">
+        <div className="wp-leave-toolbar">
+          <label className="wp-leave-year">
             Year
             <select
               aria-label="Leave year"
@@ -70,7 +70,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
             </select>
           </label>
           <button
-            className="wp-link"
+            className="wp-btn wp-leave-record"
             onClick={() => {
               mutations.create.reset()
               setRecording(true)
@@ -92,7 +92,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
           <div className="wp-leave-row" key={record.id}>
             <div>
               <p>
-                {dateLabel(record.start_date)}–{dateLabel(record.end_date)}
+                {formatDateRange(record.start_date, record.end_date)}
               </p>
               <p className="wp-muted">
                 {LEAVE_TYPE_LABELS[record.leave_type]} · {countDays(record)}{' '}
@@ -106,7 +106,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
               onClick={() => {
                 if (
                   window.confirm(
-                    `Remove the leave record for ${dateLabel(record.start_date)}–${dateLabel(record.end_date)}? Unresolved shifts will still need cover, and replacements will be retained. Review the schedule afterwards.`,
+                    `Remove the leave record for ${formatDateRange(record.start_date, record.end_date)}? Unresolved shifts will still need cover, and replacements will be retained. Review the schedule afterwards.`,
                   )
                 )
                   mutations.remove.mutate(record.id)

@@ -645,3 +645,13 @@ button.cw-slot:hover {
     transition: none;
   }
 }
+
+/* Directory interaction: dark structure, quiet hover, stable row dimensions. */
+.cw-directory-table th { background: var(--color-ink); color: var(--color-paper); }
+.cw-directory-table tbody { background: var(--color-paper); }
+.cw-client-row:hover .cw-client-row-link::after,
+.cw-client-row:focus-within .cw-client-row-link::after { box-shadow: inset 3px 0 var(--color-ink); }
+.cw-client-row:hover .cw-client-row-link,
+.cw-client-row:focus-within .cw-client-row-link { text-decoration: underline; text-underline-offset: 4px; }
+.cw-upcoming-link { position: relative; z-index: 1; text-decoration: underline; text-underline-offset: 3px; }
+.cw-upcoming-link:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }

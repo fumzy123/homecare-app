@@ -427,7 +427,7 @@ async function run() {
     await dialog.getByRole('button', { name: 'Record leave', exact: true }).click()
     await dialog.waitFor({ state: 'hidden' })
     await profile
-      .getByText('Nov 23, 2026–Nov 24, 2026', { exact: true })
+      .getByText('Nov 23rd – 24th 2026', { exact: true })
       .waitFor()
     await profile.getByRole('button', { name: 'Profile & employment' }).click()
     await dialog.getByRole('link', { name: 'Edit profile' }).click()

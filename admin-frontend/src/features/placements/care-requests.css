@@ -633,3 +633,9 @@
 
 .cr-check-explanations > .cr-check-warning { background: #fff8df; border-left: 3px solid #876312; padding: 16px; }
 .cr-check-warning > dt, .cr-check-warning .cr-check-status { color: #76550b; }
+
+.cr-table thead th { background: var(--color-ink); color: var(--color-paper); }
+.cr-request-row:hover .cr-request-link::after,
+.cr-request-row:focus-within .cr-request-link::after { box-shadow: inset 3px 0 var(--color-ink); }
+.cr-request-row:hover .cr-client-name,
+.cr-request-row:focus-within .cr-client-name { text-decoration: underline; text-underline-offset: 4px; }
