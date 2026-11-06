@@ -392,6 +392,24 @@ async function run() {
       await profile.getByLabel('Shift period', { exact: true }).inputValue(),
       '2026-11',
     )
+    const metrics = profile.locator('.attendance-summary')
+    const labels = await metrics.locator('.attendance-metric-label').evaluateAll(elements => elements.map(el => el.getBoundingClientRect().top))
+    assert.ok(Math.max(...labels) - Math.min(...labels) < 2, 'Metric labels align')
+    const numberTop = (await metrics.locator('strong').first().boundingBox()).y
+    assert.ok(Math.abs((await metrics.locator('.attendance-ring').boundingBox()).y - numberTop) < 2, 'Ring aligns with metric values')
+    for (const label of ['Dropped shifts breakdown', 'How attendance rate is calculated']) {
+      const info = metrics.getByLabel(label, { exact: true })
+      const tooltip = info.locator('..').getByRole('tooltip')
+      assert.equal(await tooltip.isVisible(), false)
+      await info.hover()
+      await tooltip.waitFor({ state: 'visible' })
+      await info.click()
+      await profile.getByRole('heading', { name: 'Attendance & time away.' }).hover()
+      assert.equal(await tooltip.isVisible(), false, 'Click does not latch the tooltip open')
+      await info.focus()
+      await tooltip.waitFor({ state: 'visible' })
+      await info.evaluate(el => el.blur())
+    }
     await profile.getByRole('button', { name: 'Record leave' }).click()
     for (const [label, digits, expected] of [['First day', '20261123', '2026-11-23'], ['Last day', '20261124', '2026-11-24']]) {
       const input = dialog.getByLabel(label)
