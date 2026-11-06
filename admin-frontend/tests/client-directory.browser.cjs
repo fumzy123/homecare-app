@@ -7,7 +7,7 @@ const os = require('node:os')
 const base = process.env.CLIENT_DIRECTORY_TEST_URL || 'http://127.0.0.1:5196'
 const output = process.env.CLIENT_DIRECTORY_SCREENSHOT_DIR || os.tmpdir()
 const user = { id: '00000000-0000-4000-8000-000000000001', email: 'owner@example.test', email_confirmed_at: '2026-01-01', aud: 'authenticated', app_metadata: {}, user_metadata: { first_name: 'Test', last_name: 'Owner', role: 'owner', org_id: '00000000-0000-4000-8000-000000000002' } }
-const summary = { weekly_hours: 6, slot_count: 3, covered_slot_count: 3, state: 'scheduled', starts_on: '2026-10-27', revision_pending: false, scheduled_change_on: null }
+const summary = { weekly_hours: 6, day_count: 2, slot_count: 3, covered_slot_count: 3, state: 'scheduled', starts_on: '2026-10-27', revision_pending: false, scheduled_change_on: null }
 const clients = process.env.CLIENT_DIRECTORY_DATA
   ? JSON.parse(fs.readFileSync(process.env.CLIENT_DIRECTORY_DATA, 'utf8'))
   : [['Eleanor', 'Bennett'], ['Arthur', 'Collins'], ['Margaret', 'Sullivan'], ['George', 'Mercer']].map(([first_name, last_name], i) => ({
@@ -38,6 +38,15 @@ async function run() {
     const directory = page.locator('.client-workspace.cw-page')
     await directory.getByRole('row').filter({ hasText: 'Eleanor' }).waitFor()
     assert.equal(await directory.getByRole('row').count(), 5)
+    await directory.getByText('Across 2 days', { exact: true }).first().waitFor()
+    const firstRow = directory.locator('tbody tr').first()
+    const headerColor = await directory.locator('th').first().evaluate(el => getComputedStyle(el).backgroundColor)
+    await firstRow.hover()
+    assert.notEqual(await firstRow.evaluate(el => getComputedStyle(el).backgroundColor), headerColor)
+    const rowLink = firstRow.locator('.cw-client-row-link')
+    await rowLink.focus()
+    assert.equal(await rowLink.evaluate(el => getComputedStyle(el, '::after').outlineStyle), 'solid')
+    assert.match(await rowLink.evaluate(el => getComputedStyle(el, '::after').boxShadow), /inset/)
     assert.equal(await directory.getByText('3/3 covered', { exact: true }).count(), 2)
     await directory.getByText('1 slot open', { exact: true }).waitFor()
     await directory.getByText('Unassigned', { exact: true }).waitFor()

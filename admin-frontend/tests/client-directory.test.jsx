@@ -6,8 +6,8 @@ import { useClients } from '../src/features/clients/hooks/useClients'
 
 vi.mock('../src/features/clients/hooks/useClients', () => ({ useClients: vi.fn() }))
 vi.mock('../src/features/clients/components/CreateClientDrawer', () => ({ CreateClientDrawer: () => null }))
-vi.mock('@tanstack/react-router', () => ({ Link: ({ children, params, to: _to, ...props }) => <a {...props} href={`/dashboard/clients/${params.clientId}`}>{children}</a> }))
-const care = { weekly_hours: 6, slot_count: 3, covered_slot_count: 3, state: 'scheduled', starts_on: '2026-10-27', revision_pending: false, scheduled_change_on: null }
+vi.mock('@tanstack/react-router', () => ({ Link: ({ children, params, to, search, ...props }) => <a {...props} href={`/dashboard/clients/${params.clientId}${to.endsWith('/care-need') ? `/care-need?need=${search.need}` : ''}`}>{children}</a> }))
+const care = { weekly_hours: 6, day_count: 2, slot_count: 3, covered_slot_count: 3, state: 'scheduled', starts_on: '2026-10-27', revision_pending: false, scheduled_change_on: null }
 const client = (first_name, summary, status = 'active') => ({ id: first_name, first_name, last_name: 'Test', city: "St. John's", street: '101 Demo Lane', date_of_birth: '1944-03-12', status, directory_care: summary })
 let root, container
 beforeEach(() => {
@@ -28,13 +28,13 @@ test('compact rows show hours, slots, coverage, dates, age and street with one p
     client('Margaret', { ...care, starts_on: '2026-11-02' }),
     client('George', { ...care, state: 'requested', covered_slot_count: 0 }),
   ])
-  expect(row('Eleanor').textContent).toContain('6 hrs · 3 slots')
+  expect(row('Eleanor').textContent).toContain('6 hours per weekAcross 2 days')
   expect(row('Eleanor').textContent).toContain('Scheduled from Oct 27')
   expect(row('Eleanor').textContent).toContain('Revision pending')
   expect(row('Eleanor').textContent).toContain('3/3 covered')
   expect(row('Arthur').textContent).toContain('1 slot open')
   expect(row('Margaret').textContent).toContain('Scheduled from Nov 2')
-  expect(row('George').textContent).toContain('Requested from Oct 27')
+  expect(row('George').textContent).toContain('Care requested from Oct 27')
   expect(row('George').textContent).toContain('Unassigned')
   expect(row('Eleanor').querySelectorAll('td')[2].querySelector('small').textContent).toBe('101 Demo Lane')
   expect([...container.querySelectorAll('th')].map(el => el.textContent)).toEqual(['Client', 'Age', 'Location', 'Weekly care', 'Coverage', 'Status'])
@@ -61,9 +61,10 @@ test('age accounts for whether the birthday has occurred and handles missing bir
 })
 
 test('current care has no start date; approved change stays visible', async () => {
-  await render([client('Current', { ...care, state: 'current', starts_on: null, scheduled_change_on: '2026-11-02' })])
+  await render([client('Current', { ...care, state: 'current', starts_on: null, scheduled_change_on: '2026-11-02', scheduled_change_id: 'next-revision' })])
   expect(row('Current').textContent).not.toContain('Scheduled from')
-  expect(row('Current').textContent).toContain('Change scheduled Nov 2')
+  expect(row('Current').textContent).toContain('Upcoming change · Nov 2')
+  expect(row('Current').querySelector('.cw-upcoming-link').getAttribute('href')).toBe('/dashboard/clients/Current/care-need?need=next-revision')
 })
 
 test('no care, unavailable data and imported coverage remain distinct', async () => {
@@ -83,4 +84,11 @@ test('relationship filter still works and failed requests expose retry instead o
   await render(undefined, { isError: true })
   expect(container.querySelector('[role="alert"]')).not.toBeNull()
   expect(container.textContent).not.toContain('Not set up')
+})
+
+
+test('one care day is singular even with several slots; missing day counts are not inferred', async () => {
+  await render([client('OneDay', { ...care, weekly_hours: 1, day_count: 1 }), client('Legacy', { ...care, day_count: undefined })])
+  expect(row('OneDay').textContent).toContain('1 hour per weekOn 1 day')
+  expect(row('Legacy').textContent).not.toMatch(/Across|On 1 day/)
 })

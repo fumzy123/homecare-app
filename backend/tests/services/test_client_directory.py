@@ -27,7 +27,7 @@ def summary(needs, assignments=(), on_date=TODAY):
 
 def test_unposted_proposal_has_hours_slots_requested_date_and_zero_coverage():
     result = summary([need(effective_from=date(2026, 11, 2))])
-    assert result == dict(weekly_hours=3.5, slot_count=2, covered_slot_count=0,
+    assert result == dict(weekly_hours=3.5, day_count=2, scheduled_change_id=None, slot_count=2, covered_slot_count=0,
                           state='requested', starts_on=date(2026, 11, 2),
                           revision_pending=False, scheduled_change_on=None)
 
@@ -146,3 +146,18 @@ def test_repository_limits_assignment_reads_to_the_requested_agency():
             assert [a.id for a in WeeklyCareNeedRepository(db).assignments_for_org(first_org)] == [expected]
     finally:
         engine.dispose()
+
+
+def test_directory_counts_distinct_days_in_selected_revision():
+    plan = need()
+    plan.care_slots.append(Row(id='monday-late', day_of_week='MO', start_time=time(14), end_time=time(16)))
+    result = summary([plan])
+    assert result['day_count'] == 2
+    assert result['slot_count'] == 3
+    assert result['weekly_hours'] == 5.5
+    future = need(2, activated_at=TODAY, scheduled_from=date(2026, 11, 2), care_slots=[])
+    plan.activated_at = TODAY
+    result = summary([plan, future])
+    assert result['day_count'] == 2
+    assert result['scheduled_change_id'] == future.id
+    assert summary([future], on_date=date(2026, 11, 2))['day_count'] == 0

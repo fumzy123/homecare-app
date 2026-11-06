@@ -68,6 +68,8 @@ def directory_care_by_client(needs, assignments, on_date):
         result[client_id] = {
             'weekly_hours': round(sum(minutes(s.end_time) - minutes(s.start_time) for s in selected.care_slots) / 60, 2),
             'slot_count': len(selected.care_slots),
+            'day_count': len({s.day_of_week for s in selected.care_slots}),
+            'scheduled_change_id': future[0].id if client_id in current and future else None,
             'covered_slot_count': None if selected.imported else covered,
             'state': state,
             'starts_on': starts if state != 'current' else None,

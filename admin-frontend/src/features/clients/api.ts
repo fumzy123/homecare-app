@@ -12,6 +12,8 @@ export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
 
 export interface DirectoryCareSummary {
   weekly_hours: number
+  day_count?: number
+  scheduled_change_id?: string | null
   slot_count: number
   covered_slot_count: number | null
   state: 'current' | 'scheduled' | 'requested'

@@ -85,7 +85,7 @@ export function ClientDirectory() {
         </ClientEmpty>
       ) : (
         <div className="cw-table-scroll">
-          <table className="cw-table">
+          <table className="cw-table cw-directory-table">
             <thead>
               <tr>
                 {[
@@ -134,17 +134,17 @@ export function ClientDirectory() {
                       {care ? (
                         <>
                           <span className="whitespace-nowrap">
-                            <strong>{fmtHours(care.weekly_hours)} hrs</strong>
-                            <span className="cw-muted"> · {care.slot_count} {care.slot_count === 1 ? 'slot' : 'slots'}</span>
+                            <strong>{fmtHours(care.weekly_hours)} {care.weekly_hours === 1 ? 'hour' : 'hours'} per week</strong>
+                            {care.day_count !== undefined && <small>{care.day_count === 1 ? 'On 1 day' : `Across ${care.day_count} days`}</small>}
                           </span>
                           {care.starts_on && (
                             <small>
-                              {care.state === 'scheduled' ? 'Scheduled from' : 'Requested from'}{' '}
+                              {care.state === 'scheduled' ? 'Scheduled from' : 'Care requested from'}{' '}
                               {format(parseISO(care.starts_on), 'MMM d')}
                             </small>
                           )}
                           {care.scheduled_change_on && (
-                            <small>Change scheduled {format(parseISO(care.scheduled_change_on), 'MMM d')}</small>
+                            <small>{care.scheduled_change_id ? <Link className="cw-upcoming-link" to="/dashboard/clients/$clientId/care-need" params={{ clientId: c.id }} search={{ need: care.scheduled_change_id }}>Upcoming change · {format(parseISO(care.scheduled_change_on), 'MMM d')}</Link> : <>Upcoming change · {format(parseISO(care.scheduled_change_on), 'MMM d')}</>}</small>
                           )}
                           {care.revision_pending && <small>Revision pending</small>}
                         </>

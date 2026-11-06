@@ -93,6 +93,8 @@ class ClientUpdateSchema(BaseModel):
 
 class DirectoryCareSummary(BaseModel):
     weekly_hours: float
+    day_count: int
+    scheduled_change_id: UUID | None = None
     slot_count: int
     covered_slot_count: int | None
     state: Literal['current', 'scheduled', 'requested']
