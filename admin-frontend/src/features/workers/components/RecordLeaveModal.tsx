@@ -102,17 +102,17 @@ export function RecordLeaveModal({
             </label>
           </div>
           <p className="wp-notice">
-            Recording leave marks affected future visits as dropped and alerts the agency to arrange cover.
-            Recurring assignments remain unchanged. Removing leave does not automatically restore visits or undo replacements.
+            Recording leave marks affected future shifts as dropped and alerts the agency to arrange cover.
+            Recurring assignments remain unchanged. Removing leave does not automatically restore shifts or undo replacements.
           </p>
-          {reviewed && <section className="wp-notice" aria-label="Affected visits">
-            <strong>{reviewed.visits.length} visits need replacement coverage</strong>
+          {reviewed && <section className="wp-notice" aria-label="Affected shifts">
+            <strong>{reviewed.visits.length} shifts need replacement coverage</strong>
             <ul>{reviewed.visits.map(v => <li key={`${v.shift_id}:${v.occurrence_date}`}>
               {v.client} · {v.start_time.slice(0, 10)} · {v.start_time.slice(11, 16)}–{v.end_time.slice(11, 16)}
             </li>)}</ul>
-            {reviewed.protected_count > 0 && <p>{reviewed.protected_count} elapsed, ongoing or documented visits will retain their history.</p>}
+            {reviewed.protected_count > 0 && <p>{reviewed.protected_count} elapsed, ongoing or documented shifts will retain their history.</p>}
           </section>}
-          {reviewMutation.isError && <p role="alert" className="wp-error">Could not review affected visits. Try again.</p>}
+          {reviewMutation.isError && <p role="alert" className="wp-error">Could not review affected shifts. Try again.</p>}
           {reviewed && <button type="button" className="wp-btn" onClick={() => setReview(null)}>Review again</button>}
           {error && (
             <p role="alert" className="wp-error">
@@ -128,7 +128,7 @@ export function RecordLeaveModal({
               type="submit"
               disabled={busy || !start || !end || end < start}
             >
-              {busy ? 'Please wait…' : reviewed ? `Record leave${reviewed.visits.length ? ` and mark ${reviewed.visits.length} visits needing cover` : ''}` : 'Review affected visits'}
+              {busy ? 'Please wait…' : reviewed ? `Record leave${reviewed.visits.length ? ` and mark ${reviewed.visits.length} shifts needing cover` : ''}` : "Review affected shifts"}
             </button>
           </div>
         </fieldset>

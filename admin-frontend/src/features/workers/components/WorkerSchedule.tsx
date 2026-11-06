@@ -81,12 +81,12 @@ export function WorkerSchedule({ week, day }: { week?: string; day?: string }) {
       </div>
       <div className="wp-schedule-grid">
         <WorkerPanel
-          title="Scheduled visits"
+          title="Scheduled shifts"
           action={
             !query.isPending &&
             !query.isError && (
               <span className="wp-muted">
-                {summary.count} visits · {hoursLabel(summary.hours)}h
+                {summary.count} shifts · {hoursLabel(summary.hours)}h
               </span>
             )
           }
@@ -116,7 +116,7 @@ export function WorkerSchedule({ week, day }: { week?: string; day?: string }) {
                     />
                   ))
                 ) : (
-                  <p className="wp-muted wp-gap">No visits scheduled</p>
+                  <p className="wp-muted wp-gap">No shifts scheduled</p>
                 )}
               </section>
             ))
@@ -125,7 +125,7 @@ export function WorkerSchedule({ week, day }: { week?: string; day?: string }) {
         <section>
           <h3>Recurring availability</h3>
           <p className="wp-muted wp-gap">
-            Recorded available times, before scheduled visits.
+            Recorded available times, before scheduled shifts.
           </p>
           {availability.isPending || availability.isError ? (
             <WorkerLoading
@@ -156,7 +156,7 @@ export function WorkerSchedule({ week, day }: { week?: string; day?: string }) {
                 : `Weekly limit · ${worker.max_hours_per_week}h`}
             </strong>
             <p className="wp-gap">
-              Review existing visits and recorded leave when arranging care.
+              Review existing shifts and recorded leave when arranging care.
             </p>
             <Link
               className="wp-link wp-gap"

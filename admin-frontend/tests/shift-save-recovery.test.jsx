@@ -2,6 +2,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { CareTerminology } from '../src/shared/components/CareTerminology'
 import { ShiftDetailDrawer } from '../src/features/shifts/components/ShiftDetailDrawer'
 import { ApiError } from '../src/shared/lib/api-client'
 
@@ -181,4 +182,21 @@ test('pending leave checks and newly recorded leave prevent saving a selected wo
   await act(async () => qc.invalidateQueries({ queryKey: ['shifts', 'replacement-availability'] })); await settle()
   expect(button('Save Changes').disabled).toBe(true)
   expect(container.textContent).toContain('The selected worker is on leave')
+})
+
+
+test.each(['shift', 'visit'])('shared dialogs follow the %s perspective without changing saved data', async term => {
+  const entry = { ...shift, notes: 'Discuss visits and shifts with the family.' }
+  await act(async () => root.render(<QueryClientProvider client={qc}><CareTerminology value={term}><ShiftDetailDrawer shift={entry} onClose={api.close} /></CareTerminology></QueryClientProvider>))
+  await settle()
+  expect(container.querySelector('h2').textContent).toBe(`${term === 'shift' ? 'Shift' : 'Visit'} details`)
+  await click('Edit')
+  expect(container.querySelector('h2').textContent).toBe(`Edit ${term}`)
+  expect(container.querySelector('textarea').value).toBe(entry.notes)
+  expect(container.textContent).toContain(`This ${term} is part of a recurring schedule`)
+  await click('Save Changes')
+  expect(container.textContent).toContain(`This ${term} only`)
+  expect(container.textContent).toContain(`All ${term}s in this series`)
+  await click('Save')
+  expect(api.updateModification).toHaveBeenCalledExactlyOnceWith('test-shift', '2026-10-28', expect.objectContaining({ notes: entry.notes }))
 })

@@ -1,3 +1,4 @@
+import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { ClientDialog } from '@/features/clients/components/ClientWorkspaceUI'
 import { slotLabel } from '../lib/labels'
@@ -11,12 +12,14 @@ export function EndAssignmentDialog({ rows, selected, stopsFrom, reason, minDate
   onSelect: (id: string) => void; onDate: (value: string) => void; onReason: (value: string) => void
   onReview: () => void; onConfirm: () => void; onBack: () => void; onClose: () => void
 }) {
+  const careText = useCareTerminology()
+
   return <ClientDialog title={preview ? 'Confirm assignment change' : 'Manage assignment'} onClose={onClose}>
     <p className="mb-4"><strong>{rows[0].worker_name}</strong> · {rows[0].client_name}</p>
     {preview ? <>
-      <p>Stop these recurring visits from <strong>{preview.stops_from}</strong>, using the agency’s timezone:</p>
+      <p>{careText("Stop these recurring visits from ")}<strong>{preview.stops_from}</strong>, using the agency’s timezone:</p>
       <ul className="my-4 space-y-2">{preview.assignments.map(a => <li key={a.id}>{slotLabel(a)}</li>)}</ul>
-      <p className="mb-3">Past visits and progress notes stay on file. Other assignments and employment stay unchanged.</p>
+      <p className="mb-3">{careText("Past visits and progress notes stay on file. Other assignments and employment stay unchanged.")}</p>
       <p className="mb-3">The client still needs these care slots. The care request reopens for a replacement, and the Action Tower shows the coverage gap.</p>
       <p className="text-sm text-ink-soft">Reason: {reason}</p>
     </> : <>
@@ -27,9 +30,8 @@ export function EndAssignmentDialog({ rows, selected, stopsFrom, reason, minDate
           {slotLabel(a)}
         </label>)}
       </fieldset>
-      <label className="cw-field mb-4">Stop visits from
-        <input className="cw-input" type="date" max={MAX_INPUT_DATE} min={minDate} value={stopsFrom} disabled={busy} onChange={e => onDate(e.target.value)} />
-        <span className="text-sm text-ink-soft">No visits from this date onward. Dates use the agency’s timezone.</span>
+      <label className="cw-field mb-4">{careText("Stop visits from ")}<input className="cw-input" type="date" max={MAX_INPUT_DATE} min={minDate} value={stopsFrom} disabled={busy} onChange={e => onDate(e.target.value)} />
+        <span className="text-sm text-ink-soft">{careText("No visits from this date onward. Dates use the agency’s timezone.")}</span>
       </label>
       <label className="cw-field mb-4">Reason for the assignment history
         <textarea className="cw-input" rows={3} maxLength={500} value={reason} disabled={busy} onChange={e => onReason(e.target.value)} />

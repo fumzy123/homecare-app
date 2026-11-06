@@ -325,6 +325,13 @@ form submission, retaining one owner membership and a 14-day trial.
 
 ---
 
+## UI terminology (2026-11-06)
+
+Worker pages use **Shifts**; client pages use **Visits**. Shared scheduling and
+assignment dialogs inherit the page's presentation context through `CareTerminology`
+(default: visits). Apply its formatter only to authored UI copy, never names, notes,
+API data or identifiers. Keep internal `Shift` models, API paths and query keys intact.
+
 ## Worker profile workspace (2026-11-03)
 
 Worker profiles use the approved cream/paper, orange, mint and lavender design.

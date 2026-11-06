@@ -1,3 +1,4 @@
+import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
@@ -14,6 +15,8 @@ import '@/features/clients/client-workspace.css'
 export function AssignmentsPanel({ workerId, clientId, revision, revisions = [] }: {
   workerId?: string; clientId?: string; revision?: WeeklyCareNeed; revisions?: WeeklyCareNeed[]
 }) {
+  const careText = useCareTerminology()
+
   const query = useAssignments({ worker_id: workerId, client_id: clientId })
   const { review, end } = useEndAssignments()
   const [managing, setManaging] = useState<Assignment[] | null>(null)
@@ -57,7 +60,7 @@ export function AssignmentsPanel({ workerId, clientId, revision, revisions = [] 
     {query.isPending ? <p role="status">Loading assignments…</p> : query.isError ? <p role="alert">Could not load assignments. <button className="underline" onClick={() => void query.refetch()}>Retry</button></p>
       : revision ? <RevisionAssignments revision={revision} revisions={revisions} rows={rows} today={query.data!.today} onManage={manage} />
       : visible.length ? <AssignmentList rows={visible} workerView={Boolean(workerId)} onManage={manage} />
-      : <p className="text-sm text-ink-soft">No {history ? '' : 'current '}care-slot assignments. Individually scheduled visits and imported schedules remain in visit history.</p>}
+      : <p className="text-sm text-ink-soft">No {history ? '' : 'current '}{careText("care-slot assignments. Individually scheduled visits and imported schedules remain in visit history.")}</p>}
     {managing && <EndAssignmentDialog rows={managing} selected={selected} stopsFrom={stopsFrom} reason={reason} minDate={minDate}
       preview={preview} busy={busy} error={error}
       onSelect={id => { setSelected(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]); setPreview(null) }}

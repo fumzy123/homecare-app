@@ -310,7 +310,7 @@ async function run() {
     await page.getByRole('link', { name: 'sarah@example.test' }).waitFor()
     await page.keyboard.press('Escape')
     await profile
-      .getByRole('button', { name: 'Schedule visit', exact: true })
+      .getByRole('button', { name: 'Schedule shift', exact: true })
       .click()
     await page.getByRole('combobox', { name: 'Worker', exact: true }).waitFor()
     assert.equal(
@@ -367,7 +367,7 @@ async function run() {
       .click()
     await dialog.getByRole('checkbox').first().check()
     await dialog
-      .getByLabel('Stop visits from', { exact: false })
+      .getByLabel('Stop shifts from', { exact: false })
       .fill('2026-11-23')
     await dialog
       .getByLabel('Reason for the assignment history')
@@ -389,7 +389,7 @@ async function run() {
     assert.equal(await profile.locator('.wp-table tbody tr').count(), 12)
     await profile.getByRole('button', { name: 'November', exact: true }).click()
     assert.equal(
-      await profile.getByLabel('Visit period', { exact: true }).inputValue(),
+      await profile.getByLabel('Shift period', { exact: true }).inputValue(),
       '2026-11',
     )
     await profile.getByRole('button', { name: 'Record leave' }).click()
@@ -401,7 +401,7 @@ async function run() {
       await page.keyboard.type(digits)
       assert.equal(await input.inputValue(), expected, `${label}: typing must advance after four year digits`)
     }
-    await dialog.getByRole('button', { name: 'Review affected visits', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Review affected shifts', exact: true }).click()
     await dialog.getByRole('button', { name: 'Record leave', exact: true }).click()
     await dialog.getByRole('alert').waitFor()
     assert.equal(await dialog.getByLabel('Last day').inputValue(), '2026-11-24')

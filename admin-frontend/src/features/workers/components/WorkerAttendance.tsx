@@ -106,7 +106,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
               onClick={() => {
                 if (
                   window.confirm(
-                    `Remove the leave record for ${dateLabel(record.start_date)}–${dateLabel(record.end_date)}? Unresolved visits will still need cover, and replacements will be retained. Review the schedule afterwards.`,
+                    `Remove the leave record for ${dateLabel(record.start_date)}–${dateLabel(record.end_date)}? Unresolved shifts will still need cover, and replacements will be retained. Review the schedule afterwards.`,
                   )
                 )
                   mutations.remove.mutate(record.id)
@@ -132,7 +132,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
         <div>
           <h2>Attendance & time away.</h2>
           <p className="wp-muted">
-            Visit outcomes and recorded leave, in one place.
+            Shift outcomes and recorded leave, in one place.
           </p>
         </div>
         <div className="wp-row">
@@ -150,7 +150,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
           </label>
           {period === 'month' ? (
             <label className="wp-period">
-              Visit period
+              Shift period
               <input
                 className="wp-input"
                 type="month" max={MAX_INPUT_MONTH}
@@ -163,10 +163,10 @@ export function WorkerAttendance({ section }: { section?: string }) {
             </label>
           ) : (
             <label className="wp-period">
-              Visit year
+              Shift year
               <select
                 className="wp-input"
-                aria-label="Visit year"
+                aria-label="Shift year"
                 value={month.slice(0, 4)}
                 onChange={(e) => setMonth(`${e.target.value}-01`)}
               >
@@ -195,7 +195,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
       <div className="wp-stack">
         {section !== 'leave' && leavePanel}
         <WorkerPanel
-          title={period === 'year' ? 'Monthly breakdown' : 'Visit outcomes'}
+          title={period === 'year' ? 'Monthly breakdown' : "Shift outcomes"}
           action={
             <span className="wp-muted">
               {dateLabel(
@@ -248,7 +248,7 @@ export function WorkerAttendance({ section }: { section?: string }) {
               </table>
             </div>
           ) : (
-            <p className="wp-muted">No visit outcomes in this period.</p>
+            <p className="wp-muted">No shift outcomes in this period.</p>
           )}
         </WorkerPanel>
       </div>

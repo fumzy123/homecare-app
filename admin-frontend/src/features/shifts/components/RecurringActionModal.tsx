@@ -1,3 +1,4 @@
+import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { useState } from 'react'
 import { VisitDrawer } from './VisitDrawerUI'
 
@@ -16,21 +17,23 @@ const OPTIONS: { value: RecurringScope; label: string; sub: string }[] = [
   { value: 'all', label: 'All visits in this series', sub: 'Apply the change to the recurring series, including earlier eligible visits.' },
 ]
 export function RecurringActionModal({ mode, onConfirm, onCancel, recurrenceRuleChanged = false, busy = false, occurrenceLabel }: RecurringActionModalProps) {
+  const careText = useCareTerminology()
+
   const [selected, setSelected] = useState<RecurringScope>(recurrenceRuleChanged ? 'all' : 'this')
   return (
-    <VisitDrawer compact title={mode === 'delete' ? 'Delete visits' : 'Save changes'}
-      subtitle={occurrenceLabel ? `Selected visit: ${occurrenceLabel}` : 'Choose which visits this change applies to.'} onClose={onCancel} busy={busy}>
+    <VisitDrawer compact title={mode === 'delete' ? careText("Delete visits") : 'Save changes'}
+      subtitle={occurrenceLabel ? `${careText("Selected visit")}: ${occurrenceLabel}` : careText("Choose which visits this change applies to.")} onClose={onCancel} busy={busy}>
       <div className="vd-body">
-        {recurrenceRuleChanged && <p className="vd-notice">You changed the repeat pattern. Choose this and following visits or the whole series.</p>}
-        <div className="space-y-3" role="group" aria-label="Visits to change">
+        {recurrenceRuleChanged && <p className="vd-notice">{careText("You changed the repeat pattern. Choose this and following visits or the whole series.")}</p>}
+        <div className="space-y-3" role="group" aria-label={careText("Visits to change")}>
           {OPTIONS.map(({ value, label, sub }) => (
             <button key={value} type="button" className="vd-scope-option" aria-pressed={selected === value}
               disabled={busy || (recurrenceRuleChanged && value === 'this')} onClick={() => setSelected(value)}>
-              <strong>{label}</strong><span>{recurrenceRuleChanged && value === 'this' ? 'Unavailable when the repeat pattern changes.' : mode === 'delete' ? `Delete ${value === 'this' ? 'only this occurrence.' : value === 'following' ? 'this occurrence and later visits.' : 'the recurring series.'}` : sub}</span>
+              <strong>{careText(label)}</strong><span>{recurrenceRuleChanged && value === 'this' ? 'Unavailable when the repeat pattern changes.' : mode === 'delete' ? `Delete ${value === 'this' ? 'only this occurrence.' : value === 'following' ? careText("this occurrence and later visits.") : 'the recurring series.'}` : careText(sub)}</span>
             </button>
           ))}
         </div>
-        <p className="vd-help">{mode === 'delete' ? 'Review the selected visits before confirming deletion.' : selected === 'this' ? 'Worker, client, location and repeat settings stay unchanged for a single-visit edit.' : 'Scheduling checks still run before any changes are saved.'}</p>
+        <p className="vd-help">{mode === 'delete' ? careText("Review the selected visits before confirming deletion.") : selected === 'this' ? careText("Worker, client, location and repeat settings stay unchanged for a single-visit edit.") : 'Scheduling checks still run before any changes are saved.'}</p>
       </div>
       <footer className="vd-footer">
         <button type="button" disabled={busy} onClick={onCancel} className="vd-btn">Cancel</button>

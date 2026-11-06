@@ -28,7 +28,7 @@ export function WorkerDangerZone({
           </p>
           <p className="text-[12.5px] text-ink-soft">
             Ends their employment and removes them from the active roster.
-            Review their future visits and assignments separately. Their record
+            Review their future shifts and assignments separately. Their record
             and history are kept; re-invite them if they return.
           </p>
           {deleteError && (

@@ -114,13 +114,13 @@ export function WorkerOverview() {
               <div className="wp-between wp-muted">
                 <span>
                   {cap == null
-                    ? 'Cancelled and dropped visits excluded'
+                    ? "Cancelled and dropped shifts excluded"
                     : summary.hours > cap
                       ? `${hoursLabel(summary.hours - cap)}h over the weekly limit`
                       : `${hoursLabel(cap - summary.hours)}h below the weekly limit`}
                 </span>
                 <span>
-                  {summary.count} {summary.count === 1 ? 'visit' : 'visits'}
+                  {summary.count} {summary.count === 1 ? "shift" : "shifts"}
                 </span>
               </div>
               <div className="wp-days" aria-label="Weekly scheduled hours">
@@ -172,12 +172,12 @@ export function WorkerOverview() {
               ))
             ) : (
               <p className="wp-empty">
-                No upcoming visits in the next 14 days.
+                No upcoming shifts in the next 14 days.
                 {worker.next_shift_at &&
                   worker.next_shift_at.slice(0, 10) > shiftDate(today, 14) && (
                     <>
                       {' '}
-                      Next scheduled visit: {dateLabel(worker.next_shift_at)}.
+                      Next scheduled shift: {dateLabel(worker.next_shift_at)}.
                     </>
                   )}
               </p>
@@ -344,7 +344,7 @@ export function WorkerOverview() {
             </div>
           ))
         ) : (
-          <p className="wp-empty">No client visits scheduled this week.</p>
+          <p className="wp-empty">No shifts scheduled this week.</p>
         )}
       </section>
       {selected && (

@@ -1,3 +1,4 @@
+import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
 import { useEffect, useState, useRef } from 'react'
@@ -54,6 +55,8 @@ interface ShiftDetailDrawerProps {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDetailDrawerProps) {
+  const careText = useCareTerminology()
+
   const requestOvertime = useRequestOvertime()
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing]         = useState(false)
@@ -138,7 +141,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
         const over = Math.round((first.total_hours - 40) * 10) / 10
         setPendingOverride({
           code: err.code,
-          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. A manager or owner must approve this shift.`,
+          message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. A manager or owner must approve this ${careText('shift')}.`,
           workerIdForApproval: first.worker_id,
           weekStart: first.week_start,
           weekEnd: first.week_end,
@@ -293,12 +296,12 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
   const dirty = !!replacementWorkerId || replacementConfirmed || workerId !== shift.worker.id || clientId !== shift.client.id || date !== format(start, 'yyyy-MM-dd') || endDate !== format(end, 'yyyy-MM-dd') || startTime !== format(start, 'HH:mm') || endTime !== format(end, 'HH:mm') || location !== (shift.location ?? '') || notes !== (shift.notes ?? '') || completionStatus !== shift.completion_status || recurrenceChanged() || recurrenceEndDate !== (shift.recurrence_end_date ?? '')
   function requestClose() {
     if (busy) return
-    if (!isEditing || !dirty || window.confirm('Discard your unsaved visit changes?')) onClose()
+    if (!isEditing || !dirty || window.confirm(careText("Discard your unsaved visit changes?"))) onClose()
   }
 
   return (
     <>
-      <VisitDrawer title={isEditing ? 'Edit shift' : 'Visit details'}
+      <VisitDrawer title={isEditing ? careText("Edit shift") : careText("Visit details")}
         subtitle={`${shift.client.first_name} ${shift.client.last_name} · ${format(start, 'EEE, MMM d, yyyy')}`}
         onClose={requestClose} busy={busy}
         action={!isEditing && !hideEdit && !shift.replacement_shift_id ? <button className="vd-btn" disabled={busy} onClick={() => setIsEditing(true)}>Edit</button> : undefined}>
@@ -309,7 +312,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
             /* ── Edit mode ── */
             <fieldset disabled={busy} className="vd-form-fields">
               {needsReplacement ? (
-                <VisitFormSection title="Replacement coverage" description="This visit only. The recurring assignment stays unchanged.">
+                <VisitFormSection title="Replacement coverage" description={careText("This visit only. The recurring assignment stays unchanged.")}>
                   <p className="vd-notice">{format(start, 'EEE, MMM d, yyyy')} · {format(start, 'HH:mm')}–{format(end, 'HH:mm')}{format(start, 'yyyy-MM-dd') !== format(end, 'yyyy-MM-dd') ? ` (ends ${format(end, 'MMM d')})` : ''}</p>
                   <p className="vd-help">{shift.location}</p>
                   <label className={labelClass} htmlFor="replacement-worker">Replacement worker</label>
@@ -318,25 +321,24 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                     <option value="">Choose replacement worker</option>
                     {workers.map(w => <option key={w.id} value={w.id} disabled={onLeaveIds.includes(w.id)}>{w.first_name} {w.last_name}{onLeaveIds.includes(w.id) ? ' — On leave' : ''}</option>)}
                   </select>
-                  {replacementAvailability.isFetching && <p role="status" className="vd-help">Checking leave for this visit…</p>}
+                  {replacementAvailability.isFetching && <p role="status" className="vd-help">{careText("Checking leave for this visit…")}</p>}
                   {replacementAvailability.isError && <div role="alert">
                     <p>Could not check worker leave. Try again before choosing replacement cover.</p>
                     <button type="button" className="vd-btn" onClick={() => void replacementAvailability.refetch()}>Retry leave check</button>
                   </div>}
-                  {onLeaveIds.includes(replacementWorkerId) && <p role="alert">The selected worker is on leave for this visit. Choose another worker.</p>}
+                  {onLeaveIds.includes(replacementWorkerId) && <p role="alert">{careText("The selected worker is on leave for this visit. Choose another worker.")}</p>}
                   <label className="flex items-start gap-3">
                     <input type="checkbox" checked={replacementConfirmed} onChange={e => setReplacementConfirmed(e.target.checked)} />
-                    <span>I have arranged this visit with the selected worker.</span>
+                    <span>{careText("I have arranged this visit with the selected worker.")}</span>
                   </label>
                 </VisitFormSection>
               ) : (<>
               {shift.is_recurring && (
                 <p className="vd-notice">
-                  This visit is part of a recurring schedule. On save, choose this visit only, this and following visits, or the whole series.
-                </p>
+                  {careText("This visit is part of a recurring schedule. On save, choose this visit only, this and following visits, or the whole series. ")}</p>
               )}
 
-              <VisitFormSection title="People & location" description={shift.is_recurring ? "Worker, client and location changes apply to a series, not a single visit." : undefined}>
+              <VisitFormSection title="People & location" description={shift.is_recurring ? careText("Worker, client and location changes apply to a series, not a single visit.") : undefined}>
               <div className="vd-grid">
               <div>
                 <label className={labelClass}>Worker</label>
@@ -364,7 +366,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
               <div className="vd-grid">
                 <div>
                   <label className={labelClass}>{endDate !== date ? 'Start Date' : 'Date'}</label>
-                  <DateInput aria-label="Visit date" value={date}
+                  <DateInput aria-label={careText("Visit date")} value={date}
                     onChange={(v) => {
                       if (endDate === nextDay(date)) setEndDate(nextDay(v))
                       else if (endDate === date) setEndDate(v)
@@ -400,7 +402,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
 
               </VisitFormSection>
               {shift.is_recurring && (
-                <VisitFormSection title="Repeat settings" description="Repeat settings apply to this and following visits or the whole series. They do not change when saving this visit only.">
+                <VisitFormSection title="Repeat settings" description={careText("Repeat settings apply to this and following visits or the whole series. They do not change when saving this visit only.")}>
                   <div>
                     <label className={labelClass}>Repeat frequency</label>
                     <select
@@ -452,7 +454,7 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                 </VisitFormSection>
               )}
 
-              <VisitFormSection title="Visit notes & status">
+              <VisitFormSection title={careText("Visit notes & status")}>
               <div>
                 <label className={labelClass}>Notes</label>
                 <textarea aria-label="Notes" className={`${inputClass} resize-none`} rows={3} value={notes}
@@ -565,13 +567,13 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
           ) : (
             /* ── View mode ── */
             <>
-              {needsReplacement && <p className="vd-notice">Needs replacement · {shift.dropped_reason?.startsWith('Worker on leave') ? `${shift.worker.first_name} ${shift.worker.last_name} is on leave.` : 'This visit was dropped.'} Use Edit to arrange cover.</p>}
+              {needsReplacement && <p className="vd-notice">Needs replacement · {shift.dropped_reason?.startsWith('Worker on leave') ? `${shift.worker.first_name} ${shift.worker.last_name} is on leave.` : careText("This visit was dropped.")} Use Edit to arrange cover.</p>}
               {shift.replacement_for && <details className="vd-notice">
                 <summary>Replacement cover · Replaces {shift.replacement_for.worker.first_name} {shift.replacement_for.worker.last_name}</summary>
                 <p>{shift.replacement_for.reason} · Original occurrence: {shift.replacement_for.occurrence_date}</p>
                 <p>The original worker’s absence is retained in attendance history.</p>
               </details>}
-              {shift.replacement_shift_id && <p>Replacement coverage arranged. This original visit is retained for history.</p>}
+              {shift.replacement_shift_id && <p>{careText("Replacement coverage arranged. This original visit is retained for history.")}</p>}
               {/* Date / time / status block */}
               <div className="border border-ink px-4 py-4" style={{ borderLeftWidth: 3, borderLeftColor: statusCfg.bg }}>
                 <div className="flex items-start justify-between gap-3">
@@ -666,12 +668,11 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
                     onClick={() => { setShowCancelFlow(true); setCancelReason(''); setCancelScope('this') }}
                     className="vd-btn vd-btn-danger w-full"
                   >
-                    Cancel Shift
-                  </button>
+                    {careText("Cancel Shift ")}</button>
                 ) : (
                   <fieldset disabled={busy} className="vd-form-fields">
-                    <h3 className="font-serif text-[24px]">Cancel visit</h3>
-                    <p className="vd-help">Choose which visits to cancel and record why.</p>
+                    <h3 className="font-serif text-[24px]">{careText("Cancel visit")}</h3>
+                    <p className="vd-help">{careText("Choose which visits to cancel and record why.")}</p>
                     <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-ink-soft">
                       Cancellation reason
                     </p>

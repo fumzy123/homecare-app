@@ -1,3 +1,4 @@
+import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { requireVisitConnection, visitWriteError } from '../lib/visitWrite'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
@@ -94,6 +95,8 @@ export function CreateShiftDrawer({
   onClose,
   onSuccess,
 }: CreateShiftDrawerProps) {
+  const careText = useCareTerminology()
+
   const requestOvertime = useRequestOvertime()
   const defaultDate = initialDate ? format(initialDate, 'yyyy-MM-dd') : ''
   const defaultStartTime = initialDate ? format(initialDate, 'HH:mm') : '09:00'
@@ -142,7 +145,7 @@ export function CreateShiftDrawer({
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return
     const worker = workers.find((w) => w.id === workerId)
     const client = clients.find((c) => c.id === clientId)
-    let title = 'New Shift'
+    let title = careText("New Shift")
     if (worker && client)
       title = `${worker.first_name} · ${client.first_name} ${client.last_name}`
     else if (worker) title = `${worker.first_name} · ?`
@@ -257,7 +260,7 @@ export function CreateShiftDrawer({
           const over = Math.round((first.total_hours - 40) * 10) / 10
           setPendingOverride({
             code: err.code,
-            message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. A manager or owner must approve this shift.`,
+            message: `${first.worker_name} would reach ${first.total_hours}h the week of ${formatWeekRange(first.week_start, first.week_end)} — ${over}h over the 40h overtime threshold. A manager or owner must approve this ${careText('shift')}.`,
             workerIdForApproval: first.worker_id,
             weekStart: first.week_start,
             weekEnd: first.week_end,
@@ -305,7 +308,7 @@ export function CreateShiftDrawer({
   const dirty = formDirty || !!location || isRecurring || !!recurrenceEndDate || frequency !== 'weekly' || daysOfWeek.length > 0 || endDate !== defaultDate
   function requestClose() {
     if (busy) return
-    if (approvalRequested || !dirty || window.confirm('Discard this unsaved visit?')) onClose()
+    if (approvalRequested || !dirty || window.confirm(careText("Discard this unsaved visit?"))) onClose()
   }
   const sameDayBlock =
     !!watchDate && !!watchStart && !!watchEnd && watchStart < watchEnd
@@ -394,7 +397,7 @@ export function CreateShiftDrawer({
   }
 
   return (
-    <VisitDrawer title="New shift" subtitle="Choose who is providing care, then set the visit time." onClose={requestClose} busy={busy}>
+    <VisitDrawer title={careText("New shift")} subtitle={careText("Choose who is providing care, then set the visit time.")} onClose={requestClose} busy={busy}>
         {/* Form body */}
         <form
           className="vd-body"
@@ -516,7 +519,7 @@ export function CreateShiftDrawer({
           </div>
 
           </VisitFormSection>
-          <VisitFormSection title="Date & time" description="Times are shown in the agency’s timezone. An overnight visit ends on the following date.">
+          <VisitFormSection title="Date & time" description={careText("Times are shown in the agency’s timezone. An overnight visit ends on the following date.")}>
           {/* Date row — end date appears beside start date for overnight shifts */}
           <div className="vd-grid">
             <form.Field
@@ -531,7 +534,7 @@ export function CreateShiftDrawer({
                     {endDate !== field.state.value ? 'Start Date' : 'Date'}
                   </label>
                   <DateInput
-                    aria-label="Visit date"
+                    aria-label={careText("Visit date")}
                     value={field.state.value}
                     onChange={(v) => {
                       field.handleChange(v)
@@ -693,20 +696,20 @@ export function CreateShiftDrawer({
               className={`text-[13px] ${matchedPlanEntry ? 'text-mint-dark' : 'text-orange'}`}
             >
               {matchedPlanEntry
-                ? "✓ This shift matches the client's weekly care request."
-                : "⚠ This shift you are about to create falls outside the client's weekly care request — you can still schedule it if you want."}
+                ? careText("✓ This shift matches the client's weekly care request.")
+                : careText("⚠ This shift you are about to create falls outside the client's weekly care request — you can still schedule it if you want.")}
             </p>
           )}
 
           </VisitFormSection>
-          <VisitFormSection title="Repeat settings" description={isRecurring ? "Create a repeating schedule from this start date." : "Create one visit. Turn on repeat to schedule more visits."}>
+          <VisitFormSection title="Repeat settings" description={isRecurring ? "Create a repeating schedule from this start date." : careText("Create one visit. Turn on repeat to schedule more visits.")}>
           {/* Recurrence */}
           <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <button
                 type="button"
                 role="switch"
-                aria-label="Repeat this shift"
+                aria-label={careText("Repeat this shift")}
                 aria-checked={isRecurring}
                 onClick={() => setIsRecurring((v) => !v)}
                 className={`relative inline-flex h-5 w-9 items-center border transition-colors ${
@@ -720,8 +723,7 @@ export function CreateShiftDrawer({
                 />
               </button>
               <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-ink-soft">
-                Repeat this shift
-              </span>
+                {careText("Repeat this shift ")}</span>
             </label>
 
             {isRecurring && (
@@ -793,7 +795,7 @@ export function CreateShiftDrawer({
           </div>
 
           </VisitFormSection>
-          <VisitFormSection title="Visit notes" description="Add instructions or context for this visit.">
+          <VisitFormSection title={careText("Visit notes")} description={careText("Add instructions or context for this visit.")}>
           {/* Notes */}
           <form.Field name="notes">
             {(field) => (
@@ -822,8 +824,7 @@ export function CreateShiftDrawer({
 
           {approvalRequested && (
             <p className="font-mono text-[10px] text-ink border border-mint bg-cream-2 px-3 py-2">
-              Request sent — the visit will be scheduled only if a manager or owner approves it.
-            </p>
+              {careText("Request sent — the visit will be scheduled only if a manager or owner approves it. ")}</p>
           )}
 
           {pendingOverride && (
@@ -840,7 +841,7 @@ export function CreateShiftDrawer({
                   <input
                     type="text"
                     className="w-full bg-cream border border-ink px-3 py-2 font-mono text-[11px] text-ink focus:outline-none focus:ring-1 focus:ring-ink"
-                    placeholder="Reason this shift is needed…"
+                    placeholder={careText("Reason this shift is needed…")}
                     value={approvalNote}
                     onChange={(e) => setApprovalNote(e.target.value)}
                   />
@@ -902,7 +903,7 @@ export function CreateShiftDrawer({
                   ? 'Saving…'
                   : isRecurring
                     ? 'Create Recurring'
-                    : 'Create Shift'}
+                    : careText("Create Shift")}
               </button>
             )}
           </form.Subscribe>

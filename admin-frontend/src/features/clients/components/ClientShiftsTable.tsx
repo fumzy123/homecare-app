@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useClientShifts } from '../hooks/useClientShifts'
 import { format } from 'date-fns'
-import { shiftsApi, type ShiftOccurrence } from '@/features/shifts/api'
+import { type ShiftOccurrence } from '@/features/shifts/api'
 import { ShiftStatusBadge } from '@/shared/components/ui'
 import { ShiftDetailDrawer } from '@/features/shifts/components/ShiftDetailDrawer'
 import { sumHours } from '@/features/shifts/utils/aggregations'
@@ -11,10 +11,7 @@ export function ClientShiftsTable({ clientId, from, to, periodLabel }: { clientI
   const [selectedShift, setSelectedShift] = useState<ShiftOccurrence | null>(null)
   const [filterStatus, setFilterStatus]   = useState('')
 
-  const { data: shifts = [], isLoading } = useQuery({
-    queryKey: ['shifts', from, to, '', clientId],
-    queryFn:  () => shiftsApi.listShifts(from, to, undefined, clientId),
-  })
+  const { data: shifts = [], isLoading } = useClientShifts(clientId, from, to)
 
   const filtered  = shifts.filter((s) => !filterStatus || s.completion_status === filterStatus)
   const periodHrs = Math.round(sumHours(filtered))
@@ -50,7 +47,7 @@ export function ClientShiftsTable({ clientId, from, to, periodLabel }: { clientI
         {isLoading ? (
           <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">LOADING…</p>
         ) : sorted.length === 0 ? (
-          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO SHIFTS IN THIS PERIOD</p>
+          <p className="px-6 py-8 font-mono text-[10px] text-muted text-center tracking-wide">NO VISITS IN THIS PERIOD</p>
         ) : (
           <div className="px-6 py-5">
             <div className="grid grid-cols-5 gap-6 pb-2 border-b border-ink">

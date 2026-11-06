@@ -1,3 +1,4 @@
+import { CareTerminology } from '@/shared/components/CareTerminology'
 import { useState } from 'react'
 import { Link, Outlet, useMatches } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -185,7 +186,7 @@ export function WorkerWorkspace({ workerId }: { workerId: string }) {
       ),
     ).length || 0
   return (
-    <WorkerProfileContext
+    <CareTerminology value="shift"><WorkerProfileContext
       value={{
         worker,
         today: clock.today,
@@ -244,7 +245,7 @@ export function WorkerWorkspace({ workerId }: { workerId: string }) {
             onClick={() => setCreating(true)}
           >
             <Plus size={16} />
-            Schedule visit
+            Schedule shift
           </button>
         </header>
         <div className="wp-contactline">
@@ -312,6 +313,6 @@ export function WorkerWorkspace({ workerId }: { workerId: string }) {
           />
         )}
       </div>
-    </WorkerProfileContext>
+    </WorkerProfileContext></CareTerminology>
   )
 }
