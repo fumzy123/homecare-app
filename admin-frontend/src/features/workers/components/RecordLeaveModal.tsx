@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useState } from 'react'
 import { useReviewWorkerLeave } from '../hooks/useWorkerProfile'
@@ -23,6 +24,7 @@ export function RecordLeaveModal({
   isPending: boolean
   error: string | null
 }) {
+  const confirm = useConfirmation()
   const [type, setType] = useState<LeaveType>('sick'),
     [start, setStart] = useState(''),
     [end, setEnd] = useState(''),
@@ -33,9 +35,9 @@ export function RecordLeaveModal({
   const reviewed = review?.key === key ? review : null
   const busy = isPending || reviewMutation.isPending
   const dirty = !!(start || end || notes || type !== 'sick')
-  useUnsavedChanges(dirty || isPending)
-  const close = () => {
-    if (!busy && (!dirty || window.confirm('Discard this leave record?')))
+  useUnsavedChanges(dirty, undefined, busy)
+  const close = async () => {
+    if (!busy && (!dirty || await confirm({ title: 'Discard your leave entry?' })))
       onClose()
   }
   return (

@@ -110,7 +110,7 @@ function ProfileForm({ worker }: { worker: OrgMember }) {
   })
   const dirty = useStore(form.store, (s) => s.isDirty),
     busy = useStore(form.store, (s) => s.isSubmitting)
-  useUnsavedChanges(dirty || busy)
+  useUnsavedChanges(dirty, undefined, busy)
   const textField = (
     name: Exclude<keyof typeof initial, 'is_active'>,
     label: string,

@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { MAX_INPUT_MONTH } from '@/shared/lib/date'
 import { useState } from 'react'
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns'
@@ -9,11 +10,13 @@ import { VisitNotes } from './ClientVisitDialog'
 import type { ClientNoteItem } from '../api'
 
 export function ClientNotes({ clientId }: { clientId: string }) {
+  const confirm = useConfirmation()
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'))
   const [worker, setWorker] = useState('')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<ClientNoteItem | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [savingNote, setSavingNote] = useState(false)
   const date = parseISO(`${month}-01`)
   const query = useClientNotes(
     clientId,
@@ -152,8 +155,9 @@ export function ClientNotes({ clientId }: { clientId: string }) {
       {selected && (
         <ClientDialog
           title={`Visit notes · ${format(parseISO(selected.occurrence_date), 'MMM d, yyyy')}`}
-          onClose={() => {
-            if (dirty && !window.confirm('Discard this unsaved note?')) return
+          onClose={async () => {
+            if (savingNote) return
+            if (dirty && !(await confirm({ title: 'Discard this unsaved note?' }))) return
             setDirty(false)
             setSelected(null)
           }}
@@ -162,6 +166,7 @@ export function ClientNotes({ clientId }: { clientId: string }) {
             shiftId={selected.shift_id}
             date={selected.occurrence_date}
             onDirtyChange={setDirty}
+            onBusyChange={setSavingNote}
           />
         </ClientDialog>
       )}

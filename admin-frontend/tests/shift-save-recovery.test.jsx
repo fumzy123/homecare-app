@@ -1,3 +1,4 @@
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
@@ -39,13 +40,30 @@ beforeEach(async () => {
   qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   container = document.createElement('div'); document.body.append(container)
   root = createRoot(container)
-  await act(async () => root.render(<QueryClientProvider client={qc}><ShiftDetailDrawer shift={shift} onClose={api.close} /></QueryClientProvider>))
+  await act(async () => root.render(<QueryClientProvider client={qc}><ConfirmationProvider><ShiftDetailDrawer shift={shift} onClose={api.close} /></ConfirmationProvider></QueryClientProvider>))
   await settle()
   await click('Edit')
 })
 afterEach(async () => {
   await act(async () => { root.unmount(); onlineManager.setOnline(true) })
   container.remove(); qc.clear()
+})
+
+test('closing a dirty shift uses app confirmation and keeps edits until explicit discard', async () => {
+  const input = container.querySelector('textarea')
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input, 'Changed draft')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => container.querySelector('[aria-label="Close edit visit"]').click())
+  expect(container.querySelector('.app-confirm h2').textContent).toBe('Discard visit changes?')
+  await click('Keep editing')
+  expect(api.close).not.toHaveBeenCalled()
+  expect(input.value).toBe('Changed draft')
+  await act(async () => container.querySelector('[aria-label="Close edit visit"]').click())
+  await click('Discard and close')
+  expect(api.close).toHaveBeenCalledTimes(1)
+  expect(api.updateModification).not.toHaveBeenCalled()
 })
 
 test('offline recurring save keeps the draft, never resumes automatically, then retries only this occurrence', async () => {
@@ -90,7 +108,7 @@ test('discard after an offline failure leaves nothing queued for reconnection', 
 })
 
 async function openReplacement() {
-  await act(async () => root.render(<QueryClientProvider client={qc}><ShiftDetailDrawer key="dropped" shift={{ ...shift, completion_status: 'dropped', dropped_reason: 'Worker on leave' }} onClose={api.close} /></QueryClientProvider>))
+  await act(async () => root.render(<QueryClientProvider client={qc}><ConfirmationProvider><ShiftDetailDrawer key="dropped" shift={{ ...shift, completion_status: 'dropped', dropped_reason: 'Worker on leave' }} onClose={api.close} /></ConfirmationProvider></QueryClientProvider>))
   await settle()
   expect(container.textContent).toContain('Needs replacement')
   expect(container.querySelector('select')).toBeNull()
@@ -187,7 +205,7 @@ test('pending leave checks and newly recorded leave prevent saving a selected wo
 
 test.each(['shift', 'visit'])('shared dialogs follow the %s perspective without changing saved data', async term => {
   const entry = { ...shift, notes: 'Discuss visits and shifts with the family.' }
-  await act(async () => root.render(<QueryClientProvider client={qc}><CareTerminology value={term}><ShiftDetailDrawer shift={entry} onClose={api.close} /></CareTerminology></QueryClientProvider>))
+  await act(async () => root.render(<QueryClientProvider client={qc}><ConfirmationProvider><CareTerminology value={term}><ShiftDetailDrawer shift={entry} onClose={api.close} /></CareTerminology></ConfirmationProvider></QueryClientProvider>))
   await settle()
   expect(container.querySelector('h2').textContent).toBe(`${term === 'shift' ? 'Shift' : 'Visit'} details`)
   await click('Edit')

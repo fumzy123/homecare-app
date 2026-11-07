@@ -1,4 +1,5 @@
 import { AttendanceSummary } from './AttendanceSummary'
+import { useConfirmation } from '@/shared/components/confirmation'
 import { formatDateRange, MAX_INPUT_MONTH } from '@/shared/lib/date'
 import { useState } from 'react'
 import { format, endOfMonth, parseISO } from 'date-fns'
@@ -19,6 +20,7 @@ import { RecordLeaveModal } from './RecordLeaveModal'
 import { WorkerAttendanceReport } from './WorkerAttendanceReport'
 
 export function WorkerAttendance({ section }: { section?: string }) {
+  const confirm = useConfirmation()
   const { worker, today } = useWorkerProfileContext()
   const [month, setMonth] = useState(today.slice(0, 7)),
     [year, setYear] = useState(Number(today.slice(0, 4)))
@@ -104,12 +106,13 @@ export function WorkerAttendance({ section }: { section?: string }) {
               className="wp-link"
               disabled={mutations.remove.isPending}
               onClick={() => {
-                if (
-                  window.confirm(
-                    `Remove the leave record for ${formatDateRange(record.start_date, record.end_date)}? Unresolved shifts will still need cover, and replacements will be retained. Review the schedule afterwards.`,
-                  )
-                )
-                  mutations.remove.mutate(record.id)
+                void confirm({
+                  title: 'Remove leave record?',
+                  description: `${worker.first_name} ${worker.last_name} · ${LEAVE_TYPE_LABELS[record.leave_type]} · ${formatDateRange(record.start_date, record.end_date)}. Unresolved shifts will still need cover, and replacement workers will remain assigned. Review the schedule after removing this record.`,
+                  cancelLabel: 'Keep record',
+                  confirmLabel: 'Remove leave record',
+                  onConfirm: () => mutations.remove.mutateAsync(record.id),
+                })
               }}
             >
               Remove

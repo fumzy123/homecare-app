@@ -1,3 +1,4 @@
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, test, vi } from 'vitest'
@@ -14,7 +15,7 @@ async function mounted(element, run) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
-  try { await act(async () => root.render(element)); await run(container) }
+  try { await act(async () => root.render(<ConfirmationProvider>{element}</ConfirmationProvider>)); await run(container) }
   finally { await act(async () => root.unmount()); container.remove() }
 }
 async function setInput(input, value) {

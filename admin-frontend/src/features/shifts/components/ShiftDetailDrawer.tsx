@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { useRequestOvertime } from '../hooks/useOvertimeMutations'
@@ -292,11 +293,12 @@ export function ShiftDetailDrawer({ shift, onClose, hideEdit = false }: ShiftDet
     setEditError(null); setPendingOverride(null); setIsEditing(false)
   }
 
+  const confirm = useConfirmation()
   const busy = saveMutation.isPending || deleteMutation.isPending || requestOvertime.isPending
   const dirty = !!replacementWorkerId || replacementConfirmed || workerId !== shift.worker.id || clientId !== shift.client.id || date !== format(start, 'yyyy-MM-dd') || endDate !== format(end, 'yyyy-MM-dd') || startTime !== format(start, 'HH:mm') || endTime !== format(end, 'HH:mm') || location !== (shift.location ?? '') || notes !== (shift.notes ?? '') || completionStatus !== shift.completion_status || recurrenceChanged() || recurrenceEndDate !== (shift.recurrence_end_date ?? '')
-  function requestClose() {
+  async function requestClose() {
     if (busy) return
-    if (!isEditing || !dirty || window.confirm(careText("Discard your unsaved visit changes?"))) onClose()
+    if (!isEditing || !dirty || await confirm({ title: careText("Discard visit changes?") })) onClose()
   }
 
   return (

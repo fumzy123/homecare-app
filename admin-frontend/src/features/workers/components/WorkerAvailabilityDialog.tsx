@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type {
@@ -20,6 +21,7 @@ export function WorkerAvailabilityDialog({
   entries: AvailabilityEntry[]
   onClose: () => void
 }) {
+  const confirm = useConfirmation()
   const initial = entries.map((e) => ({
     day_of_week: e.day_of_week,
     start_time: e.start_time.slice(0, 5),
@@ -29,11 +31,11 @@ export function WorkerAvailabilityDialog({
     [error, setError] = useState('')
   const save = useSaveWorkerAvailability(workerId)
   const dirty = JSON.stringify(rows) !== JSON.stringify(initial)
-  useUnsavedChanges(dirty || save.isPending)
-  const close = () => {
+  useUnsavedChanges(dirty, undefined, save.isPending)
+  const close = async () => {
     if (
       !save.isPending &&
-      (!dirty || window.confirm('Discard these availability changes?'))
+      (!dirty || await confirm({ title: 'Discard availability changes?' }))
     )
       onClose()
   }

@@ -1,3 +1,4 @@
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 /* Isolated sample host for the production Tower components. No auth or business API calls. */
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -351,6 +352,6 @@ const router = createRouter({
 });
 createRoot(document.getElementById("root")).render(
   <QueryClientProvider client={qc}>
-    <RouterProvider router={router} />
+    <ConfirmationProvider><RouterProvider router={router} /></ConfirmationProvider>
   </QueryClientProvider>,
 );

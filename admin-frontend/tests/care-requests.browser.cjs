@@ -351,8 +351,8 @@ async function run() {
     await page.getByRole('link', { name: 'View posted care request', exact: true }).waitFor()
     await page.getByRole('button', { name: 'Create new revision', exact: true }).click()
     assert.equal(await page.getByRole('combobox', { name: 'Viewing revision', exact: true }).isDisabled(), true, 'Cannot switch revisions while editing')
-    page.once('dialog', (dialog) => dialog.dismiss())
     await page.getByRole('navigation', { name: 'Breadcrumb', exact: true }).getByRole('link', { name: 'Clients', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Discard changes and leave?' }).getByRole('button', { name: 'Keep editing' }).click()
     await page.getByRole('heading', { name: 'New revision', exact: true }).waitFor()
     await page.getByRole('button', { name: 'Cancel', exact: true }).click()
     const revision = page.getByRole('combobox', { name: 'Viewing revision', exact: true })
@@ -366,19 +366,22 @@ async function run() {
     assert.equal(await page.getByLabel('Coverage starts', { exact: true }).inputValue(), '2026-11-02')
     assert.equal(approvals.length, 0)
     // Return drafts are consumed: a confirmed unrelated departure discards edits.
-    page.once('dialog', (dialog) => dialog.accept())
     await page.getByRole('link', { name: 'All care requests', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Leave approval?' }).getByRole('button', { name: 'Discard and leave' }).click()
     await page.getByRole('link', { name: 'View Robert Ellis' }).click()
     await select().first().waitFor()
     assert.equal(await select().first().inputValue(), '')
     // Partial selection uses actual durations and requires the gap acknowledgment.
     await select().first().selectOption(workerId)
     await page.getByText('1.5h / week', { exact: true }).waitFor()
+    await page.evaluate(() => window.history.back())
+    await page.getByRole('dialog', { name: 'Leave approval?' }).getByRole('button', { name: 'Continue reviewing' }).click()
+    assert.equal(await select().first().inputValue(), workerId, 'Back cancellation preserves the draft')
     await page.getByRole('button', { name: /^Open Action Tower/ }).click()
-    page.once('dialog', (dialog) => dialog.dismiss())
     await page
       .getByRole('button', { name: 'Review interested workers', exact: true })
       .click()
+    await page.getByRole('dialog', { name: 'Leave approval?' }).getByRole('button', { name: 'Continue reviewing' }).click()
     assert.equal(
       await select().first().inputValue(),
       workerId,

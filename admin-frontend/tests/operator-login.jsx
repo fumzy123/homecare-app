@@ -1,3 +1,4 @@
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 // Development-only fixture. No credentials or agency records leave this page.
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -28,4 +29,4 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/dashboard', component: () => <h1>Agency dashboard reached</h1> }),
 ]
 const router = createRouter({ routeTree: root.addChildren(routes), history: createMemoryHistory({ initialEntries: ['/login'] }) })
-createRoot(document.getElementById('root')).render(<QueryClientProvider client={new QueryClient()}><RouterProvider router={router} /></QueryClientProvider>)
+createRoot(document.getElementById('root')).render(<QueryClientProvider client={new QueryClient()}><ConfirmationProvider><RouterProvider router={router} /></ConfirmationProvider></QueryClientProvider>)

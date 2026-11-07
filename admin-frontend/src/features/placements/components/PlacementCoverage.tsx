@@ -52,7 +52,12 @@ export function PlacementCoverage({
   const [closing, setClosing] = useState(false)
   const [success, setSuccess] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
-  useUnsavedChanges(Object.values(selected).some(Boolean) && !approve.isPending)
+  useUnsavedChanges(!success && (Object.values(selected).some(Boolean) || Boolean(startsOn)), {
+    title: 'Leave approval?',
+    description: 'Your worker selections and coverage start date have not been approved. Leaving will discard this draft. Existing scheduled visits will stay unchanged.',
+    cancelLabel: 'Continue reviewing',
+    confirmLabel: 'Discard and leave',
+  }, approve.isPending)
   if (query.isPending)
     return (
       <p role="status" className="cr-page">

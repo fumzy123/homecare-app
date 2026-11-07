@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { useEffect, useState } from 'react'
 import { useUnsavedChanges } from '@/features/attention/hooks/useUnsavedChanges'
 import { format, parseISO } from 'date-fns'
@@ -14,11 +15,14 @@ export function VisitNotes({
   shiftId,
   date,
   onDirtyChange,
+  onBusyChange,
 }: {
   shiftId: string
   date: string
   onDirtyChange?: (dirty: boolean) => void
+  onBusyChange?: (busy: boolean) => void
 }) {
+  const confirm = useConfirmation()
   const note = useVisitNote(shiftId, date)
   const append = useAppendVisitNote(shiftId, date)
   const [adding, setAdding] = useState(false)
@@ -26,10 +30,11 @@ export function VisitNotes({
   const [time, setTime] = useState(format(new Date(), 'HH:mm'))
   const [kind, setKind] = useState('Follow-up')
   const dirty = adding && !!content.trim()
-  useUnsavedChanges(dirty && !append.isPending)
+  useUnsavedChanges(dirty, undefined, append.isPending)
   useEffect(() => {
     onDirtyChange?.(dirty || append.isPending)
   }, [dirty, append.isPending, onDirtyChange])
+  useEffect(() => { onBusyChange?.(append.isPending) }, [append.isPending, onBusyChange])
   if (note.isPending || note.isError)
     return (
       <ClientLoading error={note.isError} retry={() => void note.refetch()} />
@@ -130,8 +135,8 @@ export function VisitNotes({
               type="button"
               className="cw-btn"
               disabled={append.isPending}
-              onClick={() => {
-                if (dirty && !window.confirm('Discard this unsaved note?'))
+              onClick={async () => {
+                if (dirty && !(await confirm({ title: 'Discard this unsaved note?' })))
                   return
                 setContent('')
                 setAdding(false)
@@ -152,15 +157,17 @@ export function ClientVisitDialog({
   visit: ShiftOccurrence
   onClose: () => void
 }) {
+  const confirm = useConfirmation()
   const [manage, setManage] = useState(false)
   const [dirty, setDirty] = useState(false)
-  const canLeave = () => !dirty || window.confirm('Discard this unsaved note?')
+  const [savingNote, setSavingNote] = useState(false)
+  const canLeave = async () => !savingNote && (!dirty || await confirm({ title: 'Discard this unsaved note?' }))
   if (manage) return <ShiftDetailDrawer shift={visit} onClose={onClose} />
   return (
     <ClientDialog
       title="Visit details"
-      onClose={() => {
-        if (canLeave()) onClose()
+      onClose={async () => {
+        if (await canLeave()) onClose()
       }}
     >
       <div className="cw-stack">
@@ -192,8 +199,9 @@ export function ClientVisitDialog({
         )}
         <button
           className="cw-btn self-start"
-          onClick={() => {
-            if (canLeave()) setManage(true)
+          disabled={savingNote}
+          onClick={async () => {
+            if (await canLeave()) setManage(true)
           }}
         >
           <Pencil size={14} /> Manage visit
@@ -203,6 +211,7 @@ export function ClientVisitDialog({
             shiftId={visit.shift_id}
             date={visit.date}
             onDirtyChange={setDirty}
+            onBusyChange={setSavingNote}
           />
         </div>
       </div>

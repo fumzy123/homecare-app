@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { MAX_INPUT_DATE } from '@/shared/lib/date'
 import { useRef, useState } from 'react'
 import { ArrowUpRight, FileCheck2, FileText, Upload } from 'lucide-react'
@@ -32,6 +33,7 @@ function DocumentEditor({
   credential?: WorkerCredential
   onClose: () => void
 }) {
+  const confirm = useConfirmation()
   const verify = useVerifyCredential(workerId),
     upload = useUploadCredential(workerId)
   const [expiry, setExpiry] = useState(credential?.expiry_date || ''),
@@ -40,9 +42,9 @@ function DocumentEditor({
   const input = useRef<HTMLInputElement>(null)
   const busy = verify.isPending || upload.isPending || opening
   const dirty = expiry !== (credential?.expiry_date || '')
-  useUnsavedChanges(dirty || busy)
-  const close = () => {
-    if (!busy && (!dirty || window.confirm('Discard this expiry date change?')))
+  useUnsavedChanges(dirty, undefined, busy)
+  const close = async () => {
+    if (!busy && (!dirty || await confirm({ title: 'Discard expiry date change?' })))
       onClose()
   }
   async function preview() {

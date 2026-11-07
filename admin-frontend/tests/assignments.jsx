@@ -1,3 +1,4 @@
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 // Development-only verification host. Every API request ends in this adapter.
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -41,4 +42,4 @@ const client = createRoute({ getParentRoute: () => root, path: '/client', compon
 const replacement = createRoute({ getParentRoute: () => root, path: '/dashboard/placements/$placementId', component: () => <p>Existing care request approval workflow</p> })
 const router = createRouter({ routeTree: root.addChildren([worker, client, replacement]), history: createMemoryHistory({ initialEntries: ['/worker'] }) })
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-createRoot(document.getElementById('root')).render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>)
+createRoot(document.getElementById('root')).render(<QueryClientProvider client={queryClient}><ConfirmationProvider><RouterProvider router={router} /></ConfirmationProvider></QueryClientProvider>)

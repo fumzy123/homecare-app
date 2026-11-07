@@ -1,3 +1,4 @@
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 // Actual weekly care editor and assignment dialogs; all data is fictional.
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -38,4 +39,4 @@ const request = createRoute({ getParentRoute: () => root, path: '/dashboard/plac
 const router = createRouter({ routeTree: root.addChildren([client, request]), history: createMemoryHistory({ initialEntries: ['/'] }) })
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 window.refreshAssignedWorkers = () => queryClient.invalidateQueries({ queryKey: ['assignments'] })
-createRoot(document.getElementById('root')).render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>)
+createRoot(document.getElementById('root')).render(<QueryClientProvider client={queryClient}><ConfirmationProvider><RouterProvider router={router} /></ConfirmationProvider></QueryClientProvider>)

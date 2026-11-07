@@ -1,3 +1,4 @@
+import { useConfirmation } from '@/shared/components/confirmation'
 import { useCareTerminology } from '@/shared/components/CareTerminology'
 import { VisitDrawer, VisitFormSection } from './VisitDrawerUI'
 import { requireVisitConnection, visitWriteError } from '../lib/visitWrite'
@@ -304,11 +305,12 @@ export function CreateShiftDrawer({
   const watchClient = useStore(form.store, (s) => s.values.client_id)
   const isSubmitting = useStore(form.store, s => s.isSubmitting)
   const formDirty = useStore(form.store, s => s.isDirty)
+  const confirm = useConfirmation()
   const busy = isSubmitting || requestOvertime.isPending
   const dirty = formDirty || !!location || isRecurring || !!recurrenceEndDate || frequency !== 'weekly' || daysOfWeek.length > 0 || endDate !== defaultDate
-  function requestClose() {
+  async function requestClose() {
     if (busy) return
-    if (approvalRequested || !dirty || window.confirm(careText("Discard this unsaved visit?"))) onClose()
+    if (approvalRequested || !dirty || await confirm({ title: careText("Discard this unsaved visit?") })) onClose()
   }
   const sameDayBlock =
     !!watchDate && !!watchStart && !!watchEnd && watchStart < watchEnd

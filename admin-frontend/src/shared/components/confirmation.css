@@ -1,0 +1,12 @@
+.app-confirm { margin: auto; width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; background: var(--color-paper); color: var(--color-ink); border: 1px solid var(--color-ink); padding: 0; }
+.app-confirm::backdrop { background: rgb(0 0 0 / 35%); }
+.app-confirm header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid var(--color-line-soft); }
+.app-confirm h2 { font: 30px/1.15 var(--font-serif); }
+.app-confirm-body { padding: 24px; font: 15px/1.6 var(--font-sans); }
+.app-confirm footer { display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap; padding: 0 24px 24px; }
+.app-confirm button { border: 1px solid var(--color-ink); padding: 10px 18px; border-radius: 99px; font: 12px/1.5 var(--font-mono); cursor: pointer; }
+.app-confirm header button { padding: 10px; }
+.app-confirm .app-confirm-action { background: var(--color-ink); color: var(--color-paper); }
+.app-confirm button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+.app-confirm button:disabled { opacity: .55; cursor: wait; }
+.app-confirm-error { margin-top: 16px; color: #a12b36; }

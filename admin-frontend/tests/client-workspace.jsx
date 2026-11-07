@@ -1,6 +1,7 @@
 // Development-only fixture host. Imports the actual components; all API requests
 // terminate in this adapter. No login, token, database or production entry changes.
 import React from 'react'
+import { ConfirmationProvider } from '../src/shared/components/ConfirmationProvider'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -382,6 +383,6 @@ const router = createRouter({
 })
 createRoot(document.getElementById('root')).render(
   <QueryClientProvider client={qc}>
-    <RouterProvider router={router} />
+    <ConfirmationProvider><RouterProvider router={router} /></ConfirmationProvider>
   </QueryClientProvider>,
 )
